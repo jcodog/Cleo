@@ -1,6 +1,7 @@
+import { now as timeNow } from "../../../src"
 import { ConvexError, v } from "convex/values"
+
 import { mutation } from "../../_generated/server"
-import { now as timeNow } from "@backend"
 
 export const upsertFromAuth = mutation({
   args: {

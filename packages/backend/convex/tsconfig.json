@@ -18,11 +18,7 @@
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "isolatedModules": true,
-    "noEmit": true,
-    "paths": {
-      "@backend/*": ["../src/*"],
-      "@backend": ["../src/index.ts"]
-    }
+    "noEmit": true
   },
   "include": ["./**/*", "../src/**/*.ts"],
   "exclude": ["./_generated"]

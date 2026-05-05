@@ -1,4 +1,4 @@
-export const USER_ROLES = ["user", "staff", "admin"] as const
+export const USER_ROLES = ["user", "staff", "admin", "superadmin"] as const
 
 export const LINKED_PROVIDERS = ["discord", "kick", "twitch", "github"] as const
 
@@ -14,6 +14,7 @@ export const PLANS = ["free", "pro", "team", "enterprise"] as const
 
 export const ENTITLEMENT_SOURCES = [
   "stripe",
+  "discord",
   "manual",
   "promo",
   "internal",
