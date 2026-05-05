@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono, Outfit } from "next/font/google"
+import { ClerkProvider } from "@clerk/nextjs"
 
 import "@workspace/ui/globals.css"
 import { AppProviders } from "@/components/app-providers"
@@ -32,9 +33,16 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider>
-          <AppProviders>{children}</AppProviders>
-        </ThemeProvider>
+        <ClerkProvider
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+          signInFallbackRedirectUrl="/dashboard"
+          signUpFallbackRedirectUrl="/dashboard"
+        >
+          <ThemeProvider>
+            <AppProviders>{children}</AppProviders>
+          </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   )

@@ -9,8 +9,8 @@ export const backendEnv = createEnv({
     CONVEX_DEPLOYMENT: optionalString,
     CONVEX_URL: optionalUrl,
 
-    WORKOS_CLIENT_ID: optionalString,
-    WORKOS_API_KEY: optionalString,
+    CLERK_JWT_ISSUER_DOMAIN: optionalUrl,
+    CLERK_SECRET_KEY: optionalString,
 
     STRIPE_SECRET_KEY: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,

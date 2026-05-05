@@ -12,8 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.3.0",
     "@tabler/icons-react": "^3.42.0",
-    "@workos-inc/authkit-nextjs": "^3.0.1",
     "@workspace/backend": "workspace:*",
     "@workspace/ui": "workspace:*",
     "convex": "^1.37.0",

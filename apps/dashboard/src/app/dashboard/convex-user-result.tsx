@@ -24,7 +24,7 @@ function ConvexUserDetails() {
       {JSON.stringify(
         {
           id: user._id,
-          workosUserId: user.workosUserId,
+          clerkUserId: user.clerkUserId,
           email: user.email,
           displayName: user.displayName ?? null,
           role: user.role,

@@ -177,7 +177,7 @@ export type DataModel = {
       imageUrl?: string;
       role: "user" | "staff" | "admin" | "superadmin";
       updatedAt: number;
-      workosUserId: string;
+      clerkUserId: string;
       _id: Id<"users">;
       _creationTime: number;
     };
@@ -190,13 +190,13 @@ export type DataModel = {
       | "imageUrl"
       | "role"
       | "updatedAt"
-      | "workosUserId";
+      | "clerkUserId";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
+      by_clerk_user_id: ["clerkUserId", "_creationTime"];
       by_email: ["email", "_creationTime"];
       by_role: ["role", "_creationTime"];
-      by_workos_user_id: ["workosUserId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

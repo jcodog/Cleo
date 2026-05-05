@@ -20,7 +20,7 @@ export const upsertFromAuth = mutation({
     }
 
     const now = timeNow()
-    const workosUserId = identity.subject
+    const clerkUserId = identity.subject
     const email = identity.email ?? args.email
 
     if (!email) {
@@ -41,7 +41,7 @@ export const upsertFromAuth = mutation({
 
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_workos_user_id", (q) => q.eq("workosUserId", workosUserId))
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
       .unique()
 
     if (existing) {
@@ -56,7 +56,7 @@ export const upsertFromAuth = mutation({
     }
 
     return await ctx.db.insert("users", {
-      workosUserId,
+      clerkUserId,
       email,
       ...(displayName !== undefined ? { displayName } : {}),
       ...(imageUrl !== undefined ? { imageUrl } : {}),

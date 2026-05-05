@@ -33,7 +33,7 @@ Stats are a separate product/project.
 - shadcn/ui
 - Tailwind CSS
 - Convex
-- WorkOS
+- Clerk
 
 ## Design system
 
@@ -68,7 +68,7 @@ General UI direction:
 
 - Do not add Prisma.
 - Use Convex as the backend source of truth.
-- Use WorkOS as the primary auth provider.
+- Use Clerk as the primary auth provider.
 - Treat Discord, Kick, Twitch, and GitHub as linked accounts.
 - Keep shared logic in packages.
 - Keep app-specific code inside apps.

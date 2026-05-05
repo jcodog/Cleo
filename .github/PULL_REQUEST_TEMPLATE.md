@@ -17,7 +17,7 @@ Describe what changed and why.
 - [ ] I did not add Prisma
 - [ ] I did not add stats support to Cleo
 - [ ] I kept Convex as the backend source of truth
-- [ ] I kept WorkOS as the primary auth direction
+- [ ] I kept Clerk as the primary auth direction
 
 ## Checks
 

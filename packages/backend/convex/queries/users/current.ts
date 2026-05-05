@@ -11,8 +11,8 @@ export const get = query({
 
     return await ctx.db
       .query("users")
-      .withIndex("by_workos_user_id", (q) =>
-        q.eq("workosUserId", identity.subject)
+      .withIndex("by_clerk_user_id", (q) =>
+        q.eq("clerkUserId", identity.subject)
       )
       .unique()
   },

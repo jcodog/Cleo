@@ -1,5 +1,4 @@
 import { createEnv } from "@t3-oss/env-core"
-import { z } from "zod"
 
 import { nodeEnv, optionalString, optionalUrl } from "./shared"
 
@@ -10,9 +9,7 @@ export const webEnv = createEnv({
     CONVEX_DEPLOYMENT: optionalString,
     CONVEX_URL: optionalUrl,
 
-    WORKOS_CLIENT_ID: optionalString,
-    WORKOS_API_KEY: optionalString,
-    WORKOS_COOKIE_PASSWORD: z.string().min(32).optional(),
+    CLERK_SECRET_KEY: optionalString,
 
     STRIPE_SECRET_KEY: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,
@@ -27,7 +24,11 @@ export const webEnv = createEnv({
   client: {
     NEXT_PUBLIC_CONVEX_URL: optionalUrl,
     NEXT_PUBLIC_APP_URL: optionalUrl,
-    NEXT_PUBLIC_WORKOS_REDIRECT_URI: optionalUrl,
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
+    NEXT_PUBLIC_CLERK_SIGN_IN_URL: optionalString,
+    NEXT_PUBLIC_CLERK_SIGN_UP_URL: optionalString,
+    NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: optionalString,
+    NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: optionalString,
   },
   runtimeEnv: process.env,
 })

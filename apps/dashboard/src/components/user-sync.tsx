@@ -1,38 +1,36 @@
 "use client"
 
 import * as React from "react"
-import { useAuth } from "@workos-inc/authkit-nextjs/components"
+import { useUser } from "@clerk/nextjs"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Authenticated, useMutation } from "convex/react"
 
-function displayNameForUser(user: {
-  firstName: string | null
-  lastName: string | null
-}) {
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ")
-
-  return name || undefined
-}
-
 function UserSyncInner() {
-  const { user } = useAuth()
+  const { isLoaded, user } = useUser()
   const upsertFromAuth = useMutation(api.mutations.users.auth.upsertFromAuth)
   const lastSyncKey = React.useRef<string | null>(null)
 
   React.useEffect(() => {
+    if (!isLoaded) {
+      return
+    }
+
     if (!user) {
       lastSyncKey.current = null
       return
     }
 
-    const displayName = displayNameForUser(user)
-    const imageUrl = user.profilePictureUrl ?? undefined
-    const syncKey = JSON.stringify([
-      user.id,
-      user.email,
-      displayName,
-      imageUrl,
-    ])
+    const email =
+      user.primaryEmailAddress?.emailAddress ??
+      user.emailAddresses[0]?.emailAddress
+
+    if (!email) {
+      return
+    }
+
+    const displayName = user.fullName ?? user.username ?? undefined
+    const imageUrl = user.imageUrl || undefined
+    const syncKey = JSON.stringify([user.id, email, displayName, imageUrl])
 
     if (lastSyncKey.current === syncKey) {
       return
@@ -41,13 +39,13 @@ function UserSyncInner() {
     lastSyncKey.current = syncKey
 
     void upsertFromAuth({
-      email: user.email,
+      email,
       displayName,
       imageUrl,
     }).catch(() => {
       lastSyncKey.current = null
     })
-  }, [upsertFromAuth, user])
+  }, [isLoaded, upsertFromAuth, user])
 
   return null
 }

@@ -14,7 +14,7 @@ Stats are a separate product/project.
 
 - Use Convex for backend data and business logic.
 - Do not add Prisma.
-- Use WorkOS as the primary auth identity.
+- Use Clerk as the primary auth identity.
 - Treat Discord, Kick, Twitch, and GitHub as linked accounts.
 - Keep shared logic in packages, not duplicated inside apps.
 - Keep UI consistent with the Cleo design system.
@@ -43,7 +43,7 @@ type(scope): imperative summary
 Examples:
 
 ```txt
-feat(auth): add WorkOS callback shell
+feat(auth): add Clerk dashboard auth
 fix(discord): handle missing guild config
 chore(repo): add GitHub health files
 ```

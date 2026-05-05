@@ -47,7 +47,7 @@ Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analyt
 - shadcn/ui
 - Tailwind CSS
 - Convex
-- WorkOS
+- Clerk
 - TypeScript
 
 ## Rules
@@ -55,7 +55,7 @@ Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analyt
 - Use Bun only.
 - Do not introduce Prisma.
 - Use Convex for backend data and business logic.
-- Use WorkOS as the primary auth provider.
+- Use Clerk as the primary auth provider.
 - Treat Discord, Kick, Twitch, and GitHub as linked accounts.
 - Keep app UI dark-first, clean, and consistent with the Cleo design system.
 - Do not add stats support to Cleo.
