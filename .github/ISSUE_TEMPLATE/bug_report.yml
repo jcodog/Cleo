@@ -1,0 +1,43 @@
+name: Bug report
+description: Report something broken in Cleo
+title: "bug: "
+labels:
+  - bug
+
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What broke?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Web
+        - Backend
+        - Discord bot
+        - Kick bot
+        - WebSocket relay
+        - Shared package
+        - Tooling/docs
+    validations:
+      required: true
