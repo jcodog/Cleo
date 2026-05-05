@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono, Outfit } from "next/font/google"
 
 import "@workspace/ui/globals.css"
+import { AppProviders } from "@/components/app-providers"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -31,7 +32,9 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AppProviders>{children}</AppProviders>
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values"
-import { now as timeNow } from "../../../src"
+import { now as timeNow } from "../../../src/lib/time"
 import { mutation } from "../../_generated/server"
 import { linkedProvider } from "../../dbTables/shared"
 

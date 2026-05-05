@@ -1,19 +1,26 @@
-import { Button } from "@workspace/ui/components/button"
+import Link from "next/link"
+import { buttonVariants } from "@workspace/ui/components/button"
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="text-muted-foreground font-mono text-xs">
-          (Press <kbd>d</kbd> to toggle dark mode)
+    <main className="flex min-h-svh items-center p-6">
+      <div className="flex max-w-sm min-w-0 flex-col gap-4 text-sm">
+        <h1 className="font-heading text-2xl font-medium">Cleo</h1>
+        <p className="text-muted-foreground">
+          Sign in to open the dashboard.
+        </p>
+        <div className="flex gap-2">
+          <Link href="/sign-in" className={buttonVariants()}>
+            Sign in
+          </Link>
+          <Link
+            href="/sign-up"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Sign up
+          </Link>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

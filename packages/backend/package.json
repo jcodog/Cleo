@@ -28,6 +28,9 @@
     "./env": "./src/env/index.ts",
     "./env/server": "./src/env/server.ts",
     "./lib": "./src/lib/index.ts",
+    "./lib/time": "./src/lib/time.ts",
+    "./lib/errors": "./src/lib/errors.ts",
+    "./lib/ids": "./src/lib/ids.ts",
     "./shared": "./src/shared/index.ts",
     "./convex/_generated/*": "./convex/_generated/*"
   }

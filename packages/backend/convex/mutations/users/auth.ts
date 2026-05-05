@@ -1,4 +1,4 @@
-import { now as timeNow } from "../../../src"
+import { now as timeNow } from "../../../src/lib/time"
 import { ConvexError, v } from "convex/values"
 
 import { mutation } from "../../_generated/server"
