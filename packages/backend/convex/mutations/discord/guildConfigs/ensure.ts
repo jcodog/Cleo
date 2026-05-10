@@ -1,11 +1,13 @@
 import { v } from "convex/values"
+import type { Id } from "../../../_generated/dataModel"
 import { internalMutation } from "../../../_generated/server"
 
 export const forGuild = internalMutation({
   args: {
     guildId: v.id("guilds"),
   },
-  handler: async (ctx, args) => {
+  returns: v.id("guildConfigs"),
+  handler: async (ctx, args): Promise<Id<"guildConfigs">> => {
     const existing = await ctx.db
       .query("guildConfigs")
       .withIndex("by_guild_id", (q) => q.eq("guildId", args.guildId))

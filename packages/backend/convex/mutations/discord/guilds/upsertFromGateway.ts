@@ -1,4 +1,5 @@
 import { v } from "convex/values"
+import type { Id } from "../../../_generated/dataModel"
 import { internalMutation } from "../../../_generated/server"
 
 export const upsert = internalMutation({
@@ -9,7 +10,8 @@ export const upsert = internalMutation({
     ownerDiscordId: v.optional(v.string()),
     botJoinedAt: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  returns: v.id("guilds"),
+  handler: async (ctx, args): Promise<Id<"guilds">> => {
     const now = Date.now()
 
     const existing = await ctx.db

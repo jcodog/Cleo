@@ -4,7 +4,7 @@
 
 This is the Cleo monorepo by JCoNet LTD.
 
-Cleo is an AI assistant platform for web, Discord, Kick, automation, moderation, billing, account management, and real-time tools.
+Cleo is an AI assistant platform for dashboard, Discord, Kick, automation, moderation, billing, account management, and real-time tools.
 
 ## Hard product boundary
 
@@ -74,25 +74,28 @@ General UI direction:
 - Keep app-specific code inside apps.
 - Keep changes small and focused.
 - Prefer explicit types over clever inference.
+- Conserve tokens in reasoning, replies, and comments while preserving code quality.
 - Do not add route aliases unless necessary.
 - Do not create fake data fallbacks that can mislead users.
 - Do not port legacy dashboard UI blindly.
 - Do not redesign major dashboard pages until the backend and auth foundations are stable.
+- Use relevant skills and MCPs selectively when they improve accuracy; do not invoke every available tool blindly.
 
 ## Apps
 
-- `apps/web`: dashboard, marketing, auth, billing, account management
+- `apps/dashboard`: canonical dashboard, auth, account management, and future dashboard billing surfaces
+- `apps/web`: may be added later for a non-dashboard web app
 - `apps/discord-bot`: Discord bot and assistant features
 - `apps/kick-bot`: Kick bot and webhook handling
 - `apps/ws-relay`: real-time relay
 
 ## Packages
 
-- `packages/backend`: Convex backend
-- `packages/ui`: shared shadcn UI
-- `packages/shared`: shared constants, schemas, and types
-- `packages/env`: typed env helpers
-- `packages/logger`: shared logging
+- `packages/backend`: Convex schema, functions, and server-side backend helpers
+- `packages/shared`: Convex-safe and app-safe constants, schemas, and types
+- `packages/logger`: shared typed logging and redaction helpers
+- `packages/env`: typed server and client-safe env entrypoints
+- `packages/ui`: shared shadcn UI primitives using Tabler Icons by default
 
 ## Before finishing work
 

@@ -1,7 +1,9 @@
 import { now as timeNow } from "../../../src/lib/time"
 import { ConvexError, v } from "convex/values"
 
+import type { Id } from "../../_generated/dataModel"
 import { mutation } from "../../_generated/server"
+import { getCurrentIdentity } from "../../lib/auth"
 
 export const upsertFromAuth = mutation({
   args: {
@@ -9,8 +11,9 @@ export const upsertFromAuth = mutation({
     displayName: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
+  returns: v.id("users"),
+  handler: async (ctx, args): Promise<Id<"users">> => {
+    const identity = await getCurrentIdentity(ctx)
 
     if (!identity) {
       throw new ConvexError({
@@ -61,6 +64,7 @@ export const upsertFromAuth = mutation({
       ...(displayName !== undefined ? { displayName } : {}),
       ...(imageUrl !== undefined ? { imageUrl } : {}),
       role: "user",
+      status: "active",
       createdAt: now,
       updatedAt: now,
     })

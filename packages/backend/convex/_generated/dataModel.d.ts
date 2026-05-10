@@ -30,10 +30,10 @@ export type DataModel = {
   errorLogs: {
     document: {
       createdAt: number;
-      level: "debug" | "info" | "warn" | "error" | "fatal";
+      level: "debug" | "info" | "warn" | "error";
       message: string;
       metadata?: any;
-      source: "web" | "discord-bot" | "kick-bot" | "ws-relay" | "backend";
+      source: "dashboard" | "discord-bot" | "kick-bot" | "ws-relay" | "backend";
       stack?: string;
       _id: Id<"errorLogs">;
       _creationTime: number;
@@ -52,6 +52,50 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_level_and_created_at: ["level", "createdAt", "_creationTime"];
       by_source_and_created_at: ["source", "createdAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  discordGuildMemberships: {
+    document: {
+      canManage: boolean;
+      createdAt: number;
+      discordUserId: string;
+      guildId: Id<"guilds">;
+      isOwner?: boolean;
+      managementVerificationSource?:
+        | "discord-bot"
+        | "discord-oauth"
+        | "manual";
+      managementVerifiedAt?: number;
+      updatedAt: number;
+      userId?: Id<"users">;
+      _id: Id<"discordGuildMemberships">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "canManage"
+      | "createdAt"
+      | "discordUserId"
+      | "guildId"
+      | "isOwner"
+      | "managementVerificationSource"
+      | "managementVerifiedAt"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_discord_user_id: ["discordUserId", "_creationTime"];
+      by_guild_id: ["guildId", "_creationTime"];
+      by_guild_id_and_discord_user_id: [
+        "guildId",
+        "discordUserId",
+        "_creationTime",
+      ];
+      by_user_id: ["userId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -176,6 +220,7 @@ export type DataModel = {
       email: string;
       imageUrl?: string;
       role: "user" | "staff" | "admin" | "superadmin";
+      status?: "active" | "disabled";
       updatedAt: number;
       clerkUserId: string;
       _id: Id<"users">;
@@ -189,6 +234,7 @@ export type DataModel = {
       | "email"
       | "imageUrl"
       | "role"
+      | "status"
       | "updatedAt"
       | "clerkUserId";
     indexes: {

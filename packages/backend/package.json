@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@workspace/env": "workspace:*",
+    "@workspace/logger": "workspace:*",
+    "@workspace/shared": "workspace:*",
     "convex": "^1.37.0"
   },
   "devDependencies": {
@@ -25,8 +27,6 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./env": "./src/env/index.ts",
-    "./env/server": "./src/env/server.ts",
     "./lib": "./src/lib/index.ts",
     "./lib/time": "./src/lib/time.ts",
     "./lib/errors": "./src/lib/errors.ts",

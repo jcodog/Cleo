@@ -1,7 +1,9 @@
 import { ConvexError, v } from "convex/values"
 import { now as timeNow } from "../../../src/lib/time"
+import type { Id } from "../../_generated/dataModel"
 import { mutation } from "../../_generated/server"
 import { linkedProvider } from "../../dbTables/shared"
+import { requireCurrentUser } from "../../lib/auth"
 
 export const upsertForCurrentUser = mutation({
   args: {
@@ -15,30 +17,9 @@ export const upsertForCurrentUser = mutation({
     refreshTokenSecretId: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-
-    if (!identity) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "You must be signed in.",
-      })
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_user_id", (q) =>
-        q.eq("clerkUserId", identity.subject)
-      )
-      .unique()
-
-    if (!user) {
-      throw new ConvexError({
-        code: "USER_NOT_PROVISIONED",
-        message: "The signed-in user has not been provisioned.",
-      })
-    }
-
+  returns: v.id("linkedAccounts"),
+  handler: async (ctx, args): Promise<Id<"linkedAccounts">> => {
+    const user = await requireCurrentUser(ctx)
     const now = timeNow()
 
     const existing = await ctx.db

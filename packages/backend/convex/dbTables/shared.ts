@@ -7,6 +7,8 @@ export const userRole = v.union(
   v.literal("superadmin")
 )
 
+export const userStatus = v.union(v.literal("active"), v.literal("disabled"))
+
 export const linkedProvider = v.union(
   v.literal("discord"),
   v.literal("kick"),
@@ -15,7 +17,7 @@ export const linkedProvider = v.union(
 )
 
 export const appSource = v.union(
-  v.literal("web"),
+  v.literal("dashboard"),
   v.literal("discord-bot"),
   v.literal("kick-bot"),
   v.literal("ws-relay"),
@@ -26,8 +28,13 @@ export const logLevel = v.union(
   v.literal("debug"),
   v.literal("info"),
   v.literal("warn"),
-  v.literal("error"),
-  v.literal("fatal")
+  v.literal("error")
+)
+
+export const discordVerificationSource = v.union(
+  v.literal("discord-bot"),
+  v.literal("discord-oauth"),
+  v.literal("manual")
 )
 
 export const plan = v.union(

@@ -11,6 +11,78 @@
 import type { FunctionReference } from "convex/server";
 import type { GenericId as Id } from "convex/values";
 
+type UserDoc = {
+  _creationTime: number;
+  _id: Id<"users">;
+  clerkUserId: string;
+  createdAt: number;
+  displayName?: string;
+  email: string;
+  imageUrl?: string;
+  role: "user" | "staff" | "admin" | "superadmin";
+  status?: "active" | "disabled";
+  updatedAt: number;
+};
+
+type LinkedAccountDoc = {
+  _creationTime: number;
+  _id: Id<"linkedAccounts">;
+  accessTokenSecretId?: string;
+  avatarUrl?: string;
+  createdAt: number;
+  displayName?: string;
+  expiresAt?: number;
+  provider: "discord" | "kick" | "twitch" | "github";
+  providerAccountId: string;
+  refreshTokenSecretId?: string;
+  scopes: Array<string>;
+  updatedAt: number;
+  userId: Id<"users">;
+  username?: string;
+};
+
+type GuildDoc = {
+  _creationTime: number;
+  _id: Id<"guilds">;
+  botJoinedAt?: number;
+  createdAt: number;
+  discordGuildId: string;
+  iconUrl?: string;
+  name: string;
+  ownerDiscordId?: string;
+  updatedAt: number;
+};
+
+type GuildConfigDoc = {
+  _creationTime: number;
+  _id: Id<"guildConfigs">;
+  aiEnabled: boolean;
+  commandPrefix?: string;
+  createdAt: number;
+  guildId: Id<"guilds">;
+  logChannelId?: string;
+  loggingEnabled: boolean;
+  modLogChannelId?: string;
+  moderationEnabled: boolean;
+  updatedAt: number;
+  welcomeChannelId?: string;
+  welcomeEnabled: boolean;
+};
+
+type DiscordGuildMembershipDoc = {
+  _creationTime: number;
+  _id: Id<"discordGuildMemberships">;
+  canManage: boolean;
+  createdAt: number;
+  discordUserId: string;
+  guildId: Id<"guilds">;
+  isOwner?: boolean;
+  managementVerificationSource?: "discord-bot" | "discord-oauth" | "manual";
+  managementVerifiedAt?: number;
+  updatedAt: number;
+  userId?: Id<"users">;
+};
+
 /**
  * A utility for referencing Convex functions in your app's public API.
  *
@@ -37,7 +109,7 @@ export declare const api: {
             scopes: Array<string>;
             username?: string;
           },
-          any
+          Id<"linkedAccounts">
         >;
       };
     };
@@ -47,7 +119,7 @@ export declare const api: {
           "mutation",
           "public",
           { displayName?: string; email?: string; imageUrl?: string },
-          any
+          Id<"users">
         >;
       };
     };
@@ -55,7 +127,12 @@ export declare const api: {
   queries: {
     accounts: {
       linked: {
-        listForCurrentUser: FunctionReference<"query", "public", {}, any>;
+        listForCurrentUser: FunctionReference<
+          "query",
+          "public",
+          {},
+          Array<LinkedAccountDoc>
+        >;
       };
     };
     discord: {
@@ -65,7 +142,17 @@ export declare const api: {
             "query",
             "public",
             { guildId: Id<"guilds"> },
-            any
+            GuildConfigDoc | null
+          >;
+        };
+      };
+      guildMemberships: {
+        manageableForCurrentUser: {
+          list: FunctionReference<
+            "query",
+            "public",
+            {},
+            Array<DiscordGuildMembershipDoc>
           >;
         };
       };
@@ -75,14 +162,14 @@ export declare const api: {
             "query",
             "public",
             { discordGuildId: string },
-            any
+            GuildDoc | null
           >;
         };
       };
     };
     users: {
       current: {
-        get: FunctionReference<"query", "public", {}, any>;
+        get: FunctionReference<"query", "public", {}, UserDoc | null>;
       };
     };
   };
@@ -105,7 +192,28 @@ export declare const internal: {
             "mutation",
             "internal",
             { guildId: Id<"guilds"> },
-            any
+            Id<"guildConfigs">
+          >;
+        };
+      };
+      guildMemberships: {
+        upsertVerified: {
+          upsert: FunctionReference<
+            "mutation",
+            "internal",
+            {
+              canManage: boolean;
+              discordUserId: string;
+              guildId: Id<"guilds">;
+              isOwner?: boolean;
+              managementVerificationSource:
+                | "discord-bot"
+                | "discord-oauth"
+                | "manual";
+              managementVerifiedAt: number;
+              userId?: Id<"users">;
+            },
+            Id<"discordGuildMemberships">
           >;
         };
       };
@@ -121,7 +229,7 @@ export declare const internal: {
               name: string;
               ownerDiscordId?: string;
             },
-            any
+            Id<"guilds">
           >;
         };
       };
@@ -132,13 +240,13 @@ export declare const internal: {
           "mutation",
           "internal",
           {
-            level: "debug" | "info" | "warn" | "error" | "fatal";
+            level: "debug" | "info" | "warn" | "error";
             message: string;
             metadata?: any;
-            source: "web" | "discord-bot" | "kick-bot" | "ws-relay" | "backend";
+            source: "dashboard" | "discord-bot" | "kick-bot" | "ws-relay" | "backend";
             stack?: string;
           },
-          any
+          Id<"errorLogs">
         >;
       };
     };

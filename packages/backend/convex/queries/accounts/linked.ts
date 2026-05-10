@@ -1,20 +1,13 @@
+import { v } from "convex/values"
 import { query } from "../../_generated/server"
+import { getCurrentUser } from "../../lib/auth"
+import { linkedAccountDoc } from "../../lib/validators"
 
 export const listForCurrentUser = query({
   args: {},
+  returns: v.array(linkedAccountDoc),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-
-    if (!identity) {
-      return []
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_user_id", (q) =>
-        q.eq("clerkUserId", identity.subject)
-      )
-      .unique()
+    const user = await getCurrentUser(ctx)
 
     if (!user) {
       return []
