@@ -1,6 +1,6 @@
 # Cleo Monorepo
 
-Cleo is JCoNet LTD's AI assistant platform for Discord, Kick, web dashboards, automation, moderation, user protection, account management, billing, and real-time tools.
+Cleo is JCoNet LTD's AI assistant platform for Discord, Kick, dashboard, automation, moderation, user protection, account management, billing, and real-time tools.
 
 ## Product boundary
 
@@ -10,8 +10,11 @@ Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analyt
 
 ## Apps
 
+- `apps/dashboard`  
+  Canonical Cleo dashboard app for auth, account settings, linked accounts, and management UI.
+
 - `apps/web`  
-  Cleo dashboard, marketing pages, account settings, billing, linked accounts, and management UI.
+  May be added later for a non-dashboard web app.
 
 - `apps/discord-bot`  
   Cleo Discord bot, AI assistant features, moderation, automation, server management, and user protection.

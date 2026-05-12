@@ -99,13 +99,24 @@ General UI direction:
 
 ## Before finishing work
 
-Run the relevant local checks when they exist:
+Do not run repo-root validation commands:
 
 ```bash
 bun run lint
 bun run typecheck
 bun run build
+turbo lint
+turbo typecheck
+turbo build
 ```
+
+Run only targeted package/app checks from the relevant workspace when they exist:
+
+- `packages/backend`
+- `packages/shared`
+- `packages/logger`
+- `packages/env`
+- `apps/dashboard`
 
 Report:
 

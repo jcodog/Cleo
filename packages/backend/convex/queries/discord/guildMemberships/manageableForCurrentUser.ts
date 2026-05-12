@@ -1,17 +1,13 @@
 import { v } from "convex/values"
 import { query } from "../../../_generated/server"
-import { getCurrentUser } from "../../../lib/auth"
+import { requireCurrentUser } from "../../../lib/auth"
 import { discordGuildMembershipDoc } from "../../../lib/validators"
 
 export const list = query({
   args: {},
   returns: v.array(discordGuildMembershipDoc),
   handler: async (ctx) => {
-    const user = await getCurrentUser(ctx)
-
-    if (!user) {
-      return []
-    }
+    const user = await requireCurrentUser(ctx)
 
     const discordAccount = await ctx.db
       .query("linkedAccounts")

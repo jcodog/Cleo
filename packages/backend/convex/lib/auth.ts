@@ -76,3 +76,58 @@ export async function requireAdmin(ctx: AuthCtx): Promise<Doc<"users">> {
 
   return user
 }
+
+export async function requireDiscordGuildManager(
+  ctx: AuthCtx,
+  guildId: Doc<"guilds">["_id"]
+): Promise<Doc<"discordGuildMemberships">> {
+  const user = await requireCurrentUser(ctx)
+
+  const directMembership = await ctx.db
+    .query("discordGuildMemberships")
+    .withIndex("by_user_id", (q) => q.eq("userId", user._id))
+    .filter((q) => q.eq(q.field("guildId"), guildId))
+    .first()
+
+  if (isVerifiedGuildManager(directMembership)) {
+    return directMembership
+  }
+
+  const discordAccount = await ctx.db
+    .query("linkedAccounts")
+    .withIndex("by_user_id", (q) => q.eq("userId", user._id))
+    .filter((q) => q.eq(q.field("provider"), "discord"))
+    .first()
+
+  if (!discordAccount) {
+    throwForbiddenGuildAccess()
+  }
+
+  const membership = await ctx.db
+    .query("discordGuildMemberships")
+    .withIndex("by_guild_id_and_discord_user_id", (q) =>
+      q.eq("guildId", guildId).eq("discordUserId", discordAccount.providerAccountId)
+    )
+    .unique()
+
+  if (!isVerifiedGuildManager(membership)) {
+    throwForbiddenGuildAccess()
+  }
+
+  return membership
+}
+
+function isVerifiedGuildManager(
+  membership: Doc<"discordGuildMemberships"> | null
+): membership is Doc<"discordGuildMemberships"> {
+  return Boolean(
+    membership?.canManage && membership.managementVerifiedAt !== undefined
+  )
+}
+
+function throwForbiddenGuildAccess(): never {
+  throw new ConvexError({
+    code: "FORBIDDEN",
+    message: "Verified Discord guild management access is required.",
+  })
+}

@@ -113,16 +113,6 @@ export declare const api: {
         >;
       };
     };
-    users: {
-      auth: {
-        upsertFromAuth: FunctionReference<
-          "mutation",
-          "public",
-          { displayName?: string; email?: string; imageUrl?: string },
-          Id<"users">
-        >;
-      };
-    };
   };
   queries: {
     accounts: {
@@ -247,6 +237,22 @@ export declare const internal: {
             stack?: string;
           },
           Id<"errorLogs">
+        >;
+      };
+    };
+    users: {
+      clerk: {
+        deleteFromWebhook: FunctionReference<
+          "mutation",
+          "internal",
+          { clerkUserId: string },
+          null
+        >;
+        upsertFromWebhook: FunctionReference<
+          "mutation",
+          "internal",
+          { data: any },
+          Id<"users">
         >;
       };
     };

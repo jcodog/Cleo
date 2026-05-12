@@ -11,6 +11,7 @@ export const backendEnv = createEnv({
 
     CLERK_JWT_ISSUER_DOMAIN: optionalUrl,
     CLERK_SECRET_KEY: optionalString,
+    CLERK_WEBHOOK_SECRET: optionalString,
 
     STRIPE_SECRET_KEY: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,
