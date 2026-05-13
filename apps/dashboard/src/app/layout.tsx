@@ -23,14 +23,13 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={cn(
-        "antialiased",
         fontMono.variable,
         "font-sans",
         geist.variable,
         outfitHeading.variable
       )}
     >
-      <body>
+      <body className="flex h-full min-h-screen w-full min-w-full flex-col overflow-x-hidden scroll-smooth bg-background text-foreground antialiased">
         <ThemeProvider>
           <AppProviders>{children}</AppProviders>
         </ThemeProvider>

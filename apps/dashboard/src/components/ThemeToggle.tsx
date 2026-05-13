@@ -1,0 +1,34 @@
+"use client"
+
+import { IconMoonStars, IconSunHigh } from "@tabler/icons-react"
+import { useTheme } from "next-themes"
+
+import { Button } from "@workspace/ui/components/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip"
+
+export function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            size="icon-sm"
+            variant="outline"
+          >
+            <IconMoonStars aria-hidden="true" className="dark:hidden" />
+            <IconSunHigh aria-hidden="true" className="hidden dark:block" />
+          </Button>
+        }
+      />
+      <TooltipContent>Click or press D to change theme</TooltipContent>
+    </Tooltip>
+  )
+}
