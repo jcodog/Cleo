@@ -1,0 +1,38 @@
+{
+  "name": "@workspace/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "convex dev",
+    "deploy": "convex deploy",
+    "codegen": "convex codegen",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/env": "workspace:*",
+    "@workspace/logger": "workspace:*",
+    "@workspace/shared": "workspace:*",
+    "convex": "^1.37.0",
+    "svix": "^1.93.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@typescript/native-preview": "latest",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^10.3.0",
+    "typescript": "^6.0.3"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./lib": "./src/lib/index.ts",
+    "./lib/time": "./src/lib/time.ts",
+    "./lib/errors": "./src/lib/errors.ts",
+    "./lib/ids": "./src/lib/ids.ts",
+    "./shared": "./src/shared/index.ts",
+    "./convex/_generated/*": "./convex/_generated/*"
+  }
+}

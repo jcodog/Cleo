@@ -1,0 +1,14 @@
+{
+  "extends": "@workspace/typescript-config/base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "paths": {
+      "@workspace/shared": ["./src/index.ts"],
+      "@workspace/shared/*": ["./src/*.ts"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", ".turbo"]
+}
