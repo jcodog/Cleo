@@ -1,9 +1,7 @@
 import { Geist, Geist_Mono, Outfit } from "next/font/google"
-import { ClerkProvider } from "@clerk/nextjs"
-
 import "@workspace/ui/globals.css"
-import { AppProviders } from "@/components/app-providers"
-import { ThemeProvider } from "@/components/theme-provider"
+import { AppProviders } from "@/components/providers/app-providers"
+import { ThemeProvider } from "@/components/providers/theme-provider"
 import { cn } from "@workspace/ui/lib/utils"
 
 const outfitHeading = Outfit({ subsets: ["latin"], variable: "--font-heading" })
@@ -33,16 +31,9 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ClerkProvider
-          signInUrl="/sign-in"
-          signUpUrl="/sign-up"
-          signInFallbackRedirectUrl="/dashboard"
-          signUpFallbackRedirectUrl="/dashboard"
-        >
-          <ThemeProvider>
-            <AppProviders>{children}</AppProviders>
-          </ThemeProvider>
-        </ClerkProvider>
+        <ThemeProvider>
+          <AppProviders>{children}</AppProviders>
+        </ThemeProvider>
       </body>
     </html>
   )

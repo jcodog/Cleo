@@ -27,35 +27,6 @@ import type { GenericId } from "convex/values";
  */
 
 export type DataModel = {
-  errorLogs: {
-    document: {
-      createdAt: number;
-      level: "debug" | "info" | "warn" | "error";
-      message: string;
-      metadata?: any;
-      source: "dashboard" | "discord-bot" | "kick-bot" | "ws-relay" | "backend";
-      stack?: string;
-      _id: Id<"errorLogs">;
-      _creationTime: number;
-    };
-    fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "createdAt"
-      | "level"
-      | "message"
-      | "metadata"
-      | "source"
-      | "stack";
-    indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_level_and_created_at: ["level", "createdAt", "_creationTime"];
-      by_source_and_created_at: ["source", "createdAt", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
   discordGuildMemberships: {
     document: {
       canManage: boolean;
@@ -63,10 +34,7 @@ export type DataModel = {
       discordUserId: string;
       guildId: Id<"guilds">;
       isOwner?: boolean;
-      managementVerificationSource?:
-        | "discord-bot"
-        | "discord-oauth"
-        | "manual";
+      managementVerificationSource?: "discord-bot" | "discord-oauth" | "manual";
       managementVerifiedAt?: number;
       updatedAt: number;
       userId?: Id<"users">;
@@ -96,6 +64,35 @@ export type DataModel = {
         "_creationTime",
       ];
       by_user_id: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  errorLogs: {
+    document: {
+      createdAt: number;
+      level: "debug" | "info" | "warn" | "error";
+      message: string;
+      metadata?: any;
+      source: "dashboard" | "discord-bot" | "kick-bot" | "ws-relay" | "backend";
+      stack?: string;
+      _id: Id<"errorLogs">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "createdAt"
+      | "level"
+      | "message"
+      | "metadata"
+      | "source"
+      | "stack";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_level_and_created_at: ["level", "createdAt", "_creationTime"];
+      by_source_and_created_at: ["source", "createdAt", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -215,6 +212,7 @@ export type DataModel = {
   };
   users: {
     document: {
+      clerkUserId: string;
       createdAt: number;
       displayName?: string;
       email: string;
@@ -222,21 +220,20 @@ export type DataModel = {
       role: "user" | "staff" | "admin" | "superadmin";
       status?: "active" | "disabled";
       updatedAt: number;
-      clerkUserId: string;
       _id: Id<"users">;
       _creationTime: number;
     };
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "clerkUserId"
       | "createdAt"
       | "displayName"
       | "email"
       | "imageUrl"
       | "role"
       | "status"
-      | "updatedAt"
-      | "clerkUserId";
+      | "updatedAt";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
