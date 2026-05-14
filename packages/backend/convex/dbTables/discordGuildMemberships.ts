@@ -11,7 +11,11 @@ export const discordGuildMemberships = defineTable({
   canManage: v.boolean(),
   managementVerifiedAt: v.optional(v.number()),
   managementVerificationSource: v.optional(discordVerificationSource),
+  permissions: v.optional(v.string()),
 
+  revokedAt: v.optional(v.number()),
+
+  lastSyncedAt: v.optional(v.number()),
   createdAt: v.number(),
   updatedAt: v.number(),
 })
@@ -19,3 +23,4 @@ export const discordGuildMemberships = defineTable({
   .index("by_user_id", ["userId"])
   .index("by_discord_user_id", ["discordUserId"])
   .index("by_guild_id_and_discord_user_id", ["guildId", "discordUserId"])
+  .index("by_user_id_and_guild_id", ["userId", "guildId"])

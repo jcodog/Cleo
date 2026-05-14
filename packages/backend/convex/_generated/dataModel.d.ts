@@ -27,6 +27,46 @@ import type { GenericId } from "convex/values";
  */
 
 export type DataModel = {
+  discordGuildInstallSessions: {
+    document: {
+      completedAt?: number;
+      createdAt: number;
+      discordGuildId: string;
+      discordUserId: string;
+      expiresAt: number;
+      selectedUpdatesChannelId?: string;
+      status: "pending" | "bot_joined" | "configured" | "expired";
+      updatedAt: number;
+      userId: Id<"users">;
+      _id: Id<"discordGuildInstallSessions">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "completedAt"
+      | "createdAt"
+      | "discordGuildId"
+      | "discordUserId"
+      | "expiresAt"
+      | "selectedUpdatesChannelId"
+      | "status"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_discord_guild_id: ["discordGuildId", "_creationTime"];
+      by_discord_user_id_and_status: [
+        "discordUserId",
+        "status",
+        "_creationTime",
+      ];
+      by_user_id_and_status: ["userId", "status", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   discordGuildMemberships: {
     document: {
       canManage: boolean;
@@ -34,8 +74,11 @@ export type DataModel = {
       discordUserId: string;
       guildId: Id<"guilds">;
       isOwner?: boolean;
+      lastSyncedAt?: number;
       managementVerificationSource?: "discord-bot" | "discord-oauth" | "manual";
       managementVerifiedAt?: number;
+      permissions?: string;
+      revokedAt?: number;
       updatedAt: number;
       userId?: Id<"users">;
       _id: Id<"discordGuildMemberships">;
@@ -49,8 +92,11 @@ export type DataModel = {
       | "discordUserId"
       | "guildId"
       | "isOwner"
+      | "lastSyncedAt"
       | "managementVerificationSource"
       | "managementVerifiedAt"
+      | "permissions"
+      | "revokedAt"
       | "updatedAt"
       | "userId";
     indexes: {
@@ -64,6 +110,7 @@ export type DataModel = {
         "_creationTime",
       ];
       by_user_id: ["userId", "_creationTime"];
+      by_user_id_and_guild_id: ["userId", "guildId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -100,13 +147,15 @@ export type DataModel = {
   guildConfigs: {
     document: {
       aiEnabled: boolean;
-      commandPrefix?: string;
+      announcementsChannelId?: string;
       createdAt: number;
       guildId: Id<"guilds">;
       logChannelId?: string;
+      logLevel?: "none" | "minimal" | "medium" | "maximum";
       loggingEnabled: boolean;
       modLogChannelId?: string;
       moderationEnabled: boolean;
+      updateChannelId?: string;
       updatedAt: number;
       welcomeChannelId?: string;
       welcomeEnabled: boolean;
@@ -117,13 +166,15 @@ export type DataModel = {
       | "_creationTime"
       | "_id"
       | "aiEnabled"
-      | "commandPrefix"
+      | "announcementsChannelId"
       | "createdAt"
       | "guildId"
       | "logChannelId"
       | "loggingEnabled"
+      | "logLevel"
       | "moderationEnabled"
       | "modLogChannelId"
+      | "updateChannelId"
       | "updatedAt"
       | "welcomeChannelId"
       | "welcomeEnabled";
@@ -138,11 +189,18 @@ export type DataModel = {
   guilds: {
     document: {
       botJoinedAt?: number;
+      botLeftAt?: number;
       createdAt: number;
+      description?: string;
       discordGuildId: string;
+      iconHash?: string;
       iconUrl?: string;
+      lastOpenedAt?: number;
+      lastSyncedAt?: number;
+      memberCount?: number;
       name: string;
       ownerDiscordId?: string;
+      presenceCount?: number;
       updatedAt: number;
       _id: Id<"guilds">;
       _creationTime: number;
@@ -151,11 +209,18 @@ export type DataModel = {
       | "_creationTime"
       | "_id"
       | "botJoinedAt"
+      | "botLeftAt"
       | "createdAt"
+      | "description"
       | "discordGuildId"
+      | "iconHash"
       | "iconUrl"
+      | "lastOpenedAt"
+      | "lastSyncedAt"
+      | "memberCount"
       | "name"
       | "ownerDiscordId"
+      | "presenceCount"
       | "updatedAt";
     indexes: {
       by_id: ["_id"];

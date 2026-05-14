@@ -5,6 +5,7 @@ import { guilds } from "./dbTables/guilds"
 import { guildConfigs } from "./dbTables/guildConfigs"
 import { discordGuildMemberships } from "./dbTables/discordGuildMemberships"
 import { errorLogs } from "./dbTables/errorLogs"
+import { discordGuildInstallSessions } from "./dbTables/discordGuildInstallSessions"
 
 export default defineSchema({
   users,
@@ -12,5 +13,6 @@ export default defineSchema({
   guilds,
   guildConfigs,
   discordGuildMemberships,
+  discordGuildInstallSessions,
   errorLogs,
 })

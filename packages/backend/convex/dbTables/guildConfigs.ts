@@ -8,12 +8,20 @@ export const guildConfigs = defineTable({
   moderationEnabled: v.boolean(),
   welcomeEnabled: v.boolean(),
   loggingEnabled: v.boolean(),
+  logLevel: v.optional(
+    v.union(
+      v.literal("none"),
+      v.literal("minimal"),
+      v.literal("medium"),
+      v.literal("maximum")
+    )
+  ),
 
   logChannelId: v.optional(v.string()),
   modLogChannelId: v.optional(v.string()),
   welcomeChannelId: v.optional(v.string()),
-
-  commandPrefix: v.optional(v.string()),
+  updateChannelId: v.optional(v.string()),
+  announcementsChannelId: v.optional(v.string()),
 
   createdAt: v.number(),
   updatedAt: v.number(),
