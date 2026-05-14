@@ -148,6 +148,7 @@ export type DataModel = {
     document: {
       aiEnabled: boolean;
       announcementsChannelId?: string;
+      commandPrefix?: string;
       createdAt: number;
       guildId: Id<"guilds">;
       logChannelId?: string;
@@ -167,6 +168,7 @@ export type DataModel = {
       | "_id"
       | "aiEnabled"
       | "announcementsChannelId"
+      | "commandPrefix"
       | "createdAt"
       | "guildId"
       | "logChannelId"

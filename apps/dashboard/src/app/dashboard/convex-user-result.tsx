@@ -9,7 +9,7 @@ import {
 } from "convex/react"
 
 function ConvexUserDetails() {
-  const user = useQuery(api.queries.users.current.get)
+  const user = useQuery(api.queries.dashboard.account.currentUser.get)
 
   if (user === undefined) {
     return <p className="text-muted-foreground">Loading Convex user...</p>

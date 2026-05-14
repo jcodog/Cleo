@@ -8,6 +8,7 @@ export const guildConfigs = defineTable({
   moderationEnabled: v.boolean(),
   welcomeEnabled: v.boolean(),
   loggingEnabled: v.boolean(),
+  commandPrefix: v.optional(v.string()),
   logLevel: v.optional(
     v.union(
       v.literal("none"),

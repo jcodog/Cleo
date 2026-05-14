@@ -1,9 +1,9 @@
 import { redactLogMetadata } from "@workspace/logger"
 import { v } from "convex/values"
 
-import type { Id } from "../../_generated/dataModel"
-import { internalMutation } from "../../_generated/server"
-import { appSource, logLevel } from "../../dbTables/shared"
+import type { Id } from "../../../_generated/dataModel"
+import { internalMutation } from "../../../_generated/server"
+import { appSource, logLevel } from "../../../dbTables/shared"
 
 export const create = internalMutation({
   args: {

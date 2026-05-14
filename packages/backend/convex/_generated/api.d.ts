@@ -93,7 +93,7 @@ export declare const api: {
         };
       };
       discord: {
-        guildConfigss: {
+        guildConfigs: {
           byGuildId: {
             get: FunctionReference<
               "query",
@@ -226,41 +226,45 @@ export declare const internal: {
         };
       };
     };
-    logs: {
-      errors: {
-        create: FunctionReference<
-          "mutation",
-          "internal",
-          {
-            level: "debug" | "info" | "warn" | "error";
-            message: string;
-            metadata?: any;
-            source:
-              | "dashboard"
-              | "discord-bot"
-              | "kick-bot"
-              | "ws-relay"
-              | "backend";
-            stack?: string;
-          },
-          Id<"errorLogs">
-        >;
+    integrations: {
+      clerk: {
+        users: {
+          deleteFromWebhook: FunctionReference<
+            "mutation",
+            "internal",
+            { clerkUserId: string },
+            null
+          >;
+          upsertFromWebhook: FunctionReference<
+            "mutation",
+            "internal",
+            { data: any },
+            Id<"users">
+          >;
+        };
       };
     };
-    users: {
-      clerk: {
-        deleteFromWebhook: FunctionReference<
-          "mutation",
-          "internal",
-          { clerkUserId: string },
-          null
-        >;
-        upsertFromWebhook: FunctionReference<
-          "mutation",
-          "internal",
-          { data: any },
-          Id<"users">
-        >;
+    system: {
+      logs: {
+        create: {
+          create: FunctionReference<
+            "mutation",
+            "internal",
+            {
+              level: "debug" | "info" | "warn" | "error";
+              message: string;
+              metadata?: any;
+              source:
+                | "dashboard"
+                | "discord-bot"
+                | "kick-bot"
+                | "ws-relay"
+                | "backend";
+              stack?: string;
+            },
+            Id<"errorLogs">
+          >;
+        };
       };
     };
   };

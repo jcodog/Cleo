@@ -1,6 +1,6 @@
 import { ConvexError, v, type Validator } from "convex/values"
-import type { Id } from "../../_generated/dataModel"
-import { internalMutation } from "../../_generated/server"
+import type { Id } from "../../../_generated/dataModel"
+import { internalMutation } from "../../../_generated/server"
 
 type ClerkEmailAddress = {
   id: string
