@@ -25,7 +25,7 @@ export function AppSidebar({
   footerNavSections,
 }: AppSidebarProps) {
   return (
-    <Sidebar collapsible="icon" variant="inset">
+    <Sidebar collapsible="icon" variant="inset" className="select-none">
       <SidebarHeader className="gap-3 p-3 group-data-[collapsible=icon]:p-2">
         <div className="flex items-center gap-2 rounded-lg px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
           <div className="relative size-8 overflow-hidden rounded-full bg-primary/10">
@@ -44,7 +44,7 @@ export function AppSidebar({
           </div>
         </div>
 
-        <div className="w-full px-1 group-data-[collapsible=icon]:hidden [&_.cl-organizationPreview]:min-w-0 [&_.cl-organizationPreview]:flex-1 [&_.cl-organizationPreviewMainIdentifier]:truncate [&_.cl-organizationPreviewTextContainer]:min-w-0 [&_.cl-organizationSwitcher]:!w-full [&_.cl-organizationSwitcherTrigger]:!w-full [&_.cl-organizationSwitcherTrigger]:!max-w-none [&_.cl-rootBox]:!w-full">
+        <div className="w-full px-1 group-data-[collapsible=icon]:hidden [&_.cl-organizationPreview]:min-w-0 [&_.cl-organizationPreview]:flex-1 [&_.cl-organizationPreviewMainIdentifier]:truncate [&_.cl-organizationPreviewTextContainer]:min-w-0 [&_.cl-organizationSwitcher]:w-full! [&_.cl-organizationSwitcherTrigger]:w-full! [&_.cl-organizationSwitcherTrigger]:max-w-none! [&_.cl-rootBox]:w-full!">
           <OrganizationSwitcher
             hidePersonal={true}
             afterCreateOrganizationUrl="/dashboard"
@@ -58,7 +58,8 @@ export function AppSidebar({
                   "w-full max-w-none justify-between rounded-md border border-sidebar-border bg-sidebar-accent/30 px-2 py-1.5 text-sidebar-foreground hover:bg-sidebar-accent",
                 organizationPreview: "min-w-0 flex-1",
                 organizationPreviewTextContainer: "min-w-0",
-                organizationPreviewMainIdentifier: "truncate text-sm font-medium",
+                organizationPreviewMainIdentifier:
+                  "truncate text-sm font-medium",
                 organizationSwitcherTriggerIcon: "shrink-0",
               },
             }}

@@ -1,7 +1,7 @@
 import { v } from "convex/values"
-import { query } from "../../_generated/server"
-import { getCurrentUser } from "../../lib/auth"
-import { linkedAccountDoc } from "../../lib/validators"
+import { query } from "../../../_generated/server"
+import { getCurrentUser } from "../../../lib/auth"
+import { linkedAccountDoc } from "../../../lib/validators"
 
 export const listForCurrentUser = query({
   args: {},

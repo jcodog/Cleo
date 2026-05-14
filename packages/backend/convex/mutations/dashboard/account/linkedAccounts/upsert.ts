@@ -1,9 +1,9 @@
 import { ConvexError, v } from "convex/values"
-import { now as timeNow } from "../../../src/lib/time"
-import type { Id } from "../../_generated/dataModel"
-import { mutation } from "../../_generated/server"
-import { linkedProvider } from "../../dbTables/shared"
-import { requireCurrentUser } from "../../lib/auth"
+import { now as timeNow } from "../../../../../src/lib/time"
+import type { Id } from "../../../../_generated/dataModel"
+import { mutation } from "../../../../_generated/server"
+import { linkedProvider } from "../../../../dbTables/shared"
+import { requireCurrentUser } from "../../../../lib/auth"
 
 export const upsertForCurrentUser = mutation({
   args: {

@@ -1,7 +1,7 @@
 import { v } from "convex/values"
-import type { Id } from "../../../_generated/dataModel"
-import { internalMutation } from "../../../_generated/server"
-import { discordVerificationSource } from "../../../dbTables/shared"
+import type { Id } from "../../../../_generated/dataModel"
+import { internalMutation } from "../../../../_generated/server"
+import { discordVerificationSource } from "../../../../dbTables/shared"
 
 export const upsert = internalMutation({
   args: {
@@ -14,10 +14,7 @@ export const upsert = internalMutation({
     managementVerificationSource: discordVerificationSource,
   },
   returns: v.id("discordGuildMemberships"),
-  handler: async (
-    ctx,
-    args
-  ): Promise<Id<"discordGuildMemberships">> => {
+  handler: async (ctx, args): Promise<Id<"discordGuildMemberships">> => {
     const now = Date.now()
     const existing = await ctx.db
       .query("discordGuildMemberships")

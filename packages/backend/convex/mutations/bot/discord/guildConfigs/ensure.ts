@@ -1,6 +1,6 @@
 import { v } from "convex/values"
-import type { Id } from "../../../_generated/dataModel"
-import { internalMutation } from "../../../_generated/server"
+import type { Id } from "../../../../_generated/dataModel"
+import { internalMutation } from "../../../../_generated/server"
 
 export const forGuild = internalMutation({
   args: {

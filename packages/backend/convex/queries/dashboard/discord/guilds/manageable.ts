@@ -1,7 +1,7 @@
 import { v } from "convex/values"
-import { query } from "../../../_generated/server"
-import { requireCurrentUser } from "../../../lib/auth"
-import { discordGuildMembershipDoc } from "../../../lib/validators"
+import { query } from "../../../../_generated/server"
+import { requireCurrentUser } from "../../../../lib/auth"
+import { discordGuildMembershipDoc } from "../../../../lib/validators"
 
 export const list = query({
   args: {},
