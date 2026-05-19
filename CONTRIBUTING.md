@@ -15,7 +15,9 @@ Stats are a separate product/project.
 - Use Convex for backend data and business logic.
 - Do not add Prisma.
 - Use Clerk as the primary auth identity.
-- Treat Discord, Kick, Twitch, and GitHub as linked accounts.
+- Treat Discord as the primary Clerk auth identity.
+- Treat Twitch and Kick as secondary linked accounts.
+- Do not add Next API routes or server actions for backend logic.
 - Keep shared logic in packages, not duplicated inside apps.
 - Keep UI consistent with the Cleo design system.
 - Prefer small, focused changes.
@@ -62,7 +64,7 @@ Every PR should include:
 Before opening a PR, run the relevant checks when they exist:
 
 ```bash
-bun run lint
-bun run typecheck
-bun run build
+pnpm lint
+pnpm typecheck
+pnpm build
 ```

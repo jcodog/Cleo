@@ -44,6 +44,18 @@ export declare const api: {
           };
         };
       };
+      discord: {
+        guilds: {
+          markOpened: {
+            markOpened: FunctionReference<
+              "mutation",
+              "public",
+              { guildId: Id<"guilds"> },
+              null
+            >;
+          };
+        };
+      };
     };
   };
   queries: {
@@ -65,6 +77,29 @@ export declare const api: {
               role: "user" | "staff" | "admin" | "superadmin";
               status?: "active" | "disabled";
               updatedAt: number;
+            } | null
+          >;
+        };
+        discordIdentity: {
+          get: FunctionReference<
+            "query",
+            "public",
+            {},
+            {
+              _creationTime: number;
+              _id: Id<"linkedAccounts">;
+              accessTokenSecretId?: string;
+              avatarUrl?: string;
+              createdAt: number;
+              displayName?: string;
+              expiresAt?: number;
+              provider: "discord" | "kick" | "twitch" | "github";
+              providerAccountId: string;
+              refreshTokenSecretId?: string;
+              scopes: Array<string>;
+              updatedAt: number;
+              userId: Id<"users">;
+              username?: string;
             } | null
           >;
         };

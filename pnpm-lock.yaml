@@ -320,24 +320,15 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      react:
-        specifier: ^19.2.6
-        version: 19.2.6
       react-day-picker:
         specifier: ^10.0.1
         version: 10.0.1(@types/react@19.2.14)(react@19.2.6)
-      react-dom:
-        specifier: ^19.2.6
-        version: 19.2.6(react@19.2.6)
       react-resizable-panels:
         specifier: ^4.11.1
         version: 4.11.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       recharts:
         specifier: 3.8.1
         version: 3.8.1(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@16.13.1)(react@19.2.6)(redux@5.0.1)
-      shadcn:
-        specifier: ^4.7.0
-        version: 4.7.0(@types/node@25.8.0)(typescript@6.0.3)
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -378,6 +369,15 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.4.0(jiti@2.7.0)
+      react:
+        specifier: ^19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.6(react@19.2.6)
+      shadcn:
+        specifier: ^4.7.0
+        version: 4.7.0(@types/node@25.8.0)(typescript@6.0.3)
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.0
