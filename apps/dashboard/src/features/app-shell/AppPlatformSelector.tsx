@@ -1,6 +1,7 @@
 "use client"
 
 import type { ComponentType } from "react"
+import { usePathname, useRouter } from "next/navigation"
 
 import {
   ToggleGroup,
@@ -10,10 +11,7 @@ import { Discord } from "@workspace/ui/components/ui/svgs/discord"
 import { KickDark } from "@workspace/ui/components/ui/svgs/kickDark"
 import { Twitch } from "@workspace/ui/components/ui/svgs/twitch"
 
-import {
-  type AppShellPlatform,
-  useAppShellStore,
-} from "@/components/stores/app-shell-store"
+import type { AppShellPlatform } from "@/components/stores/app-shell-store"
 
 const PLATFORM_OPTIONS: {
   label: string
@@ -24,6 +22,7 @@ const PLATFORM_OPTIONS: {
   }>
   iconClassName: string
   enabled: boolean
+  href: string
 }[] = [
   {
     label: "Discord",
@@ -31,36 +30,42 @@ const PLATFORM_OPTIONS: {
     icon: Discord,
     iconClassName: "size-5",
     enabled: true,
+    href: "/dashboard",
   },
   {
     label: "Kick",
     value: "kick",
     icon: KickDark,
     iconClassName: "size-auto h-4 w-11 brightness-0 dark:brightness-100",
-    enabled: false,
+    enabled: true,
+    href: "/kick",
   },
   {
     label: "Twitch",
     value: "twitch",
     icon: Twitch,
     iconClassName: "size-5",
-    enabled: false,
+    enabled: true,
+    href: "/twitch",
   },
 ]
 
-const PLATFORM_VALUES = new Set<AppShellPlatform>(
-  PLATFORM_OPTIONS.map((option) => option.value)
-)
+function getPlatformFromPathname(pathname: string): AppShellPlatform {
+  if (pathname === "/kick" || pathname.startsWith("/kick/")) {
+    return "kick"
+  }
 
-function isAppShellPlatform(value: string): value is AppShellPlatform {
-  return PLATFORM_VALUES.has(value as AppShellPlatform)
+  if (pathname === "/twitch" || pathname.startsWith("/twitch/")) {
+    return "twitch"
+  }
+
+  return "discord"
 }
 
 export function AppPlatformSelector() {
-  const selectedPlatform = useAppShellStore((state) => state.selectedPlatform)
-  const setSelectedPlatform = useAppShellStore(
-    (state) => state.setSelectedPlatform
-  )
+  const pathname = usePathname()
+  const router = useRouter()
+  const currentPlatform = getPlatformFromPathname(pathname)
 
   return (
     <div className="flex flex-col gap-1.5 px-1 group-data-[collapsible=icon]:hidden">
@@ -69,12 +74,15 @@ export function AppPlatformSelector() {
         aria-label="Select platform"
         className="grid w-full grid-cols-3 rounded-md border border-sidebar-border bg-sidebar-accent/30 p-0.5"
         size="default"
-        value={[selectedPlatform]}
+        value={[currentPlatform]}
         onValueChange={(value) => {
           const nextPlatform = value[0]
+          const nextOption = PLATFORM_OPTIONS.find(
+            (option) => option.value === nextPlatform
+          )
 
-          if (nextPlatform && isAppShellPlatform(nextPlatform)) {
-            setSelectedPlatform(nextPlatform)
+          if (nextOption?.enabled) {
+            router.push(nextOption.href)
           }
         }}
       >

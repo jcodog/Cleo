@@ -12,12 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.3.3",
+    "@clerk/nextjs": "^7.3.5",
     "@clerk/themes": "^2.4.57",
     "@tabler/icons-react": "^3.44.0",
     "@workspace/backend": "workspace:*",
     "@workspace/ui": "workspace:*",
-    "convex": "^1.38.0",
+    "convex": "^1.39.1",
     "next": "16.2.6",
     "next-themes": "^0.4.6",
     "react": "^19.2.6",
@@ -25,13 +25,13 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.0",
-    "@types/node": "^25.7.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@tailwindcss/postcss": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "^10.3.0",
-    "typescript": "^6.0.3"
+    "eslint": "catalog:",
+    "typescript": "catalog:"
   }
 }

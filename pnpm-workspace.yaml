@@ -2,7 +2,29 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
-  '@clerk/shared': set this to true or false
-  esbuild: set this to true or false
-  msw: set this to true or false
-  sharp: set this to true or false
+  '@clerk/shared': true
+  esbuild: true
+  msw: true
+  sharp: true
+catalog:
+  '@eslint/js': ^10.0.1
+  '@next/eslint-plugin-next': ^16.2.6
+  '@tailwindcss/postcss': ^4.3.0
+  '@turbo/gen': ^2.9.14
+  '@types/node': ^25.8.0
+  '@types/react': ^19.2.14
+  '@types/react-dom': ^19.2.3
+  '@typescript-eslint/eslint-plugin': ^8.59.3
+  '@typescript-eslint/parser': ^8.59.3
+  eslint: ^10.4.0
+  eslint-config-prettier: ^10.1.8
+  eslint-plugin-only-warn: ^1.2.1
+  eslint-plugin-react-hooks: ^7.1.1
+  eslint-plugin-turbo: ^2.9.14
+  globals: ^17.6.0
+  prettier: ^3.8.3
+  prettier-plugin-tailwindcss: ^0.8.0
+  tailwindcss: ^4.3.0
+  turbo: ^2.9.14
+  typescript: ^6.0.3
+  typescript-eslint: ^8.59.3

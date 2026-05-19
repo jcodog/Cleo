@@ -7,7 +7,7 @@ import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
 import { cn } from "@workspace/ui/lib/utils"
 import { useQuery } from "convex/react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import {
   DropdownMenu,
@@ -63,16 +63,20 @@ function GuildIcon({
 
 export function DiscordGuildSelect() {
   const router = useRouter()
+  const pathname = usePathname()
   const manageableGuilds = useQuery(
     api.queries.dashboard.discord.guilds.manageable.list
   )
-  const selectedPlatform = useAppShellStore((state) => state.selectedPlatform)
-  const selectedDiscordGuildId = useAppShellStore(
+  const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
   const setSelectedDiscordGuildId = useAppShellStore(
     (state) => state.setSelectedDiscordGuildId
   )
+  const isDiscordRoute =
+    pathname === "/dashboard" || pathname.startsWith("/dashboard/")
+  const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
+  const selectedDiscordGuildId = routeDiscordGuildId ?? storedDiscordGuildId
 
   const guildOptions = manageableGuilds ?? []
   const selectedGuild = guildOptions.find(
@@ -98,7 +102,7 @@ export function DiscordGuildSelect() {
     router.push("/dashboard/add-server")
   }
 
-  if (selectedPlatform !== "discord") {
+  if (!isDiscordRoute) {
     return null
   }
 
@@ -151,9 +155,10 @@ export function DiscordGuildSelect() {
                 {guildOptions.map((guild) => (
                   <DropdownMenuItem
                     key={guild.discordGuildId}
-                    onClick={() =>
+                    onClick={() => {
                       setSelectedDiscordGuildId(guild.discordGuildId)
-                    }
+                      router.push(`/dashboard/${guild.discordGuildId}`)
+                    }}
                   >
                     <GuildIcon className="size-5" guild={guild} />
                     <span className="truncate">{guild.name}</span>
@@ -166,4 +171,14 @@ export function DiscordGuildSelect() {
       </DropdownMenu>
     </div>
   )
+}
+
+function getRouteDiscordGuildId(pathname: string): string | undefined {
+  const [, section, guildId] = pathname.split("/")
+
+  if (section !== "dashboard" || !guildId || guildId === "add-server") {
+    return undefined
+  }
+
+  return guildId
 }

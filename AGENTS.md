@@ -26,7 +26,7 @@ Stats are a separate product/project.
 
 ## Stack
 
-- Bun
+- pnpm
 - Turborepo
 - TypeScript
 - Next.js
@@ -69,7 +69,9 @@ General UI direction:
 - Do not add Prisma.
 - Use Convex as the backend source of truth.
 - Use Clerk as the primary auth provider.
-- Treat Discord, Kick, Twitch, and GitHub as linked accounts.
+- Treat Discord as the primary Clerk auth identity.
+- Treat Twitch and Kick as secondary linked accounts.
+- Do not use Next API routes or server actions for backend logic.
 - Keep shared logic in packages.
 - Keep app-specific code inside apps.
 - Keep changes small and focused.
@@ -102,9 +104,9 @@ General UI direction:
 Do not run repo-root validation commands:
 
 ```bash
-bun run lint
-bun run typecheck
-bun run build
+pnpm lint
+pnpm typecheck
+pnpm build
 turbo lint
 turbo typecheck
 turbo build
@@ -117,6 +119,14 @@ Run only targeted package/app checks from the relevant workspace when they exist
 - `packages/logger`
 - `packages/env`
 - `apps/dashboard`
+
+Use pnpm for workspace commands. For example:
+
+```bash
+pnpm --filter dashboard lint
+pnpm --filter dashboard typecheck
+pnpm --filter @workspace/backend typecheck
+```
 
 Report:
 

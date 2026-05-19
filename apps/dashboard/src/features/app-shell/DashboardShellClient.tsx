@@ -29,17 +29,19 @@ export function DashboardShellClient({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const selectedPlatform = useAppShellStore((state) => state.selectedPlatform)
-  const selectedDiscordGuildId = useAppShellStore(
+  const currentPlatform = getPlatformFromPathname(pathname)
+  const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
-  const hasSelectedDiscordGuild = Boolean(selectedDiscordGuildId)
-  const discordOverviewHref = selectedDiscordGuildId
-    ? `/dashboard/${selectedDiscordGuildId}`
+  const activeDiscordGuildId =
+    getRouteDiscordGuildId(pathname) ?? storedDiscordGuildId
+  const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
+  const discordOverviewHref = activeDiscordGuildId
+    ? `/dashboard/${activeDiscordGuildId}`
     : "/dashboard"
   const discordGuildSectionHref = (section: string) =>
-    selectedDiscordGuildId
-      ? `/dashboard/${selectedDiscordGuildId}/${section}`
+    activeDiscordGuildId
+      ? `/dashboard/${activeDiscordGuildId}/${section}`
       : "/dashboard"
 
   const platformNavSections: Record<AppShellPlatform, AppShellNavSection[]> = {
@@ -58,10 +60,8 @@ export function DashboardShellClient({
             href: discordGuildSectionHref("modules"),
             icon: IconListDetails,
             isActive:
-              selectedDiscordGuildId !== undefined &&
-              pathname.startsWith(
-                `/dashboard/${selectedDiscordGuildId}/modules`
-              ),
+              activeDiscordGuildId !== undefined &&
+              pathname.startsWith(`/dashboard/${activeDiscordGuildId}/modules`),
             disabled: !hasSelectedDiscordGuild,
           },
           {
@@ -69,9 +69,9 @@ export function DashboardShellClient({
             href: discordGuildSectionHref("moderation"),
             icon: IconShield,
             isActive:
-              selectedDiscordGuildId !== undefined &&
+              activeDiscordGuildId !== undefined &&
               pathname.startsWith(
-                `/dashboard/${selectedDiscordGuildId}/moderation`
+                `/dashboard/${activeDiscordGuildId}/moderation`
               ),
             disabled: !hasSelectedDiscordGuild,
           },
@@ -80,9 +80,9 @@ export function DashboardShellClient({
             href: discordGuildSectionHref("automation"),
             icon: IconBolt,
             isActive:
-              selectedDiscordGuildId !== undefined &&
+              activeDiscordGuildId !== undefined &&
               pathname.startsWith(
-                `/dashboard/${selectedDiscordGuildId}/automation`
+                `/dashboard/${activeDiscordGuildId}/automation`
               ),
             disabled: !hasSelectedDiscordGuild,
           },
@@ -91,9 +91,9 @@ export function DashboardShellClient({
             href: discordGuildSectionHref("commands"),
             icon: IconCommand,
             isActive:
-              selectedDiscordGuildId !== undefined &&
+              activeDiscordGuildId !== undefined &&
               pathname.startsWith(
-                `/dashboard/${selectedDiscordGuildId}/commands`
+                `/dashboard/${activeDiscordGuildId}/commands`
               ),
             disabled: !hasSelectedDiscordGuild,
           },
@@ -102,8 +102,8 @@ export function DashboardShellClient({
             href: discordGuildSectionHref("logs"),
             icon: IconLogs,
             isActive:
-              selectedDiscordGuildId !== undefined &&
-              pathname.startsWith(`/dashboard/${selectedDiscordGuildId}/logs`),
+              activeDiscordGuildId !== undefined &&
+              pathname.startsWith(`/dashboard/${activeDiscordGuildId}/logs`),
             disabled: !hasSelectedDiscordGuild,
           },
           {
@@ -111,9 +111,9 @@ export function DashboardShellClient({
             href: discordGuildSectionHref("settings"),
             icon: IconSettings,
             isActive:
-              selectedDiscordGuildId !== undefined &&
+              activeDiscordGuildId !== undefined &&
               pathname.startsWith(
-                `/dashboard/${selectedDiscordGuildId}/settings`
+                `/dashboard/${activeDiscordGuildId}/settings`
               ),
             disabled: !hasSelectedDiscordGuild,
           },
@@ -226,9 +226,31 @@ export function DashboardShellClient({
   return (
     <AppShell
       footerNavSections={[]}
-      navSections={platformNavSections[selectedPlatform]}
+      navSections={platformNavSections[currentPlatform]}
     >
       {children}
     </AppShell>
   )
+}
+
+function getPlatformFromPathname(pathname: string): AppShellPlatform {
+  if (pathname === "/kick" || pathname.startsWith("/kick/")) {
+    return "kick"
+  }
+
+  if (pathname === "/twitch" || pathname.startsWith("/twitch/")) {
+    return "twitch"
+  }
+
+  return "discord"
+}
+
+function getRouteDiscordGuildId(pathname: string): string | undefined {
+  const [, section, guildId] = pathname.split("/")
+
+  if (section !== "dashboard" || !guildId || guildId === "add-server") {
+    return undefined
+  }
+
+  return guildId
 }
