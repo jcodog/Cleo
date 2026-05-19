@@ -1,5 +1,3 @@
-import { OrganizationSwitcher } from "@clerk/nextjs"
-
 import {
   Sidebar,
   SidebarContent,
@@ -42,28 +40,6 @@ export function AppSidebar({
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-semibold">CleoAI</p>
           </div>
-        </div>
-
-        <div className="w-full px-1 group-data-[collapsible=icon]:hidden [&_.cl-organizationPreview]:min-w-0 [&_.cl-organizationPreview]:flex-1 [&_.cl-organizationPreviewMainIdentifier]:truncate [&_.cl-organizationPreviewTextContainer]:min-w-0 [&_.cl-organizationSwitcher]:w-full! [&_.cl-organizationSwitcherTrigger]:w-full! [&_.cl-organizationSwitcherTrigger]:max-w-none! [&_.cl-rootBox]:w-full!">
-          <OrganizationSwitcher
-            hidePersonal={true}
-            afterCreateOrganizationUrl="/dashboard"
-            afterSelectOrganizationUrl="/dashboard"
-            afterLeaveOrganizationUrl="/dashboard"
-            appearance={{
-              elements: {
-                rootBox: "w-full max-w-none",
-                organizationSwitcher: "w-full max-w-none",
-                organizationSwitcherTrigger:
-                  "w-full max-w-none justify-between rounded-md border border-sidebar-border bg-sidebar-accent/30 px-2 py-1.5 text-sidebar-foreground hover:bg-sidebar-accent",
-                organizationPreview: "min-w-0 flex-1",
-                organizationPreviewTextContainer: "min-w-0",
-                organizationPreviewMainIdentifier:
-                  "truncate text-sm font-medium",
-                organizationSwitcherTriggerIcon: "shrink-0",
-              },
-            }}
-          />
         </div>
 
         <AppPlatformSelector />

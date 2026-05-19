@@ -6,6 +6,7 @@ import {
   IconBolt,
   IconCommand,
   IconDeviceDesktop,
+  IconHash,
   IconHome,
   IconListDetails,
   IconLogs,
@@ -53,7 +54,10 @@ export function DashboardShellClient({
             href: discordOverviewHref,
             icon: IconHome,
             isActive:
-              pathname === "/dashboard" || pathname === discordOverviewHref,
+              pathname === "/dashboard" ||
+              pathname === discordOverviewHref ||
+              (activeDiscordGuildId !== undefined &&
+                pathname === `/dashboard/${activeDiscordGuildId}/overview`),
           },
           {
             title: "Modules",
@@ -62,6 +66,17 @@ export function DashboardShellClient({
             isActive:
               activeDiscordGuildId !== undefined &&
               pathname.startsWith(`/dashboard/${activeDiscordGuildId}/modules`),
+            disabled: !hasSelectedDiscordGuild,
+          },
+          {
+            title: "Channels",
+            href: discordGuildSectionHref("channels"),
+            icon: IconHash,
+            isActive:
+              activeDiscordGuildId !== undefined &&
+              pathname.startsWith(
+                `/dashboard/${activeDiscordGuildId}/channels`
+              ),
             disabled: !hasSelectedDiscordGuild,
           },
           {

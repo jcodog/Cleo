@@ -55,7 +55,10 @@ Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analyt
 
 ## Rules
 
-- Use pnpm only.
+- Use the pinned pnpm version from `package.json`.
+- Use pnpm scripts for repo commands: `pnpm run <script>` or `pnpm --filter <workspace> run <script>`.
+- Use `pnpm exec <command>` for locally installed CLIs, and `pnpm dlx <package>` only for one-off CLIs that are not installed.
+- Do not use `bun`, `bunx`, `npm`, `npx`, or `yarn` for scripts, validation, codegen, package installs, or local CLIs.
 - Do not introduce Prisma.
 - Use Convex for backend data and business logic.
 - Use Clerk as the primary auth provider.
@@ -76,15 +79,15 @@ pnpm install
 Run development:
 
 ```bash
-pnpm dev
+pnpm run dev
 ```
 
 Run checks:
 
 ```bash
-pnpm lint
-pnpm typecheck
-pnpm build
+pnpm run lint
+pnpm run typecheck
+pnpm run build
 ```
 
 ## License

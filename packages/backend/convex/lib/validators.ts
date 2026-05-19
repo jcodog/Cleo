@@ -152,3 +152,73 @@ export const dashboardDiscordInstallSessionViewModel = v.object({
   expiresAt: v.number(),
   completedAt: v.optional(v.number()),
 })
+
+export const dashboardDiscordGuildOverviewMembershipViewModel = v.object({
+  membershipId: v.id("discordGuildMemberships"),
+  guildId: v.id("guilds"),
+  userId: v.optional(v.id("users")),
+  discordUserId: v.string(),
+  isOwner: v.optional(v.boolean()),
+  canManage: v.boolean(),
+  managementVerifiedAt: v.optional(v.number()),
+  managementVerificationSource: v.optional(
+    v.union(
+      v.literal("discord-bot"),
+      v.literal("discord-oauth"),
+      v.literal("manual")
+    )
+  ),
+  permissions: v.optional(v.string()),
+  lastSyncedAt: v.optional(v.number()),
+})
+
+export const dashboardDiscordGuildOverviewConfigViewModel = v.object({
+  guildConfigId: v.id("guildConfigs"),
+  guildId: v.id("guilds"),
+  aiEnabled: v.boolean(),
+  moderationEnabled: v.boolean(),
+  welcomeEnabled: v.boolean(),
+  loggingEnabled: v.boolean(),
+  logLevel: v.optional(guildConfigLogLevel),
+  logChannelId: v.optional(v.string()),
+  modLogChannelId: v.optional(v.string()),
+  welcomeChannelId: v.optional(v.string()),
+  updatesChannelId: v.optional(v.string()),
+  announcementChannelId: v.optional(v.string()),
+  commandPrefix: v.optional(v.string()),
+  updatedAt: v.number(),
+})
+
+export const dashboardDiscordGuildOverviewViewModel = v.object({
+  guildId: v.id("guilds"),
+  discordGuildId: v.string(),
+  name: v.string(),
+  description: v.optional(v.string()),
+  iconUrl: v.optional(v.string()),
+  iconHash: v.optional(v.string()),
+  memberCount: v.optional(v.number()),
+  presenceCount: v.optional(v.number()),
+  botJoinedAt: v.optional(v.number()),
+  botLeftAt: v.optional(v.number()),
+  lastOpenedAt: v.optional(v.number()),
+  lastSyncedAt: v.optional(v.number()),
+  membership: dashboardDiscordGuildOverviewMembershipViewModel,
+  guildConfig: v.union(dashboardDiscordGuildOverviewConfigViewModel, v.null()),
+})
+
+export const dashboardDiscordGuildOverviewResult = v.union(
+  v.object({
+    status: v.literal("notFound"),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+  }),
+  v.object({
+    status: v.literal("botLeft"),
+    overview: dashboardDiscordGuildOverviewViewModel,
+  }),
+  v.object({
+    status: v.literal("ready"),
+    overview: dashboardDiscordGuildOverviewViewModel,
+  })
+)

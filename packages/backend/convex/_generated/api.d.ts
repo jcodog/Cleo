@@ -202,6 +202,111 @@ export declare const api: {
               }>
             >;
           };
+          overview: {
+            get: FunctionReference<
+              "query",
+              "public",
+              { discordGuildId: string },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  overview: {
+                    botJoinedAt?: number;
+                    botLeftAt?: number;
+                    description?: string;
+                    discordGuildId: string;
+                    guildConfig: {
+                      aiEnabled: boolean;
+                      announcementChannelId?: string;
+                      commandPrefix?: string;
+                      guildConfigId: Id<"guildConfigs">;
+                      guildId: Id<"guilds">;
+                      logChannelId?: string;
+                      logLevel?: "none" | "minimal" | "medium" | "maximum";
+                      loggingEnabled: boolean;
+                      modLogChannelId?: string;
+                      moderationEnabled: boolean;
+                      updatedAt: number;
+                      updatesChannelId?: string;
+                      welcomeChannelId?: string;
+                      welcomeEnabled: boolean;
+                    } | null;
+                    guildId: Id<"guilds">;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    lastOpenedAt?: number;
+                    lastSyncedAt?: number;
+                    memberCount?: number;
+                    membership: {
+                      canManage: boolean;
+                      discordUserId: string;
+                      guildId: Id<"guilds">;
+                      isOwner?: boolean;
+                      lastSyncedAt?: number;
+                      managementVerificationSource?:
+                        | "discord-bot"
+                        | "discord-oauth"
+                        | "manual";
+                      managementVerifiedAt?: number;
+                      membershipId: Id<"discordGuildMemberships">;
+                      permissions?: string;
+                      userId?: Id<"users">;
+                    };
+                    name: string;
+                    presenceCount?: number;
+                  };
+                  status: "botLeft";
+                }
+              | {
+                  overview: {
+                    botJoinedAt?: number;
+                    botLeftAt?: number;
+                    description?: string;
+                    discordGuildId: string;
+                    guildConfig: {
+                      aiEnabled: boolean;
+                      announcementChannelId?: string;
+                      commandPrefix?: string;
+                      guildConfigId: Id<"guildConfigs">;
+                      guildId: Id<"guilds">;
+                      logChannelId?: string;
+                      logLevel?: "none" | "minimal" | "medium" | "maximum";
+                      loggingEnabled: boolean;
+                      modLogChannelId?: string;
+                      moderationEnabled: boolean;
+                      updatedAt: number;
+                      updatesChannelId?: string;
+                      welcomeChannelId?: string;
+                      welcomeEnabled: boolean;
+                    } | null;
+                    guildId: Id<"guilds">;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    lastOpenedAt?: number;
+                    lastSyncedAt?: number;
+                    memberCount?: number;
+                    membership: {
+                      canManage: boolean;
+                      discordUserId: string;
+                      guildId: Id<"guilds">;
+                      isOwner?: boolean;
+                      lastSyncedAt?: number;
+                      managementVerificationSource?:
+                        | "discord-bot"
+                        | "discord-oauth"
+                        | "manual";
+                      managementVerifiedAt?: number;
+                      membershipId: Id<"discordGuildMemberships">;
+                      permissions?: string;
+                      userId?: Id<"users">;
+                    };
+                    name: string;
+                    presenceCount?: number;
+                  };
+                  status: "ready";
+                }
+            >;
+          };
         };
       };
     };

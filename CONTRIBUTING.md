@@ -12,6 +12,10 @@ Stats are a separate product/project.
 
 ## Architecture rules
 
+- Use the pinned pnpm version from `package.json`.
+- Use pnpm scripts for repo commands: `pnpm run <script>` or `pnpm --filter <workspace> run <script>`.
+- Use `pnpm exec <command>` for locally installed CLIs, and `pnpm dlx <package>` only for one-off CLIs that are not installed.
+- Do not use `bun`, `bunx`, `npm`, `npx`, or `yarn` for scripts, validation, codegen, package installs, or local CLIs.
 - Use Convex for backend data and business logic.
 - Do not add Prisma.
 - Use Clerk as the primary auth identity.
@@ -64,7 +68,7 @@ Every PR should include:
 Before opening a PR, run the relevant checks when they exist:
 
 ```bash
-pnpm lint
-pnpm typecheck
-pnpm build
+pnpm run lint
+pnpm run typecheck
+pnpm run build
 ```

@@ -83,6 +83,15 @@ General UI direction:
 - Do not redesign major dashboard pages until the backend and auth foundations are stable.
 - Use relevant skills and MCPs selectively when they improve accuracy; do not invoke every available tool blindly.
 
+## Package manager and command runner
+
+- This repo uses the pinned `pnpm` version from `package.json`.
+- Use pnpm scripts for project commands: `pnpm run <script>` from a workspace, or `pnpm --filter <workspace> run <script>` from the repo root.
+- Use `pnpm exec <command>` for locally installed CLIs such as Convex, Next.js, ESLint, Prettier, and shadcn.
+- Use `pnpm dlx <package>` only when a one-off CLI is not already installed in the workspace.
+- Do not use `bun`, `bunx`, `npm`, `npx`, or `yarn` for repo scripts, validation, codegen, package installs, or local CLIs.
+- Do not add or update dependencies with another package manager. Use pnpm so `pnpm-lock.yaml` remains the only lockfile.
+
 ## Apps
 
 - `apps/dashboard`: canonical dashboard, auth, account management, and future dashboard billing surfaces
@@ -104,9 +113,9 @@ General UI direction:
 Do not run repo-root validation commands:
 
 ```bash
-pnpm lint
-pnpm typecheck
-pnpm build
+pnpm run lint
+pnpm run typecheck
+pnpm run build
 turbo lint
 turbo typecheck
 turbo build
@@ -120,12 +129,13 @@ Run only targeted package/app checks from the relevant workspace when they exist
 - `packages/env`
 - `apps/dashboard`
 
-Use pnpm for workspace commands. For example:
+Use pnpm scripts for workspace commands. For example:
 
 ```bash
-pnpm --filter dashboard lint
-pnpm --filter dashboard typecheck
-pnpm --filter @workspace/backend typecheck
+pnpm --filter dashboard run lint
+pnpm --filter dashboard run typecheck
+pnpm --filter @workspace/backend run typecheck
+pnpm --filter @workspace/backend run codegen
 ```
 
 Report:

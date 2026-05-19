@@ -25,11 +25,18 @@ import {
 
 function DiscordAddServerState() {
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
+  const discordIdentity = useQuery(
+    api.queries.dashboard.account.discordIdentity.get
+  )
   const manageableGuilds = useQuery(
     api.queries.dashboard.discord.guilds.manageable.list
   )
 
-  if (currentUser === undefined || manageableGuilds === undefined) {
+  if (
+    currentUser === undefined ||
+    discordIdentity === undefined ||
+    manageableGuilds === undefined
+  ) {
     return (
       <div className="flex flex-col gap-3">
         <Skeleton className="h-24 w-full" />
@@ -38,7 +45,7 @@ function DiscordAddServerState() {
     )
   }
 
-  if (!currentUser) {
+  if (!currentUser || !discordIdentity) {
     return (
       <Empty className="min-h-72">
         <EmptyHeader>
@@ -79,8 +86,8 @@ function DiscordAddServerState() {
         <AlertTitle>Install action pending</AlertTitle>
         <AlertDescription>
           These servers are already known to the backend. Starting a new Discord
-          install from this page will be wired once the Discord OAuth actions are
-          implemented.
+          install from this page will be wired once the Discord OAuth actions
+          are implemented.
         </AlertDescription>
       </Alert>
 
