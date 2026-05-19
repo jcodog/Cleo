@@ -45,6 +45,75 @@ export declare const api: {
         };
       };
       discord: {
+        guildConfigs: {
+          updateChannels: {
+            update: FunctionReference<
+              "mutation",
+              "public",
+              {
+                channels: {
+                  announcementChannelId?: string | null;
+                  logChannelId?: string | null;
+                  modLogChannelId?: string | null;
+                  updatesChannelId?: string | null;
+                  welcomeChannelId?: string | null;
+                };
+                discordGuildId: string;
+              },
+              {
+                _creationTime: number;
+                _id: Id<"guildConfigs">;
+                aiEnabled: boolean;
+                announcementChannelId?: string;
+                commandPrefix?: string;
+                createdAt: number;
+                guildId: Id<"guilds">;
+                logChannelId?: string;
+                logLevel?: "none" | "minimal" | "medium" | "maximum";
+                loggingEnabled: boolean;
+                modLogChannelId?: string;
+                moderationEnabled: boolean;
+                updatedAt: number;
+                updatesChannelId?: string;
+                welcomeChannelId?: string;
+                welcomeEnabled: boolean;
+              }
+            >;
+          };
+          updateModules: {
+            update: FunctionReference<
+              "mutation",
+              "public",
+              {
+                discordGuildId: string;
+                modules: {
+                  aiEnabled?: boolean;
+                  loggingEnabled?: boolean;
+                  moderationEnabled?: boolean;
+                  welcomeEnabled?: boolean;
+                };
+              },
+              {
+                _creationTime: number;
+                _id: Id<"guildConfigs">;
+                aiEnabled: boolean;
+                announcementChannelId?: string;
+                commandPrefix?: string;
+                createdAt: number;
+                guildId: Id<"guilds">;
+                logChannelId?: string;
+                logLevel?: "none" | "minimal" | "medium" | "maximum";
+                loggingEnabled: boolean;
+                modLogChannelId?: string;
+                moderationEnabled: boolean;
+                updatedAt: number;
+                updatesChannelId?: string;
+                welcomeChannelId?: string;
+                welcomeEnabled: boolean;
+              }
+            >;
+          };
+        };
         guilds: {
           markOpened: {
             markOpened: FunctionReference<

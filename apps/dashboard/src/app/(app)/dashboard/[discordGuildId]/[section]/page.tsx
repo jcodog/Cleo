@@ -2,10 +2,10 @@ import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 
 import {
-  DISCORD_GUILD_SECTIONS,
   DiscordGuildWorkspacePageShell,
   type DiscordGuildSection,
 } from "@/features/discord-guild-workspace"
+import { DISCORD_GUILD_SECTIONS } from "@/features/discord-guild-workspace/sections"
 
 const DISCORD_SECTIONS = new Set<string>(DISCORD_GUILD_SECTIONS)
 

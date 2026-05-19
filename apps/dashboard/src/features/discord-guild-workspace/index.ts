@@ -1,5 +1,6 @@
+export { DiscordGuildWorkspacePageShell } from "./DiscordGuildWorkspacePageShell"
 export {
   DISCORD_GUILD_SECTIONS,
-  DiscordGuildWorkspacePageShell,
+  DISCORD_GUILD_SECTION_TITLES,
   type DiscordGuildSection,
-} from "./DiscordGuildWorkspacePageShell"
+} from "./sections"
