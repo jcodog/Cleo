@@ -1,5 +1,19 @@
 import { v } from "convex/values"
 
+export const guildConfigLogLevel = v.union(
+  v.literal("none"),
+  v.literal("minimal"),
+  v.literal("medium"),
+  v.literal("maximum")
+)
+
+export const discordGuildInstallSessionStatus = v.union(
+  v.literal("pending"),
+  v.literal("bot_joined"),
+  v.literal("configured"),
+  v.literal("expired")
+)
+
 export const userDoc = v.object({
   _id: v.id("users"),
   _creationTime: v.number(),
@@ -45,9 +59,16 @@ export const guildDoc = v.object({
   _creationTime: v.number(),
   discordGuildId: v.string(),
   name: v.string(),
+  description: v.optional(v.string()),
   iconUrl: v.optional(v.string()),
+  iconHash: v.optional(v.string()),
   ownerDiscordId: v.optional(v.string()),
+  memberCount: v.optional(v.number()),
+  presenceCount: v.optional(v.number()),
   botJoinedAt: v.optional(v.number()),
+  botLeftAt: v.optional(v.number()),
+  lastOpenedAt: v.optional(v.number()),
+  lastSyncedAt: v.optional(v.number()),
   createdAt: v.number(),
   updatedAt: v.number(),
 })
@@ -60,9 +81,12 @@ export const guildConfigDoc = v.object({
   moderationEnabled: v.boolean(),
   welcomeEnabled: v.boolean(),
   loggingEnabled: v.boolean(),
+  logLevel: v.optional(guildConfigLogLevel),
   logChannelId: v.optional(v.string()),
   modLogChannelId: v.optional(v.string()),
   welcomeChannelId: v.optional(v.string()),
+  updatesChannelId: v.optional(v.string()),
+  announcementChannelId: v.optional(v.string()),
   commandPrefix: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -84,6 +108,47 @@ export const discordGuildMembershipDoc = v.object({
       v.literal("manual")
     )
   ),
+  permissions: v.optional(v.string()),
+  lastSyncedAt: v.optional(v.number()),
+  revokedAt: v.optional(v.number()),
   createdAt: v.number(),
   updatedAt: v.number(),
+})
+
+export const discordGuildInstallSessionDoc = v.object({
+  _id: v.id("discordGuildInstallSessions"),
+  _creationTime: v.number(),
+  userId: v.id("users"),
+  discordUserId: v.string(),
+  discordGuildId: v.string(),
+  status: discordGuildInstallSessionStatus,
+  selectedUpdatesChannelId: v.optional(v.string()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  expiresAt: v.number(),
+  completedAt: v.optional(v.number()),
+})
+
+export const dashboardDiscordGuildSelectorViewModel = v.object({
+  guildId: v.id("guilds"),
+  discordGuildId: v.string(),
+  name: v.string(),
+  description: v.optional(v.string()),
+  iconUrl: v.optional(v.string()),
+  iconHash: v.optional(v.string()),
+  memberCount: v.optional(v.number()),
+  presenceCount: v.optional(v.number()),
+  isOwner: v.optional(v.boolean()),
+  permissions: v.optional(v.string()),
+  lastOpenedAt: v.optional(v.number()),
+  lastSyncedAt: v.optional(v.number()),
+})
+
+export const dashboardDiscordInstallSessionViewModel = v.object({
+  installSessionId: v.id("discordGuildInstallSessions"),
+  discordGuildId: v.string(),
+  status: discordGuildInstallSessionStatus,
+  selectedUpdatesChannelId: v.optional(v.string()),
+  expiresAt: v.number(),
+  completedAt: v.optional(v.number()),
 })

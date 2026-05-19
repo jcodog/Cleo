@@ -37,6 +37,10 @@ export function DashboardShellClient({
   const discordOverviewHref = selectedDiscordGuildId
     ? `/dashboard/${selectedDiscordGuildId}`
     : "/dashboard"
+  const discordGuildSectionHref = (section: string) =>
+    selectedDiscordGuildId
+      ? `/dashboard/${selectedDiscordGuildId}/${section}`
+      : "/dashboard"
 
   const platformNavSections: Record<AppShellPlatform, AppShellNavSection[]> = {
     discord: [
@@ -51,44 +55,66 @@ export function DashboardShellClient({
           },
           {
             title: "Modules",
-            href: "/dashboard/discord/modules",
+            href: discordGuildSectionHref("modules"),
             icon: IconListDetails,
-            isActive: pathname.startsWith("/dashboard/discord/modules"),
+            isActive:
+              selectedDiscordGuildId !== undefined &&
+              pathname.startsWith(
+                `/dashboard/${selectedDiscordGuildId}/modules`
+              ),
             disabled: !hasSelectedDiscordGuild,
           },
           {
             title: "Moderation",
-            href: "/dashboard/discord/moderation",
+            href: discordGuildSectionHref("moderation"),
             icon: IconShield,
-            isActive: pathname.startsWith("/dashboard/discord/moderation"),
+            isActive:
+              selectedDiscordGuildId !== undefined &&
+              pathname.startsWith(
+                `/dashboard/${selectedDiscordGuildId}/moderation`
+              ),
             disabled: !hasSelectedDiscordGuild,
           },
           {
             title: "Automation",
-            href: "/dashboard/discord/automation",
+            href: discordGuildSectionHref("automation"),
             icon: IconBolt,
-            isActive: pathname.startsWith("/dashboard/discord/automation"),
+            isActive:
+              selectedDiscordGuildId !== undefined &&
+              pathname.startsWith(
+                `/dashboard/${selectedDiscordGuildId}/automation`
+              ),
             disabled: !hasSelectedDiscordGuild,
           },
           {
             title: "Commands",
-            href: "/dashboard/discord/commands",
+            href: discordGuildSectionHref("commands"),
             icon: IconCommand,
-            isActive: pathname.startsWith("/dashboard/discord/commands"),
+            isActive:
+              selectedDiscordGuildId !== undefined &&
+              pathname.startsWith(
+                `/dashboard/${selectedDiscordGuildId}/commands`
+              ),
             disabled: !hasSelectedDiscordGuild,
           },
           {
             title: "Logs",
-            href: "/dashboard/discord/logs",
+            href: discordGuildSectionHref("logs"),
             icon: IconLogs,
-            isActive: pathname.startsWith("/dashboard/discord/logs"),
+            isActive:
+              selectedDiscordGuildId !== undefined &&
+              pathname.startsWith(`/dashboard/${selectedDiscordGuildId}/logs`),
             disabled: !hasSelectedDiscordGuild,
           },
           {
             title: "Settings",
-            href: "/dashboard/discord/settings",
+            href: discordGuildSectionHref("settings"),
             icon: IconSettings,
-            isActive: pathname.startsWith("/dashboard/discord/settings"),
+            isActive:
+              selectedDiscordGuildId !== undefined &&
+              pathname.startsWith(
+                `/dashboard/${selectedDiscordGuildId}/settings`
+              ),
             disabled: !hasSelectedDiscordGuild,
           },
         ],
@@ -99,50 +125,50 @@ export function DashboardShellClient({
         items: [
           {
             title: "Overview",
-            href: "/dashboard",
+            href: "/kick",
             icon: IconHome,
-            isActive: pathname === "/dashboard",
+            isActive: pathname === "/kick",
           },
           {
             title: "Chat Bot",
-            href: "/dashboard/kick/chat-bot",
+            href: "/kick/chat-bot",
             icon: IconMessageChatbot,
-            isActive: pathname.startsWith("/dashboard/kick/chat-bot"),
+            isActive: pathname.startsWith("/kick/chat-bot"),
             disabled: true,
           },
           {
             title: "Commands",
-            href: "/dashboard/kick/commands",
+            href: "/kick/commands",
             icon: IconCommand,
-            isActive: pathname.startsWith("/dashboard/kick/commands"),
+            isActive: pathname.startsWith("/kick/commands"),
             disabled: true,
           },
           {
             title: "Moderation",
-            href: "/dashboard/kick/moderation",
+            href: "/kick/moderation",
             icon: IconShield,
-            isActive: pathname.startsWith("/dashboard/kick/moderation"),
+            isActive: pathname.startsWith("/kick/moderation"),
             disabled: true,
           },
           {
             title: "Overlays",
-            href: "/dashboard/kick/overlays",
+            href: "/kick/overlays",
             icon: IconDeviceDesktop,
-            isActive: pathname.startsWith("/dashboard/kick/overlays"),
+            isActive: pathname.startsWith("/kick/overlays"),
             disabled: true,
           },
           {
             title: "Live Tools",
-            href: "/dashboard/kick/live-tools",
+            href: "/kick/live-tools",
             icon: IconActivity,
-            isActive: pathname.startsWith("/dashboard/kick/live-tools"),
+            isActive: pathname.startsWith("/kick/live-tools"),
             disabled: true,
           },
           {
             title: "Settings",
-            href: "/dashboard/kick/settings",
+            href: "/kick/settings",
             icon: IconSettings,
-            isActive: pathname.startsWith("/dashboard/kick/settings"),
+            isActive: pathname.startsWith("/kick/settings"),
             disabled: true,
           },
         ],
@@ -153,43 +179,43 @@ export function DashboardShellClient({
         items: [
           {
             title: "Overview",
-            href: "/dashboard",
+            href: "/twitch",
             icon: IconHome,
-            isActive: pathname === "/dashboard",
+            isActive: pathname === "/twitch",
           },
           {
             title: "Chat Bot",
-            href: "/dashboard/twitch/chat-bot",
+            href: "/twitch/chat-bot",
             icon: IconRobot,
-            isActive: pathname.startsWith("/dashboard/twitch/chat-bot"),
+            isActive: pathname.startsWith("/twitch/chat-bot"),
             disabled: true,
           },
           {
             title: "EventSub",
-            href: "/dashboard/twitch/eventsub",
+            href: "/twitch/eventsub",
             icon: IconWebhook,
-            isActive: pathname.startsWith("/dashboard/twitch/eventsub"),
+            isActive: pathname.startsWith("/twitch/eventsub"),
             disabled: true,
           },
           {
             title: "Overlays",
-            href: "/dashboard/twitch/overlays",
+            href: "/twitch/overlays",
             icon: IconDeviceDesktop,
-            isActive: pathname.startsWith("/dashboard/twitch/overlays"),
+            isActive: pathname.startsWith("/twitch/overlays"),
             disabled: true,
           },
           {
             title: "Live Tools",
-            href: "/dashboard/twitch/live-tools",
+            href: "/twitch/live-tools",
             icon: IconActivity,
-            isActive: pathname.startsWith("/dashboard/twitch/live-tools"),
+            isActive: pathname.startsWith("/twitch/live-tools"),
             disabled: true,
           },
           {
             title: "Settings",
-            href: "/dashboard/twitch/settings",
+            href: "/twitch/settings",
             icon: IconSettings,
-            isActive: pathname.startsWith("/dashboard/twitch/settings"),
+            isActive: pathname.startsWith("/twitch/settings"),
             disabled: true,
           },
         ],

@@ -103,14 +103,17 @@ export declare const api: {
                 _creationTime: number;
                 _id: Id<"guildConfigs">;
                 aiEnabled: boolean;
+                announcementChannelId?: string;
                 commandPrefix?: string;
                 createdAt: number;
                 guildId: Id<"guilds">;
                 logChannelId?: string;
+                logLevel?: "none" | "minimal" | "medium" | "maximum";
                 loggingEnabled: boolean;
                 modLogChannelId?: string;
                 moderationEnabled: boolean;
                 updatedAt: number;
+                updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
               } | null
@@ -127,11 +130,18 @@ export declare const api: {
                 _creationTime: number;
                 _id: Id<"guilds">;
                 botJoinedAt?: number;
+                botLeftAt?: number;
                 createdAt: number;
+                description?: string;
                 discordGuildId: string;
+                iconHash?: string;
                 iconUrl?: string;
+                lastOpenedAt?: number;
+                lastSyncedAt?: number;
+                memberCount?: number;
                 name: string;
                 ownerDiscordId?: string;
+                presenceCount?: number;
                 updatedAt: number;
               } | null
             >;
@@ -142,20 +152,18 @@ export declare const api: {
               "public",
               {},
               Array<{
-                _creationTime: number;
-                _id: Id<"discordGuildMemberships">;
-                canManage: boolean;
-                createdAt: number;
-                discordUserId: string;
+                description?: string;
+                discordGuildId: string;
                 guildId: Id<"guilds">;
+                iconHash?: string;
+                iconUrl?: string;
                 isOwner?: boolean;
-                managementVerificationSource?:
-                  | "discord-bot"
-                  | "discord-oauth"
-                  | "manual";
-                managementVerifiedAt?: number;
-                updatedAt: number;
-                userId?: Id<"users">;
+                lastOpenedAt?: number;
+                lastSyncedAt?: number;
+                memberCount?: number;
+                name: string;
+                permissions?: string;
+                presenceCount?: number;
               }>
             >;
           };
@@ -197,11 +205,13 @@ export declare const internal: {
                 discordUserId: string;
                 guildId: Id<"guilds">;
                 isOwner?: boolean;
+                lastSyncedAt?: number;
                 managementVerificationSource:
                   | "discord-bot"
                   | "discord-oauth"
                   | "manual";
                 managementVerifiedAt: number;
+                permissions?: string;
                 userId?: Id<"users">;
               },
               Id<"discordGuildMemberships">
@@ -215,10 +225,15 @@ export declare const internal: {
               "internal",
               {
                 botJoinedAt?: number;
+                description?: string;
                 discordGuildId: string;
+                iconHash?: string;
                 iconUrl?: string;
+                lastSyncedAt?: number;
+                memberCount?: number;
                 name: string;
                 ownerDiscordId?: string;
+                presenceCount?: number;
               },
               Id<"guilds">
             >;

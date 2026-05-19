@@ -1,7 +1,13 @@
 "use client"
 
+import { useEffect } from "react"
 import { IconChevronDown, IconPlus, IconServer } from "@tabler/icons-react"
+import { api } from "@workspace/backend/convex/_generated/api.js"
+import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
+import { cn } from "@workspace/ui/lib/utils"
+import { useQuery } from "convex/react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 
 import {
   DropdownMenu,
@@ -15,12 +21,11 @@ import {
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 
 type DiscordGuildOption = {
-  id: string
+  guildId: Id<"guilds">
+  discordGuildId: string
   name: string
   iconUrl?: string
 }
-
-const DISCORD_GUILD_OPTIONS: DiscordGuildOption[] = []
 
 function GuildIcon({
   className = "size-8",
@@ -32,7 +37,10 @@ function GuildIcon({
   if (!guild?.iconUrl) {
     return (
       <span
-        className={`flex shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-sidebar-foreground ${className}`}
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-sidebar-foreground",
+          className
+        )}
       >
         {guild?.name.slice(0, 1).toUpperCase() ?? (
           <IconServer aria-hidden className="size-4" />
@@ -44,7 +52,7 @@ function GuildIcon({
   return (
     <Image
       alt=""
-      className={`shrink-0 rounded-md object-cover ${className}`}
+      className={cn("shrink-0 rounded-md object-cover", className)}
       height={28}
       src={guild.iconUrl}
       unoptimized
@@ -54,6 +62,10 @@ function GuildIcon({
 }
 
 export function DiscordGuildSelect() {
+  const router = useRouter()
+  const manageableGuilds = useQuery(
+    api.queries.dashboard.discord.guilds.manageable.list
+  )
   const selectedPlatform = useAppShellStore((state) => state.selectedPlatform)
   const selectedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
@@ -62,30 +74,41 @@ export function DiscordGuildSelect() {
     (state) => state.setSelectedDiscordGuildId
   )
 
-  const selectedGuildInOptions = DISCORD_GUILD_OPTIONS.some(
-    (guild) => guild.id === selectedDiscordGuildId
-  )
-  const guildOptions =
-    selectedDiscordGuildId && !selectedGuildInOptions
-      ? [
-          {
-            id: selectedDiscordGuildId,
-            name: "Selected Guild",
-          },
-          ...DISCORD_GUILD_OPTIONS,
-        ]
-      : DISCORD_GUILD_OPTIONS
+  const guildOptions = manageableGuilds ?? []
   const selectedGuild = guildOptions.find(
-    (guild) => guild.id === selectedDiscordGuildId
+    (guild) => guild.discordGuildId === selectedDiscordGuildId
   )
+  const isLoading = manageableGuilds === undefined
+
+  useEffect(() => {
+    if (!manageableGuilds || !selectedDiscordGuildId) {
+      return
+    }
+
+    if (
+      !manageableGuilds.some(
+        (guild) => guild.discordGuildId === selectedDiscordGuildId
+      )
+    ) {
+      setSelectedDiscordGuildId(undefined)
+    }
+  }, [manageableGuilds, selectedDiscordGuildId, setSelectedDiscordGuildId])
 
   function handleAddGuild() {
-    window.dispatchEvent(new CustomEvent("cleo:discord:add-guild"))
+    router.push("/dashboard/add-server")
   }
 
   if (selectedPlatform !== "discord") {
     return null
   }
+
+  const triggerLabel =
+    selectedGuild?.name ??
+    (isLoading
+      ? "Loading servers"
+      : guildOptions.length > 0
+        ? "Select a server"
+        : "No servers")
 
   return (
     <div className="flex flex-col gap-1.5 px-1 pt-1 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
@@ -105,7 +128,7 @@ export function DiscordGuildSelect() {
                 guild={selectedGuild}
               />
               <span className="min-w-0 flex-1 truncate font-medium group-data-[collapsible=icon]:hidden">
-                {selectedGuild?.name ?? "Select A Guild"}
+                {triggerLabel}
               </span>
               <IconChevronDown
                 aria-hidden
@@ -118,7 +141,7 @@ export function DiscordGuildSelect() {
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={handleAddGuild}>
               <IconPlus aria-hidden />
-              Add Guild
+              Add Server
             </DropdownMenuItem>
           </DropdownMenuGroup>
           {guildOptions.length > 0 ? (
@@ -127,8 +150,10 @@ export function DiscordGuildSelect() {
               <DropdownMenuGroup>
                 {guildOptions.map((guild) => (
                   <DropdownMenuItem
-                    key={guild.id}
-                    onClick={() => setSelectedDiscordGuildId(guild.id)}
+                    key={guild.discordGuildId}
+                    onClick={() =>
+                      setSelectedDiscordGuildId(guild.discordGuildId)
+                    }
                   >
                     <GuildIcon className="size-5" guild={guild} />
                     <span className="truncate">{guild.name}</span>

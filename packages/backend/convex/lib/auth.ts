@@ -85,9 +85,10 @@ export async function requireDiscordGuildManager(
 
   const directMembership = await ctx.db
     .query("discordGuildMemberships")
-    .withIndex("by_user_id", (q) => q.eq("userId", user._id))
-    .filter((q) => q.eq(q.field("guildId"), guildId))
-    .first()
+    .withIndex("by_user_id_and_guild_id", (q) =>
+      q.eq("userId", user._id).eq("guildId", guildId)
+    )
+    .unique()
 
   if (isVerifiedGuildManager(directMembership)) {
     return directMembership
@@ -121,7 +122,9 @@ function isVerifiedGuildManager(
   membership: Doc<"discordGuildMemberships"> | null
 ): membership is Doc<"discordGuildMemberships"> {
   return Boolean(
-    membership?.canManage && membership.managementVerifiedAt !== undefined
+    membership?.canManage &&
+      membership.managementVerifiedAt !== undefined &&
+      membership.revokedAt === undefined
   )
 }
 

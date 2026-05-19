@@ -12,6 +12,8 @@ export const upsert = internalMutation({
     canManage: v.boolean(),
     managementVerifiedAt: v.number(),
     managementVerificationSource: discordVerificationSource,
+    permissions: v.optional(v.string()),
+    lastSyncedAt: v.optional(v.number()),
   },
   returns: v.id("discordGuildMemberships"),
   handler: async (ctx, args): Promise<Id<"discordGuildMemberships">> => {
@@ -31,11 +33,18 @@ export const upsert = internalMutation({
       canManage: args.canManage,
       managementVerifiedAt: args.managementVerifiedAt,
       managementVerificationSource: args.managementVerificationSource,
+      ...(args.permissions !== undefined
+        ? { permissions: args.permissions }
+        : {}),
+      lastSyncedAt: args.lastSyncedAt ?? now,
       updatedAt: now,
     }
 
     if (existing) {
-      await ctx.db.patch(existing._id, value)
+      await ctx.db.patch(existing._id, {
+        ...value,
+        revokedAt: undefined,
+      })
       return existing._id
     }
 

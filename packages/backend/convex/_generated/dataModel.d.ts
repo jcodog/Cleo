@@ -147,7 +147,7 @@ export type DataModel = {
   guildConfigs: {
     document: {
       aiEnabled: boolean;
-      announcementsChannelId?: string;
+      announcementChannelId?: string;
       commandPrefix?: string;
       createdAt: number;
       guildId: Id<"guilds">;
@@ -156,8 +156,8 @@ export type DataModel = {
       loggingEnabled: boolean;
       modLogChannelId?: string;
       moderationEnabled: boolean;
-      updateChannelId?: string;
       updatedAt: number;
+      updatesChannelId?: string;
       welcomeChannelId?: string;
       welcomeEnabled: boolean;
       _id: Id<"guildConfigs">;
@@ -167,7 +167,7 @@ export type DataModel = {
       | "_creationTime"
       | "_id"
       | "aiEnabled"
-      | "announcementsChannelId"
+      | "announcementChannelId"
       | "commandPrefix"
       | "createdAt"
       | "guildId"
@@ -176,8 +176,8 @@ export type DataModel = {
       | "logLevel"
       | "moderationEnabled"
       | "modLogChannelId"
-      | "updateChannelId"
       | "updatedAt"
+      | "updatesChannelId"
       | "welcomeChannelId"
       | "welcomeEnabled";
     indexes: {
