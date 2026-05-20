@@ -18,45 +18,50 @@ type AppSidebarNavProps = {
 export function AppSidebarNav({ navSections }: AppSidebarNavProps) {
   return (
     <>
-      {navSections.map((section, sectionIndex) => (
-        <SidebarGroup
-          key={sectionIndex}
-          className="p-3 group-data-[collapsible=icon]:p-2"
-        >
-          {section.title ? (
-            <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
-          ) : null}
+      {navSections.map((section, sectionIndex) => {
+        const sectionKey = `${section.title ?? "main"}-${sectionIndex}`
 
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              {section.items.map((item, itemIndex) => {
-                const Icon = item.icon
+        return (
+          <SidebarGroup
+            key={sectionKey}
+            className="p-3 group-data-[collapsible=icon]:p-2"
+          >
+            {section.title ? (
+              <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
+            ) : null}
 
-                return (
-                  <SidebarMenuItem key={itemIndex}>
-                    <SidebarMenuButton
-                      render={
-                        item.disabled ? undefined : <Link href={item.href} />
-                      }
-                      className={
-                        item.disabled
-                          ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-sidebar-foreground"
-                          : undefined
-                      }
-                      isActive={item.isActive}
-                      tooltip={item.disabled ? undefined : item.title}
-                      disabled={item.disabled}
-                    >
-                      {Icon ? <Icon /> : null}
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ))}
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1">
+                {section.items.map((item, itemIndex) => {
+                  const Icon = item.icon
+                  const itemKey = `${sectionKey}-${item.title}-${item.href}-${itemIndex}`
+
+                  return (
+                    <SidebarMenuItem key={itemKey}>
+                      <SidebarMenuButton
+                        render={
+                          item.disabled ? undefined : <Link href={item.href} />
+                        }
+                        className={
+                          item.disabled
+                            ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-sidebar-foreground"
+                            : undefined
+                        }
+                        isActive={item.isActive}
+                        tooltip={item.disabled ? undefined : item.title}
+                        disabled={item.disabled}
+                      >
+                        {Icon ? <Icon /> : null}
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )
+      })}
     </>
   )
 }

@@ -353,3 +353,36 @@ export const dashboardDiscordGuildOverviewResult = v.union(
     overview: dashboardDiscordGuildOverviewViewModel,
   })
 )
+
+export const dashboardDiscordGuildSystemLogViewModel = v.object({
+  logId: v.id("errorLogs"),
+  source: v.union(
+    v.literal("dashboard"),
+    v.literal("discord-bot"),
+    v.literal("kick-bot"),
+    v.literal("ws-relay"),
+    v.literal("backend")
+  ),
+  level: v.union(
+    v.literal("debug"),
+    v.literal("info"),
+    v.literal("warn"),
+    v.literal("error")
+  ),
+  message: v.string(),
+  stack: v.optional(v.string()),
+  createdAt: v.number(),
+})
+
+export const dashboardDiscordGuildSystemLogsResult = v.union(
+  v.object({
+    status: v.literal("notFound"),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+  }),
+  v.object({
+    status: v.literal("ready"),
+    logs: v.array(dashboardDiscordGuildSystemLogViewModel),
+  })
+)

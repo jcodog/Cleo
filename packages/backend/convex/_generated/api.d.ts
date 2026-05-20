@@ -532,6 +532,31 @@ export declare const api: {
                 }
             >;
           };
+          systemLogs: {
+            list: FunctionReference<
+              "query",
+              "public",
+              { discordGuildId: string },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  logs: Array<{
+                    createdAt: number;
+                    level: "debug" | "info" | "warn" | "error";
+                    logId: Id<"errorLogs">;
+                    message: string;
+                    source:
+                      | "dashboard"
+                      | "discord-bot"
+                      | "kick-bot"
+                      | "ws-relay"
+                      | "backend";
+                    stack?: string;
+                  }>;
+                  status: "ready";
+                }
+            >;
+          };
         };
       };
     };
