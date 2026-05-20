@@ -34,6 +34,7 @@ export type DataModel = {
       discordGuildId: string;
       discordUserId: string;
       expiresAt: number;
+      oauthState?: string;
       selectedUpdatesChannelId?: string;
       status: "pending" | "bot_joined" | "configured" | "expired";
       updatedAt: number;
@@ -49,6 +50,7 @@ export type DataModel = {
       | "discordGuildId"
       | "discordUserId"
       | "expiresAt"
+      | "oauthState"
       | "selectedUpdatesChannelId"
       | "status"
       | "updatedAt"

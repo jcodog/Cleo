@@ -20,6 +20,162 @@ import type { GenericId as Id } from "convex/values";
  * ```
  */
 export declare const api: {
+  actions: {
+    dashboard: {
+      discord: {
+        install: {
+          completeServerInstall: {
+            complete: FunctionReference<
+              "action",
+              "public",
+              { installSessionId: Id<"discordGuildInstallSessions"> },
+              | { status: "missingDiscordIdentity" }
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | { discordGuildId: string; status: "pendingBotSync" }
+              | {
+                  discordGuildId: string;
+                  status: "completed";
+                  targetPath: string;
+                }
+            >;
+          };
+          createServerInstall: {
+            create: FunctionReference<
+              "action",
+              "public",
+              { discordGuildId: string },
+              | { status: "missingDiscordIdentity" }
+              | {
+                  discordGuildId: string;
+                  status: "alreadyInstalled";
+                  targetPath: string;
+                }
+              | {
+                  reason: "discordGuildDiscoveryUnavailable";
+                  status: "verificationUnavailable";
+                }
+              | {
+                  reason: "discordApplicationIdMissing";
+                  status: "configUnavailable";
+                }
+              | {
+                  discordGuildId: string;
+                  expiresAt: number;
+                  installSessionId: Id<"discordGuildInstallSessions">;
+                  installUrl: string;
+                  status: "created";
+                }
+            >;
+          };
+          getPendingChannels: {
+            get: FunctionReference<
+              "action",
+              "public",
+              {
+                discordGuildId?: string;
+                installSessionId?: Id<"discordGuildInstallSessions">;
+              },
+              | { status: "missingDiscordIdentity" }
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | { discordGuildId: string; status: "pendingBotSync" }
+              | {
+                  discordGuildId: string;
+                  reason:
+                    | "discordBotTokenUnavailable"
+                    | "discordApiUnavailable";
+                  status: "channelDiscoveryUnavailable";
+                }
+              | {
+                  channels: Array<{
+                    discordChannelId: string;
+                    name: string;
+                    position?: number;
+                    type: "text" | "announcement";
+                  }>;
+                  discordGuildId: string;
+                  status: "ready";
+                }
+            >;
+          };
+          listInstallableGuilds: {
+            list: FunctionReference<
+              "action",
+              "public",
+              {},
+              | { status: "missingDiscordIdentity" }
+              | {
+                  guilds: Array<{
+                    dashboardHref?: string;
+                    discordGuildId: string;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    installSessionExpiresAt?: number;
+                    installSessionId?: Id<"discordGuildInstallSessions">;
+                    installSessionStatus?:
+                      | "pending"
+                      | "bot_joined"
+                      | "configured"
+                      | "expired";
+                    isOwner?: boolean;
+                    memberCount?: number;
+                    name: string;
+                    permissions?: string;
+                    presenceCount?: number;
+                    state:
+                      | "installed"
+                      | "installable"
+                      | "pending"
+                      | "unavailable";
+                    unavailableReason?:
+                      | "missingManageGuildPermission"
+                      | "botLeft"
+                      | "botSyncUnavailable"
+                      | "verificationUnavailable";
+                  }>;
+                  reason:
+                    | "discordAccessTokenUnavailable"
+                    | "discordTokenResolutionUnavailable";
+                  status: "discordGuildDiscoveryUnavailable";
+                }
+              | {
+                  guilds: Array<{
+                    dashboardHref?: string;
+                    discordGuildId: string;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    installSessionExpiresAt?: number;
+                    installSessionId?: Id<"discordGuildInstallSessions">;
+                    installSessionStatus?:
+                      | "pending"
+                      | "bot_joined"
+                      | "configured"
+                      | "expired";
+                    isOwner?: boolean;
+                    memberCount?: number;
+                    name: string;
+                    permissions?: string;
+                    presenceCount?: number;
+                    state:
+                      | "installed"
+                      | "installable"
+                      | "pending"
+                      | "unavailable";
+                    unavailableReason?:
+                      | "missingManageGuildPermission"
+                      | "botLeft"
+                      | "botSyncUnavailable"
+                      | "verificationUnavailable";
+                  }>;
+                  status: "ready";
+                }
+            >;
+          };
+        };
+      };
+    };
+  };
   mutations: {
     dashboard: {
       account: {
@@ -450,6 +606,58 @@ export declare const internal: {
         };
       };
     };
+    dashboard: {
+      discord: {
+        installSessions: {
+          upsert: {
+            configured: FunctionReference<
+              "mutation",
+              "internal",
+              { installSessionId: Id<"discordGuildInstallSessions"> },
+              {
+                _creationTime: number;
+                _id: Id<"discordGuildInstallSessions">;
+                completedAt?: number;
+                createdAt: number;
+                discordGuildId: string;
+                discordUserId: string;
+                expiresAt: number;
+                oauthState?: string;
+                selectedUpdatesChannelId?: string;
+                status: "pending" | "bot_joined" | "configured" | "expired";
+                updatedAt: number;
+                userId: Id<"users">;
+              }
+            >;
+            pending: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                discordGuildId: string;
+                discordUserId: string;
+                expiresAt: number;
+                oauthState: string;
+                userId: Id<"users">;
+              },
+              {
+                _creationTime: number;
+                _id: Id<"discordGuildInstallSessions">;
+                completedAt?: number;
+                createdAt: number;
+                discordGuildId: string;
+                discordUserId: string;
+                expiresAt: number;
+                oauthState?: string;
+                selectedUpdatesChannelId?: string;
+                status: "pending" | "bot_joined" | "configured" | "expired";
+                updatedAt: number;
+                userId: Id<"users">;
+              }
+            >;
+          };
+        };
+      };
+    };
     integrations: {
       clerk: {
         users: {
@@ -488,6 +696,187 @@ export declare const internal: {
             },
             Id<"errorLogs">
           >;
+        };
+      };
+    };
+  };
+  queries: {
+    dashboard: {
+      discord: {
+        install: {
+          context: {
+            getCreateServerInstallContext: FunctionReference<
+              "query",
+              "internal",
+              { discordGuildId: string },
+              | { status: "missingUser" }
+              | { status: "missingDiscordIdentity" }
+              | { discordGuildId: string; status: "alreadyInstalled" }
+              | { status: "verificationUnavailable" }
+              | {
+                  discordAccount: {
+                    _creationTime: number;
+                    _id: Id<"linkedAccounts">;
+                    accessTokenSecretId?: string;
+                    avatarUrl?: string;
+                    createdAt: number;
+                    displayName?: string;
+                    expiresAt?: number;
+                    provider: "discord" | "kick" | "twitch" | "github";
+                    providerAccountId: string;
+                    refreshTokenSecretId?: string;
+                    scopes: Array<string>;
+                    updatedAt: number;
+                    userId: Id<"users">;
+                    username?: string;
+                  };
+                  discordGuildId: string;
+                  status: "ready";
+                  user: {
+                    _creationTime: number;
+                    _id: Id<"users">;
+                    clerkUserId: string;
+                    createdAt: number;
+                    displayName?: string;
+                    email: string;
+                    imageUrl?: string;
+                    role: "user" | "staff" | "admin" | "superadmin";
+                    status?: "active" | "disabled";
+                    updatedAt: number;
+                  };
+                }
+            >;
+            getInstallableGuildsContext: FunctionReference<
+              "query",
+              "internal",
+              {},
+              | { status: "missingUser" }
+              | {
+                  discordAccount: {
+                    _creationTime: number;
+                    _id: Id<"linkedAccounts">;
+                    accessTokenSecretId?: string;
+                    avatarUrl?: string;
+                    createdAt: number;
+                    displayName?: string;
+                    expiresAt?: number;
+                    provider: "discord" | "kick" | "twitch" | "github";
+                    providerAccountId: string;
+                    refreshTokenSecretId?: string;
+                    scopes: Array<string>;
+                    updatedAt: number;
+                    userId: Id<"users">;
+                    username?: string;
+                  } | null;
+                  guilds: Array<{
+                    dashboardHref?: string;
+                    discordGuildId: string;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    installSessionExpiresAt?: number;
+                    installSessionId?: Id<"discordGuildInstallSessions">;
+                    installSessionStatus?:
+                      | "pending"
+                      | "bot_joined"
+                      | "configured"
+                      | "expired";
+                    isOwner?: boolean;
+                    memberCount?: number;
+                    name: string;
+                    permissions?: string;
+                    presenceCount?: number;
+                    state:
+                      | "installed"
+                      | "installable"
+                      | "pending"
+                      | "unavailable";
+                    unavailableReason?:
+                      | "missingManageGuildPermission"
+                      | "botLeft"
+                      | "botSyncUnavailable"
+                      | "verificationUnavailable";
+                  }>;
+                  status: "ready";
+                  user: {
+                    _creationTime: number;
+                    _id: Id<"users">;
+                    clerkUserId: string;
+                    createdAt: number;
+                    displayName?: string;
+                    email: string;
+                    imageUrl?: string;
+                    role: "user" | "staff" | "admin" | "superadmin";
+                    status?: "active" | "disabled";
+                    updatedAt: number;
+                  };
+                }
+            >;
+            getInstallSessionContext: FunctionReference<
+              "query",
+              "internal",
+              {
+                discordGuildId?: string;
+                installSessionId?: Id<"discordGuildInstallSessions">;
+              },
+              | { status: "missingUser" }
+              | { status: "missingDiscordIdentity" }
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  discordAccount: {
+                    _creationTime: number;
+                    _id: Id<"linkedAccounts">;
+                    accessTokenSecretId?: string;
+                    avatarUrl?: string;
+                    createdAt: number;
+                    displayName?: string;
+                    expiresAt?: number;
+                    provider: "discord" | "kick" | "twitch" | "github";
+                    providerAccountId: string;
+                    refreshTokenSecretId?: string;
+                    scopes: Array<string>;
+                    updatedAt: number;
+                    userId: Id<"users">;
+                    username?: string;
+                  };
+                  guild: {
+                    _creationTime: number;
+                    _id: Id<"guilds">;
+                    botJoinedAt?: number;
+                    botLeftAt?: number;
+                    discordGuildId: string;
+                    name: string;
+                  } | null;
+                  session: {
+                    _creationTime: number;
+                    _id: Id<"discordGuildInstallSessions">;
+                    completedAt?: number;
+                    createdAt: number;
+                    discordGuildId: string;
+                    discordUserId: string;
+                    expiresAt: number;
+                    oauthState?: string;
+                    selectedUpdatesChannelId?: string;
+                    status: "pending" | "bot_joined" | "configured" | "expired";
+                    updatedAt: number;
+                    userId: Id<"users">;
+                  };
+                  status: "ready";
+                  user: {
+                    _creationTime: number;
+                    _id: Id<"users">;
+                    clerkUserId: string;
+                    createdAt: number;
+                    displayName?: string;
+                    email: string;
+                    imageUrl?: string;
+                    role: "user" | "staff" | "admin" | "superadmin";
+                    status?: "active" | "disabled";
+                    updatedAt: number;
+                  };
+                }
+            >;
+          };
         };
       };
     };

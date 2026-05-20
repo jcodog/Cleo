@@ -261,7 +261,7 @@ function getPlatformFromPathname(pathname: string): AppShellPlatform {
 }
 
 function getRouteDiscordGuildId(pathname: string): string | undefined {
-  const [, section, guildId] = pathname.split("/")
+  const [section, guildId] = pathname.split("/")
 
   if (section !== "dashboard" || !guildId || guildId === "add-server") {
     return undefined

@@ -123,6 +123,7 @@ export const discordGuildInstallSessionDoc = v.object({
   discordGuildId: v.string(),
   status: discordGuildInstallSessionStatus,
   selectedUpdatesChannelId: v.optional(v.string()),
+  oauthState: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
   expiresAt: v.number(),
@@ -152,6 +153,136 @@ export const dashboardDiscordInstallSessionViewModel = v.object({
   expiresAt: v.number(),
   completedAt: v.optional(v.number()),
 })
+
+export const dashboardDiscordInstallableGuildViewModel = v.object({
+  discordGuildId: v.string(),
+  name: v.string(),
+  iconUrl: v.optional(v.string()),
+  iconHash: v.optional(v.string()),
+  memberCount: v.optional(v.number()),
+  presenceCount: v.optional(v.number()),
+  isOwner: v.optional(v.boolean()),
+  permissions: v.optional(v.string()),
+  state: v.union(
+    v.literal("installed"),
+    v.literal("installable"),
+    v.literal("pending"),
+    v.literal("unavailable")
+  ),
+  unavailableReason: v.optional(
+    v.union(
+      v.literal("missingManageGuildPermission"),
+      v.literal("botLeft"),
+      v.literal("botSyncUnavailable"),
+      v.literal("verificationUnavailable")
+    )
+  ),
+  installSessionId: v.optional(v.id("discordGuildInstallSessions")),
+  installSessionStatus: v.optional(discordGuildInstallSessionStatus),
+  installSessionExpiresAt: v.optional(v.number()),
+  dashboardHref: v.optional(v.string()),
+})
+
+export const dashboardDiscordInstallableGuildsResult = v.union(
+  v.object({
+    status: v.literal("missingDiscordIdentity"),
+  }),
+  v.object({
+    status: v.literal("discordGuildDiscoveryUnavailable"),
+    reason: v.union(
+      v.literal("discordAccessTokenUnavailable"),
+      v.literal("discordTokenResolutionUnavailable")
+    ),
+    guilds: v.array(dashboardDiscordInstallableGuildViewModel),
+  }),
+  v.object({
+    status: v.literal("ready"),
+    guilds: v.array(dashboardDiscordInstallableGuildViewModel),
+  })
+)
+
+export const dashboardDiscordCreateServerInstallResult = v.union(
+  v.object({
+    status: v.literal("missingDiscordIdentity"),
+  }),
+  v.object({
+    status: v.literal("alreadyInstalled"),
+    discordGuildId: v.string(),
+    targetPath: v.string(),
+  }),
+  v.object({
+    status: v.literal("verificationUnavailable"),
+    reason: v.literal("discordGuildDiscoveryUnavailable"),
+  }),
+  v.object({
+    status: v.literal("configUnavailable"),
+    reason: v.literal("discordApplicationIdMissing"),
+  }),
+  v.object({
+    status: v.literal("created"),
+    discordGuildId: v.string(),
+    installSessionId: v.id("discordGuildInstallSessions"),
+    expiresAt: v.number(),
+    installUrl: v.string(),
+  })
+)
+
+export const dashboardDiscordPendingChannelViewModel = v.object({
+  discordChannelId: v.string(),
+  name: v.string(),
+  type: v.union(v.literal("text"), v.literal("announcement")),
+  position: v.optional(v.number()),
+})
+
+export const dashboardDiscordPendingChannelsResult = v.union(
+  v.object({
+    status: v.literal("missingDiscordIdentity"),
+  }),
+  v.object({
+    status: v.literal("notFound"),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+  }),
+  v.object({
+    status: v.literal("pendingBotSync"),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("channelDiscoveryUnavailable"),
+    reason: v.union(
+      v.literal("discordBotTokenUnavailable"),
+      v.literal("discordApiUnavailable")
+    ),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("ready"),
+    discordGuildId: v.string(),
+    channels: v.array(dashboardDiscordPendingChannelViewModel),
+  })
+)
+
+export const dashboardDiscordCompleteServerInstallResult = v.union(
+  v.object({
+    status: v.literal("missingDiscordIdentity"),
+  }),
+  v.object({
+    status: v.literal("notFound"),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+  }),
+  v.object({
+    status: v.literal("pendingBotSync"),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("completed"),
+    discordGuildId: v.string(),
+    targetPath: v.string(),
+  })
+)
 
 export const dashboardDiscordGuildOverviewMembershipViewModel = v.object({
   membershipId: v.id("discordGuildMemberships"),

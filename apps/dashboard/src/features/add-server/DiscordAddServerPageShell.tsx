@@ -1,12 +1,22 @@
 "use client"
 
-import { IconBrandDiscord, IconClock, IconServer } from "@tabler/icons-react"
+import { useEffect, useState } from "react"
+import {
+  IconAlertCircle,
+  IconBrandDiscord,
+  IconCircleCheck,
+  IconClock,
+  IconExternalLink,
+  IconServer,
+} from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
+import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@workspace/ui/components/alert"
+import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
   Empty,
@@ -20,23 +30,107 @@ import {
   Authenticated,
   AuthLoading,
   Unauthenticated,
+  useAction,
   useQuery,
 } from "convex/react"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
+
+type InstallableGuild = {
+  discordGuildId: string
+  name: string
+  iconUrl?: string
+  iconHash?: string
+  memberCount?: number
+  presenceCount?: number
+  isOwner?: boolean
+  permissions?: string
+  state: "installed" | "installable" | "pending" | "unavailable"
+  unavailableReason?:
+    | "missingManageGuildPermission"
+    | "botLeft"
+    | "botSyncUnavailable"
+    | "verificationUnavailable"
+  installSessionId?: Id<"discordGuildInstallSessions">
+  installSessionStatus?: "pending" | "bot_joined" | "configured" | "expired"
+  installSessionExpiresAt?: number
+  dashboardHref?: string
+}
+
+type InstallableGuildsResult =
+  | {
+      status: "missingDiscordIdentity"
+    }
+  | {
+      status: "discordGuildDiscoveryUnavailable"
+      reason:
+        | "discordAccessTokenUnavailable"
+        | "discordTokenResolutionUnavailable"
+      guilds: InstallableGuild[]
+    }
+  | {
+      status: "ready"
+      guilds: InstallableGuild[]
+    }
+
+type FlowNotice = {
+  tone: "default" | "destructive"
+  title: string
+  description: string
+}
 
 function DiscordAddServerState() {
+  const router = useRouter()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
   const discordIdentity = useQuery(
     api.queries.dashboard.account.discordIdentity.get
   )
-  const manageableGuilds = useQuery(
-    api.queries.dashboard.discord.guilds.manageable.list
+  const listInstallableGuilds = useAction(
+    api.actions.dashboard.discord.install.listInstallableGuilds.list
   )
+  const createServerInstall = useAction(
+    api.actions.dashboard.discord.install.createServerInstall.create
+  )
+  const completeServerInstall = useAction(
+    api.actions.dashboard.discord.install.completeServerInstall.complete
+  )
+  const [guildResult, setGuildResult] =
+    useState<InstallableGuildsResult | null>(null)
+  const [activeGuildId, setActiveGuildId] = useState<string | null>(null)
+  const [notice, setNotice] = useState<FlowNotice | null>(null)
+  const currentUserId = currentUser?._id
+  const discordIdentityId = discordIdentity?._id
 
-  if (
-    currentUser === undefined ||
-    discordIdentity === undefined ||
-    manageableGuilds === undefined
-  ) {
+  useEffect(() => {
+    if (!currentUserId || !discordIdentityId) {
+      return
+    }
+
+    let cancelled = false
+
+    listInstallableGuilds({})
+      .then((result) => {
+        if (!cancelled) {
+          setGuildResult(result)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setNotice({
+            tone: "destructive",
+            title: "Discord servers could not be loaded",
+            description:
+              "The dashboard could not check Discord install state. Refresh and try again.",
+          })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentUserId, discordIdentityId, listInstallableGuilds])
+
+  if (currentUser === undefined || discordIdentity === undefined) {
     return (
       <div className="flex flex-col gap-3">
         <Skeleton className="h-24 w-full" />
@@ -62,7 +156,35 @@ function DiscordAddServerState() {
     )
   }
 
-  if (manageableGuilds.length === 0) {
+  if (guildResult === null) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </div>
+    )
+  }
+
+  if (guildResult.status === "missingDiscordIdentity") {
+    return (
+      <Empty className="min-h-72">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <IconBrandDiscord aria-hidden />
+          </EmptyMedia>
+          <EmptyTitle>Discord identity syncing</EmptyTitle>
+          <EmptyDescription>
+            Your signed-in Discord identity has not reached the dashboard
+            backend yet. Refresh shortly, then try adding a server again.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
+
+  const guilds = guildResult.guilds
+
+  if (guilds.length === 0) {
     return (
       <Empty className="min-h-72">
         <EmptyHeader>
@@ -72,7 +194,8 @@ function DiscordAddServerState() {
           <EmptyTitle>No manageable servers synced</EmptyTitle>
           <EmptyDescription>
             Cleo has not synced any Discord servers that your Discord identity
-            can manage. The OAuth install flow will be added in a later pass.
+            can manage. Live Discord server discovery is unavailable until
+            Discord token sync support exists.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -81,39 +204,105 @@ function DiscordAddServerState() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Alert>
-        <IconClock aria-hidden />
-        <AlertTitle>Install action pending</AlertTitle>
-        <AlertDescription>
-          These servers are already known to the backend. Starting a new Discord
-          install from this page will be wired once the Discord OAuth actions
-          are implemented.
-        </AlertDescription>
-      </Alert>
+      {guildResult.status === "discordGuildDiscoveryUnavailable" ? (
+        <Alert>
+          <IconAlertCircle aria-hidden />
+          <AlertTitle>Live Discord discovery unavailable</AlertTitle>
+          <AlertDescription>
+            Cleo can show servers already verified by Convex, but cannot fetch
+            your full Discord server list until Discord token sync support is
+            available.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {notice ? (
+        <Alert variant={notice.tone}>
+          <IconAlertCircle aria-hidden />
+          <AlertTitle>{notice.title}</AlertTitle>
+          <AlertDescription>{notice.description}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="overflow-hidden rounded-lg border">
         <div className="flex items-center justify-between gap-3 border-b px-3 py-2 text-sm">
-          <span className="font-medium">Manageable servers</span>
-          <span className="text-muted-foreground">
-            {manageableGuilds.length}
-          </span>
+          <span className="font-medium">Discord servers</span>
+          <span className="text-muted-foreground">{guilds.length}</span>
         </div>
         <div className="divide-y">
-          {manageableGuilds.map((guild) => (
+          {guilds.map((guild) => (
             <div
-              className="flex min-w-0 items-center justify-between gap-3 px-3 py-2"
+              className="flex min-w-0 items-center justify-between gap-3 px-3 py-2.5"
               key={guild.discordGuildId}
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{guild.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {guild.discordGuildId}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                <GuildAvatar guild={guild} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{guild.name}</p>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-xs text-muted-foreground">
+                      {guild.discordGuildId}
+                    </p>
+                    <GuildStateBadge guild={guild} />
+                  </div>
+                </div>
               </div>
-              <Button disabled size="sm" variant="outline">
-                <IconClock aria-hidden data-icon="inline-start" />
-                Pending
-              </Button>
+              <GuildAction
+                activeGuildId={activeGuildId}
+                guild={guild}
+                onCheckInstall={async () => {
+                  if (!guild.installSessionId) {
+                    return
+                  }
+
+                  setActiveGuildId(guild.discordGuildId)
+                  setNotice(null)
+
+                  try {
+                    const result = await completeServerInstall({
+                      installSessionId: guild.installSessionId,
+                    })
+
+                    if (result.status === "completed") {
+                      router.push(result.targetPath)
+                      return
+                    }
+
+                    setNotice(toCompleteNotice(result.status))
+                  } finally {
+                    setActiveGuildId(null)
+                  }
+                }}
+                onCreateInstall={async () => {
+                  setActiveGuildId(guild.discordGuildId)
+                  setNotice(null)
+
+                  try {
+                    const result = await createServerInstall({
+                      discordGuildId: guild.discordGuildId,
+                    })
+
+                    if (result.status === "created") {
+                      window.location.assign(result.installUrl)
+                      return
+                    }
+
+                    if (result.status === "alreadyInstalled") {
+                      router.push(result.targetPath)
+                      return
+                    }
+
+                    setNotice(toCreateNotice(result.status))
+                  } finally {
+                    setActiveGuildId(null)
+                  }
+                }}
+                onOpenInstalled={() => {
+                  router.push(
+                    guild.dashboardHref ?? `/dashboard/${guild.discordGuildId}`
+                  )
+                }}
+              />
             </div>
           ))}
         </div>
@@ -130,9 +319,8 @@ export function DiscordAddServerPageShell() {
           Add Discord Server
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Review the current Discord identity state before starting a server
-          install. Discord OAuth install actions are not implemented in this
-          pass.
+          Install Cleo into a Discord server that your signed-in Discord
+          identity can manage.
         </p>
       </header>
 
@@ -160,4 +348,139 @@ export function DiscordAddServerPageShell() {
       </Authenticated>
     </main>
   )
+}
+
+function GuildAvatar({ guild }: { guild: InstallableGuild }) {
+  if (guild.iconUrl) {
+    return (
+      <Image
+        alt=""
+        className="size-9 shrink-0 rounded-md object-cover"
+        height={36}
+        src={guild.iconUrl}
+        unoptimized
+        width={36}
+      />
+    )
+  }
+
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-medium">
+      {guild.name.slice(0, 1).toUpperCase()}
+    </span>
+  )
+}
+
+function GuildStateBadge({ guild }: { guild: InstallableGuild }) {
+  if (guild.state === "installed") {
+    return <Badge variant="secondary">Installed</Badge>
+  }
+
+  if (guild.state === "pending") {
+    return <Badge variant="outline">Pending</Badge>
+  }
+
+  if (guild.state === "unavailable") {
+    return <Badge variant="outline">Unavailable</Badge>
+  }
+
+  return <Badge variant="outline">Installable</Badge>
+}
+
+function GuildAction({
+  activeGuildId,
+  guild,
+  onCheckInstall,
+  onCreateInstall,
+  onOpenInstalled,
+}: {
+  activeGuildId: string | null
+  guild: InstallableGuild
+  onCheckInstall: () => Promise<void>
+  onCreateInstall: () => Promise<void>
+  onOpenInstalled: () => void
+}) {
+  const isActive = activeGuildId === guild.discordGuildId
+
+  if (guild.state === "installed") {
+    return (
+      <Button onClick={onOpenInstalled} size="sm" variant="outline">
+        <IconCircleCheck aria-hidden data-icon="inline-start" />
+        Open
+      </Button>
+    )
+  }
+
+  if (guild.state === "pending" && guild.installSessionId) {
+    return (
+      <Button
+        disabled={isActive}
+        onClick={onCheckInstall}
+        size="sm"
+        variant="outline"
+      >
+        <IconClock aria-hidden data-icon="inline-start" />
+        {isActive ? "Checking" : "Check sync"}
+      </Button>
+    )
+  }
+
+  if (guild.state === "installable") {
+    return (
+      <Button disabled={isActive} onClick={onCreateInstall} size="sm">
+        <IconExternalLink aria-hidden data-icon="inline-start" />
+        {isActive ? "Starting" : "Add Cleo"}
+      </Button>
+    )
+  }
+
+  return (
+    <Button disabled size="sm" variant="outline">
+      Unavailable
+    </Button>
+  )
+}
+
+function toCreateNotice(status: string): FlowNotice {
+  switch (status) {
+    case "missingDiscordIdentity":
+      return {
+        tone: "default",
+        title: "Discord identity syncing",
+        description:
+          "Your Discord identity has not reached Convex yet. Refresh shortly and try again.",
+      }
+    case "configUnavailable":
+      return {
+        tone: "destructive",
+        title: "Discord install is not configured",
+        description:
+          "Cleo is missing a Discord application or client ID in the backend environment.",
+      }
+    default:
+      return {
+        tone: "default",
+        title: "Server verification unavailable",
+        description:
+          "Cleo cannot verify that this Discord server is installable until live Discord guild discovery is supported.",
+      }
+  }
+}
+
+function toCompleteNotice(status: string): FlowNotice {
+  if (status === "pendingBotSync") {
+    return {
+      tone: "default",
+      title: "Waiting for Discord sync",
+      description:
+        "Cleo needs a real bot join event before the install can finish. Channel discovery remains unavailable until that sync exists.",
+    }
+  }
+
+  return {
+    tone: "default",
+    title: "Install session unavailable",
+    description:
+      "The install session is no longer active or does not belong to this Discord identity.",
+  }
 }

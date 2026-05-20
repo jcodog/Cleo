@@ -10,8 +10,10 @@ export const discordEnv = createEnv({
 
     DISCORD_CLIENT_ID: optionalString,
     DISCORD_BOT_TOKEN: optionalString,
+    DISCORD_BOT_PERMISSIONS: optionalString,
     DISCORD_PUBLIC_KEY: optionalString,
     DISCORD_APPLICATION_ID: optionalString,
+    DISCORD_INSTALL_REDIRECT_URI: optionalUrl,
 
     OPENAI_API_KEY: optionalString,
   },

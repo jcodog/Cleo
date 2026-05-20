@@ -20,7 +20,7 @@ export function AppSidebarNav({ navSections }: AppSidebarNavProps) {
     <>
       {navSections.map((section, sectionIndex) => (
         <SidebarGroup
-          key={section.title ?? sectionIndex}
+          key={sectionIndex}
           className="p-3 group-data-[collapsible=icon]:p-2"
         >
           {section.title ? (
@@ -29,11 +29,11 @@ export function AppSidebarNav({ navSections }: AppSidebarNavProps) {
 
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {section.items.map((item) => {
+              {section.items.map((item, itemIndex) => {
                 const Icon = item.icon
 
                 return (
-                  <SidebarMenuItem key={item.href}>
+                  <SidebarMenuItem key={itemIndex}>
                     <SidebarMenuButton
                       render={
                         item.disabled ? undefined : <Link href={item.href} />

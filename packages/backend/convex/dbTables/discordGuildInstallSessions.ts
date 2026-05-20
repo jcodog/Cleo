@@ -14,6 +14,7 @@ export const discordGuildInstallSessions = defineTable({
   ),
 
   selectedUpdatesChannelId: v.optional(v.string()),
+  oauthState: v.optional(v.string()),
 
   createdAt: v.number(),
   updatedAt: v.number(),
