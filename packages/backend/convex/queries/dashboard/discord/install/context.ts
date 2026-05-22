@@ -18,6 +18,7 @@ const installableContextResult = v.union(
     user: userDoc,
     discordAccount: v.union(linkedAccountDoc, v.null()),
     guilds: v.array(dashboardDiscordInstallableGuildViewModel),
+    installSessions: v.array(discordGuildInstallSessionDoc),
   })
 )
 
@@ -86,8 +87,14 @@ export const getInstallableGuildsContext = internalQuery({
     }
 
     const discordAccount = await getDiscordAccount(ctx, user._id)
+    const installSessions = await getActiveInstallSessions(ctx, user._id)
     const guilds = discordAccount
-      ? await getKnownManageableGuilds(ctx, user, discordAccount)
+      ? await getKnownManageableGuilds(
+          ctx,
+          user,
+          discordAccount,
+          installSessions
+        )
       : []
 
     return {
@@ -95,6 +102,7 @@ export const getInstallableGuildsContext = internalQuery({
       user,
       discordAccount,
       guilds,
+      installSessions,
     }
   },
 })
@@ -238,7 +246,8 @@ async function getDiscordAccount(
 async function getKnownManageableGuilds(
   ctx: Parameters<typeof getCurrentUser>[0],
   user: Doc<"users">,
-  discordAccount: Doc<"linkedAccounts">
+  discordAccount: Doc<"linkedAccounts">,
+  activeSessions: Doc<"discordGuildInstallSessions">[]
 ) {
   const directMemberships = await ctx.db
     .query("discordGuildMemberships")
@@ -265,7 +274,6 @@ async function getKnownManageableGuilds(
     membershipsByGuildId.set(membership.guildId, membership)
   }
 
-  const activeSessions = await getActiveInstallSessions(ctx, user._id)
   const sessionByDiscordGuildId = new Map(
     activeSessions.map((session) => [session.discordGuildId, session])
   )
@@ -322,8 +330,7 @@ async function getKnownManageableGuilds(
 
   return guilds
     .filter(
-      (guild): guild is Exclude<(typeof guilds)[number], null> =>
-        guild !== null
+      (guild): guild is Exclude<(typeof guilds)[number], null> => guild !== null
     )
     .sort((left, right) => left.name.localeCompare(right.name))
 }
@@ -364,8 +371,8 @@ function isVerifiedManagerMembership(
 ): membership is Doc<"discordGuildMemberships"> {
   return Boolean(
     membership?.canManage &&
-      membership.managementVerifiedAt !== undefined &&
-      membership.revokedAt === undefined
+    membership.managementVerifiedAt !== undefined &&
+    membership.revokedAt === undefined
   )
 }
 

@@ -6,6 +6,8 @@ import { guildConfigs } from "./dbTables/guildConfigs"
 import { discordGuildMemberships } from "./dbTables/discordGuildMemberships"
 import { errorLogs } from "./dbTables/errorLogs"
 import { discordGuildInstallSessions } from "./dbTables/discordGuildInstallSessions"
+import { guildAuditEvents } from "./dbTables/guildAuditEvents"
+import { guildAuditLogSyncStates } from "./dbTables/guildAuditLogSyncStates"
 
 export default defineSchema({
   users,
@@ -15,4 +17,6 @@ export default defineSchema({
   discordGuildMemberships,
   discordGuildInstallSessions,
   errorLogs,
+  guildAuditEvents,
+  guildAuditLogSyncStates,
 })

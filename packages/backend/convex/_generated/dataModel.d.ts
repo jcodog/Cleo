@@ -146,6 +146,96 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  guildAuditEvents: {
+    document: {
+      actorDiscordUserId?: string;
+      actorDisplayName?: string;
+      actorUserId?: Id<"users">;
+      createdAt: number;
+      discordGuildId: string;
+      eventType: string;
+      externalId?: string;
+      guildId: Id<"guilds">;
+      metadata?: any;
+      occurredAt: number;
+      source: "dashboard" | "discord-audit-log" | "bot-action";
+      summary: string;
+      targetDiscordId?: string;
+      targetType?: string;
+      _id: Id<"guildAuditEvents">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "actorDiscordUserId"
+      | "actorDisplayName"
+      | "actorUserId"
+      | "createdAt"
+      | "discordGuildId"
+      | "eventType"
+      | "externalId"
+      | "guildId"
+      | "metadata"
+      | "occurredAt"
+      | "source"
+      | "summary"
+      | "targetDiscordId"
+      | "targetType";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_guild_id_and_external_id: ["guildId", "externalId", "_creationTime"];
+      by_guild_id_and_occurred_at: ["guildId", "occurredAt", "_creationTime"];
+      by_guild_id_and_source_and_occurred_at: [
+        "guildId",
+        "source",
+        "occurredAt",
+        "_creationTime",
+      ];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  guildAuditLogSyncStates: {
+    document: {
+      createdAt: number;
+      discordGuildId: string;
+      guildId: Id<"guilds">;
+      lastSyncError?: string;
+      lastSyncStatus:
+        | "ready"
+        | "pendingBotSync"
+        | "discordBotTokenUnavailable"
+        | "discordApiUnavailable";
+      lastSyncedAt?: number;
+      newestDiscordAuditLogId?: string;
+      newestOccurredAt?: number;
+      updatedAt: number;
+      _id: Id<"guildAuditLogSyncStates">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "createdAt"
+      | "discordGuildId"
+      | "guildId"
+      | "lastSyncedAt"
+      | "lastSyncError"
+      | "lastSyncStatus"
+      | "newestDiscordAuditLogId"
+      | "newestOccurredAt"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_discord_guild_id: ["discordGuildId", "_creationTime"];
+      by_guild_id: ["guildId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   guildConfigs: {
     document: {
       aiEnabled: boolean;

@@ -64,8 +64,11 @@ type InstallableGuildsResult =
   | {
       status: "discordGuildDiscoveryUnavailable"
       reason:
+        | "clerkSecretUnavailable"
         | "discordAccessTokenUnavailable"
         | "discordTokenResolutionUnavailable"
+        | "discordGuildScopeUnavailable"
+        | "discordApiUnavailable"
       guilds: InstallableGuild[]
     }
   | {
@@ -193,9 +196,9 @@ function DiscordAddServerState() {
           </EmptyMedia>
           <EmptyTitle>No manageable servers synced</EmptyTitle>
           <EmptyDescription>
-            Cleo has not synced any Discord servers that your Discord identity
-            can manage. Live Discord server discovery is unavailable until
-            Discord token sync support exists.
+            Discord did not return any servers that your signed-in identity can
+            manage, and Cleo has no previously verified servers for this
+            account.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -209,9 +212,7 @@ function DiscordAddServerState() {
           <IconAlertCircle aria-hidden />
           <AlertTitle>Live Discord discovery unavailable</AlertTitle>
           <AlertDescription>
-            Cleo can show servers already verified by Convex, but cannot fetch
-            your full Discord server list until Discord token sync support is
-            available.
+            {getGuildDiscoveryUnavailableCopy(guildResult.reason)}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -462,7 +463,7 @@ function toCreateNotice(status: string): FlowNotice {
         tone: "default",
         title: "Server verification unavailable",
         description:
-          "Cleo cannot verify that this Discord server is installable until live Discord guild discovery is supported.",
+          "Cleo could not verify management access for this Discord server through stored access or Discord REST.",
       }
   }
 }
@@ -473,7 +474,7 @@ function toCompleteNotice(status: string): FlowNotice {
       tone: "default",
       title: "Waiting for Discord sync",
       description:
-        "Cleo needs a real bot join event before the install can finish. Channel discovery remains unavailable until that sync exists.",
+        "Cleo has not observed installed state for this server yet. After that state is synced, channel discovery can use the server-side bot token.",
     }
   }
 
@@ -482,5 +483,25 @@ function toCompleteNotice(status: string): FlowNotice {
     title: "Install session unavailable",
     description:
       "The install session is no longer active or does not belong to this Discord identity.",
+  }
+}
+
+function getGuildDiscoveryUnavailableCopy(
+  reason: Extract<
+    InstallableGuildsResult,
+    { status: "discordGuildDiscoveryUnavailable" }
+  >["reason"]
+) {
+  switch (reason) {
+    case "clerkSecretUnavailable":
+      return "Server-side Clerk token resolution is not configured, so Cleo can only show servers already verified in Convex."
+    case "discordAccessTokenUnavailable":
+      return "Clerk did not return a Discord OAuth access token, so Cleo can only show servers already verified in Convex."
+    case "discordGuildScopeUnavailable":
+      return "The Discord OAuth token cannot read user guilds. Cleo can only show servers already verified in Convex."
+    case "discordApiUnavailable":
+      return "Discord REST guild discovery is temporarily unavailable. Cleo can still show servers already verified in Convex."
+    case "discordTokenResolutionUnavailable":
+      return "Cleo could not resolve the Discord OAuth token server-side, so only previously verified servers are shown."
   }
 }

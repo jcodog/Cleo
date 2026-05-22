@@ -65,6 +65,20 @@ export const complete = action({
         installSessionId: context.session._id,
       }
     )
+    await ctx.runMutation(
+      internal.mutations.dashboard.discord.guildAuditEvents
+        .upsertDiscordAuditLogs.createDashboardAction,
+      {
+        guildId: context.guild._id,
+        userId: context.user._id,
+        eventType: "dashboard.server_install.completed",
+        summary: "Dashboard server install completed",
+        metadata: {
+          installSessionId: context.session._id,
+          discordGuildId: context.session.discordGuildId,
+        },
+      }
+    )
 
     return {
       status: "completed" as const,

@@ -23,6 +23,33 @@ export declare const api: {
   actions: {
     dashboard: {
       discord: {
+        guilds: {
+          syncAuditLogs: {
+            sync: FunctionReference<
+              "action",
+              "public",
+              { discordGuildId: string; force?: boolean; limit?: number },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | { discordGuildId: string; status: "pendingBotSync" }
+              | {
+                  discordGuildId: string;
+                  reason:
+                    | "discordBotTokenUnavailable"
+                    | "discordApiUnavailable";
+                  status: "auditLogSyncUnavailable";
+                }
+              | {
+                  discordGuildId: string;
+                  inserted: number;
+                  lastSyncedAt: number;
+                  newestDiscordAuditLogId?: string;
+                  skipped: number;
+                  status: "ready";
+                }
+            >;
+          };
+        };
         install: {
           completeServerInstall: {
             complete: FunctionReference<
@@ -135,8 +162,11 @@ export declare const api: {
                       | "verificationUnavailable";
                   }>;
                   reason:
+                    | "clerkSecretUnavailable"
                     | "discordAccessTokenUnavailable"
-                    | "discordTokenResolutionUnavailable";
+                    | "discordTokenResolutionUnavailable"
+                    | "discordGuildScopeUnavailable"
+                    | "discordApiUnavailable";
                   status: "discordGuildDiscoveryUnavailable";
                 }
               | {
@@ -381,6 +411,47 @@ export declare const api: {
           };
         };
         guilds: {
+          auditEvents: {
+            list: FunctionReference<
+              "query",
+              "public",
+              {
+                discordGuildId: string;
+                source?: "dashboard" | "discord-audit-log" | "bot-action";
+              },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  events: Array<{
+                    actorDiscordUserId?: string;
+                    actorDisplayName?: string;
+                    auditEventId: Id<"guildAuditEvents">;
+                    details: Array<string>;
+                    eventType: string;
+                    externalId?: string;
+                    occurredAt: number;
+                    source: "dashboard" | "discord-audit-log" | "bot-action";
+                    summary: string;
+                    targetDiscordId?: string;
+                    targetType?: string;
+                  }>;
+                  status: "ready";
+                  syncState: {
+                    lastSyncError?: string;
+                    lastSyncStatus:
+                      | "ready"
+                      | "pendingBotSync"
+                      | "discordBotTokenUnavailable"
+                      | "discordApiUnavailable";
+                    lastSyncedAt?: number;
+                    newestDiscordAuditLogId?: string;
+                    newestOccurredAt?: number;
+                    syncStateId: Id<"guildAuditLogSyncStates">;
+                    updatedAt: number;
+                  } | null;
+                }
+            >;
+          };
           byDiscordId: {
             get: FunctionReference<
               "query",
@@ -633,6 +704,80 @@ export declare const internal: {
     };
     dashboard: {
       discord: {
+        guildAuditEvents: {
+          upsertDiscordAuditLogs: {
+            createBotAction: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                actorDiscordUserId?: string;
+                actorDisplayName?: string;
+                eventType: string;
+                externalId?: string;
+                guildId: Id<"guilds">;
+                metadata?: any;
+                occurredAt?: number;
+                summary: string;
+                targetDiscordId?: string;
+                targetType?: string;
+              },
+              Id<"guildAuditEvents">
+            >;
+            createDashboardAction: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                eventType: string;
+                guildId: Id<"guilds">;
+                metadata?: any;
+                occurredAt?: number;
+                summary: string;
+                userId?: Id<"users">;
+              },
+              Id<"guildAuditEvents">
+            >;
+            upsertMany: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                entries: Array<{
+                  actionType: number;
+                  actorDiscordUserId?: string;
+                  actorDisplayName?: string;
+                  changes?: Array<any>;
+                  discordAuditLogId: string;
+                  occurredAt: number;
+                  options?: any;
+                  reason?: string;
+                  summary: string;
+                  targetDiscordId?: string;
+                }>;
+                guildId: Id<"guilds">;
+              },
+              { inserted: number; skipped: number }
+            >;
+          };
+        };
+        guildAuditLogSyncStates: {
+          upsert: {
+            upsert: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                guildId: Id<"guilds">;
+                lastSyncError?: string;
+                newestDiscordAuditLogId?: string;
+                newestOccurredAt?: number;
+                status:
+                  | "ready"
+                  | "pendingBotSync"
+                  | "discordBotTokenUnavailable"
+                  | "discordApiUnavailable";
+              },
+              null
+            >;
+          };
+        };
         installSessions: {
           upsert: {
             configured: FunctionReference<
@@ -728,6 +873,51 @@ export declare const internal: {
   queries: {
     dashboard: {
       discord: {
+        guilds: {
+          accessContext: {
+            getManagedGuildContext: FunctionReference<
+              "query",
+              "internal",
+              { discordGuildId: string },
+              | { status: "missingUser" }
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  guild: {
+                    _creationTime: number;
+                    _id: Id<"guilds">;
+                    botJoinedAt?: number;
+                    botLeftAt?: number;
+                    createdAt: number;
+                    description?: string;
+                    discordGuildId: string;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    lastOpenedAt?: number;
+                    lastSyncedAt?: number;
+                    memberCount?: number;
+                    name: string;
+                    ownerDiscordId?: string;
+                    presenceCount?: number;
+                    updatedAt: number;
+                  };
+                  status: "ready";
+                }
+            >;
+          };
+          auditSyncState: {
+            getByGuildId: FunctionReference<
+              "query",
+              "internal",
+              { guildId: Id<"guilds"> },
+              {
+                lastSyncedAt?: number;
+                newestDiscordAuditLogId?: string;
+                newestOccurredAt?: number;
+              } | null
+            >;
+          };
+        };
         install: {
           context: {
             getCreateServerInstallContext: FunctionReference<
@@ -820,6 +1010,20 @@ export declare const internal: {
                       | "botLeft"
                       | "botSyncUnavailable"
                       | "verificationUnavailable";
+                  }>;
+                  installSessions: Array<{
+                    _creationTime: number;
+                    _id: Id<"discordGuildInstallSessions">;
+                    completedAt?: number;
+                    createdAt: number;
+                    discordGuildId: string;
+                    discordUserId: string;
+                    expiresAt: number;
+                    oauthState?: string;
+                    selectedUpdatesChannelId?: string;
+                    status: "pending" | "bot_joined" | "configured" | "expired";
+                    updatedAt: number;
+                    userId: Id<"users">;
                   }>;
                   status: "ready";
                   user: {

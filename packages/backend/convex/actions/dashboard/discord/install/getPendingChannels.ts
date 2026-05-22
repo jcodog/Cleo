@@ -5,18 +5,8 @@ import { ConvexError, v } from "convex/values"
 
 import { internal } from "../../../../_generated/api"
 import { action } from "../../../../_generated/server"
+import { fetchDiscordGuildChannels } from "../../../../lib/discordRest"
 import { dashboardDiscordPendingChannelsResult } from "../../../../lib/validators"
-
-const DISCORD_API_BASE_URL = "https://discord.com/api/v10"
-const DISCORD_GUILD_TEXT_CHANNEL = 0
-const DISCORD_GUILD_ANNOUNCEMENT_CHANNEL = 5
-
-type DiscordChannel = {
-  id: string
-  name?: string | null
-  type: number
-  position?: number
-}
 
 export const get = action({
   args: {
@@ -26,7 +16,8 @@ export const get = action({
   returns: dashboardDiscordPendingChannelsResult,
   handler: async (ctx, args) => {
     const context = await ctx.runQuery(
-      internal.queries.dashboard.discord.install.context.getInstallSessionContext,
+      internal.queries.dashboard.discord.install.context
+        .getInstallSessionContext,
       args
     )
 
@@ -84,64 +75,3 @@ export const get = action({
     }
   },
 })
-
-async function fetchDiscordGuildChannels(
-  discordGuildId: string,
-  botToken: string
-) {
-  const response = await fetch(
-    `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/channels`,
-    {
-      headers: {
-        Authorization: `Bot ${botToken}`,
-      },
-    }
-  )
-
-  if (!response.ok) {
-    return null
-  }
-
-  const json: unknown = await response.json()
-
-  if (!isDiscordChannels(json)) {
-    return null
-  }
-
-  return json
-    .filter(
-      (channel) =>
-        channel.name &&
-        (channel.type === DISCORD_GUILD_TEXT_CHANNEL ||
-          channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL)
-    )
-    .map((channel) => ({
-      discordChannelId: channel.id,
-      name: channel.name ?? channel.id,
-      type:
-        channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL
-          ? ("announcement" as const)
-          : ("text" as const),
-      ...(channel.position !== undefined ? { position: channel.position } : {}),
-    }))
-    .sort((left, right) => (left.position ?? 0) - (right.position ?? 0))
-}
-
-function isDiscordChannels(value: unknown): value is DiscordChannel[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (channel) =>
-        typeof channel === "object" &&
-        channel !== null &&
-        "id" in channel &&
-        typeof channel.id === "string" &&
-        "type" in channel &&
-        typeof channel.type === "number" &&
-        (!("name" in channel) ||
-          typeof channel.name === "string" ||
-          channel.name === null) &&
-        (!("position" in channel) || typeof channel.position === "number")
-    )
-  )
-}

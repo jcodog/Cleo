@@ -7,6 +7,19 @@ export const guildConfigLogLevel = v.union(
   v.literal("maximum")
 )
 
+export const guildAuditEventSource = v.union(
+  v.literal("dashboard"),
+  v.literal("discord-audit-log"),
+  v.literal("bot-action")
+)
+
+export const guildAuditLogSyncStatus = v.union(
+  v.literal("ready"),
+  v.literal("pendingBotSync"),
+  v.literal("discordBotTokenUnavailable"),
+  v.literal("discordApiUnavailable")
+)
+
 export const discordGuildInstallSessionStatus = v.union(
   v.literal("pending"),
   v.literal("bot_joined"),
@@ -190,8 +203,11 @@ export const dashboardDiscordInstallableGuildsResult = v.union(
   v.object({
     status: v.literal("discordGuildDiscoveryUnavailable"),
     reason: v.union(
+      v.literal("clerkSecretUnavailable"),
       v.literal("discordAccessTokenUnavailable"),
-      v.literal("discordTokenResolutionUnavailable")
+      v.literal("discordTokenResolutionUnavailable"),
+      v.literal("discordGuildScopeUnavailable"),
+      v.literal("discordApiUnavailable")
     ),
     guilds: v.array(dashboardDiscordInstallableGuildViewModel),
   }),
@@ -384,5 +400,75 @@ export const dashboardDiscordGuildSystemLogsResult = v.union(
   v.object({
     status: v.literal("ready"),
     logs: v.array(dashboardDiscordGuildSystemLogViewModel),
+  })
+)
+
+export const dashboardDiscordGuildAuditEventViewModel = v.object({
+  auditEventId: v.id("guildAuditEvents"),
+  source: guildAuditEventSource,
+  eventType: v.string(),
+  summary: v.string(),
+  details: v.array(v.string()),
+  actorDiscordUserId: v.optional(v.string()),
+  actorDisplayName: v.optional(v.string()),
+  targetDiscordId: v.optional(v.string()),
+  targetType: v.optional(v.string()),
+  externalId: v.optional(v.string()),
+  occurredAt: v.number(),
+})
+
+export const dashboardDiscordGuildAuditLogSyncStateViewModel = v.object({
+  syncStateId: v.id("guildAuditLogSyncStates"),
+  newestDiscordAuditLogId: v.optional(v.string()),
+  newestOccurredAt: v.optional(v.number()),
+  lastSyncedAt: v.optional(v.number()),
+  lastSyncStatus: guildAuditLogSyncStatus,
+  lastSyncError: v.optional(v.string()),
+  updatedAt: v.number(),
+})
+
+export const dashboardDiscordGuildAuditEventsResult = v.union(
+  v.object({
+    status: v.literal("notFound"),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+  }),
+  v.object({
+    status: v.literal("ready"),
+    events: v.array(dashboardDiscordGuildAuditEventViewModel),
+    syncState: v.union(
+      dashboardDiscordGuildAuditLogSyncStateViewModel,
+      v.null()
+    ),
+  })
+)
+
+export const dashboardDiscordAuditLogSyncResult = v.union(
+  v.object({
+    status: v.literal("notFound"),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+  }),
+  v.object({
+    status: v.literal("pendingBotSync"),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("auditLogSyncUnavailable"),
+    reason: v.union(
+      v.literal("discordBotTokenUnavailable"),
+      v.literal("discordApiUnavailable")
+    ),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("ready"),
+    discordGuildId: v.string(),
+    inserted: v.number(),
+    skipped: v.number(),
+    lastSyncedAt: v.number(),
+    newestDiscordAuditLogId: v.optional(v.string()),
   })
 )

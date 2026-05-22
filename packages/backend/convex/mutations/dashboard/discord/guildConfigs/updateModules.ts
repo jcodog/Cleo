@@ -1,7 +1,12 @@
 import { ConvexError, v } from "convex/values"
 import type { Doc } from "../../../../_generated/dataModel"
+import type { MutationCtx } from "../../../../_generated/server"
 import { mutation } from "../../../../_generated/server"
-import { requireDiscordGuildManager } from "../../../../lib/auth"
+import {
+  getCurrentUser,
+  requireDiscordGuildManager,
+} from "../../../../lib/auth"
+import { insertDashboardGuildAuditEvent } from "../../../../lib/guildAudit"
 import { guildConfigDoc } from "../../../../lib/validators"
 
 export const update = mutation({
@@ -47,6 +52,8 @@ export const update = mutation({
         })
       }
 
+      await recordModuleAuditEvent(ctx, guild, existingConfig, updatedConfig)
+
       return updatedConfig
     }
 
@@ -70,9 +77,55 @@ export const update = mutation({
       })
     }
 
+    await recordModuleAuditEvent(ctx, guild, null, createdConfig)
+
     return createdConfig
   },
 })
+
+async function recordModuleAuditEvent(
+  ctx: MutationCtx,
+  guild: Doc<"guilds">,
+  previousConfig: Doc<"guildConfigs"> | null,
+  nextConfig: Doc<"guildConfigs">
+) {
+  const user = await getCurrentUser(ctx)
+  const previous = previousConfig
+    ? {
+        aiEnabled: previousConfig.aiEnabled,
+        moderationEnabled: previousConfig.moderationEnabled,
+        welcomeEnabled: previousConfig.welcomeEnabled,
+        loggingEnabled: previousConfig.loggingEnabled,
+      }
+    : null
+  const next = {
+    aiEnabled: nextConfig.aiEnabled,
+    moderationEnabled: nextConfig.moderationEnabled,
+    welcomeEnabled: nextConfig.welcomeEnabled,
+    loggingEnabled: nextConfig.loggingEnabled,
+  }
+
+  if (previous !== null && JSON.stringify(previous) === JSON.stringify(next)) {
+    return
+  }
+
+  await insertDashboardGuildAuditEvent(ctx, {
+    guild,
+    user,
+    eventType:
+      previousConfig === null
+        ? "dashboard.guild_config.created"
+        : "dashboard.guild_config.modules_updated",
+    summary:
+      previousConfig === null
+        ? "Dashboard guild configuration created"
+        : "Dashboard module settings updated",
+    metadata: {
+      previous,
+      next,
+    },
+  })
+}
 
 async function loadManagedGuild(
   ctx: Parameters<typeof requireDiscordGuildManager>[0],
