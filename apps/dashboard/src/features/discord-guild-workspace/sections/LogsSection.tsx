@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { IconRefresh } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
@@ -55,30 +55,6 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
   )
   const [syncState, setSyncState] = useState<SaveState>("idle")
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
-  const autoSyncedGuildIdsRef = useRef(new Set<string>())
-
-  useEffect(() => {
-    if (
-      logsResult?.status !== "ready" ||
-      dashboardAuditResult?.status !== "ready" ||
-      serverAuditResult?.status !== "ready" ||
-      autoSyncedGuildIdsRef.current.has(discordGuildId)
-    ) {
-      return
-    }
-
-    autoSyncedGuildIdsRef.current.add(discordGuildId)
-
-    void syncAuditLogs({ discordGuildId, force: false }).catch(() => {
-      autoSyncedGuildIdsRef.current.delete(discordGuildId)
-    })
-  }, [
-    dashboardAuditResult?.status,
-    discordGuildId,
-    logsResult?.status,
-    serverAuditResult?.status,
-    syncAuditLogs,
-  ])
 
   if (
     logsResult === undefined ||
@@ -152,7 +128,8 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
             <div className="min-w-0">
               <CardTitle>Discord Server Audit Log</CardTitle>
               <CardDescription>
-                Server-side Discord REST import of this server&apos;s audit log.
+                Manual server-side Discord REST import of this server&apos;s audit
+                log.
               </CardDescription>
             </div>
             <Button
@@ -171,7 +148,7 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
           <AuditSyncSummary syncState={serverAuditResult.syncState} />
 
           <AuditEventList
-            emptyDescription="Run a sync once Cleo has installed server state and the server-side bot token can read Discord audit logs."
+            emptyDescription="Run a manual sync once Cleo has installed server state and the server-side bot token can read Discord audit logs."
             emptyTitle="No Discord Audit Entries"
             events={serverAuditResult.events}
           />
