@@ -5,6 +5,7 @@ const DISCORD_GUILD_ANNOUNCEMENT_CHANNEL = 5
 const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
 const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
 const DISCORD_EPOCH = 1420070400000n
+const DISCORD_FETCH_TIMEOUT_MS = 10000
 
 type DiscordApiUnavailableReason =
   | "discordApiUnavailable"
@@ -503,20 +504,27 @@ export async function fetchDiscordGuildAuditLogs({
     params.set("before", before)
   }
 
-  const response = await fetch(
-    `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/audit-logs?${params}`,
-    {
-      headers: {
-        Authorization: `Bot ${botToken}`,
-      },
-    }
-  )
+  let json: unknown
 
-  if (!response.ok) {
+  try {
+    const response = await fetch(
+      `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/audit-logs?${params}`,
+      {
+        headers: {
+          Authorization: `Bot ${botToken}`,
+        },
+        signal: AbortSignal.timeout(DISCORD_FETCH_TIMEOUT_MS),
+      }
+    )
+
+    if (!response.ok) {
+      return null
+    }
+
+    json = await response.json()
+  } catch {
     return null
   }
-
-  const json: unknown = await response.json()
 
   if (!isDiscordAuditLogResponse(json)) {
     return null

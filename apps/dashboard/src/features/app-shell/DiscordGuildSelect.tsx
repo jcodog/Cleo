@@ -124,7 +124,7 @@ export function DiscordGuildSelect() {
           render={
             <button
               aria-label="Select Discord guild"
-              className="flex min-h-14 w-full min-w-0 items-center gap-3 overflow-hidden rounded-md px-3 py-2.5 text-left text-sm outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring aria-expanded:bg-sidebar-accent aria-expanded:text-sidebar-accent-foreground group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-2"
+              className="flex min-h-14 w-full min-w-0 items-center gap-3 overflow-hidden rounded-md px-3 py-2.5 text-left text-sm outline-none group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:min-h-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring aria-expanded:bg-sidebar-accent aria-expanded:text-sidebar-accent-foreground"
               type="button"
             >
               <GuildIcon
@@ -157,7 +157,9 @@ export function DiscordGuildSelect() {
                     key={guild.discordGuildId}
                     onClick={() => {
                       setSelectedDiscordGuildId(guild.discordGuildId)
-                      router.push(`/dashboard/${guild.discordGuildId}`)
+                      router.push(
+                        getGuildSwitchHref(pathname, guild.discordGuildId)
+                      )
                     }}
                   >
                     <GuildIcon className="size-5" guild={guild} />
@@ -181,4 +183,20 @@ function getRouteDiscordGuildId(pathname: string): string | undefined {
   }
 
   return guildId
+}
+
+function getGuildSwitchHref(
+  pathname: string,
+  nextDiscordGuildId: string
+): string {
+  const currentDiscordGuildId = getRouteDiscordGuildId(pathname)
+
+  if (!currentDiscordGuildId) {
+    return `/dashboard/${nextDiscordGuildId}`
+  }
+
+  return pathname.replace(
+    `/dashboard/${currentDiscordGuildId}`,
+    `/dashboard/${nextDiscordGuildId}`
+  )
 }

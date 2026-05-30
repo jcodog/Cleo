@@ -54,7 +54,19 @@ export const list = query({
         continue
       }
 
-      membershipsByGuildId.set(membership.guildId, membership)
+      const existing = membershipsByGuildId.get(membership.guildId)
+
+      if (
+        !existing ||
+        shouldReplaceMembership({
+          existing,
+          incoming: membership,
+          incomingIsDirect: isDirectUserMembership,
+          userId: user._id,
+        })
+      ) {
+        membershipsByGuildId.set(membership.guildId, membership)
+      }
     }
 
     const guilds = await Promise.all(
@@ -75,9 +87,7 @@ export const list = query({
             ? { description: guild.description }
             : {}),
           ...(guild.iconUrl !== undefined ? { iconUrl: guild.iconUrl } : {}),
-          ...(guild.iconHash !== undefined
-            ? { iconHash: guild.iconHash }
-            : {}),
+          ...(guild.iconHash !== undefined ? { iconHash: guild.iconHash } : {}),
           ...(guild.memberCount !== undefined
             ? { memberCount: guild.memberCount }
             : {}),
@@ -106,13 +116,11 @@ export const list = query({
 
     return guilds
       .filter(
-        (
-          guild
-        ): guild is Exclude<(typeof guilds)[number], null> => guild !== null
+        (guild): guild is Exclude<(typeof guilds)[number], null> =>
+          guild !== null
       )
       .sort((left, right) => {
-        const openedDelta =
-          (right.lastOpenedAt ?? 0) - (left.lastOpenedAt ?? 0)
+        const openedDelta = (right.lastOpenedAt ?? 0) - (left.lastOpenedAt ?? 0)
 
         if (openedDelta !== 0) {
           return openedDelta
@@ -133,4 +141,34 @@ function isGuildInstalled(guild: {
     (guild.botJoinedAt !== undefined ||
       guild.botInstallationVerifiedAt !== undefined)
   )
+}
+
+function shouldReplaceMembership({
+  existing,
+  incoming,
+  incomingIsDirect,
+  userId,
+}: {
+  existing: Doc<"discordGuildMemberships">
+  incoming: Doc<"discordGuildMemberships">
+  incomingIsDirect: boolean
+  userId: Id<"users">
+}): boolean {
+  const existingIsDirect = existing.userId === userId
+
+  if (incomingIsDirect && !existingIsDirect) {
+    return true
+  }
+
+  if (!incomingIsDirect && existingIsDirect) {
+    return false
+  }
+
+  return getMembershipFreshness(incoming) > getMembershipFreshness(existing)
+}
+
+function getMembershipFreshness(
+  membership: Doc<"discordGuildMemberships">
+): number {
+  return membership.managementVerifiedAt ?? membership.lastSyncedAt ?? 0
 }

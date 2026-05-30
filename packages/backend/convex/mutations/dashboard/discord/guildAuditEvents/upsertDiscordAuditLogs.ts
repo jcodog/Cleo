@@ -151,6 +151,10 @@ export const createDashboardAction = internalMutation({
       throw new Error("Guild not found.")
     }
 
+    if (args.userId !== undefined && user === null) {
+      throw new Error("User not found.")
+    }
+
     return await insertDashboardGuildAuditEvent(ctx, {
       guild,
       user,

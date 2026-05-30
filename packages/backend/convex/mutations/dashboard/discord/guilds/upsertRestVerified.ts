@@ -1,7 +1,10 @@
 import { v } from "convex/values"
 
 import type { Doc, Id } from "../../../../_generated/dataModel"
-import { internalMutation, type MutationCtx } from "../../../../_generated/server"
+import {
+  internalMutation,
+  type MutationCtx,
+} from "../../../../_generated/server"
 import { discordVerificationSource } from "../../../../dbTables/shared"
 import { insertDashboardGuildAuditEvent } from "../../../../lib/guildAudit"
 import { guildDoc } from "../../../../lib/validators"
@@ -33,13 +36,18 @@ export const upsert = internalMutation({
   handler: async (ctx, args) => {
     const now = Date.now()
     const guild = await upsertGuild(ctx, args, now)
+    const user = await ctx.db.get(args.userId)
+
+    if (!user) {
+      throw new Error("User not found.")
+    }
 
     await upsertMembership(ctx, guild._id, args, now)
     await ensureGuildConfig(ctx, guild._id, now)
     await completeMatchingInstallSessions(ctx, args, now)
     await insertDashboardGuildAuditEvent(ctx, {
       guild,
-      user: await ctx.db.get(args.userId),
+      user,
       eventType: "dashboard.server_install.rest_verified",
       summary: "Dashboard verified Cleo install through Discord REST",
       metadata: {
@@ -79,18 +87,12 @@ async function upsertGuild(
   if (existing) {
     await ctx.db.patch(existing._id, {
       name: args.name,
-      ...(args.description !== undefined
-        ? { description: args.description }
-        : {}),
-      ...(args.iconUrl !== undefined ? { iconUrl: args.iconUrl } : {}),
-      ...(args.iconHash !== undefined ? { iconHash: args.iconHash } : {}),
-      ...(args.ownerDiscordId !== undefined
-        ? { ownerDiscordId: args.ownerDiscordId }
-        : {}),
-      ...(args.memberCount !== undefined ? { memberCount: args.memberCount } : {}),
-      ...(args.presenceCount !== undefined
-        ? { presenceCount: args.presenceCount }
-        : {}),
+      description: args.description,
+      iconUrl: args.iconUrl,
+      iconHash: args.iconHash,
+      ownerDiscordId: args.ownerDiscordId,
+      memberCount: args.memberCount,
+      presenceCount: args.presenceCount,
       botInstallationVerifiedAt: args.botInstallationVerifiedAt,
       botLeftAt: undefined,
       lastSyncedAt: args.lastSyncedAt,
@@ -117,7 +119,9 @@ async function upsertGuild(
     ...(args.ownerDiscordId !== undefined
       ? { ownerDiscordId: args.ownerDiscordId }
       : {}),
-    ...(args.memberCount !== undefined ? { memberCount: args.memberCount } : {}),
+    ...(args.memberCount !== undefined
+      ? { memberCount: args.memberCount }
+      : {}),
     ...(args.presenceCount !== undefined
       ? { presenceCount: args.presenceCount }
       : {}),
@@ -166,7 +170,9 @@ async function upsertMembership(
     canManage: args.canManage,
     managementVerifiedAt: args.managementVerifiedAt,
     managementVerificationSource: args.managementVerificationSource,
-    ...(args.permissions !== undefined ? { permissions: args.permissions } : {}),
+    ...(args.permissions !== undefined
+      ? { permissions: args.permissions }
+      : {}),
     lastSyncedAt: args.lastSyncedAt,
     updatedAt: now,
   }
@@ -219,23 +225,25 @@ async function completeMatchingInstallSessions(
   },
   now: number
 ) {
-  const sessions = await ctx.db
-    .query("discordGuildInstallSessions")
-    .withIndex("by_discord_guild_id", (q) =>
-      q.eq("discordGuildId", args.discordGuildId)
+  const sessions = (
+    await Promise.all(
+      (["pending", "bot_joined"] as const).map(async (status) => {
+        return await ctx.db
+          .query("discordGuildInstallSessions")
+          .withIndex("by_guild_user_discord_user_status_expires_at", (q) =>
+            q
+              .eq("discordGuildId", args.discordGuildId)
+              .eq("userId", args.userId)
+              .eq("discordUserId", args.discordUserId)
+              .eq("status", status)
+              .gt("expiresAt", now)
+          )
+          .collect()
+      })
     )
-    .collect()
+  ).flat()
 
   for (const session of sessions) {
-    if (
-      session.userId !== args.userId ||
-      session.discordUserId !== args.discordUserId ||
-      session.expiresAt <= now ||
-      (session.status !== "pending" && session.status !== "bot_joined")
-    ) {
-      continue
-    }
-
     await ctx.db.patch(session._id, {
       status: "configured",
       completedAt: now,

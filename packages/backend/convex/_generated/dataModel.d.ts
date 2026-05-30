@@ -64,6 +64,14 @@ export type DataModel = {
         "status",
         "_creationTime",
       ];
+      by_guild_user_discord_user_status_expires_at: [
+        "discordGuildId",
+        "userId",
+        "discordUserId",
+        "status",
+        "expiresAt",
+        "_creationTime",
+      ];
       by_user_id_and_status: ["userId", "status", "_creationTime"];
     };
     searchIndexes: {};
@@ -120,6 +128,8 @@ export type DataModel = {
   errorLogs: {
     document: {
       createdAt: number;
+      discordGuildId?: string;
+      guildId?: string;
       level: "debug" | "info" | "warn" | "error";
       message: string;
       metadata?: any;
@@ -132,6 +142,8 @@ export type DataModel = {
       | "_creationTime"
       | "_id"
       | "createdAt"
+      | "discordGuildId"
+      | "guildId"
       | "level"
       | "message"
       | "metadata"
@@ -142,6 +154,18 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_level_and_created_at: ["level", "createdAt", "_creationTime"];
       by_source_and_created_at: ["source", "createdAt", "_creationTime"];
+      by_source_and_discord_guild_id_and_created_at: [
+        "source",
+        "discordGuildId",
+        "createdAt",
+        "_creationTime",
+      ];
+      by_source_and_guild_id_and_created_at: [
+        "source",
+        "guildId",
+        "createdAt",
+        "_creationTime",
+      ];
     };
     searchIndexes: {};
     vectorIndexes: {};

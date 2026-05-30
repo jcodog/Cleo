@@ -1,5 +1,6 @@
 const CLERK_API_BASE_URL = "https://api.clerk.com/v1"
 const CLERK_DISCORD_OAUTH_PROVIDER = "oauth_discord"
+const FETCH_TIMEOUT_MS = 10000
 
 type ClerkOAuthToken = {
   token?: string
@@ -89,14 +90,24 @@ export async function getClerkUser(
     }
   }
 
-  const response = await fetch(
-    `${CLERK_API_BASE_URL}/users/${encodeURIComponent(clerkUserId)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${clerkSecretKey}`,
-      },
+  let response: Response
+
+  try {
+    response = await fetch(
+      `${CLERK_API_BASE_URL}/users/${encodeURIComponent(clerkUserId)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${clerkSecretKey}`,
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      }
+    )
+  } catch {
+    return {
+      status: "unavailable",
+      reason: "clerkUserUnavailable",
     }
-  )
+  }
 
   if (!response.ok) {
     return {
@@ -105,7 +116,16 @@ export async function getClerkUser(
     }
   }
 
-  const json: unknown = await response.json()
+  let json: unknown
+
+  try {
+    json = await response.json()
+  } catch {
+    return {
+      status: "unavailable",
+      reason: "clerkUserUnavailable",
+    }
+  }
 
   if (!isClerkUserData(json)) {
     return {
@@ -163,16 +183,23 @@ async function fetchClerkOAuthToken(
   provider: string,
   clerkSecretKey: string
 ): Promise<string | null> {
-  const response = await fetch(
-    `${CLERK_API_BASE_URL}/users/${encodeURIComponent(
-      clerkUserId
-    )}/oauth_access_tokens/${provider}`,
-    {
-      headers: {
-        Authorization: `Bearer ${clerkSecretKey}`,
-      },
-    }
-  )
+  let response: Response
+
+  try {
+    response = await fetch(
+      `${CLERK_API_BASE_URL}/users/${encodeURIComponent(
+        clerkUserId
+      )}/oauth_access_tokens/${provider}`,
+      {
+        headers: {
+          Authorization: `Bearer ${clerkSecretKey}`,
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      }
+    )
+  } catch {
+    return null
+  }
 
   if (response.status === 404) {
     return ""
@@ -182,7 +209,13 @@ async function fetchClerkOAuthToken(
     return null
   }
 
-  const json: unknown = await response.json()
+  let json: unknown
+
+  try {
+    json = await response.json()
+  } catch {
+    return null
+  }
 
   const tokens = getClerkOAuthTokens(json)
 
@@ -198,11 +231,7 @@ function getClerkOAuthTokens(value: unknown): ClerkOAuthToken[] | null {
     return value.every(isClerkOAuthToken) ? value : null
   }
 
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "data" in value
-  ) {
+  if (typeof value === "object" && value !== null && "data" in value) {
     const envelope = value as ClerkOAuthTokenEnvelope
 
     if (envelope.data === undefined) {
@@ -276,8 +305,7 @@ function isClerkEmailAddress(value: unknown): value is ClerkEmailAddress {
     typeof value === "object" &&
     value !== null &&
     (!("id" in value) || typeof value.id === "string") &&
-    (!("email_address" in value) ||
-      typeof value.email_address === "string") &&
+    (!("email_address" in value) || typeof value.email_address === "string") &&
     (!("emailAddress" in value) || typeof value.emailAddress === "string")
   )
 }
@@ -286,9 +314,7 @@ function isClerkExternalAccount(value: unknown): value is ClerkExternalAccount {
   return (
     typeof value === "object" &&
     value !== null &&
-    (!("id" in value) ||
-      typeof value.id === "string" ||
-      value.id === null) &&
+    (!("id" in value) || typeof value.id === "string" || value.id === null) &&
     (!("provider" in value) ||
       typeof value.provider === "string" ||
       value.provider === null) &&

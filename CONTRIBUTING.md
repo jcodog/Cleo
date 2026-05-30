@@ -68,7 +68,7 @@ Every PR should include:
 Before opening a PR, run the relevant checks when they exist:
 
 ```bash
-pnpm run lint
-pnpm run typecheck
-pnpm run build
+pnpm --filter <workspace> run lint
+pnpm --filter <workspace> run typecheck
+pnpm --filter <workspace> run build
 ```

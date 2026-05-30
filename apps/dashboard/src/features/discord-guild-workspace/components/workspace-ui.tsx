@@ -6,6 +6,7 @@ import {
   IconRobotOff,
   IconServer,
 } from "@tabler/icons-react"
+import type { JSX } from "react"
 import {
   Alert,
   AlertDescription,
@@ -52,7 +53,7 @@ import {
 import { formatDateTime, getBotStatusLabel, toTitleCase } from "../lib/format"
 import type { GuildConfig, GuildLog, GuildOverview, SaveState } from "../types"
 
-export function WorkspaceSkeleton() {
+export function WorkspaceSkeleton(): JSX.Element {
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
       <div className="flex items-center gap-3 border-b pb-5">
@@ -78,7 +79,7 @@ export function WorkspaceState({
   description: string
   icon: typeof IconServer
   title: string
-}) {
+}): JSX.Element {
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col px-4 py-6 md:px-6 md:py-8">
       <Empty className="min-h-72">
@@ -100,7 +101,7 @@ export function WorkspaceState({
   )
 }
 
-export function RuntimeNotice() {
+export function RuntimeNotice(): JSX.Element {
   return (
     <Alert>
       <IconRobotOff aria-hidden />
@@ -113,7 +114,7 @@ export function RuntimeNotice() {
   )
 }
 
-export function ChannelPickerNotice() {
+export function ChannelPickerNotice(): JSX.Element {
   return (
     <Alert>
       <IconInfoCircle aria-hidden />
@@ -133,7 +134,7 @@ export function GuildIcon({
 }: {
   iconUrl?: string
   name: string
-}) {
+}): JSX.Element {
   if (iconUrl) {
     return (
       <Image
@@ -160,7 +161,7 @@ export function OverviewField({
 }: {
   label: string
   value: string
-}) {
+}): JSX.Element {
   return (
     <div className="min-w-0">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
@@ -175,7 +176,7 @@ export function BotStatusBadge({
 }: {
   isBotLeft: boolean
   overview: GuildOverview
-}) {
+}): JSX.Element {
   if (isBotLeft) {
     return <Badge variant="destructive">Bot Left</Badge>
   }
@@ -191,7 +192,11 @@ export function BotStatusBadge({
   return <Badge variant="outline">Verification Needed</Badge>
 }
 
-export function ConfigSummary({ config }: { config: GuildConfig | null }) {
+export function ConfigSummary({
+  config,
+}: {
+  config: GuildConfig | null
+}): JSX.Element {
   const enabledCount = config
     ? [
         config.aiEnabled,
@@ -250,7 +255,7 @@ export function FeatureListCard({
   description: string
   items: { label: string; value?: string }[]
   title: string
-}) {
+}): JSX.Element {
   return (
     <Card>
       <CardHeader>
@@ -292,7 +297,7 @@ export function ModuleFieldGroup({
   disabled: boolean
   onChange: (key: ModuleKey, checked: boolean) => void
   values: ModuleValues
-}) {
+}): JSX.Element {
   return (
     <FieldGroup>
       {MODULE_FIELDS.map((module) => (
@@ -327,7 +332,7 @@ export function ChannelFieldGroup<TChannelKey extends ChannelKey>({
   }[]
   onChange: (key: TChannelKey, value: string) => void
   values: Record<TChannelKey, string>
-}) {
+}): JSX.Element {
   return (
     <FieldGroup>
       {fields.map((channel) => (
@@ -357,7 +362,7 @@ export function SaveStatus({
 }: {
   errorMessage: string | null
   state: SaveState
-}) {
+}): JSX.Element | null {
   if (state === "success") {
     return (
       <Alert>
@@ -391,7 +396,7 @@ export function ReadinessRow({
   label: string
   ready: boolean
   value: string
-}) {
+}): JSX.Element {
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
       <span className="truncate font-medium">{label}</span>
@@ -406,17 +411,12 @@ export function SystemLogRow({
 }: {
   isLast: boolean
   log: GuildLog
-}) {
+}): JSX.Element {
   return (
     <div className={isLast ? "p-3" : "border-b p-3"}>
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-medium break-words">{log.message}</p>
-          {log.stack ? (
-            <p className="mt-1 line-clamp-2 text-xs break-words text-muted-foreground">
-              {log.stack}
-            </p>
-          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <LogLevelBadge level={log.level} />
@@ -448,7 +448,7 @@ export function BotStatusFields({
 }: {
   isBotLeft: boolean
   overview: GuildOverview
-}) {
+}): JSX.Element {
   return (
     <>
       <OverviewField

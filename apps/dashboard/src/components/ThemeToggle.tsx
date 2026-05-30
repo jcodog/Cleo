@@ -19,8 +19,12 @@ export function ThemeToggle() {
       <TooltipTrigger
         render={
           <Button
+            aria-label={
+              isDark ? "Switch to light theme" : "Switch to dark theme"
+            }
             onClick={() => setTheme(isDark ? "light" : "dark")}
             size="icon-sm"
+            type="button"
             variant="outline"
           >
             <IconMoonStars aria-hidden="true" className="dark:hidden" />

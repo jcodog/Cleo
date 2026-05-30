@@ -75,8 +75,8 @@ export const upsertFromWebhook = internalMutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         email,
-        ...(displayName !== undefined ? { displayName } : {}),
-        ...(imageUrl !== undefined ? { imageUrl } : {}),
+        displayName,
+        imageUrl,
         updatedAt: now,
       })
 
@@ -182,10 +182,6 @@ async function syncExternalAccounts(
         q.eq("provider", provider).eq("providerAccountId", providerAccountId)
       )
       .unique()
-
-    if (existing && existing.userId !== userId) {
-      continue
-    }
 
     const value = {
       userId,

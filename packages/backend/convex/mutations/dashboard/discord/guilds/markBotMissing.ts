@@ -28,6 +28,16 @@ export const mark = internalMutation({
       return null
     }
 
+    const latestPresenceAt = Math.max(
+      guild.botJoinedAt ?? 0,
+      guild.botInstallationVerifiedAt ?? 0,
+      guild.lastSyncedAt ?? 0
+    )
+
+    if (args.verifiedAt <= latestPresenceAt) {
+      return null
+    }
+
     await ctx.db.patch(guild._id, {
       botLeftAt: args.verifiedAt,
       lastSyncedAt: args.verifiedAt,

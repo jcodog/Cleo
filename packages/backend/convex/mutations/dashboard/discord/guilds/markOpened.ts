@@ -14,7 +14,6 @@ export const markOpened = mutation({
 
     await ctx.db.patch(args.guildId, {
       lastOpenedAt: now,
-      updatedAt: now,
     })
 
     return null

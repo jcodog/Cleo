@@ -865,7 +865,6 @@ export declare const api: {
                       | "kick-bot"
                       | "ws-relay"
                       | "backend";
-                    stack?: string;
                   }>;
                   status: "ready";
                 }

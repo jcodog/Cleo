@@ -23,4 +23,11 @@ export const discordGuildInstallSessions = defineTable({
 })
   .index("by_user_id_and_status", ["userId", "status"])
   .index("by_discord_user_id_and_status", ["discordUserId", "status"])
+  .index("by_guild_user_discord_user_status_expires_at", [
+    "discordGuildId",
+    "userId",
+    "discordUserId",
+    "status",
+    "expiresAt",
+  ])
   .index("by_discord_guild_id", ["discordGuildId"])

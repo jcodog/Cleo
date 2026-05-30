@@ -5,7 +5,6 @@ import { ConvexError } from "convex/values"
 import { internal } from "../../../_generated/api"
 import { action } from "../../../_generated/server"
 import { getClerkUser } from "../../../lib/clerkOAuth"
-import { getClerkLinkedProvider } from "../../../lib/clerkProviders"
 import { dashboardDiscordIdentitySyncResult } from "../../../lib/validators"
 
 export const sync = action({
@@ -52,13 +51,13 @@ export const sync = action({
       }
     )
 
-    const externalAccounts =
-      clerkUserResult.user.external_accounts ??
-      clerkUserResult.user.externalAccounts ??
-      []
-    const discordAccount = externalAccounts.find(
-      (account) => getClerkLinkedProvider(account.provider) === "discord"
+    const nextContext = await ctx.runQuery(
+      internal.queries.dashboard.discord.install.context
+        .getInstallableGuildsContext,
+      {}
     )
+    const discordAccount =
+      nextContext.status === "ready" ? nextContext.discordAccount : null
 
     if (!discordAccount) {
       return {

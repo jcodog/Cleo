@@ -85,9 +85,9 @@ pnpm run dev
 Run checks:
 
 ```bash
-pnpm run lint
-pnpm run typecheck
-pnpm run build
+pnpm --filter <workspace> run lint
+pnpm --filter <workspace> run typecheck
+pnpm --filter <workspace> run build
 ```
 
 ## License

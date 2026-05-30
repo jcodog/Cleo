@@ -465,7 +465,6 @@ export const dashboardDiscordGuildSystemLogViewModel = v.object({
     v.literal("error")
   ),
   message: v.string(),
-  stack: v.optional(v.string()),
   createdAt: v.number(),
 })
 

@@ -1,19 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
-import {
-  IconAlertCircle,
-  IconBrandDiscord,
-  IconPlus,
-  IconServer,
-} from "@tabler/icons-react"
+import { useMemo, type ReactNode } from "react"
+import { IconPlus, IconServer } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@workspace/ui/components/alert"
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
 import {
@@ -32,7 +22,7 @@ import {
 } from "@workspace/ui/components/empty"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
-import { useAction, useConvexAuth, useQuery } from "convex/react"
+import { useConvexAuth, useQuery } from "convex/react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -49,87 +39,14 @@ type ManageableGuild = {
   lastSyncedAt?: number
 }
 
-type SyncGuild = {
-  discordGuildId: string
-  name: string
-  iconUrl?: string
-  memberCount?: number
-  presenceCount?: number
-  state:
-    | "installed"
-    | "installable"
-    | "pending"
-    | "verificationNeeded"
-    | "unavailable"
-    | "forbidden"
-  dashboardHref?: string
-}
-
-type SyncResult =
-  | {
-      status: "missingDiscordIdentity"
-    }
-  | {
-      status: "discordGuildDiscoveryUnavailable"
-      reason:
-        | "clerkSecretUnavailable"
-        | "discordAccessTokenUnavailable"
-        | "discordTokenResolutionUnavailable"
-        | "discordGuildScopeUnavailable"
-        | "discordApiUnavailable"
-        | "discordBotTokenUnavailable"
-        | "discordRestDeniedAccess"
-      guilds: SyncGuild[]
-    }
-  | {
-      status: "ready"
-      guilds: SyncGuild[]
-    }
-
 const EMPTY_MANAGEABLE_GUILDS: ManageableGuild[] = []
 
 export function DiscordDashboardPageShell() {
-  const { isLoading: isConvexAuthLoading, isAuthenticated } = useConvexAuth()
+  const { isLoading: isConvexAuthLoading } = useConvexAuth()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
   const manageableGuilds = useQuery(
     api.queries.dashboard.discord.guilds.manageable.list
   )
-  const syncDashboardGuilds = useAction(
-    api.actions.dashboard.discord.guilds.syncDashboardGuilds.sync
-  )
-  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
-  const [syncFailed, setSyncFailed] = useState(false)
-  const authState = isConvexAuthLoading
-    ? "loading"
-    : isAuthenticated
-      ? "authenticated"
-      : "unauthenticated"
-
-  useEffect(() => {
-    if (authState !== "authenticated") {
-      return
-    }
-
-    let cancelled = false
-
-    syncDashboardGuilds({})
-      .then((result) => {
-        if (!cancelled) {
-          setSyncResult(result)
-          setSyncFailed(false)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSyncFailed(true)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [authState, syncDashboardGuilds])
-
   const servers = useMemo(() => {
     const guildsByDiscordId = new Map<string, ManageableGuild>()
 
@@ -139,24 +56,15 @@ export function DiscordDashboardPageShell() {
       }
     }
 
-    if (syncResult?.status === "ready") {
-      for (const guild of syncResult.guilds) {
-        if (guild.state === "installed") {
-          guildsByDiscordId.set(guild.discordGuildId, guild)
-        }
-      }
-    }
-
     return Array.from(guildsByDiscordId.values()).sort((left, right) =>
       left.name.localeCompare(right.name)
     )
-  }, [manageableGuilds, syncResult])
+  }, [manageableGuilds])
 
   const isLoading =
     isConvexAuthLoading ||
     currentUser === undefined ||
-    manageableGuilds === undefined ||
-    (authState === "authenticated" && syncResult === null && !syncFailed)
+    manageableGuilds === undefined
 
   return (
     <DashboardFrame>
@@ -164,38 +72,6 @@ export function DiscordDashboardPageShell() {
         <ServerListSkeleton />
       ) : (
         <div className="flex flex-col gap-4">
-          {syncFailed ? (
-            <Alert variant="destructive">
-              <IconAlertCircle aria-hidden />
-              <AlertTitle>Discord sync failed</AlertTitle>
-              <AlertDescription>
-                Cleo could not refresh Discord server access. Servers already
-                verified in the dashboard may still appear.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {syncResult?.status === "discordGuildDiscoveryUnavailable" ? (
-            <Alert>
-              <IconAlertCircle aria-hidden />
-              <AlertTitle>Discord sync limited</AlertTitle>
-              <AlertDescription>
-                {getDiscoveryCopy(syncResult.reason)}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {syncResult?.status === "missingDiscordIdentity" ? (
-            <Alert>
-              <IconBrandDiscord aria-hidden />
-              <AlertTitle>Discord account unavailable</AlertTitle>
-              <AlertDescription>
-                Cleo checked Clerk for this signed-in session, but Clerk did not
-                return Discord account data for server discovery.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <div className="min-w-0">
@@ -353,25 +229,4 @@ function formatServerMeta(guild: ManageableGuild) {
   ].filter(Boolean)
 
   return parts.length > 0 ? parts.join(" · ") : guild.discordGuildId
-}
-
-function getDiscoveryCopy(
-  reason: Extract<SyncResult, { status: "discordGuildDiscoveryUnavailable" }>["reason"]
-) {
-  switch (reason) {
-    case "clerkSecretUnavailable":
-      return "Server-side Clerk token resolution is not configured."
-    case "discordAccessTokenUnavailable":
-      return "Clerk did not return a Discord OAuth access token for this session."
-    case "discordGuildScopeUnavailable":
-      return "The Discord OAuth token cannot read the signed-in user's guilds."
-    case "discordApiUnavailable":
-      return "Discord REST is temporarily unavailable."
-    case "discordTokenResolutionUnavailable":
-      return "Cleo could not resolve the Discord OAuth token server-side."
-    case "discordBotTokenUnavailable":
-      return "The server-side Discord bot token is not configured."
-    case "discordRestDeniedAccess":
-      return "Discord REST rejected the configured bot token."
-  }
 }

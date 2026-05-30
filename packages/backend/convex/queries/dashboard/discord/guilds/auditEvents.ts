@@ -84,8 +84,7 @@ export const list = query({
               syncStateId: syncState._id,
               ...(syncState.newestDiscordAuditLogId !== undefined
                 ? {
-                    newestDiscordAuditLogId:
-                      syncState.newestDiscordAuditLogId,
+                    newestDiscordAuditLogId: syncState.newestDiscordAuditLogId,
                   }
                 : {}),
               ...(syncState.newestOccurredAt !== undefined
@@ -190,7 +189,9 @@ function getChangedFields(metadata: Record<string, unknown>): string[] {
     return []
   }
 
-  return Object.keys(next).filter((key) => previous[key] !== next[key])
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)])
+
+  return Array.from(keys).filter((key) => previous[key] !== next[key])
 }
 
 function getOptionValue(

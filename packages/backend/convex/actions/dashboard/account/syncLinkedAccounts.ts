@@ -20,20 +20,6 @@ export const sync = action({
       })
     }
 
-    const existingLinkedAccounts = await ctx.runQuery(
-      api.queries.dashboard.account.linkedAccounts.listForCurrentUser,
-      {}
-    )
-
-    if (
-      existingLinkedAccounts.some((account) => account.provider === "discord")
-    ) {
-      return {
-        status: "ready" as const,
-        linkedAccounts: existingLinkedAccounts,
-      }
-    }
-
     const clerkUserResult = await getClerkUser(identity.subject)
 
     if (clerkUserResult.status === "unavailable") {

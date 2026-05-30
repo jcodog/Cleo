@@ -92,7 +92,9 @@ export function getChannelValues(config: GuildConfig | null): ChannelValues {
   }
 }
 
-export function getModuleItems(config: GuildConfig | null) {
+export function getModuleItems(
+  config: GuildConfig | null
+): { label: string }[] {
   if (!config) {
     return []
   }
@@ -102,7 +104,9 @@ export function getModuleItems(config: GuildConfig | null) {
   }))
 }
 
-export function getConfiguredChannelItems(config: GuildConfig | null) {
+export function getConfiguredChannelItems(
+  config: GuildConfig | null
+): { label: string; value: string }[] {
   if (!config) {
     return []
   }

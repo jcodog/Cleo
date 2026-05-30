@@ -24,19 +24,21 @@ export const upsert = internalMutation({
       .query("guildAuditLogSyncStates")
       .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
       .unique()
+    const nextCursor = getNextCursor({
+      existingDiscordAuditLogId: existing?.newestDiscordAuditLogId,
+      existingOccurredAt: existing?.newestOccurredAt,
+      incomingDiscordAuditLogId: args.newestDiscordAuditLogId,
+      incomingOccurredAt: args.newestOccurredAt,
+    })
     const fields = {
       guildId: guild._id,
       discordGuildId: guild.discordGuildId,
-      ...(args.newestDiscordAuditLogId !== undefined
-        ? { newestDiscordAuditLogId: args.newestDiscordAuditLogId }
-        : existing?.newestDiscordAuditLogId !== undefined
-          ? { newestDiscordAuditLogId: existing.newestDiscordAuditLogId }
-          : {}),
-      ...(args.newestOccurredAt !== undefined
-        ? { newestOccurredAt: args.newestOccurredAt }
-        : existing?.newestOccurredAt !== undefined
-          ? { newestOccurredAt: existing.newestOccurredAt }
-          : {}),
+      ...(nextCursor.newestDiscordAuditLogId !== undefined
+        ? { newestDiscordAuditLogId: nextCursor.newestDiscordAuditLogId }
+        : {}),
+      ...(nextCursor.newestOccurredAt !== undefined
+        ? { newestOccurredAt: nextCursor.newestOccurredAt }
+        : {}),
       lastSyncedAt: now,
       lastSyncStatus: args.status,
       ...(args.lastSyncError !== undefined
@@ -61,3 +63,72 @@ export const upsert = internalMutation({
     return null
   },
 })
+
+function getNextCursor({
+  existingDiscordAuditLogId,
+  existingOccurredAt,
+  incomingDiscordAuditLogId,
+  incomingOccurredAt,
+}: {
+  existingDiscordAuditLogId?: string
+  existingOccurredAt?: number
+  incomingDiscordAuditLogId?: string
+  incomingOccurredAt?: number
+}): {
+  newestDiscordAuditLogId?: string
+  newestOccurredAt?: number
+} {
+  if (
+    incomingOccurredAt !== undefined &&
+    (existingOccurredAt === undefined ||
+      incomingOccurredAt > existingOccurredAt)
+  ) {
+    return {
+      ...(incomingDiscordAuditLogId !== undefined
+        ? { newestDiscordAuditLogId: incomingDiscordAuditLogId }
+        : existingDiscordAuditLogId !== undefined
+          ? { newestDiscordAuditLogId: existingDiscordAuditLogId }
+          : {}),
+      newestOccurredAt: incomingOccurredAt,
+    }
+  }
+
+  if (
+    incomingOccurredAt !== undefined &&
+    existingOccurredAt !== undefined &&
+    incomingOccurredAt === existingOccurredAt &&
+    incomingDiscordAuditLogId !== undefined &&
+    isSnowflakeGreater(incomingDiscordAuditLogId, existingDiscordAuditLogId)
+  ) {
+    return {
+      newestDiscordAuditLogId: incomingDiscordAuditLogId,
+      newestOccurredAt: incomingOccurredAt,
+    }
+  }
+
+  return {
+    ...(existingDiscordAuditLogId !== undefined
+      ? { newestDiscordAuditLogId: existingDiscordAuditLogId }
+      : incomingDiscordAuditLogId !== undefined &&
+          existingOccurredAt === undefined
+        ? { newestDiscordAuditLogId: incomingDiscordAuditLogId }
+        : {}),
+    ...(existingOccurredAt !== undefined
+      ? { newestOccurredAt: existingOccurredAt }
+      : incomingOccurredAt !== undefined
+        ? { newestOccurredAt: incomingOccurredAt }
+        : {}),
+  }
+}
+
+function isSnowflakeGreater(left: string, right: string | undefined): boolean {
+  if (right === undefined) {
+    return true
+  }
+
+  try {
+    return BigInt(left) > BigInt(right)
+  } catch {
+    return left > right
+  }
+}

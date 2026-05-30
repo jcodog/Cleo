@@ -88,7 +88,13 @@ export const getInstallableGuildsContext = internalQuery({
     }
 
     const discordAccount = await getDiscordAccount(ctx, user._id)
-    const installSessions = await getActiveInstallSessions(ctx, user._id)
+    const installSessions = discordAccount
+      ? await getActiveInstallSessions(
+          ctx,
+          user._id,
+          discordAccount.providerAccountId
+        )
+      : []
     const guilds = discordAccount
       ? await getKnownManageableGuilds(
           ctx,
@@ -183,7 +189,12 @@ export const getInstallSessionContext = internalQuery({
       return { status: "missingDiscordIdentity" as const }
     }
 
-    const session = await getInstallSession(ctx, user._id, args)
+    const session = await getInstallSession(
+      ctx,
+      user._id,
+      discordAccount.providerAccountId,
+      args
+    )
 
     if (!session) {
       return { status: "notFound" as const }
@@ -219,7 +230,9 @@ export const getInstallSessionContext = internalQuery({
               ? { botJoinedAt: guildDoc.botJoinedAt }
               : {}),
             ...(guildDoc.botInstallationVerifiedAt !== undefined
-              ? { botInstallationVerifiedAt: guildDoc.botInstallationVerifiedAt }
+              ? {
+                  botInstallationVerifiedAt: guildDoc.botInstallationVerifiedAt,
+                }
               : {}),
             ...(guildDoc.botLeftAt !== undefined
               ? { botLeftAt: guildDoc.botLeftAt }
@@ -275,12 +288,24 @@ async function getKnownManageableGuilds(
       continue
     }
 
-    membershipsByGuildId.set(membership.guildId, membership)
+    const existing = membershipsByGuildId.get(membership.guildId)
+    const isDirectUserMembership = membership.userId === user._id
+
+    if (
+      !existing ||
+      shouldReplaceMembership({
+        existing,
+        incoming: membership,
+        incomingIsDirect: isDirectUserMembership,
+        userId: user._id,
+      })
+    ) {
+      membershipsByGuildId.set(membership.guildId, membership)
+    }
   }
 
-  const sessionByDiscordGuildId = new Map(
-    activeSessions.map((session) => [session.discordGuildId, session])
-  )
+  const sessionByDiscordGuildId =
+    getNewestSessionByDiscordGuildId(activeSessions)
 
   const guilds = await Promise.all(
     Array.from(membershipsByGuildId.values()).map(async (membership) => {
@@ -394,9 +419,40 @@ function isVerifiedManagerMembership(
   )
 }
 
+function shouldReplaceMembership({
+  existing,
+  incoming,
+  incomingIsDirect,
+  userId,
+}: {
+  existing: Doc<"discordGuildMemberships">
+  incoming: Doc<"discordGuildMemberships">
+  incomingIsDirect: boolean
+  userId: Id<"users">
+}): boolean {
+  const existingIsDirect = existing.userId === userId
+
+  if (incomingIsDirect && !existingIsDirect) {
+    return true
+  }
+
+  if (!incomingIsDirect && existingIsDirect) {
+    return false
+  }
+
+  return getMembershipFreshness(incoming) > getMembershipFreshness(existing)
+}
+
+function getMembershipFreshness(
+  membership: Doc<"discordGuildMemberships">
+): number {
+  return membership.managementVerifiedAt ?? membership.lastSyncedAt ?? 0
+}
+
 async function getActiveInstallSessions(
   ctx: Parameters<typeof getCurrentUser>[0],
-  userId: Id<"users">
+  userId: Id<"users">,
+  discordUserId: string
 ) {
   const pending = await ctx.db
     .query("discordGuildInstallSessions")
@@ -414,12 +470,16 @@ async function getActiveInstallSessions(
 
   const now = Date.now()
 
-  return [...pending, ...botJoined].filter((session) => session.expiresAt > now)
+  return [...pending, ...botJoined].filter(
+    (session) =>
+      session.discordUserId === discordUserId && session.expiresAt > now
+  )
 }
 
 async function getInstallSession(
   ctx: Parameters<typeof getCurrentUser>[0],
   userId: Id<"users">,
+  discordUserId: string,
   args: {
     installSessionId?: Id<"discordGuildInstallSessions">
     discordGuildId?: string
@@ -434,20 +494,45 @@ async function getInstallSession(
   }
 
   const discordGuildId = args.discordGuildId
-  const sessions = await ctx.db
-    .query("discordGuildInstallSessions")
-    .withIndex("by_discord_guild_id", (q) =>
-      q.eq("discordGuildId", discordGuildId)
+  const now = Date.now()
+  const sessions = (
+    await Promise.all(
+      (["pending", "bot_joined"] as const).map(async (status) => {
+        return await ctx.db
+          .query("discordGuildInstallSessions")
+          .withIndex("by_guild_user_discord_user_status_expires_at", (q) =>
+            q
+              .eq("discordGuildId", discordGuildId)
+              .eq("userId", userId)
+              .eq("discordUserId", discordUserId)
+              .eq("status", status)
+              .gt("expiresAt", now)
+          )
+          .collect()
+      })
     )
-    .collect()
+  ).flat()
 
   return (
-    sessions
-      .filter(
-        (session) =>
-          session.userId === userId &&
-          (session.status === "pending" || session.status === "bot_joined")
-      )
-      .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null
+    sessions.sort((left, right) => right.createdAt - left.createdAt)[0] ?? null
   )
+}
+
+function getNewestSessionByDiscordGuildId(
+  sessions: Doc<"discordGuildInstallSessions">[]
+): Map<string, Doc<"discordGuildInstallSessions">> {
+  const sessionByDiscordGuildId = new Map<
+    string,
+    Doc<"discordGuildInstallSessions">
+  >()
+
+  for (const session of sessions) {
+    const existing = sessionByDiscordGuildId.get(session.discordGuildId)
+
+    if (!existing || session.createdAt > existing.createdAt) {
+      sessionByDiscordGuildId.set(session.discordGuildId, session)
+    }
+  }
+
+  return sessionByDiscordGuildId
 }

@@ -10,6 +10,7 @@ import { insertDashboardGuildAuditEvent } from "../../../../lib/guildAudit"
 import { guildConfigDoc } from "../../../../lib/validators"
 
 const optionalChannelId = v.optional(v.union(v.string(), v.null()))
+const DISCORD_SNOWFLAKE_PATTERN = /^\d{17,20}$/
 
 export const update = mutation({
   args: {
@@ -186,7 +187,18 @@ function normalizeChannelId(
 
   const trimmedChannelId = channelId.trim()
 
-  return trimmedChannelId.length > 0 ? trimmedChannelId : undefined
+  if (trimmedChannelId.length === 0) {
+    return undefined
+  }
+
+  if (!DISCORD_SNOWFLAKE_PATTERN.test(trimmedChannelId)) {
+    throw new ConvexError({
+      code: "INVALID_DISCORD_CHANNEL_ID",
+      message: "Discord channel IDs must be valid snowflakes.",
+    })
+  }
+
+  return trimmedChannelId
 }
 
 function getChannelAuditFields(config: Doc<"guildConfigs">) {

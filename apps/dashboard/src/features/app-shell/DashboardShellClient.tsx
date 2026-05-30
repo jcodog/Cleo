@@ -37,9 +37,12 @@ export function DashboardShellClient({
   const activeDiscordGuildId =
     getRouteDiscordGuildId(pathname) ?? storedDiscordGuildId
   const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
-  const discordOverviewHref = activeDiscordGuildId
-    ? `/dashboard/${activeDiscordGuildId}`
-    : "/dashboard"
+  const discordOverviewHref =
+    pathname === "/dashboard"
+      ? "/dashboard"
+      : activeDiscordGuildId
+        ? `/dashboard/${activeDiscordGuildId}`
+        : "/dashboard"
   const discordGuildSectionHref = (section: string) =>
     activeDiscordGuildId
       ? `/dashboard/${activeDiscordGuildId}/${section}`
