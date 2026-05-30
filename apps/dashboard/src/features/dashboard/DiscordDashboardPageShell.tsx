@@ -18,7 +18,7 @@ import {
   AlertTitle,
 } from "@workspace/ui/components/alert"
 import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
+import { Button, buttonVariants } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
@@ -34,6 +34,7 @@ import {
   EmptyTitle,
 } from "@workspace/ui/components/empty"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { cn } from "@workspace/ui/lib/utils"
 import { useAction, useQuery } from "convex/react"
 import Image from "next/image"
 import Link from "next/link"
@@ -110,9 +111,6 @@ const EMPTY_INSTALLABLE_GUILDS: InstallableGuild[] = []
 export function DiscordDashboardPageShell() {
   const router = useRouter()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
-  const discordIdentity = useQuery(
-    api.queries.dashboard.account.discordIdentity.get
-  )
   const manageableGuilds = useQuery(
     api.queries.dashboard.discord.guilds.manageable.list
   )
@@ -133,11 +131,11 @@ export function DiscordDashboardPageShell() {
   const [discoveryError, setDiscoveryError] = useState(false)
   const [activeGuildId, setActiveGuildId] = useState<string | null>(null)
   const [notice, setNotice] = useState<FlowNotice | null>(null)
-  const currentUserId = currentUser?._id
-  const discordIdentityId = discordIdentity?._id
+  const currentUserState =
+    currentUser === undefined ? "loading" : (currentUser?._id ?? "missing")
 
   useEffect(() => {
-    if (!currentUserId || !discordIdentityId) {
+    if (currentUserState === "loading") {
       return
     }
 
@@ -159,16 +157,36 @@ export function DiscordDashboardPageShell() {
     return () => {
       cancelled = true
     }
-  }, [currentUserId, discordIdentityId, listInstallableGuilds])
+  }, [currentUserState, listInstallableGuilds])
 
   const isLoading =
-    currentUser === undefined ||
-    discordIdentity === undefined ||
-    manageableGuilds === undefined
+    currentUser === undefined || manageableGuilds === undefined
   const installedGuilds = useMemo(
-    () =>
-      (manageableGuilds ?? EMPTY_MANAGEABLE_GUILDS).filter(isGuildInstalled),
-    [manageableGuilds]
+    () => {
+      const guildsByDiscordId = new Map<
+        string,
+        ManageableGuild | InstallableGuild
+      >()
+
+      for (const guild of manageableGuilds ?? EMPTY_MANAGEABLE_GUILDS) {
+        if (isGuildInstalled(guild)) {
+          guildsByDiscordId.set(guild.discordGuildId, guild)
+        }
+      }
+
+      if (guildResult?.status === "ready") {
+        for (const guild of guildResult.guilds) {
+          if (guild.state === "installed") {
+            guildsByDiscordId.set(guild.discordGuildId, guild)
+          }
+        }
+      }
+
+      return Array.from(guildsByDiscordId.values()).sort((left, right) =>
+        left.name.localeCompare(right.name)
+      )
+    },
+    [guildResult, manageableGuilds]
   )
   const discoveryGuilds = useMemo(
     () =>
@@ -213,7 +231,10 @@ export function DiscordDashboardPageShell() {
   const recentlyOpenedGuilds = useMemo(
     () =>
       installedGuilds
-        .filter((guild) => guild.lastOpenedAt !== undefined)
+        .filter(
+          (guild): guild is ManageableGuild =>
+            "lastOpenedAt" in guild && guild.lastOpenedAt !== undefined
+        )
         .slice(0, 5),
     [installedGuilds]
   )
@@ -318,25 +339,6 @@ export function DiscordDashboardPageShell() {
     )
   }
 
-  if (!currentUser || !discordIdentity) {
-    return (
-      <DashboardFrame>
-        <Empty className="min-h-72">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <IconBrandDiscord aria-hidden />
-            </EmptyMedia>
-            <EmptyTitle>Discord identity syncing</EmptyTitle>
-            <EmptyDescription>
-              Your signed-in Discord identity has not reached the dashboard
-              backend yet. Refresh shortly to see manageable servers.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </DashboardFrame>
-    )
-  }
-
   return (
     <DashboardFrame>
       <div className="flex flex-col gap-4">
@@ -364,10 +366,10 @@ export function DiscordDashboardPageShell() {
         {guildResult?.status === "missingDiscordIdentity" ? (
           <Alert>
             <IconBrandDiscord aria-hidden />
-            <AlertTitle>Discord identity syncing</AlertTitle>
+            <AlertTitle>Discord account unavailable</AlertTitle>
             <AlertDescription>
-              Cleo is waiting for the signed-in Discord identity to reach the
-              dashboard backend.
+              Cleo checked Clerk for this signed-in session, but Clerk did not
+              return Discord account data for server discovery.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -422,13 +424,16 @@ export function DiscordDashboardPageShell() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button
-                  className="w-full justify-start"
-                  render={<Link href="/dashboard/add-server" />}
+                <Link
+                  className={cn(
+                    buttonVariants({ variant: "default" }),
+                    "w-full justify-start"
+                  )}
+                  href="/dashboard/add-server"
                 >
                   <IconPlus aria-hidden data-icon="inline-start" />
                   Add Discord Server
-                </Button>
+                </Link>
               </CardContent>
             </Card>
 
@@ -473,10 +478,13 @@ function DashboardFrame({ children }: { children: ReactNode }) {
             Manage installed Discord servers and continue active install flows.
           </p>
         </div>
-        <Button variant="outline" render={<Link href="/dashboard/add-server" />}>
+        <Link
+          className={buttonVariants({ variant: "outline" })}
+          href="/dashboard/add-server"
+        >
           <IconPlus aria-hidden data-icon="inline-start" />
           Add Server
-        </Button>
+        </Link>
       </header>
       {children}
     </main>
@@ -493,7 +501,7 @@ function GuildListCard({
   description: string
   emptyDescription: string
   emptyTitle: string
-  guilds: ManageableGuild[]
+  guilds: Array<ManageableGuild | InstallableGuild>
   title: string
 }) {
   return (
@@ -887,9 +895,9 @@ function toCreateNotice(
 
   return {
     tone: "default",
-    title: "Discord identity syncing",
+    title: "Discord account unavailable",
     description:
-      "Cleo is waiting for the signed-in Discord identity to reach the dashboard backend.",
+      "Cleo checked Clerk for this signed-in session, but Clerk did not return Discord account data for server discovery.",
   }
 }
 
@@ -960,9 +968,9 @@ function toVerifyNotice(
 
   return {
     tone: "default",
-    title: "Discord identity syncing",
+    title: "Discord account unavailable",
     description:
-      "Cleo is waiting for the signed-in Discord identity to reach the dashboard backend.",
+      "Cleo checked Clerk for this signed-in session, but Clerk did not return Discord account data for server discovery.",
   }
 }
 

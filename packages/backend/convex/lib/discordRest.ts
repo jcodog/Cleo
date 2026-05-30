@@ -193,6 +193,99 @@ export async function fetchDiscordCurrentUserGuilds(
   }
 }
 
+export async function fetchDiscordBotGuilds(botToken: string): Promise<
+  | {
+      status: "ready"
+      guilds: DiscordBotGuildSummary[]
+    }
+  | {
+      status: "unavailable"
+      reason: DiscordBotRestUnavailableReason
+    }
+> {
+  const guilds: DiscordBotGuildSummary[] = []
+  let after: string | undefined
+
+  for (let page = 0; page < 50; page += 1) {
+    const params = new URLSearchParams({
+      limit: "200",
+      with_counts: "true",
+    })
+
+    if (after !== undefined) {
+      params.set("after", after)
+    }
+
+    const response = await fetch(
+      `${DISCORD_API_BASE_URL}/users/@me/guilds?${params}`,
+      {
+        headers: {
+          Authorization: `Bot ${botToken}`,
+        },
+      }
+    )
+
+    if (response.status === 401 || response.status === 403) {
+      return {
+        status: "unavailable",
+        reason: "discordRestDeniedAccess",
+      }
+    }
+
+    if (!response.ok) {
+      return {
+        status: "unavailable",
+        reason: "discordApiUnavailable",
+      }
+    }
+
+    const json: unknown = await response.json()
+
+    if (!isDiscordUserGuilds(json)) {
+      return {
+        status: "unavailable",
+        reason: "discordApiUnavailable",
+      }
+    }
+
+    guilds.push(
+      ...json.map((guild) => {
+        const iconHash = guild.icon ?? undefined
+
+        return {
+          discordGuildId: guild.id,
+          name: guild.name,
+          ...(iconHash !== undefined ? { iconHash } : {}),
+          ...(iconHash !== undefined
+            ? { iconUrl: getDiscordGuildIconUrl(guild.id, iconHash) }
+            : {}),
+          ...(guild.approximate_member_count !== undefined
+            ? { memberCount: guild.approximate_member_count }
+            : {}),
+          ...(guild.approximate_presence_count !== undefined
+            ? { presenceCount: guild.approximate_presence_count }
+            : {}),
+        }
+      })
+    )
+
+    if (json.length < 200) {
+      break
+    }
+
+    after = json[json.length - 1]?.id
+
+    if (after === undefined) {
+      break
+    }
+  }
+
+  return {
+    status: "ready",
+    guilds,
+  }
+}
+
 export async function fetchDiscordGuildChannels(
   discordGuildId: string,
   botToken: string

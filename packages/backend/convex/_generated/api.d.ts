@@ -22,6 +22,21 @@ import type { GenericId as Id } from "convex/values";
 export declare const api: {
   actions: {
     dashboard: {
+      account: {
+        syncDiscordIdentity: {
+          sync: FunctionReference<
+            "action",
+            "public",
+            {},
+            | { status: "ready" }
+            | { status: "missingDiscordIdentity" }
+            | {
+                reason: "clerkSecretUnavailable" | "clerkUserUnavailable";
+                status: "unavailable";
+              }
+          >;
+        };
+      };
       discord: {
         guilds: {
           syncAuditLogs: {
@@ -310,6 +325,7 @@ export declare const api: {
                 avatarUrl?: string;
                 displayName?: string;
                 expiresAt?: number;
+                externalProvider?: string;
                 provider: "discord" | "kick" | "twitch" | "github";
                 providerAccountId: string;
                 refreshTokenSecretId?: string;
@@ -439,6 +455,7 @@ export declare const api: {
               createdAt: number;
               displayName?: string;
               expiresAt?: number;
+              externalProvider?: string;
               provider: "discord" | "kick" | "twitch" | "github";
               providerAccountId: string;
               refreshTokenSecretId?: string;
@@ -462,6 +479,7 @@ export declare const api: {
               createdAt: number;
               displayName?: string;
               expiresAt?: number;
+              externalProvider?: string;
               provider: "discord" | "kick" | "twitch" | "github";
               providerAccountId: string;
               refreshTokenSecretId?: string;
@@ -1083,6 +1101,7 @@ export declare const internal: {
                     createdAt: number;
                     displayName?: string;
                     expiresAt?: number;
+                    externalProvider?: string;
                     provider: "discord" | "kick" | "twitch" | "github";
                     providerAccountId: string;
                     refreshTokenSecretId?: string;
@@ -1121,6 +1140,7 @@ export declare const internal: {
                     createdAt: number;
                     displayName?: string;
                     expiresAt?: number;
+                    externalProvider?: string;
                     provider: "discord" | "kick" | "twitch" | "github";
                     providerAccountId: string;
                     refreshTokenSecretId?: string;
@@ -1211,6 +1231,7 @@ export declare const internal: {
                     createdAt: number;
                     displayName?: string;
                     expiresAt?: number;
+                    externalProvider?: string;
                     provider: "discord" | "kick" | "twitch" | "github";
                     providerAccountId: string;
                     refreshTokenSecretId?: string;

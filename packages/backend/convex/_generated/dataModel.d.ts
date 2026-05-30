@@ -333,6 +333,7 @@ export type DataModel = {
       createdAt: number;
       displayName?: string;
       expiresAt?: number;
+      externalProvider?: string;
       provider: "discord" | "kick" | "twitch" | "github";
       providerAccountId: string;
       refreshTokenSecretId?: string;
@@ -351,6 +352,7 @@ export type DataModel = {
       | "createdAt"
       | "displayName"
       | "expiresAt"
+      | "externalProvider"
       | "provider"
       | "providerAccountId"
       | "refreshTokenSecretId"

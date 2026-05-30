@@ -61,7 +61,7 @@ export const list = query({
       Array.from(membershipsByGuildId.values()).map(async (membership) => {
         const guild = await ctx.db.get(membership.guildId)
 
-        if (!guild || guild.botLeftAt !== undefined) {
+        if (!guild || !isGuildInstalled(guild)) {
           return null
         }
 
@@ -122,3 +122,15 @@ export const list = query({
       })
   },
 })
+
+function isGuildInstalled(guild: {
+  botJoinedAt?: number
+  botInstallationVerifiedAt?: number
+  botLeftAt?: number
+}) {
+  return (
+    guild.botLeftAt === undefined &&
+    (guild.botJoinedAt !== undefined ||
+      guild.botInstallationVerifiedAt !== undefined)
+  )
+}

@@ -1,6 +1,7 @@
 import { ConvexError, v, type Validator } from "convex/values"
-import type { Doc, Id } from "../../../_generated/dataModel"
+import type { Id } from "../../../_generated/dataModel"
 import { internalMutation, type MutationCtx } from "../../../_generated/server"
+import { getClerkLinkedProvider } from "../../../lib/clerkProviders"
 
 type ClerkEmailAddress = {
   id: string
@@ -130,7 +131,7 @@ async function syncExternalAccounts(
   now: number
 ) {
   for (const account of externalAccounts) {
-    const provider = getLinkedProvider(account.provider)
+    const provider = getClerkLinkedProvider(account.provider)
     const providerAccountId =
       account.provider_user_id ?? account.external_account_id ?? account.id
 
@@ -152,6 +153,9 @@ async function syncExternalAccounts(
     const value = {
       userId,
       provider,
+      ...(account.provider !== null && account.provider !== undefined
+        ? { externalProvider: account.provider }
+        : {}),
       providerAccountId,
       scopes: getExternalAccountScopes(account),
       ...(account.username !== null && account.username !== undefined
@@ -175,24 +179,6 @@ async function syncExternalAccounts(
       ...value,
       createdAt: now,
     })
-  }
-}
-
-function getLinkedProvider(
-  provider: string | null | undefined
-): Doc<"linkedAccounts">["provider"] | null {
-  switch (provider) {
-    case "discord":
-    case "oauth_discord":
-      return "discord"
-    case "kick":
-    case "oauth_kick":
-      return "kick"
-    case "twitch":
-    case "oauth_twitch":
-      return "twitch"
-    default:
-      return null
   }
 }
 

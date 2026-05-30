@@ -46,6 +46,22 @@ export const dashboardDiscordGuildForbiddenReason = v.union(
   v.literal("missingManageGuildPermission")
 )
 
+export const dashboardDiscordIdentitySyncResult = v.union(
+  v.object({
+    status: v.literal("ready"),
+  }),
+  v.object({
+    status: v.literal("missingDiscordIdentity"),
+  }),
+  v.object({
+    status: v.literal("unavailable"),
+    reason: v.union(
+      v.literal("clerkSecretUnavailable"),
+      v.literal("clerkUserUnavailable")
+    ),
+  })
+)
+
 export const userDoc = v.object({
   _id: v.id("users"),
   _creationTime: v.number(),
@@ -74,6 +90,7 @@ export const linkedAccountDoc = v.object({
     v.literal("twitch"),
     v.literal("github")
   ),
+  externalProvider: v.optional(v.string()),
   providerAccountId: v.string(),
   username: v.optional(v.string()),
   displayName: v.optional(v.string()),

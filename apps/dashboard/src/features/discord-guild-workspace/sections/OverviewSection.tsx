@@ -5,7 +5,7 @@ import {
   IconSettings,
   IconShield,
 } from "@tabler/icons-react"
-import { Button } from "@workspace/ui/components/button"
+import { buttonVariants } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
@@ -150,15 +150,17 @@ export function OverviewSection({
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {quickLinks.map(([label, href, Icon]) => (
-              <Button
+              <Link
                 key={href}
-                className="justify-start"
-                variant="outline"
-                render={<Link href={href} />}
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "justify-start",
+                })}
+                href={href}
               >
                 <Icon aria-hidden data-icon="inline-start" />
                 {label}
-              </Button>
+              </Link>
             ))}
           </CardContent>
         </Card>

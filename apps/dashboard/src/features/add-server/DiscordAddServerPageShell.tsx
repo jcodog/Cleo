@@ -94,9 +94,6 @@ type FlowNotice = {
 function DiscordAddServerState() {
   const router = useRouter()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
-  const discordIdentity = useQuery(
-    api.queries.dashboard.account.discordIdentity.get
-  )
   const listInstallableGuilds = useAction(
     api.actions.dashboard.discord.install.listInstallableGuilds.list
   )
@@ -113,11 +110,11 @@ function DiscordAddServerState() {
     useState<InstallableGuildsResult | null>(null)
   const [activeGuildId, setActiveGuildId] = useState<string | null>(null)
   const [notice, setNotice] = useState<FlowNotice | null>(null)
-  const currentUserId = currentUser?._id
-  const discordIdentityId = discordIdentity?._id
+  const currentUserState =
+    currentUser === undefined ? "loading" : (currentUser?._id ?? "missing")
 
   useEffect(() => {
-    if (!currentUserId || !discordIdentityId) {
+    if (currentUserState === "loading") {
       return
     }
 
@@ -143,31 +140,14 @@ function DiscordAddServerState() {
     return () => {
       cancelled = true
     }
-  }, [currentUserId, discordIdentityId, listInstallableGuilds])
+  }, [currentUserState, listInstallableGuilds])
 
-  if (currentUser === undefined || discordIdentity === undefined) {
+  if (currentUser === undefined) {
     return (
       <div className="flex flex-col gap-3">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-12 w-full" />
       </div>
-    )
-  }
-
-  if (!currentUser || !discordIdentity) {
-    return (
-      <Empty className="min-h-72">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <IconBrandDiscord aria-hidden />
-          </EmptyMedia>
-          <EmptyTitle>Discord identity syncing</EmptyTitle>
-          <EmptyDescription>
-            Your signed-in Discord identity has not reached the dashboard
-            backend yet. Refresh shortly, then try adding a server again.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
     )
   }
 
@@ -187,10 +167,10 @@ function DiscordAddServerState() {
           <EmptyMedia variant="icon">
             <IconBrandDiscord aria-hidden />
           </EmptyMedia>
-          <EmptyTitle>Discord identity syncing</EmptyTitle>
+          <EmptyTitle>Discord account unavailable</EmptyTitle>
           <EmptyDescription>
-            Your signed-in Discord identity has not reached the dashboard
-            backend yet. Refresh shortly, then try adding a server again.
+            Cleo checked Clerk for this signed-in session, but Clerk did not
+            return Discord account data for server discovery.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -545,9 +525,9 @@ function toCreateNotice(
   if (status === "missingDiscordIdentity") {
     return {
       tone: "default",
-      title: "Discord identity syncing",
+      title: "Discord account unavailable",
       description:
-        "Your signed-in Discord identity has not reached Convex yet. Refresh shortly and try again.",
+        "Cleo checked Clerk for this signed-in session, but Clerk did not return Discord account data for server discovery.",
     }
   }
 
@@ -642,9 +622,9 @@ function toVerifyNotice(
 
   return {
     tone: "default",
-    title: "Discord identity syncing",
+    title: "Discord account unavailable",
     description:
-      "Cleo is waiting for the signed-in Discord identity to reach the dashboard backend.",
+      "Cleo checked Clerk for this signed-in session, but Clerk did not return Discord account data for server discovery.",
   }
 }
 

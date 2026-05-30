@@ -1,5 +1,5 @@
 import { IconHash, IconListDetails } from "@tabler/icons-react"
-import { Button } from "@workspace/ui/components/button"
+import { buttonVariants } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
@@ -88,24 +88,26 @@ export function SettingsSection({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <Button
-              className="justify-start"
-              variant="outline"
-              render={<Link href={`/dashboard/${overview.discordGuildId}`} />}
+            <Link
+              className={buttonVariants({
+                variant: "outline",
+                className: "justify-start",
+              })}
+              href={`/dashboard/${overview.discordGuildId}`}
             >
               <IconListDetails aria-hidden data-icon="inline-start" />
               Open Overview
-            </Button>
-            <Button
-              className="justify-start"
-              variant="outline"
-              render={
-                <Link href={`/dashboard/${overview.discordGuildId}/channels`} />
-              }
+            </Link>
+            <Link
+              className={buttonVariants({
+                variant: "outline",
+                className: "justify-start",
+              })}
+              href={`/dashboard/${overview.discordGuildId}/channels`}
             >
               <IconHash aria-hidden data-icon="inline-start" />
               Edit Channels
-            </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>

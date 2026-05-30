@@ -8,6 +8,7 @@ import { requireCurrentUser } from "../../../../lib/auth"
 export const upsertForCurrentUser = mutation({
   args: {
     provider: linkedProvider,
+    externalProvider: v.optional(v.string()),
     providerAccountId: v.string(),
     username: v.optional(v.string()),
     displayName: v.optional(v.string()),
@@ -41,6 +42,9 @@ export const upsertForCurrentUser = mutation({
     const value = {
       userId: user._id,
       provider: args.provider,
+      ...(args.externalProvider !== undefined
+        ? { externalProvider: args.externalProvider }
+        : {}),
       providerAccountId: args.providerAccountId,
       scopes: args.scopes,
       ...(args.username !== undefined ? { username: args.username } : {}),

@@ -12,7 +12,7 @@ import {
   AlertTitle,
 } from "@workspace/ui/components/alert"
 import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
+import { buttonVariants } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
@@ -89,9 +89,12 @@ export function WorkspaceState({
           <EmptyTitle>{title}</EmptyTitle>
           <EmptyDescription>{description}</EmptyDescription>
         </EmptyHeader>
-        <Button variant="outline" render={<Link href="/dashboard" />}>
+        <Link
+          className={buttonVariants({ variant: "outline" })}
+          href="/dashboard"
+        >
           Back to Dashboard
-        </Button>
+        </Link>
       </Empty>
     </main>
   )
