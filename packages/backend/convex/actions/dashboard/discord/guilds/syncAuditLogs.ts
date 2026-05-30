@@ -104,7 +104,8 @@ async function syncGuildAuditLogs(
 > {
   if (!isGuildRestInstalled(guild)) {
     await ctx.runMutation(
-      internal.mutations.dashboard.discord.guildAuditLogSyncStates.upsert.upsert,
+      internal.mutations.dashboard.discord.guildAuditLogSyncStates.upsert
+        .upsert,
       {
         guildId: guild._id,
         status: "pendingBotSync",
@@ -115,7 +116,8 @@ async function syncGuildAuditLogs(
 
   if (!discordEnv.DISCORD_BOT_TOKEN) {
     await ctx.runMutation(
-      internal.mutations.dashboard.discord.guildAuditLogSyncStates.upsert.upsert,
+      internal.mutations.dashboard.discord.guildAuditLogSyncStates.upsert
+        .upsert,
       {
         guildId: guild._id,
         status: "discordBotTokenUnavailable",
@@ -158,7 +160,8 @@ async function syncGuildAuditLogs(
 
   if (!entries) {
     await ctx.runMutation(
-      internal.mutations.dashboard.discord.guildAuditLogSyncStates.upsert.upsert,
+      internal.mutations.dashboard.discord.guildAuditLogSyncStates.upsert
+        .upsert,
       {
         guildId: guild._id,
         status: "discordApiUnavailable",
@@ -188,6 +191,7 @@ async function syncGuildAuditLogs(
     {
       guildId: guild._id,
       status: "ready",
+      lastSyncedAt,
       ...(newestEntry !== null
         ? {
             newestDiscordAuditLogId: newestEntry.discordAuditLogId,

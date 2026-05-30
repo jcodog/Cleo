@@ -67,6 +67,12 @@ type DiscordAuditLogResponse = {
   users?: DiscordAuditLogUser[]
 }
 
+type DiscordJsonResponse = {
+  ok: boolean
+  status: number
+  json?: unknown
+}
+
 export type DiscordManageableGuild = {
   discordGuildId: string
   name: string
@@ -135,7 +141,7 @@ export async function fetchDiscordCurrentUserGuilds(
       reason: DiscordApiUnavailableReason
     }
 > {
-  const response = await fetch(
+  const response = await fetchDiscordJson(
     `${DISCORD_API_BASE_URL}/users/@me/guilds?with_counts=true`,
     {
       headers: {
@@ -143,6 +149,13 @@ export async function fetchDiscordCurrentUserGuilds(
       },
     }
   )
+
+  if (response === null) {
+    return {
+      status: "unavailable",
+      reason: "discordApiUnavailable",
+    }
+  }
 
   if (response.status === 401 || response.status === 403) {
     return {
@@ -158,9 +171,7 @@ export async function fetchDiscordCurrentUserGuilds(
     }
   }
 
-  const json: unknown = await response.json()
-
-  if (!isDiscordUserGuilds(json)) {
+  if (!isDiscordUserGuilds(response.json)) {
     return {
       status: "unavailable",
       reason: "discordApiUnavailable",
@@ -169,7 +180,7 @@ export async function fetchDiscordCurrentUserGuilds(
 
   return {
     status: "ready",
-    guilds: json.map((guild) => {
+    guilds: response.json.map((guild) => {
       const permissions = guild.permissions
       const iconHash = guild.icon ?? undefined
 
@@ -224,7 +235,7 @@ export async function fetchDiscordBotGuilds(botToken: string): Promise<
       params.set("after", after)
     }
 
-    const response = await fetch(
+    const response = await fetchDiscordJson(
       `${DISCORD_API_BASE_URL}/users/@me/guilds?${params}`,
       {
         headers: {
@@ -232,6 +243,13 @@ export async function fetchDiscordBotGuilds(botToken: string): Promise<
         },
       }
     )
+
+    if (response === null) {
+      return {
+        status: "unavailable",
+        reason: "discordApiUnavailable",
+      }
+    }
 
     if (response.status === 401 || response.status === 403) {
       return {
@@ -247,9 +265,7 @@ export async function fetchDiscordBotGuilds(botToken: string): Promise<
       }
     }
 
-    const json: unknown = await response.json()
-
-    if (!isDiscordUserGuilds(json)) {
+    if (!isDiscordUserGuilds(response.json)) {
       return {
         status: "unavailable",
         reason: "discordApiUnavailable",
@@ -257,7 +273,7 @@ export async function fetchDiscordBotGuilds(botToken: string): Promise<
     }
 
     guilds.push(
-      ...json.map((guild) => {
+      ...response.json.map((guild) => {
         const iconHash = guild.icon ?? undefined
 
         return {
@@ -277,11 +293,11 @@ export async function fetchDiscordBotGuilds(botToken: string): Promise<
       })
     )
 
-    if (json.length < 200) {
+    if (response.json.length < 200) {
       break
     }
 
-    after = json[json.length - 1]?.id
+    after = response.json[response.json.length - 1]?.id
 
     if (after === undefined) {
       break
@@ -310,7 +326,7 @@ export async function fetchDiscordGuildChannels(
       reason: DiscordBotRestUnavailableReason
     }
 > {
-  const response = await fetch(
+  const response = await fetchDiscordJson(
     `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/channels`,
     {
       headers: {
@@ -318,6 +334,13 @@ export async function fetchDiscordGuildChannels(
       },
     }
   )
+
+  if (response === null) {
+    return {
+      status: "unavailable",
+      reason: "discordApiUnavailable",
+    }
+  }
 
   if (response.status === 401) {
     return {
@@ -337,9 +360,7 @@ export async function fetchDiscordGuildChannels(
     }
   }
 
-  const json: unknown = await response.json()
-
-  if (!isDiscordChannels(json)) {
+  if (!isDiscordChannels(response.json)) {
     return {
       status: "unavailable",
       reason: "discordApiUnavailable",
@@ -348,7 +369,7 @@ export async function fetchDiscordGuildChannels(
 
   return {
     status: "ready",
-    channels: json
+    channels: response.json
       .filter(
         (channel) =>
           channel.name &&
@@ -386,7 +407,7 @@ export async function fetchDiscordBotGuild(
       reason: DiscordBotRestUnavailableReason
     }
 > {
-  const response = await fetch(
+  const response = await fetchDiscordJson(
     `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}?with_counts=true`,
     {
       headers: {
@@ -394,6 +415,13 @@ export async function fetchDiscordBotGuild(
       },
     }
   )
+
+  if (response === null) {
+    return {
+      status: "unavailable",
+      reason: "discordApiUnavailable",
+    }
+  }
 
   if (response.status === 401) {
     return {
@@ -413,33 +441,35 @@ export async function fetchDiscordBotGuild(
     }
   }
 
-  const json: unknown = await response.json()
-
-  if (!isDiscordBotGuild(json)) {
+  if (!isDiscordBotGuild(response.json)) {
     return {
       status: "unavailable",
       reason: "discordApiUnavailable",
     }
   }
 
-  const iconHash = json.icon ?? undefined
+  const iconHash = response.json.icon ?? undefined
 
   return {
     status: "ready",
     guild: {
-      discordGuildId: json.id,
-      name: json.name,
-      ...(json.description ? { description: json.description } : {}),
+      discordGuildId: response.json.id,
+      name: response.json.name,
+      ...(response.json.description
+        ? { description: response.json.description }
+        : {}),
       ...(iconHash !== undefined ? { iconHash } : {}),
       ...(iconHash !== undefined
-        ? { iconUrl: getDiscordGuildIconUrl(json.id, iconHash) }
+        ? { iconUrl: getDiscordGuildIconUrl(response.json.id, iconHash) }
         : {}),
-      ...(json.owner_id !== undefined ? { ownerDiscordId: json.owner_id } : {}),
-      ...(json.approximate_member_count !== undefined
-        ? { memberCount: json.approximate_member_count }
+      ...(response.json.owner_id !== undefined
+        ? { ownerDiscordId: response.json.owner_id }
         : {}),
-      ...(json.approximate_presence_count !== undefined
-        ? { presenceCount: json.approximate_presence_count }
+      ...(response.json.approximate_member_count !== undefined
+        ? { memberCount: response.json.approximate_member_count }
+        : {}),
+      ...(response.json.approximate_presence_count !== undefined
+        ? { presenceCount: response.json.approximate_presence_count }
         : {}),
     },
   }
@@ -449,7 +479,7 @@ export async function fetchDiscordGuildRoles(
   discordGuildId: string,
   botToken: string
 ): Promise<DiscordGuildRole[] | null> {
-  const response = await fetch(
+  const response = await fetchDiscordJson(
     `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/roles`,
     {
       headers: {
@@ -458,17 +488,15 @@ export async function fetchDiscordGuildRoles(
     }
   )
 
-  if (!response.ok) {
+  if (response === null || !response.ok) {
     return null
   }
 
-  const json: unknown = await response.json()
-
-  if (!isDiscordRoles(json)) {
+  if (!isDiscordRoles(response.json)) {
     return null
   }
 
-  return json
+  return response.json
     .map((role) => ({
       discordRoleId: role.id,
       name: role.name,
@@ -504,37 +532,31 @@ export async function fetchDiscordGuildAuditLogs({
     params.set("before", before)
   }
 
-  let json: unknown
-
-  try {
-    const response = await fetch(
-      `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/audit-logs?${params}`,
-      {
-        headers: {
-          Authorization: `Bot ${botToken}`,
-        },
-        signal: AbortSignal.timeout(DISCORD_FETCH_TIMEOUT_MS),
-      }
-    )
-
-    if (!response.ok) {
-      return null
+  const response = await fetchDiscordJson(
+    `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/audit-logs?${params}`,
+    {
+      headers: {
+        Authorization: `Bot ${botToken}`,
+      },
     }
+  )
 
-    json = await response.json()
-  } catch {
+  if (response === null || !response.ok) {
     return null
   }
 
-  if (!isDiscordAuditLogResponse(json)) {
+  if (!isDiscordAuditLogResponse(response.json)) {
     return null
   }
 
   const usersById = new Map(
-    (json.users ?? []).map((user) => [user.id, getDiscordUserDisplayName(user)])
+    (response.json.users ?? []).map((user) => [
+      user.id,
+      getDiscordUserDisplayName(user),
+    ])
   )
 
-  return json.audit_log_entries.map((entry) => {
+  return response.json.audit_log_entries.map((entry) => {
     const actorDiscordUserId = entry.user_id ?? undefined
     const targetDiscordId = entry.target_id ?? undefined
     const reason = entry.reason ?? undefined
@@ -615,6 +637,33 @@ function getDiscordGuildIconUrl(guildId: string, iconHash: string) {
   const extension = iconHash.startsWith("a_") ? "gif" : "png"
 
   return `${DISCORD_CDN_BASE_URL}/icons/${guildId}/${iconHash}.${extension}?size=64`
+}
+
+async function fetchDiscordJson(
+  url: string,
+  init: RequestInit
+): Promise<DiscordJsonResponse | null> {
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(DISCORD_FETCH_TIMEOUT_MS),
+    })
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+      }
+    }
+
+    return {
+      ok: true,
+      status: response.status,
+      json: await response.json(),
+    }
+  } catch {
+    return null
+  }
 }
 
 function isDiscordUserGuilds(value: unknown): value is DiscordUserGuild[] {

@@ -535,6 +535,44 @@ export declare const api: {
               }
             >;
           };
+          updateWorkspaceSection: {
+            update: FunctionReference<
+              "mutation",
+              "public",
+              {
+                channels: {
+                  announcementChannelId?: string | null;
+                  logChannelId?: string | null;
+                  modLogChannelId?: string | null;
+                  updatesChannelId?: string | null;
+                  welcomeChannelId?: string | null;
+                };
+                discordGuildId: string;
+                modules: {
+                  moderationEnabled?: boolean;
+                  welcomeEnabled?: boolean;
+                };
+              },
+              {
+                _creationTime: number;
+                _id: Id<"guildConfigs">;
+                aiEnabled: boolean;
+                announcementChannelId?: string;
+                commandPrefix?: string;
+                createdAt: number;
+                guildId: Id<"guilds">;
+                logChannelId?: string;
+                logLevel?: "none" | "minimal" | "medium" | "maximum";
+                loggingEnabled: boolean;
+                modLogChannelId?: string;
+                moderationEnabled: boolean;
+                updatedAt: number;
+                updatesChannelId?: string;
+                welcomeChannelId?: string;
+                welcomeEnabled: boolean;
+              }
+            >;
+          };
         };
         guilds: {
           markOpened: {
@@ -1008,6 +1046,7 @@ export declare const internal: {
               {
                 guildId: Id<"guilds">;
                 lastSyncError?: string;
+                lastSyncedAt?: number;
                 newestDiscordAuditLogId?: string;
                 newestOccurredAt?: number;
                 status:

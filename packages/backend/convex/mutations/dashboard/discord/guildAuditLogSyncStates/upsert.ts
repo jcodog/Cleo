@@ -9,6 +9,7 @@ export const upsert = internalMutation({
     status: guildAuditLogSyncStateStatus,
     newestDiscordAuditLogId: v.optional(v.string()),
     newestOccurredAt: v.optional(v.number()),
+    lastSyncedAt: v.optional(v.number()),
     lastSyncError: v.optional(v.string()),
   },
   returns: v.null(),
@@ -20,6 +21,7 @@ export const upsert = internalMutation({
     }
 
     const now = Date.now()
+    const lastSyncedAt = args.lastSyncedAt ?? now
     const existing = await ctx.db
       .query("guildAuditLogSyncStates")
       .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
@@ -39,7 +41,7 @@ export const upsert = internalMutation({
       ...(nextCursor.newestOccurredAt !== undefined
         ? { newestOccurredAt: nextCursor.newestOccurredAt }
         : {}),
-      lastSyncedAt: now,
+      lastSyncedAt,
       lastSyncStatus: args.status,
       ...(args.lastSyncError !== undefined
         ? { lastSyncError: args.lastSyncError }
@@ -86,9 +88,7 @@ function getNextCursor({
     return {
       ...(incomingDiscordAuditLogId !== undefined
         ? { newestDiscordAuditLogId: incomingDiscordAuditLogId }
-        : existingDiscordAuditLogId !== undefined
-          ? { newestDiscordAuditLogId: existingDiscordAuditLogId }
-          : {}),
+        : {}),
       newestOccurredAt: incomingOccurredAt,
     }
   }

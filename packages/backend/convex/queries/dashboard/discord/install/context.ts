@@ -2,6 +2,7 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../../../../_generated/dataModel"
 import { internalQuery } from "../../../../_generated/server"
 import { getCurrentUser } from "../../../../lib/auth"
+import { shouldReplaceMembership } from "../../../../lib/discordGuildMemberships"
 import {
   dashboardDiscordInstallableGuildViewModel,
   discordGuildInstallSessionDoc,
@@ -417,36 +418,6 @@ function isVerifiedManagerMembership(
     membership.managementVerifiedAt !== undefined &&
     membership.revokedAt === undefined
   )
-}
-
-function shouldReplaceMembership({
-  existing,
-  incoming,
-  incomingIsDirect,
-  userId,
-}: {
-  existing: Doc<"discordGuildMemberships">
-  incoming: Doc<"discordGuildMemberships">
-  incomingIsDirect: boolean
-  userId: Id<"users">
-}): boolean {
-  const existingIsDirect = existing.userId === userId
-
-  if (incomingIsDirect && !existingIsDirect) {
-    return true
-  }
-
-  if (!incomingIsDirect && existingIsDirect) {
-    return false
-  }
-
-  return getMembershipFreshness(incoming) > getMembershipFreshness(existing)
-}
-
-function getMembershipFreshness(
-  membership: Doc<"discordGuildMemberships">
-): number {
-  return membership.managementVerifiedAt ?? membership.lastSyncedAt ?? 0
 }
 
 async function getActiveInstallSessions(

@@ -42,11 +42,8 @@ export function AutomationSection({
   isBotLeft: boolean
   overview: GuildOverview
 }) {
-  const updateModules = useMutation(
-    api.mutations.dashboard.discord.guildConfigs.updateModules.update
-  )
-  const updateChannels = useMutation(
-    api.mutations.dashboard.discord.guildConfigs.updateChannels.update
+  const updateWorkspaceSection = useMutation(
+    api.mutations.dashboard.discord.guildConfigs.updateWorkspaceSection.update
   )
   const [welcomeEnabled, setWelcomeEnabled] = useState(
     overview.guildConfig?.welcomeEnabled ?? false
@@ -75,12 +72,9 @@ export function AutomationSection({
     setErrorMessage(null)
 
     try {
-      await updateModules({
+      await updateWorkspaceSection({
         discordGuildId: overview.discordGuildId,
         modules: { welcomeEnabled },
-      })
-      await updateChannels({
-        discordGuildId: overview.discordGuildId,
         channels: {
           welcomeChannelId: toOptionalChannelValue(channels.welcomeChannelId),
           updatesChannelId: toOptionalChannelValue(channels.updatesChannelId),

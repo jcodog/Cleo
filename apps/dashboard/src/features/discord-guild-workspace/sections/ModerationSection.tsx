@@ -42,11 +42,8 @@ export function ModerationSection({
   isBotLeft: boolean
   overview: GuildOverview
 }) {
-  const updateModules = useMutation(
-    api.mutations.dashboard.discord.guildConfigs.updateModules.update
-  )
-  const updateChannels = useMutation(
-    api.mutations.dashboard.discord.guildConfigs.updateChannels.update
+  const updateWorkspaceSection = useMutation(
+    api.mutations.dashboard.discord.guildConfigs.updateWorkspaceSection.update
   )
   const [moderationEnabled, setModerationEnabled] = useState(
     overview.guildConfig?.moderationEnabled ?? false
@@ -71,12 +68,9 @@ export function ModerationSection({
     setErrorMessage(null)
 
     try {
-      await updateModules({
+      await updateWorkspaceSection({
         discordGuildId: overview.discordGuildId,
         modules: { moderationEnabled },
-      })
-      await updateChannels({
-        discordGuildId: overview.discordGuildId,
         channels: {
           modLogChannelId: toOptionalChannelValue(channels.modLogChannelId),
           logChannelId: toOptionalChannelValue(channels.logChannelId),
