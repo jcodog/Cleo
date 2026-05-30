@@ -83,6 +83,30 @@ General UI direction:
 - Do not redesign major dashboard pages until the backend and auth foundations are stable.
 - Use relevant skills and MCPs selectively when they improve accuracy; do not invoke every available tool blindly.
 
+## Terminal rules
+
+Development may already be running in WezTerm.
+
+Before starting any dev server, watcher, tunnel, broad validation command, or log tail, inspect existing WezTerm panes first:
+
+```bash
+wezterm cli list --format json
+```
+
+If a Cleo dev pane is already running, read its recent output instead of starting another process:
+
+```bash
+wezterm cli get-text --pane-id <PANE_ID> --start-line -300
+```
+
+Do not start duplicate `pnpm dev`, `turbo dev`, `next dev`, `convex dev`, workers, websocket, bot, or tunnel processes.
+
+Use existing WezTerm output as the first source of truth for dev server errors, route errors, compile errors, runtime errors, and browser-triggered logs.
+
+Do not use `wezterm cli send-text`, `spawn`, `split-pane`, `kill-pane`, or `activate-pane` unless Jason explicitly asks.
+
+If the correct pane is unclear, ask Jason which pane ID to inspect.
+
 ## Package manager and command runner
 
 - This repo uses the pinned `pnpm` version from `package.json`.
