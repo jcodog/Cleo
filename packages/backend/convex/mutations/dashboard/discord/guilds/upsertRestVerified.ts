@@ -201,11 +201,10 @@ async function ensureGuildConfig(
 
   await ctx.db.insert("guildConfigs", {
     guildId,
-    aiEnabled: true,
+    aiEnabled: false,
     moderationEnabled: false,
     welcomeEnabled: false,
     loggingEnabled: false,
-    commandPrefix: "/",
     createdAt: now,
     updatedAt: now,
   })

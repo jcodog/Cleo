@@ -292,12 +292,15 @@ async function getKnownManageableGuilds(
 
       const session = sessionByDiscordGuildId.get(guild.discordGuildId)
       const isInstalled = isGuildInstalled(guild)
-      const isPending = session !== undefined && !isInstalled
       const state = isInstalled
         ? ("installed" as const)
-        : isPending
+        : session !== undefined
           ? ("pending" as const)
-          : ("verificationNeeded" as const)
+          : null
+
+      if (state === null) {
+        return null
+      }
 
       return {
         discordGuildId: guild.discordGuildId,

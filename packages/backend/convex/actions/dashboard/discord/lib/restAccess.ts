@@ -57,6 +57,58 @@ export async function verifyUserCanManageDiscordGuild({
   clerkUserId: string
   discordGuildId: string
 }): Promise<VerifiedManagedDiscordGuildResult> {
+  const result = await findUserDiscordGuild({
+    clerkUserId,
+    discordGuildId,
+  })
+
+  if (result.status !== "ready") {
+    return result
+  }
+
+  if (!result.guild.canManage) {
+    return {
+      status: "forbidden",
+      reason: "missingManageGuildPermission",
+    }
+  }
+
+  return result
+}
+
+export async function verifyUserCanInstallDiscordGuild({
+  clerkUserId,
+  discordGuildId,
+}: {
+  clerkUserId: string
+  discordGuildId: string
+}): Promise<VerifiedManagedDiscordGuildResult> {
+  const result = await findUserDiscordGuild({
+    clerkUserId,
+    discordGuildId,
+  })
+
+  if (result.status !== "ready") {
+    return result
+  }
+
+  if (!result.guild.canInstall) {
+    return {
+      status: "forbidden",
+      reason: "missingManageGuildPermission",
+    }
+  }
+
+  return result
+}
+
+async function findUserDiscordGuild({
+  clerkUserId,
+  discordGuildId,
+}: {
+  clerkUserId: string
+  discordGuildId: string
+}): Promise<VerifiedManagedDiscordGuildResult> {
   const tokenResult = await getClerkDiscordAccessToken(clerkUserId)
 
   if (tokenResult.status === "unavailable") {
@@ -85,13 +137,6 @@ export async function verifyUserCanManageDiscordGuild({
     return {
       status: "forbidden",
       reason: "guildNotFoundForUser",
-    }
-  }
-
-  if (!guild.canManage) {
-    return {
-      status: "forbidden",
-      reason: "missingManageGuildPermission",
     }
   }
 

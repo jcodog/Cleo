@@ -15,6 +15,7 @@ export const backendEnv = createEnv({
 
     STRIPE_SECRET_KEY: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,
+    DISCORD_BOT_TOKEN: optionalString,
   },
   runtimeEnv: process.env,
 })

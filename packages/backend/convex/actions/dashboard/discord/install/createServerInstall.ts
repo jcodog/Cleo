@@ -7,7 +7,12 @@ import { internal } from "../../../../_generated/api"
 import { action, type ActionCtx } from "../../../../_generated/server"
 import type { Doc } from "../../../../_generated/dataModel"
 import { dashboardDiscordCreateServerInstallResult } from "../../../../lib/validators"
-import { verifyUserCanManageDiscordGuild } from "../lib/restAccess"
+import {
+  buildRestVerifiedGuildInput,
+  verifyBotCanAccessDiscordGuild,
+  verifyUserCanInstallDiscordGuild,
+} from "../lib/restAccess"
+import type { DiscordManageableGuild } from "../../../../lib/discordRest"
 
 const DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
 const DEFAULT_BOT_PERMISSIONS = "0"
@@ -45,15 +50,10 @@ export const create = action({
       }
     }
 
-    const installContextResult =
-      context.status === "ready"
-        ? {
-            status: "ready" as const,
-            user: context.user,
-            discordAccount: context.discordAccount,
-            discordGuildId: context.discordGuildId,
-          }
-        : await getRestVerifiedInstallContext(ctx, args.discordGuildId)
+    const installContextResult = await getRestVerifiedInstallContext(
+      ctx,
+      args.discordGuildId
+    )
 
     if (installContextResult.status === "unavailable") {
       return {
@@ -66,6 +66,36 @@ export const create = action({
       return {
         status: "forbidden" as const,
         reason: installContextResult.reason,
+      }
+    }
+
+    const botGuildResult = await verifyBotCanAccessDiscordGuild(
+      installContextResult.discordGuildId
+    )
+
+    if (botGuildResult.status === "unavailable") {
+      return {
+        status: "verificationUnavailable" as const,
+        reason: botGuildResult.reason,
+      }
+    }
+
+    if (botGuildResult.status === "ready") {
+      await ctx.runMutation(
+        internal.mutations.dashboard.discord.guilds.upsertRestVerified.upsert,
+        buildRestVerifiedGuildInput({
+          botGuild: botGuildResult.guild,
+          discordAccount: installContextResult.discordAccount,
+          user: installContextResult.user,
+          userGuild: installContextResult.userGuild,
+          verifiedAt: Date.now(),
+        })
+      )
+
+      return {
+        status: "alreadyInstalled" as const,
+        discordGuildId: installContextResult.discordGuildId,
+        targetPath: `/dashboard/${installContextResult.discordGuildId}`,
       }
     }
 
@@ -114,6 +144,7 @@ async function getRestVerifiedInstallContext(
   user: Doc<"users">
   discordAccount: Doc<"linkedAccounts">
   discordGuildId: string
+  userGuild: DiscordManageableGuild
 }
   | {
       status: "unavailable"
@@ -141,7 +172,7 @@ async function getRestVerifiedInstallContext(
     }
   }
 
-  const userGuildResult = await verifyUserCanManageDiscordGuild({
+  const userGuildResult = await verifyUserCanInstallDiscordGuild({
     clerkUserId: context.user.clerkUserId,
     discordGuildId,
   })
@@ -159,6 +190,7 @@ async function getRestVerifiedInstallContext(
     user: context.user,
     discordAccount: context.discordAccount,
     discordGuildId,
+    userGuild: userGuildResult.guild,
   }
 }
 

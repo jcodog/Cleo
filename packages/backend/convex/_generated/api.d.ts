@@ -36,6 +36,37 @@ export declare const api: {
               }
           >;
         };
+        syncLinkedAccounts: {
+          sync: FunctionReference<
+            "action",
+            "public",
+            {},
+            | {
+                linkedAccounts: Array<{
+                  _creationTime: number;
+                  _id: Id<"linkedAccounts">;
+                  accessTokenSecretId?: string;
+                  avatarUrl?: string;
+                  createdAt: number;
+                  displayName?: string;
+                  expiresAt?: number;
+                  externalProvider?: string;
+                  provider: "discord" | "kick" | "twitch" | "github";
+                  providerAccountId: string;
+                  refreshTokenSecretId?: string;
+                  scopes: Array<string>;
+                  updatedAt: number;
+                  userId: Id<"users">;
+                  username?: string;
+                }>;
+                status: "ready";
+              }
+            | {
+                reason: "clerkSecretUnavailable" | "clerkUserUnavailable";
+                status: "unavailable";
+              }
+          >;
+        };
       };
       discord: {
         guilds: {
@@ -64,6 +95,94 @@ export declare const api: {
                 }
             >;
           };
+          syncDashboardGuilds: {
+            sync: FunctionReference<
+              "action",
+              "public",
+              {},
+              | { status: "missingDiscordIdentity" }
+              | {
+                  guilds: Array<{
+                    dashboardHref?: string;
+                    discordGuildId: string;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    installSessionExpiresAt?: number;
+                    installSessionId?: Id<"discordGuildInstallSessions">;
+                    installSessionStatus?:
+                      | "pending"
+                      | "bot_joined"
+                      | "configured"
+                      | "expired";
+                    isOwner?: boolean;
+                    memberCount?: number;
+                    name: string;
+                    permissions?: string;
+                    presenceCount?: number;
+                    state:
+                      | "installed"
+                      | "installable"
+                      | "pending"
+                      | "verificationNeeded"
+                      | "unavailable"
+                      | "forbidden";
+                    unavailableReason?:
+                      | "missingManageGuildPermission"
+                      | "botLeft"
+                      | "botSyncUnavailable"
+                      | "verificationUnavailable"
+                      | "discordBotTokenUnavailable"
+                      | "discordApiUnavailable"
+                      | "discordRestDeniedAccess";
+                  }>;
+                  reason:
+                    | "clerkSecretUnavailable"
+                    | "discordAccessTokenUnavailable"
+                    | "discordTokenResolutionUnavailable"
+                    | "discordGuildScopeUnavailable"
+                    | "discordApiUnavailable"
+                    | "discordBotTokenUnavailable"
+                    | "discordRestDeniedAccess";
+                  status: "discordGuildDiscoveryUnavailable";
+                }
+              | {
+                  guilds: Array<{
+                    dashboardHref?: string;
+                    discordGuildId: string;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    installSessionExpiresAt?: number;
+                    installSessionId?: Id<"discordGuildInstallSessions">;
+                    installSessionStatus?:
+                      | "pending"
+                      | "bot_joined"
+                      | "configured"
+                      | "expired";
+                    isOwner?: boolean;
+                    memberCount?: number;
+                    name: string;
+                    permissions?: string;
+                    presenceCount?: number;
+                    state:
+                      | "installed"
+                      | "installable"
+                      | "pending"
+                      | "verificationNeeded"
+                      | "unavailable"
+                      | "forbidden";
+                    unavailableReason?:
+                      | "missingManageGuildPermission"
+                      | "botLeft"
+                      | "botSyncUnavailable"
+                      | "verificationUnavailable"
+                      | "discordBotTokenUnavailable"
+                      | "discordApiUnavailable"
+                      | "discordRestDeniedAccess";
+                  }>;
+                  status: "ready";
+                }
+            >;
+          };
           verifyInstalled: {
             verify: FunctionReference<
               "action",
@@ -77,7 +196,9 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable";
+                    | "discordApiUnavailable"
+                    | "discordBotTokenUnavailable"
+                    | "discordRestDeniedAccess";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -122,7 +243,9 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable";
+                    | "discordApiUnavailable"
+                    | "discordBotTokenUnavailable"
+                    | "discordRestDeniedAccess";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -157,7 +280,9 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable";
+                    | "discordApiUnavailable"
+                    | "discordBotTokenUnavailable"
+                    | "discordRestDeniedAccess";
                   status: "verificationUnavailable";
                 }
               | {
@@ -199,7 +324,9 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable";
+                    | "discordApiUnavailable"
+                    | "discordBotTokenUnavailable"
+                    | "discordRestDeniedAccess";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -267,7 +394,9 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable";
+                    | "discordApiUnavailable"
+                    | "discordBotTokenUnavailable"
+                    | "discordRestDeniedAccess";
                   status: "discordGuildDiscoveryUnavailable";
                 }
               | {
@@ -893,6 +1022,14 @@ export declare const internal: {
           };
         };
         guilds: {
+          markBotMissing: {
+            mark: FunctionReference<
+              "mutation",
+              "internal",
+              { discordGuildId: string; verifiedAt: number },
+              null
+            >;
+          };
           upsertRestVerified: {
             upsert: FunctionReference<
               "mutation",

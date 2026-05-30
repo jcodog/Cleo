@@ -76,6 +76,7 @@ export type DiscordManageableGuild = {
   isOwner?: boolean
   permissions?: string
   canManage: boolean
+  canInstall: boolean
 }
 
 export type DiscordPendingChannel = {
@@ -186,8 +187,14 @@ export async function fetchDiscordCurrentUserGuilds(
           : {}),
         ...(guild.owner !== undefined ? { isOwner: guild.owner } : {}),
         ...(permissions !== undefined ? { permissions } : {}),
-        canManage:
-          Boolean(guild.owner) || hasManageGuildPermission(permissions),
+        canManage: canManageInstalledGuild({
+          isOwner: guild.owner,
+          permissions,
+        }),
+        canInstall: canInstallBotToGuild({
+          isOwner: guild.owner,
+          permissions,
+        }),
       }
     }),
   }
@@ -542,6 +549,43 @@ export async function fetchDiscordGuildAuditLogs({
   })
 }
 
+export function canManageInstalledGuild({
+  isOwner,
+  permissions,
+}: {
+  isOwner?: boolean
+  permissions?: string
+}) {
+  return Boolean(isOwner) || hasManageGuildPermission(permissions)
+}
+
+// Discord bot installs are intentionally stricter than dashboard visibility:
+// owners/admins can install Cleo, while Manage Server is enough to manage an
+// already-installed Cleo workspace.
+export function canInstallBotToGuild({
+  isOwner,
+  permissions,
+}: {
+  isOwner?: boolean
+  permissions?: string
+}) {
+  return Boolean(isOwner) || hasAdministratorPermission(permissions)
+}
+
+export function hasAdministratorPermission(permissions: string | undefined) {
+  if (permissions === undefined) {
+    return false
+  }
+
+  try {
+    const permissionBits = BigInt(permissions)
+
+    return (permissionBits & DISCORD_PERMISSION_ADMINISTRATOR) !== 0n
+  } catch {
+    return false
+  }
+}
+
 export function hasManageGuildPermission(permissions: string | undefined) {
   if (permissions === undefined) {
     return false
@@ -551,7 +595,7 @@ export function hasManageGuildPermission(permissions: string | undefined) {
     const permissionBits = BigInt(permissions)
 
     return (
-      (permissionBits & DISCORD_PERMISSION_ADMINISTRATOR) !== 0n ||
+      hasAdministratorPermission(permissions) ||
       (permissionBits & DISCORD_PERMISSION_MANAGE_GUILD) !== 0n
     )
   } catch {

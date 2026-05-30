@@ -6,7 +6,7 @@ export const MODULE_FIELDS = [
     title: "AI Assistant",
     description:
       "Allow Cleo assistant command responses when runtime support is available.",
-    defaultValue: true,
+    defaultValue: false,
   },
   {
     key: "moderationEnabled",
@@ -75,7 +75,7 @@ export const AUTOMATION_CHANNEL_FIELDS = [
 
 export function getModuleValues(config: GuildConfig | null): ModuleValues {
   return {
-    aiEnabled: config?.aiEnabled ?? true,
+    aiEnabled: config?.aiEnabled ?? false,
     moderationEnabled: config?.moderationEnabled ?? false,
     welcomeEnabled: config?.welcomeEnabled ?? false,
     loggingEnabled: config?.loggingEnabled ?? false,

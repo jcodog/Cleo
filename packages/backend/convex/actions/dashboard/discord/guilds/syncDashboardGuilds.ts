@@ -2,10 +2,10 @@
 
 import { action } from "../../../../_generated/server"
 import { dashboardDiscordInstallableGuildsResult } from "../../../../lib/validators"
-import { syncDashboardGuilds } from "../lib/dashboardGuildSync"
+import { syncDashboardGuilds as runDashboardGuildSync } from "../lib/dashboardGuildSync"
 
-export const list = action({
+export const sync = action({
   args: {},
   returns: dashboardDiscordInstallableGuildsResult,
-  handler: async (ctx) => await syncDashboardGuilds(ctx),
+  handler: async (ctx) => await runDashboardGuildSync(ctx),
 })

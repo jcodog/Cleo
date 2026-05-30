@@ -49,11 +49,10 @@ export const update = mutation({
 
     const configId = await ctx.db.insert("guildConfigs", {
       guildId: guild._id,
-      aiEnabled: true,
+      aiEnabled: false,
       moderationEnabled: false,
       welcomeEnabled: false,
       loggingEnabled: false,
-      commandPrefix: "/",
       ...buildChannelFields(args.channels),
       createdAt: now,
       updatedAt: now,

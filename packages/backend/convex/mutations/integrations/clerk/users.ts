@@ -4,32 +4,48 @@ import { internalMutation, type MutationCtx } from "../../../_generated/server"
 import { getClerkLinkedProvider } from "../../../lib/clerkProviders"
 
 type ClerkEmailAddress = {
-  id: string
-  email_address: string
+  id?: string
+  email_address?: string
+  emailAddress?: string
 }
 
 type ClerkExternalAccount = {
   id?: string | null
   provider?: string | null
   provider_user_id?: string | null
+  providerUserId?: string | null
   external_account_id?: string | null
+  externalAccountId?: string | null
   username?: string | null
+  email_address?: string | null
+  emailAddress?: string | null
   first_name?: string | null
+  firstName?: string | null
   last_name?: string | null
+  lastName?: string | null
   image_url?: string | null
+  imageUrl?: string | null
   avatar_url?: string | null
+  avatarUrl?: string | null
   approved_scopes?: string | string[] | null
+  approvedScopes?: string | string[] | null
 }
 
 type ClerkUserData = {
   id: string
   primary_email_address_id?: string | null
+  primaryEmailAddressId?: string | null
   email_addresses?: ClerkEmailAddress[]
+  emailAddresses?: ClerkEmailAddress[]
   external_accounts?: ClerkExternalAccount[]
+  externalAccounts?: ClerkExternalAccount[]
   first_name?: string | null
+  firstName?: string | null
   last_name?: string | null
+  lastName?: string | null
   username?: string | null
   image_url?: string | null
+  imageUrl?: string | null
 }
 
 export const upsertFromWebhook = internalMutation({
@@ -41,7 +57,7 @@ export const upsertFromWebhook = internalMutation({
     const now = Date.now()
     const email = getPrimaryEmail(data)
     const displayName = getDisplayName(data)
-    const imageUrl = data.image_url ?? undefined
+    const imageUrl = data.image_url ?? data.imageUrl ?? undefined
     let userId: Id<"users">
 
     if (!email) {
@@ -78,7 +94,12 @@ export const upsertFromWebhook = internalMutation({
       })
     }
 
-    await syncExternalAccounts(ctx, userId, data.external_accounts ?? [], now)
+    await syncExternalAccounts(
+      ctx,
+      userId,
+      data.external_accounts ?? data.externalAccounts ?? [],
+      now
+    )
 
     return userId
   },
@@ -109,17 +130,29 @@ export const deleteFromWebhook = internalMutation({
 })
 
 function getPrimaryEmail(data: ClerkUserData): string {
-  const primaryEmail = data.email_addresses?.find(
-    (email) => email.id === data.primary_email_address_id
+  const emailAddresses = data.email_addresses ?? data.emailAddresses ?? []
+  const primaryEmailAddressId =
+    data.primary_email_address_id ?? data.primaryEmailAddressId
+  const primaryEmail = emailAddresses.find(
+    (email) => email.id === primaryEmailAddressId
   )
 
   return (
-    primaryEmail?.email_address ?? data.email_addresses?.[0]?.email_address ?? ""
+    primaryEmail?.email_address ??
+    primaryEmail?.emailAddress ??
+    emailAddresses[0]?.email_address ??
+    emailAddresses[0]?.emailAddress ??
+    ""
   )
 }
 
 function getDisplayName(data: ClerkUserData): string | undefined {
-  const name = [data.first_name, data.last_name].filter(Boolean).join(" ")
+  const name = [
+    data.first_name ?? data.firstName,
+    data.last_name ?? data.lastName,
+  ]
+    .filter(Boolean)
+    .join(" ")
 
   return name || data.username || undefined
 }
@@ -133,7 +166,11 @@ async function syncExternalAccounts(
   for (const account of externalAccounts) {
     const provider = getClerkLinkedProvider(account.provider)
     const providerAccountId =
-      account.provider_user_id ?? account.external_account_id ?? account.id
+      account.provider_user_id ??
+      account.providerUserId ??
+      account.external_account_id ??
+      account.externalAccountId ??
+      account.id
 
     if (!provider || !providerAccountId) {
       continue
@@ -158,8 +195,8 @@ async function syncExternalAccounts(
         : {}),
       providerAccountId,
       scopes: getExternalAccountScopes(account),
-      ...(account.username !== null && account.username !== undefined
-        ? { username: account.username }
+      ...(getExternalAccountUsername(account) !== undefined
+        ? { username: getExternalAccountUsername(account) }
         : {}),
       ...(getExternalAccountDisplayName(account) !== undefined
         ? { displayName: getExternalAccountDisplayName(account) }
@@ -183,27 +220,51 @@ async function syncExternalAccounts(
 }
 
 function getExternalAccountScopes(account: ClerkExternalAccount): string[] {
-  if (Array.isArray(account.approved_scopes)) {
-    return account.approved_scopes
+  const scopes = account.approved_scopes ?? account.approvedScopes
+
+  if (Array.isArray(scopes)) {
+    return scopes
   }
 
-  if (typeof account.approved_scopes === "string") {
-    return account.approved_scopes.split(" ").filter(Boolean)
+  if (typeof scopes === "string") {
+    return scopes.split(" ").filter(Boolean)
   }
 
   return []
 }
 
+function getExternalAccountUsername(
+  account: ClerkExternalAccount
+): string | undefined {
+  return (
+    account.username ??
+    account.email_address ??
+    account.emailAddress ??
+    undefined
+  )
+}
+
 function getExternalAccountDisplayName(
   account: ClerkExternalAccount
 ): string | undefined {
-  const name = [account.first_name, account.last_name].filter(Boolean).join(" ")
+  const name = [
+    account.first_name ?? account.firstName,
+    account.last_name ?? account.lastName,
+  ]
+    .filter(Boolean)
+    .join(" ")
 
-  return name || account.username || undefined
+  return name || getExternalAccountUsername(account)
 }
 
 function getExternalAccountAvatarUrl(
   account: ClerkExternalAccount
 ): string | undefined {
-  return account.image_url ?? account.avatar_url ?? undefined
+  return (
+    account.image_url ??
+    account.imageUrl ??
+    account.avatar_url ??
+    account.avatarUrl ??
+    undefined
+  )
 }

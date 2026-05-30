@@ -104,11 +104,10 @@ export function RuntimeNotice() {
   return (
     <Alert>
       <IconRobotOff aria-hidden />
-      <AlertTitle>Install Verification Needed</AlertTitle>
+      <AlertTitle>Server Sync Pending</AlertTitle>
       <AlertDescription>
-        Verify this server from the dashboard or add-server flow so Cleo can
-        use server-side Discord REST for install status, channel discovery, and
-        audit logs.
+        Cleo has not refreshed REST install state for this server in the
+        dashboard session yet.
       </AlertDescription>
     </Alert>
   )

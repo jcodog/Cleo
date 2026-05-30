@@ -32,7 +32,9 @@ export const dashboardDiscordGuildDiscoveryUnavailableReason = v.union(
   v.literal("discordAccessTokenUnavailable"),
   v.literal("discordTokenResolutionUnavailable"),
   v.literal("discordGuildScopeUnavailable"),
-  v.literal("discordApiUnavailable")
+  v.literal("discordApiUnavailable"),
+  v.literal("discordBotTokenUnavailable"),
+  v.literal("discordRestDeniedAccess")
 )
 
 export const dashboardDiscordBotVerificationUnavailableReason = v.union(
@@ -102,6 +104,20 @@ export const linkedAccountDoc = v.object({
   createdAt: v.number(),
   updatedAt: v.number(),
 })
+
+export const dashboardLinkedAccountsSyncResult = v.union(
+  v.object({
+    status: v.literal("ready"),
+    linkedAccounts: v.array(linkedAccountDoc),
+  }),
+  v.object({
+    status: v.literal("unavailable"),
+    reason: v.union(
+      v.literal("clerkSecretUnavailable"),
+      v.literal("clerkUserUnavailable")
+    ),
+  })
+)
 
 export const guildDoc = v.object({
   _id: v.id("guilds"),

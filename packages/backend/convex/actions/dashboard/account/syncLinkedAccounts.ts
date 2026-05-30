@@ -2,15 +2,14 @@
 
 import { ConvexError } from "convex/values"
 
-import { internal } from "../../../_generated/api"
+import { api, internal } from "../../../_generated/api"
 import { action } from "../../../_generated/server"
 import { getClerkUser } from "../../../lib/clerkOAuth"
-import { getClerkLinkedProvider } from "../../../lib/clerkProviders"
-import { dashboardDiscordIdentitySyncResult } from "../../../lib/validators"
+import { dashboardLinkedAccountsSyncResult } from "../../../lib/validators"
 
 export const sync = action({
   args: {},
-  returns: dashboardDiscordIdentitySyncResult,
+  returns: dashboardLinkedAccountsSyncResult,
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity()
 
@@ -21,18 +20,17 @@ export const sync = action({
       })
     }
 
-    const existingContext = await ctx.runQuery(
-      internal.queries.dashboard.discord.install.context
-        .getInstallableGuildsContext,
+    const existingLinkedAccounts = await ctx.runQuery(
+      api.queries.dashboard.account.linkedAccounts.listForCurrentUser,
       {}
     )
 
     if (
-      existingContext.status === "ready" &&
-      existingContext.discordAccount !== null
+      existingLinkedAccounts.some((account) => account.provider === "discord")
     ) {
       return {
         status: "ready" as const,
+        linkedAccounts: existingLinkedAccounts,
       }
     }
 
@@ -52,22 +50,14 @@ export const sync = action({
       }
     )
 
-    const externalAccounts =
-      clerkUserResult.user.external_accounts ??
-      clerkUserResult.user.externalAccounts ??
-      []
-    const discordAccount = externalAccounts.find(
-      (account) => getClerkLinkedProvider(account.provider) === "discord"
+    const linkedAccounts = await ctx.runQuery(
+      api.queries.dashboard.account.linkedAccounts.listForCurrentUser,
+      {}
     )
-
-    if (!discordAccount) {
-      return {
-        status: "missingDiscordIdentity" as const,
-      }
-    }
 
     return {
       status: "ready" as const,
+      linkedAccounts,
     }
   },
 })

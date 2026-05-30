@@ -44,7 +44,7 @@ export function CommandsSection({
   const [values, setValues] = useState<
     Pick<ModuleValues, "aiEnabled" | "loggingEnabled">
   >(() => ({
-    aiEnabled: overview.guildConfig?.aiEnabled ?? true,
+    aiEnabled: overview.guildConfig?.aiEnabled ?? false,
     loggingEnabled: overview.guildConfig?.loggingEnabled ?? false,
   }))
   const [saveState, setSaveState] = useState<SaveState>("idle")
