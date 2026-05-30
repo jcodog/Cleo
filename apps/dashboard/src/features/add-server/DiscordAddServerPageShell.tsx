@@ -45,12 +45,21 @@ type InstallableGuild = {
   presenceCount?: number
   isOwner?: boolean
   permissions?: string
-  state: "installed" | "installable" | "pending" | "unavailable"
+  state:
+    | "installed"
+    | "installable"
+    | "pending"
+    | "verificationNeeded"
+    | "unavailable"
+    | "forbidden"
   unavailableReason?:
     | "missingManageGuildPermission"
     | "botLeft"
     | "botSyncUnavailable"
     | "verificationUnavailable"
+    | "discordBotTokenUnavailable"
+    | "discordApiUnavailable"
+    | "discordRestDeniedAccess"
   installSessionId?: Id<"discordGuildInstallSessions">
   installSessionStatus?: "pending" | "bot_joined" | "configured" | "expired"
   installSessionExpiresAt?: number
@@ -96,6 +105,9 @@ function DiscordAddServerState() {
   )
   const completeServerInstall = useAction(
     api.actions.dashboard.discord.install.completeServerInstall.complete
+  )
+  const verifyInstalledGuild = useAction(
+    api.actions.dashboard.discord.guilds.verifyInstalled.verify
   )
   const [guildResult, setGuildResult] =
     useState<InstallableGuildsResult | null>(null)
@@ -269,7 +281,12 @@ function DiscordAddServerState() {
                       return
                     }
 
-                    setNotice(toCompleteNotice(result.status))
+                    setNotice(
+                      toCompleteNotice(
+                        result.status,
+                        "reason" in result ? result.reason : undefined
+                      )
+                    )
                   } finally {
                     setActiveGuildId(null)
                   }
@@ -293,7 +310,12 @@ function DiscordAddServerState() {
                       return
                     }
 
-                    setNotice(toCreateNotice(result.status))
+                    setNotice(
+                      toCreateNotice(
+                        result.status,
+                        "reason" in result ? result.reason : undefined
+                      )
+                    )
                   } finally {
                     setActiveGuildId(null)
                   }
@@ -302,6 +324,56 @@ function DiscordAddServerState() {
                   router.push(
                     guild.dashboardHref ?? `/dashboard/${guild.discordGuildId}`
                   )
+                }}
+                onVerifyInstalled={async () => {
+                  setActiveGuildId(guild.discordGuildId)
+                  setNotice(null)
+
+                  try {
+                    const result = await verifyInstalledGuild({
+                      discordGuildId: guild.discordGuildId,
+                    })
+
+                    if (result.status === "installed") {
+                      router.push(result.targetPath)
+                      return
+                    }
+
+                    if (result.status === "notInstalled") {
+                      const installResult = await createServerInstall({
+                        discordGuildId: guild.discordGuildId,
+                      })
+
+                      if (installResult.status === "created") {
+                        window.location.assign(installResult.installUrl)
+                        return
+                      }
+
+                      if (installResult.status === "alreadyInstalled") {
+                        router.push(installResult.targetPath)
+                        return
+                      }
+
+                      setNotice(
+                        toCreateNotice(
+                          installResult.status,
+                          "reason" in installResult
+                            ? installResult.reason
+                            : undefined
+                        )
+                      )
+                      return
+                    }
+
+                    setNotice(
+                      toVerifyNotice(
+                        result.status,
+                        "reason" in result ? result.reason : undefined
+                      )
+                    )
+                  } finally {
+                    setActiveGuildId(null)
+                  }
                 }}
               />
             </div>
@@ -385,6 +457,14 @@ function GuildStateBadge({ guild }: { guild: InstallableGuild }) {
     return <Badge variant="outline">Unavailable</Badge>
   }
 
+  if (guild.state === "forbidden") {
+    return <Badge variant="outline">No Access</Badge>
+  }
+
+  if (guild.state === "verificationNeeded") {
+    return <Badge variant="outline">Verify</Badge>
+  }
+
   return <Badge variant="outline">Installable</Badge>
 }
 
@@ -394,12 +474,14 @@ function GuildAction({
   onCheckInstall,
   onCreateInstall,
   onOpenInstalled,
+  onVerifyInstalled,
 }: {
   activeGuildId: string | null
   guild: InstallableGuild
   onCheckInstall: () => Promise<void>
   onCreateInstall: () => Promise<void>
   onOpenInstalled: () => void
+  onVerifyInstalled: () => Promise<void>
 }) {
   const isActive = activeGuildId === guild.discordGuildId
 
@@ -435,6 +517,20 @@ function GuildAction({
     )
   }
 
+  if (guild.state === "verificationNeeded") {
+    return (
+      <Button
+        disabled={isActive}
+        onClick={onVerifyInstalled}
+        size="sm"
+        variant="outline"
+      >
+        <IconCircleCheck aria-hidden data-icon="inline-start" />
+        {isActive ? "Verifying" : "Verify"}
+      </Button>
+    )
+  }
+
   return (
     <Button disabled size="sm" variant="outline">
       Unavailable
@@ -442,39 +538,69 @@ function GuildAction({
   )
 }
 
-function toCreateNotice(status: string): FlowNotice {
-  switch (status) {
-    case "missingDiscordIdentity":
-      return {
-        tone: "default",
-        title: "Discord identity syncing",
-        description:
-          "Your Discord identity has not reached Convex yet. Refresh shortly and try again.",
-      }
-    case "configUnavailable":
-      return {
-        tone: "destructive",
-        title: "Discord install is not configured",
-        description:
-          "Cleo is missing a Discord application or client ID in the backend environment.",
-      }
-    default:
-      return {
-        tone: "default",
-        title: "Server verification unavailable",
-        description:
-          "Cleo could not verify management access for this Discord server through stored access or Discord REST.",
-      }
+function toCreateNotice(
+  status: string,
+  reason: string | undefined
+): FlowNotice {
+  if (status === "missingDiscordIdentity") {
+    return {
+      tone: "default",
+      title: "Discord identity syncing",
+      description:
+        "Your signed-in Discord identity has not reached Convex yet. Refresh shortly and try again.",
+    }
+  }
+
+  if (status === "configUnavailable") {
+    return {
+      tone: "destructive",
+      title: "Discord install is not configured",
+      description:
+        "Cleo is missing a Discord application or client ID in the backend environment.",
+    }
+  }
+
+  if (status === "forbidden") {
+    return {
+      tone: "default",
+      title: "Server access not verified",
+      description: getForbiddenReasonCopy(reason),
+    }
+  }
+
+  return {
+    tone: "default",
+    title: "Discord guild discovery unavailable",
+    description: getGuildDiscoveryReasonCopy(reason),
   }
 }
 
-function toCompleteNotice(status: string): FlowNotice {
-  if (status === "pendingBotSync") {
+function toCompleteNotice(
+  status: string,
+  reason: string | undefined
+): FlowNotice {
+  if (status === "notInstalled") {
     return {
       tone: "default",
-      title: "Waiting for Discord sync",
+      title: "Cleo is not installed yet",
       description:
-        "Cleo has not observed installed state for this server yet. After that state is synced, channel discovery can use the server-side bot token.",
+        "Discord REST does not show Cleo in this server. Complete the Discord install prompt, then recheck.",
+    }
+  }
+
+  if (status === "botVerificationUnavailable") {
+    return {
+      tone: "default",
+      title: "Bot verification unavailable",
+      description: getBotVerificationReasonCopy(reason),
+    }
+  }
+
+  if (status === "userGuildDiscoveryUnavailable") {
+    return {
+      tone: "default",
+      title: "Discord guild discovery unavailable",
+      description: getGuildDiscoveryReasonCopy(reason),
     }
   }
 
@@ -483,6 +609,42 @@ function toCompleteNotice(status: string): FlowNotice {
     title: "Install session unavailable",
     description:
       "The install session is no longer active or does not belong to this Discord identity.",
+  }
+}
+
+function toVerifyNotice(
+  status: string,
+  reason: string | undefined
+): FlowNotice {
+  if (status === "forbidden") {
+    return {
+      tone: "default",
+      title: "Server access not verified",
+      description: getForbiddenReasonCopy(reason),
+    }
+  }
+
+  if (status === "botVerificationUnavailable") {
+    return {
+      tone: "default",
+      title: "Bot verification unavailable",
+      description: getBotVerificationReasonCopy(reason),
+    }
+  }
+
+  if (status === "userGuildDiscoveryUnavailable") {
+    return {
+      tone: "default",
+      title: "Discord guild discovery unavailable",
+      description: getGuildDiscoveryReasonCopy(reason),
+    }
+  }
+
+  return {
+    tone: "default",
+    title: "Discord identity syncing",
+    description:
+      "Cleo is waiting for the signed-in Discord identity to reach the dashboard backend.",
   }
 }
 
@@ -503,5 +665,43 @@ function getGuildDiscoveryUnavailableCopy(
       return "Discord REST guild discovery is temporarily unavailable. Cleo can still show servers already verified in Convex."
     case "discordTokenResolutionUnavailable":
       return "Cleo could not resolve the Discord OAuth token server-side, so only previously verified servers are shown."
+  }
+}
+
+function getForbiddenReasonCopy(reason: string | undefined) {
+  if (reason === "missingManageGuildPermission") {
+    return "Discord REST shows that this identity does not currently have Administrator or Manage Server permission for that server."
+  }
+
+  return "Discord REST did not return that server for this signed-in Discord identity."
+}
+
+function getGuildDiscoveryReasonCopy(reason: string | undefined) {
+  switch (reason) {
+    case "clerkSecretUnavailable":
+      return "Server-side Clerk token resolution is not configured."
+    case "discordAccessTokenUnavailable":
+      return "Clerk did not return a Discord OAuth access token for this signed-in identity."
+    case "discordGuildScopeUnavailable":
+      return "The Discord OAuth token cannot read user guilds."
+    case "discordApiUnavailable":
+      return "Discord REST guild discovery is temporarily unavailable."
+    case "discordTokenResolutionUnavailable":
+      return "Cleo could not resolve the Discord OAuth token server-side."
+    default:
+      return "Discord guild discovery is unavailable."
+  }
+}
+
+function getBotVerificationReasonCopy(reason: string | undefined) {
+  switch (reason) {
+    case "discordBotTokenUnavailable":
+      return "The server-side Discord bot token is not configured."
+    case "discordRestDeniedAccess":
+      return "Discord REST rejected the configured bot token."
+    case "discordApiUnavailable":
+      return "Discord REST did not return a usable guild response for the bot token."
+    default:
+      return "Cleo could not verify bot access through Discord REST."
   }
 }

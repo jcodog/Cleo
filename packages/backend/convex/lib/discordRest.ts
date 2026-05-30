@@ -27,6 +27,16 @@ type DiscordChannel = {
   position?: number
 }
 
+type DiscordBotGuild = {
+  id: string
+  name: string
+  description?: string | null
+  icon?: string | null
+  owner_id?: string
+  approximate_member_count?: number
+  approximate_presence_count?: number
+}
+
 type DiscordRole = {
   id: string
   name: string
@@ -74,6 +84,21 @@ export type DiscordPendingChannel = {
   type: "text" | "announcement"
   position?: number
 }
+
+export type DiscordBotGuildSummary = {
+  discordGuildId: string
+  name: string
+  description?: string
+  iconHash?: string
+  iconUrl?: string
+  ownerDiscordId?: string
+  memberCount?: number
+  presenceCount?: number
+}
+
+export type DiscordBotRestUnavailableReason =
+  | "discordApiUnavailable"
+  | "discordRestDeniedAccess"
 
 export type DiscordGuildRole = {
   discordRoleId: string
@@ -171,7 +196,19 @@ export async function fetchDiscordCurrentUserGuilds(
 export async function fetchDiscordGuildChannels(
   discordGuildId: string,
   botToken: string
-): Promise<DiscordPendingChannel[] | null> {
+): Promise<
+  | {
+      status: "ready"
+      channels: DiscordPendingChannel[]
+    }
+  | {
+      status: "notInstalled"
+    }
+  | {
+      status: "unavailable"
+      reason: DiscordBotRestUnavailableReason
+    }
+> {
   const response = await fetch(
     `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/channels`,
     {
@@ -181,33 +218,130 @@ export async function fetchDiscordGuildChannels(
     }
   )
 
+  if (response.status === 401) {
+    return {
+      status: "unavailable",
+      reason: "discordRestDeniedAccess",
+    }
+  }
+
+  if (response.status === 403 || response.status === 404) {
+    return { status: "notInstalled" }
+  }
+
   if (!response.ok) {
-    return null
+    return {
+      status: "unavailable",
+      reason: "discordApiUnavailable",
+    }
   }
 
   const json: unknown = await response.json()
 
   if (!isDiscordChannels(json)) {
-    return null
+    return {
+      status: "unavailable",
+      reason: "discordApiUnavailable",
+    }
   }
 
-  return json
-    .filter(
-      (channel) =>
-        channel.name &&
-        (channel.type === DISCORD_GUILD_TEXT_CHANNEL ||
-          channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL)
-    )
-    .map((channel) => ({
-      discordChannelId: channel.id,
-      name: channel.name ?? channel.id,
-      type:
-        channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL
-          ? ("announcement" as const)
-          : ("text" as const),
-      ...(channel.position !== undefined ? { position: channel.position } : {}),
-    }))
-    .sort((left, right) => (left.position ?? 0) - (right.position ?? 0))
+  return {
+    status: "ready",
+    channels: json
+      .filter(
+        (channel) =>
+          channel.name &&
+          (channel.type === DISCORD_GUILD_TEXT_CHANNEL ||
+            channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL)
+      )
+      .map((channel) => ({
+        discordChannelId: channel.id,
+        name: channel.name ?? channel.id,
+        type:
+          channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL
+            ? ("announcement" as const)
+            : ("text" as const),
+        ...(channel.position !== undefined
+          ? { position: channel.position }
+          : {}),
+      }))
+      .sort((left, right) => (left.position ?? 0) - (right.position ?? 0)),
+  }
+}
+
+export async function fetchDiscordBotGuild(
+  discordGuildId: string,
+  botToken: string
+): Promise<
+  | {
+      status: "ready"
+      guild: DiscordBotGuildSummary
+    }
+  | {
+      status: "notInstalled"
+    }
+  | {
+      status: "unavailable"
+      reason: DiscordBotRestUnavailableReason
+    }
+> {
+  const response = await fetch(
+    `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}?with_counts=true`,
+    {
+      headers: {
+        Authorization: `Bot ${botToken}`,
+      },
+    }
+  )
+
+  if (response.status === 401) {
+    return {
+      status: "unavailable",
+      reason: "discordRestDeniedAccess",
+    }
+  }
+
+  if (response.status === 403 || response.status === 404) {
+    return { status: "notInstalled" }
+  }
+
+  if (!response.ok) {
+    return {
+      status: "unavailable",
+      reason: "discordApiUnavailable",
+    }
+  }
+
+  const json: unknown = await response.json()
+
+  if (!isDiscordBotGuild(json)) {
+    return {
+      status: "unavailable",
+      reason: "discordApiUnavailable",
+    }
+  }
+
+  const iconHash = json.icon ?? undefined
+
+  return {
+    status: "ready",
+    guild: {
+      discordGuildId: json.id,
+      name: json.name,
+      ...(json.description ? { description: json.description } : {}),
+      ...(iconHash !== undefined ? { iconHash } : {}),
+      ...(iconHash !== undefined
+        ? { iconUrl: getDiscordGuildIconUrl(json.id, iconHash) }
+        : {}),
+      ...(json.owner_id !== undefined ? { ownerDiscordId: json.owner_id } : {}),
+      ...(json.approximate_member_count !== undefined
+        ? { memberCount: json.approximate_member_count }
+        : {}),
+      ...(json.approximate_presence_count !== undefined
+        ? { presenceCount: json.approximate_presence_count }
+        : {}),
+    },
+  }
 }
 
 export async function fetchDiscordGuildRoles(
@@ -378,6 +512,28 @@ function isDiscordChannels(value: unknown): value is DiscordChannel[] {
           channel.name === null) &&
         (!("position" in channel) || typeof channel.position === "number")
     )
+  )
+}
+
+function isDiscordBotGuild(value: unknown): value is DiscordBotGuild {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "name" in value &&
+    typeof value.name === "string" &&
+    (!("description" in value) ||
+      typeof value.description === "string" ||
+      value.description === null) &&
+    (!("icon" in value) ||
+      typeof value.icon === "string" ||
+      value.icon === null) &&
+    (!("owner_id" in value) || typeof value.owner_id === "string") &&
+    (!("approximate_member_count" in value) ||
+      typeof value.approximate_member_count === "number") &&
+    (!("approximate_presence_count" in value) ||
+      typeof value.approximate_presence_count === "number")
   )
 }
 

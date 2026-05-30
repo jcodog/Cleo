@@ -183,6 +183,9 @@ function toGuildOverview(
     ...(guild.botJoinedAt !== undefined
       ? { botJoinedAt: guild.botJoinedAt }
       : {}),
+    ...(guild.botInstallationVerifiedAt !== undefined
+      ? { botInstallationVerifiedAt: guild.botInstallationVerifiedAt }
+      : {}),
     ...(guild.botLeftAt !== undefined ? { botLeftAt: guild.botLeftAt } : {}),
     ...(guild.lastOpenedAt !== undefined
       ? { lastOpenedAt: guild.lastOpenedAt }

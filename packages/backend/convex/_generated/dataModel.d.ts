@@ -282,6 +282,7 @@ export type DataModel = {
   };
   guilds: {
     document: {
+      botInstallationVerifiedAt?: number;
       botJoinedAt?: number;
       botLeftAt?: number;
       createdAt: number;
@@ -302,6 +303,7 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "botInstallationVerifiedAt"
       | "botJoinedAt"
       | "botLeftAt"
       | "createdAt"

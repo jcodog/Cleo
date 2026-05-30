@@ -5,6 +5,11 @@ import { ConvexError, v } from "convex/values"
 import { internal } from "../../../../_generated/api"
 import { action } from "../../../../_generated/server"
 import { dashboardDiscordCompleteServerInstallResult } from "../../../../lib/validators"
+import {
+  buildRestVerifiedGuildInput,
+  verifyBotCanAccessDiscordGuild,
+  verifyUserCanManageDiscordGuild,
+} from "../lib/restAccess"
 
 export const complete = action({
   args: {
@@ -28,37 +33,62 @@ export const complete = action({
       return { status: "missingDiscordIdentity" as const }
     }
 
-    if (context.status === "notFound" || context.status === "forbidden") {
-      return { status: context.status }
+    if (context.status === "notFound") {
+      return { status: "notFound" as const }
     }
 
-    if (
-      context.guild === null ||
-      context.guild.botJoinedAt === undefined ||
-      context.guild.botLeftAt !== undefined
-    ) {
+    if (context.status === "forbidden") {
+      return { status: "forbidden" as const }
+    }
+
+    const userGuildResult = await verifyUserCanManageDiscordGuild({
+      clerkUserId: context.user.clerkUserId,
+      discordGuildId: context.session.discordGuildId,
+    })
+
+    if (userGuildResult.status === "unavailable") {
       return {
-        status: "pendingBotSync" as const,
+        status: "userGuildDiscoveryUnavailable" as const,
+        reason: userGuildResult.reason,
         discordGuildId: context.session.discordGuildId,
       }
     }
 
-    const access = await ctx.runQuery(
-      internal.queries.dashboard.discord.install.context
-        .getCreateServerInstallContext,
-      { discordGuildId: context.session.discordGuildId }
-    )
-
-    if (access.status !== "alreadyInstalled") {
+    if (userGuildResult.status === "forbidden") {
       return { status: "forbidden" as const }
     }
 
-    await ctx.runMutation(
-      internal.mutations.bot.discord.guildConfigs.ensure.forGuild,
-      {
-        guildId: context.guild._id,
-      }
+    const botGuildResult = await verifyBotCanAccessDiscordGuild(
+      context.session.discordGuildId
     )
+
+    if (botGuildResult.status === "unavailable") {
+      return {
+        status: "botVerificationUnavailable" as const,
+        reason: botGuildResult.reason,
+        discordGuildId: context.session.discordGuildId,
+      }
+    }
+
+    if (botGuildResult.status === "notInstalled") {
+      return {
+        status: "notInstalled" as const,
+        discordGuildId: context.session.discordGuildId,
+      }
+    }
+
+    const verifiedAt = Date.now()
+    const guild = await ctx.runMutation(
+      internal.mutations.dashboard.discord.guilds.upsertRestVerified.upsert,
+      buildRestVerifiedGuildInput({
+        botGuild: botGuildResult.guild,
+        discordAccount: context.discordAccount,
+        user: context.user,
+        userGuild: userGuildResult.guild,
+        verifiedAt,
+      })
+    )
+
     await ctx.runMutation(
       internal.mutations.dashboard.discord.installSessions.upsert.configured,
       {
@@ -69,7 +99,7 @@ export const complete = action({
       internal.mutations.dashboard.discord.guildAuditEvents
         .upsertDiscordAuditLogs.createDashboardAction,
       {
-        guildId: context.guild._id,
+        guildId: guild._id,
         userId: context.user._id,
         eventType: "dashboard.server_install.completed",
         summary: "Dashboard server install completed",

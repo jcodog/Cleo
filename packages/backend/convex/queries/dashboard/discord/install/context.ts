@@ -69,6 +69,7 @@ const installSessionContextResult = v.union(
         discordGuildId: v.string(),
         name: v.string(),
         botJoinedAt: v.optional(v.number()),
+        botInstallationVerifiedAt: v.optional(v.number()),
         botLeftAt: v.optional(v.number()),
       }),
       v.null()
@@ -147,7 +148,7 @@ export const getCreateServerInstallContext = internalQuery({
       return { status: "verificationUnavailable" as const }
     }
 
-    if (guild.botJoinedAt !== undefined && guild.botLeftAt === undefined) {
+    if (isGuildInstalled(guild)) {
       return {
         status: "alreadyInstalled" as const,
         discordGuildId: guild.discordGuildId,
@@ -216,6 +217,9 @@ export const getInstallSessionContext = internalQuery({
             name: guildDoc.name,
             ...(guildDoc.botJoinedAt !== undefined
               ? { botJoinedAt: guildDoc.botJoinedAt }
+              : {}),
+            ...(guildDoc.botInstallationVerifiedAt !== undefined
+              ? { botInstallationVerifiedAt: guildDoc.botInstallationVerifiedAt }
               : {}),
             ...(guildDoc.botLeftAt !== undefined
               ? { botLeftAt: guildDoc.botLeftAt }
@@ -287,14 +291,13 @@ async function getKnownManageableGuilds(
       }
 
       const session = sessionByDiscordGuildId.get(guild.discordGuildId)
-      const isInstalled =
-        guild.botJoinedAt !== undefined && guild.botLeftAt === undefined
+      const isInstalled = isGuildInstalled(guild)
       const isPending = session !== undefined && !isInstalled
       const state = isInstalled
         ? ("installed" as const)
         : isPending
           ? ("pending" as const)
-          : ("installable" as const)
+          : ("verificationNeeded" as const)
 
       return {
         discordGuildId: guild.discordGuildId,
@@ -333,6 +336,18 @@ async function getKnownManageableGuilds(
       (guild): guild is Exclude<(typeof guilds)[number], null> => guild !== null
     )
     .sort((left, right) => left.name.localeCompare(right.name))
+}
+
+function isGuildInstalled(guild: {
+  botJoinedAt?: number
+  botInstallationVerifiedAt?: number
+  botLeftAt?: number
+}) {
+  return (
+    guild.botLeftAt === undefined &&
+    (guild.botJoinedAt !== undefined ||
+      guild.botInstallationVerifiedAt !== undefined)
+  )
 }
 
 async function getVerifiedManagerMembership(

@@ -13,6 +13,7 @@ export const guilds = defineTable({
   presenceCount: v.optional(v.number()),
 
   botJoinedAt: v.optional(v.number()),
+  botInstallationVerifiedAt: v.optional(v.number()),
   botLeftAt: v.optional(v.number()),
 
   lastOpenedAt: v.optional(v.number()),

@@ -376,7 +376,7 @@ function SyncStatus({
 
 function toSyncMessage(status: string): string {
   if (status === "pendingBotSync") {
-    return "Cleo needs installed server state before Discord audit logs can be read through REST."
+    return "Cleo needs REST-verified installed server state before Discord audit logs can be read."
   }
 
   if (status === "auditLogSyncUnavailable") {

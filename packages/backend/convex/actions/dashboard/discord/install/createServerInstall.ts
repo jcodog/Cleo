@@ -6,9 +6,8 @@ import { ConvexError, v } from "convex/values"
 import { internal } from "../../../../_generated/api"
 import { action, type ActionCtx } from "../../../../_generated/server"
 import type { Doc } from "../../../../_generated/dataModel"
-import { getClerkDiscordAccessToken } from "../../../../lib/clerkOAuth"
-import { fetchDiscordCurrentUserGuilds } from "../../../../lib/discordRest"
 import { dashboardDiscordCreateServerInstallResult } from "../../../../lib/validators"
+import { verifyUserCanManageDiscordGuild } from "../lib/restAccess"
 
 const DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
 const DEFAULT_BOT_PERMISSIONS = "0"
@@ -46,19 +45,27 @@ export const create = action({
       }
     }
 
-    const installContext =
+    const installContextResult =
       context.status === "ready"
         ? {
+            status: "ready" as const,
             user: context.user,
             discordAccount: context.discordAccount,
             discordGuildId: context.discordGuildId,
           }
         : await getRestVerifiedInstallContext(ctx, args.discordGuildId)
 
-    if (!installContext) {
+    if (installContextResult.status === "unavailable") {
       return {
         status: "verificationUnavailable" as const,
-        reason: "discordGuildDiscoveryUnavailable" as const,
+        reason: installContextResult.reason,
+      }
+    }
+
+    if (installContextResult.status === "forbidden") {
+      return {
+        status: "forbidden" as const,
+        reason: installContextResult.reason,
       }
     }
 
@@ -77,9 +84,9 @@ export const create = action({
     const session = await ctx.runMutation(
       internal.mutations.dashboard.discord.installSessions.upsert.pending,
       {
-        userId: installContext.user._id,
-        discordUserId: installContext.discordAccount.providerAccountId,
-        discordGuildId: installContext.discordGuildId,
+        userId: installContextResult.user._id,
+        discordUserId: installContextResult.discordAccount.providerAccountId,
+        discordGuildId: installContextResult.discordGuildId,
         oauthState,
         expiresAt,
       }
@@ -87,12 +94,12 @@ export const create = action({
 
     return {
       status: "created" as const,
-      discordGuildId: installContext.discordGuildId,
+      discordGuildId: installContextResult.discordGuildId,
       installSessionId: session._id,
       expiresAt: session.expiresAt,
       installUrl: buildDiscordInstallUrl({
         discordApplicationId,
-        discordGuildId: installContext.discordGuildId,
+        discordGuildId: installContextResult.discordGuildId,
         oauthState,
       }),
     }
@@ -103,10 +110,24 @@ async function getRestVerifiedInstallContext(
   ctx: ActionCtx,
   discordGuildId: string
 ): Promise<{
+  status: "ready"
   user: Doc<"users">
   discordAccount: Doc<"linkedAccounts">
   discordGuildId: string
-} | null> {
+}
+  | {
+      status: "unavailable"
+      reason:
+        | "clerkSecretUnavailable"
+        | "discordAccessTokenUnavailable"
+        | "discordTokenResolutionUnavailable"
+        | "discordGuildScopeUnavailable"
+        | "discordApiUnavailable"
+    }
+  | {
+      status: "forbidden"
+      reason: "guildNotFoundForUser" | "missingManageGuildPermission"
+    }> {
   const context = await ctx.runQuery(
     internal.queries.dashboard.discord.install.context
       .getInstallableGuildsContext,
@@ -114,32 +135,27 @@ async function getRestVerifiedInstallContext(
   )
 
   if (context.status !== "ready" || !context.discordAccount) {
-    return null
+    return {
+      status: "forbidden",
+      reason: "guildNotFoundForUser",
+    }
   }
 
-  const tokenResult = await getClerkDiscordAccessToken(context.user.clerkUserId)
+  const userGuildResult = await verifyUserCanManageDiscordGuild({
+    clerkUserId: context.user.clerkUserId,
+    discordGuildId,
+  })
 
-  if (tokenResult.status === "unavailable") {
-    return null
+  if (userGuildResult.status === "unavailable") {
+    return userGuildResult
   }
 
-  const discordGuilds = await fetchDiscordCurrentUserGuilds(
-    tokenResult.accessToken
-  )
-
-  if (discordGuilds.status === "unavailable") {
-    return null
-  }
-
-  const guild = discordGuilds.guilds.find(
-    (liveGuild) => liveGuild.discordGuildId === discordGuildId
-  )
-
-  if (!guild?.canManage) {
-    return null
+  if (userGuildResult.status === "forbidden") {
+    return userGuildResult
   }
 
   return {
+    status: "ready",
     user: context.user,
     discordAccount: context.discordAccount,
     discordGuildId,

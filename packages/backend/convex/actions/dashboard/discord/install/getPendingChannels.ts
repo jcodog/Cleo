@@ -7,6 +7,10 @@ import { internal } from "../../../../_generated/api"
 import { action } from "../../../../_generated/server"
 import { fetchDiscordGuildChannels } from "../../../../lib/discordRest"
 import { dashboardDiscordPendingChannelsResult } from "../../../../lib/validators"
+import {
+  verifyBotCanAccessDiscordGuild,
+  verifyUserCanManageDiscordGuild,
+} from "../lib/restAccess"
 
 export const get = action({
   args: {
@@ -32,19 +36,29 @@ export const get = action({
       return { status: "missingDiscordIdentity" as const }
     }
 
-    if (context.status === "notFound" || context.status === "forbidden") {
-      return { status: context.status }
+    if (context.status === "notFound") {
+      return { status: "notFound" as const }
     }
 
-    if (
-      context.guild === null ||
-      context.guild.botJoinedAt === undefined ||
-      context.guild.botLeftAt !== undefined
-    ) {
+    if (context.status === "forbidden") {
+      return { status: "forbidden" as const }
+    }
+
+    const userGuildResult = await verifyUserCanManageDiscordGuild({
+      clerkUserId: context.user.clerkUserId,
+      discordGuildId: context.session.discordGuildId,
+    })
+
+    if (userGuildResult.status === "unavailable") {
       return {
-        status: "pendingBotSync" as const,
+        status: "userGuildDiscoveryUnavailable" as const,
+        reason: userGuildResult.reason,
         discordGuildId: context.session.discordGuildId,
       }
+    }
+
+    if (userGuildResult.status === "forbidden") {
+      return { status: "forbidden" as const }
     }
 
     if (!discordEnv.DISCORD_BOT_TOKEN) {
@@ -55,15 +69,41 @@ export const get = action({
       }
     }
 
+    const botGuildResult = await verifyBotCanAccessDiscordGuild(
+      context.session.discordGuildId
+    )
+
+    if (botGuildResult.status === "unavailable") {
+      return {
+        status: "channelDiscoveryUnavailable" as const,
+        reason: botGuildResult.reason,
+        discordGuildId: context.session.discordGuildId,
+      }
+    }
+
+    if (botGuildResult.status === "notInstalled") {
+      return {
+        status: "notInstalled" as const,
+        discordGuildId: context.session.discordGuildId,
+      }
+    }
+
     const channels = await fetchDiscordGuildChannels(
       context.session.discordGuildId,
       discordEnv.DISCORD_BOT_TOKEN
     )
 
-    if (!channels) {
+    if (channels.status === "notInstalled") {
+      return {
+        status: "notInstalled" as const,
+        discordGuildId: context.session.discordGuildId,
+      }
+    }
+
+    if (channels.status === "unavailable") {
       return {
         status: "channelDiscoveryUnavailable" as const,
-        reason: "discordApiUnavailable" as const,
+        reason: channels.reason,
         discordGuildId: context.session.discordGuildId,
       }
     }
@@ -71,7 +111,7 @@ export const get = action({
     return {
       status: "ready" as const,
       discordGuildId: context.session.discordGuildId,
-      channels,
+      channels: channels.channels,
     }
   },
 })

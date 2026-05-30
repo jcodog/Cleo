@@ -27,6 +27,25 @@ export const discordGuildInstallSessionStatus = v.union(
   v.literal("expired")
 )
 
+export const dashboardDiscordGuildDiscoveryUnavailableReason = v.union(
+  v.literal("clerkSecretUnavailable"),
+  v.literal("discordAccessTokenUnavailable"),
+  v.literal("discordTokenResolutionUnavailable"),
+  v.literal("discordGuildScopeUnavailable"),
+  v.literal("discordApiUnavailable")
+)
+
+export const dashboardDiscordBotVerificationUnavailableReason = v.union(
+  v.literal("discordBotTokenUnavailable"),
+  v.literal("discordApiUnavailable"),
+  v.literal("discordRestDeniedAccess")
+)
+
+export const dashboardDiscordGuildForbiddenReason = v.union(
+  v.literal("guildNotFoundForUser"),
+  v.literal("missingManageGuildPermission")
+)
+
 export const userDoc = v.object({
   _id: v.id("users"),
   _creationTime: v.number(),
@@ -79,6 +98,7 @@ export const guildDoc = v.object({
   memberCount: v.optional(v.number()),
   presenceCount: v.optional(v.number()),
   botJoinedAt: v.optional(v.number()),
+  botInstallationVerifiedAt: v.optional(v.number()),
   botLeftAt: v.optional(v.number()),
   lastOpenedAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
@@ -152,6 +172,8 @@ export const dashboardDiscordGuildSelectorViewModel = v.object({
   iconHash: v.optional(v.string()),
   memberCount: v.optional(v.number()),
   presenceCount: v.optional(v.number()),
+  botJoinedAt: v.optional(v.number()),
+  botInstallationVerifiedAt: v.optional(v.number()),
   isOwner: v.optional(v.boolean()),
   permissions: v.optional(v.string()),
   lastOpenedAt: v.optional(v.number()),
@@ -180,14 +202,19 @@ export const dashboardDiscordInstallableGuildViewModel = v.object({
     v.literal("installed"),
     v.literal("installable"),
     v.literal("pending"),
-    v.literal("unavailable")
+    v.literal("verificationNeeded"),
+    v.literal("unavailable"),
+    v.literal("forbidden")
   ),
   unavailableReason: v.optional(
     v.union(
       v.literal("missingManageGuildPermission"),
       v.literal("botLeft"),
       v.literal("botSyncUnavailable"),
-      v.literal("verificationUnavailable")
+      v.literal("verificationUnavailable"),
+      v.literal("discordBotTokenUnavailable"),
+      v.literal("discordApiUnavailable"),
+      v.literal("discordRestDeniedAccess")
     )
   ),
   installSessionId: v.optional(v.id("discordGuildInstallSessions")),
@@ -202,13 +229,7 @@ export const dashboardDiscordInstallableGuildsResult = v.union(
   }),
   v.object({
     status: v.literal("discordGuildDiscoveryUnavailable"),
-    reason: v.union(
-      v.literal("clerkSecretUnavailable"),
-      v.literal("discordAccessTokenUnavailable"),
-      v.literal("discordTokenResolutionUnavailable"),
-      v.literal("discordGuildScopeUnavailable"),
-      v.literal("discordApiUnavailable")
-    ),
+    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
     guilds: v.array(dashboardDiscordInstallableGuildViewModel),
   }),
   v.object({
@@ -228,7 +249,11 @@ export const dashboardDiscordCreateServerInstallResult = v.union(
   }),
   v.object({
     status: v.literal("verificationUnavailable"),
-    reason: v.literal("discordGuildDiscoveryUnavailable"),
+    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+    reason: dashboardDiscordGuildForbiddenReason,
   }),
   v.object({
     status: v.literal("configUnavailable"),
@@ -265,11 +290,17 @@ export const dashboardDiscordPendingChannelsResult = v.union(
     discordGuildId: v.string(),
   }),
   v.object({
+    status: v.literal("notInstalled"),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("userGuildDiscoveryUnavailable"),
+    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
+    discordGuildId: v.string(),
+  }),
+  v.object({
     status: v.literal("channelDiscoveryUnavailable"),
-    reason: v.union(
-      v.literal("discordBotTokenUnavailable"),
-      v.literal("discordApiUnavailable")
-    ),
+    reason: dashboardDiscordBotVerificationUnavailableReason,
     discordGuildId: v.string(),
   }),
   v.object({
@@ -291,6 +322,20 @@ export const dashboardDiscordCompleteServerInstallResult = v.union(
   }),
   v.object({
     status: v.literal("pendingBotSync"),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("notInstalled"),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("userGuildDiscoveryUnavailable"),
+    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("botVerificationUnavailable"),
+    reason: dashboardDiscordBotVerificationUnavailableReason,
     discordGuildId: v.string(),
   }),
   v.object({
@@ -346,6 +391,7 @@ export const dashboardDiscordGuildOverviewViewModel = v.object({
   memberCount: v.optional(v.number()),
   presenceCount: v.optional(v.number()),
   botJoinedAt: v.optional(v.number()),
+  botInstallationVerifiedAt: v.optional(v.number()),
   botLeftAt: v.optional(v.number()),
   lastOpenedAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
@@ -470,5 +516,35 @@ export const dashboardDiscordAuditLogSyncResult = v.union(
     skipped: v.number(),
     lastSyncedAt: v.number(),
     newestDiscordAuditLogId: v.optional(v.string()),
+  })
+)
+
+export const dashboardDiscordVerifyInstalledGuildResult = v.union(
+  v.object({
+    status: v.literal("missingDiscordIdentity"),
+  }),
+  v.object({
+    status: v.literal("userGuildDiscoveryUnavailable"),
+    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+    reason: dashboardDiscordGuildForbiddenReason,
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("botVerificationUnavailable"),
+    reason: dashboardDiscordBotVerificationUnavailableReason,
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("notInstalled"),
+    discordGuildId: v.string(),
+  }),
+  v.object({
+    status: v.literal("installed"),
+    discordGuildId: v.string(),
+    targetPath: v.string(),
   })
 )

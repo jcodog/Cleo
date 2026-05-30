@@ -84,6 +84,12 @@ export const list = query({
           ...(guild.presenceCount !== undefined
             ? { presenceCount: guild.presenceCount }
             : {}),
+          ...(guild.botJoinedAt !== undefined
+            ? { botJoinedAt: guild.botJoinedAt }
+            : {}),
+          ...(guild.botInstallationVerifiedAt !== undefined
+            ? { botInstallationVerifiedAt: guild.botInstallationVerifiedAt }
+            : {}),
           ...(membership.isOwner !== undefined
             ? { isOwner: membership.isOwner }
             : {}),

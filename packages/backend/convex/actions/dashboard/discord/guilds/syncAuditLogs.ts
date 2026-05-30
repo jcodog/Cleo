@@ -102,7 +102,7 @@ async function syncGuildAuditLogs(
       reason: "discordBotTokenUnavailable" | "discordApiUnavailable"
     }
 > {
-  if (guild.botJoinedAt === undefined || guild.botLeftAt !== undefined) {
+  if (!isGuildRestInstalled(guild)) {
     await ctx.runMutation(
       internal.mutations.dashboard.discord.guildAuditLogSyncStates.upsert.upsert,
       {
@@ -210,6 +210,14 @@ async function syncGuildAuditLogs(
         ? { newestDiscordAuditLogId: syncState.newestDiscordAuditLogId }
         : {}),
   }
+}
+
+function isGuildRestInstalled(guild: Doc<"guilds">) {
+  return (
+    guild.botLeftAt === undefined &&
+    (guild.botJoinedAt !== undefined ||
+      guild.botInstallationVerifiedAt !== undefined)
+  )
 }
 
 async function fetchAuditLogPages({

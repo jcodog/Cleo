@@ -101,11 +101,11 @@ export function RuntimeNotice() {
   return (
     <Alert>
       <IconRobotOff aria-hidden />
-      <AlertTitle>Bot Runtime Sync Pending</AlertTitle>
+      <AlertTitle>Install Verification Needed</AlertTitle>
       <AlertDescription>
-        Bot-owned live state is unavailable until the Discord runtime migration
-        is complete. This dashboard only shows stored Convex configuration and
-        verified Discord access.
+        Verify this server from the dashboard or add-server flow so Cleo can
+        use server-side Discord REST for install status, channel discovery, and
+        audit logs.
       </AlertDescription>
     </Alert>
   )
@@ -118,8 +118,8 @@ export function ChannelPickerNotice() {
       <AlertTitle>Channel REST Discovery</AlertTitle>
       <AlertDescription>
         The add-server flow can load channels with Cleo&apos;s server-side bot
-        token after installed state is synced. Until then, save known Discord
-        channel IDs here.
+        token after installed state is verified through Discord REST. Until
+        then, save known Discord channel IDs here.
       </AlertDescription>
     </Alert>
   )
@@ -178,11 +178,15 @@ export function BotStatusBadge({
     return <Badge variant="destructive">Bot Left</Badge>
   }
 
-  if (overview.botJoinedAt === undefined) {
-    return <Badge variant="outline">Runtime Pending</Badge>
+  if (overview.botJoinedAt !== undefined) {
+    return <Badge variant="secondary">Gateway Synced</Badge>
   }
 
-  return <Badge variant="secondary">Ready</Badge>
+  if (overview.botInstallationVerifiedAt !== undefined) {
+    return <Badge variant="secondary">REST Verified</Badge>
+  }
+
+  return <Badge variant="outline">Verification Needed</Badge>
 }
 
 export function ConfigSummary({ config }: { config: GuildConfig | null }) {
@@ -450,8 +454,12 @@ export function BotStatusFields({
         value={getBotStatusLabel(isBotLeft, overview)}
       />
       <OverviewField
-        label="Bot Joined"
+        label="Gateway Joined"
         value={formatDateTime(overview.botJoinedAt)}
+      />
+      <OverviewField
+        label="Install Verified"
+        value={formatDateTime(overview.botInstallationVerifiedAt)}
       />
       <OverviewField
         label="Bot Left"

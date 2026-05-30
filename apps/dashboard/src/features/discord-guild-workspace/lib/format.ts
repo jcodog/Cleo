@@ -35,11 +35,15 @@ export function getBotStatusLabel(
     return "Bot Left"
   }
 
-  if (overview.botJoinedAt === undefined) {
-    return "Runtime Pending"
+  if (overview.botJoinedAt !== undefined) {
+    return "Gateway Synced"
   }
 
-  return "Ready"
+  if (overview.botInstallationVerifiedAt !== undefined) {
+    return "REST Verified"
+  }
+
+  return "Install Verification Needed"
 }
 
 export function getErrorMessage(error: unknown): string {

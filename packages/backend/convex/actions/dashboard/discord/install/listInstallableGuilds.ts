@@ -21,12 +21,21 @@ type KnownGuild = {
   presenceCount?: number
   isOwner?: boolean
   permissions?: string
-  state: "installed" | "installable" | "pending" | "unavailable"
+  state:
+    | "installed"
+    | "installable"
+    | "pending"
+    | "verificationNeeded"
+    | "unavailable"
+    | "forbidden"
   unavailableReason?:
     | "missingManageGuildPermission"
     | "botLeft"
     | "botSyncUnavailable"
     | "verificationUnavailable"
+    | "discordBotTokenUnavailable"
+    | "discordApiUnavailable"
+    | "discordRestDeniedAccess"
   installSessionId?: Id<"discordGuildInstallSessions">
   installSessionStatus?: "pending" | "bot_joined" | "configured" | "expired"
   installSessionExpiresAt?: number
@@ -109,10 +118,27 @@ function mergeInstallableGuilds({
   const sessionsByDiscordId = new Map(
     activeSessions.map((session) => [session.discordGuildId, session])
   )
+  const knownGuildsByDiscordId = new Map(
+    knownGuilds.map((guild) => [guild.discordGuildId, guild])
+  )
 
   for (const liveGuild of liveGuilds) {
+    const knownGuild = knownGuildsByDiscordId.get(liveGuild.discordGuildId)
+
+    if (!liveGuild.canManage) {
+      if (knownGuild !== undefined) {
+        guildsByDiscordId.set(liveGuild.discordGuildId, {
+          ...knownGuild,
+          state: "forbidden",
+          unavailableReason: "missingManageGuildPermission",
+        })
+      }
+
+      continue
+    }
+
     const session = sessionsByDiscordId.get(liveGuild.discordGuildId)
-    const state = getLiveGuildState(liveGuild, session)
+    const state = getLiveGuildState(session, knownGuild)
 
     guildsByDiscordId.set(liveGuild.discordGuildId, {
       discordGuildId: liveGuild.discordGuildId,
@@ -136,9 +162,6 @@ function mergeInstallableGuilds({
         ? { permissions: liveGuild.permissions }
         : {}),
       state,
-      ...(!liveGuild.canManage
-        ? { unavailableReason: "missingManageGuildPermission" as const }
-        : {}),
       ...(session !== undefined && state === "pending"
         ? {
             installSessionId: session._id,
@@ -153,11 +176,20 @@ function mergeInstallableGuilds({
     const liveGuild = guildsByDiscordId.get(knownGuild.discordGuildId)
 
     if (!liveGuild) {
-      guildsByDiscordId.set(knownGuild.discordGuildId, knownGuild)
+      guildsByDiscordId.set(knownGuild.discordGuildId, {
+        ...knownGuild,
+        state:
+          knownGuild.state === "installed" || knownGuild.state === "pending"
+            ? knownGuild.state
+            : "forbidden",
+        ...(knownGuild.state === "installed" || knownGuild.state === "pending"
+          ? {}
+          : { unavailableReason: "missingManageGuildPermission" as const }),
+      })
       continue
     }
 
-    if (liveGuild.state === "unavailable") {
+    if (liveGuild.state === "unavailable" || liveGuild.state === "forbidden") {
       guildsByDiscordId.set(knownGuild.discordGuildId, liveGuild)
       continue
     }
@@ -183,6 +215,7 @@ function mergeInstallableGuilds({
       ...(liveGuild.permissions !== undefined
         ? { permissions: liveGuild.permissions }
         : {}),
+      state: liveGuild.state,
     })
   }
 
@@ -199,18 +232,22 @@ function mergeInstallableGuilds({
 }
 
 function getLiveGuildState(
-  liveGuild: DiscordManageableGuild,
-  session: ActiveInstallSession | undefined
+  session: ActiveInstallSession | undefined,
+  knownGuild: KnownGuild | undefined
 ): KnownGuild["state"] {
-  if (!liveGuild.canManage) {
-    return "unavailable"
-  }
-
   if (session !== undefined) {
     return "pending"
   }
 
-  return "installable"
+  if (knownGuild?.state === "installed") {
+    return "installed"
+  }
+
+  if (knownGuild?.state === "installable") {
+    return "installable"
+  }
+
+  return "verificationNeeded"
 }
 
 function getStateSortOrder(state: KnownGuild["state"]) {
@@ -219,9 +256,13 @@ function getStateSortOrder(state: KnownGuild["state"]) {
       return 0
     case "pending":
       return 1
-    case "installable":
+    case "verificationNeeded":
       return 2
-    case "unavailable":
+    case "installable":
       return 3
+    case "forbidden":
+      return 4
+    case "unavailable":
+      return 5
   }
 }

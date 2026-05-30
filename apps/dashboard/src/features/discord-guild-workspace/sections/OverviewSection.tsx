@@ -104,8 +104,12 @@ export function OverviewSection({
                 value={getBotStatusLabel(isBotLeft, overview)}
               />
               <OverviewField
-                label="Bot Joined"
+                label="Gateway Joined"
                 value={formatDateTime(overview.botJoinedAt)}
+              />
+              <OverviewField
+                label="Install Verified"
+                value={formatDateTime(overview.botInstallationVerifiedAt)}
               />
               <OverviewField
                 label="Bot Left"

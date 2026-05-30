@@ -132,7 +132,9 @@ function WorkspaceReadyView({
         </Alert>
       ) : null}
 
-      {overview.botJoinedAt === undefined && !isBotLeft ? (
+      {overview.botJoinedAt === undefined &&
+      overview.botInstallationVerifiedAt === undefined &&
+      !isBotLeft ? (
         <RuntimeNotice />
       ) : null}
 
