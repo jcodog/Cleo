@@ -30,6 +30,7 @@ export const config = [
     rules: {
       ...pluginReact.configs.recommended.rules,
       ...pluginReactHooks.configs.recommended.rules,
+      "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
     },
     settings: {

@@ -859,6 +859,6 @@ function getTimestampFromSnowflake(snowflake: string): number {
   try {
     return Number((BigInt(snowflake) >> 22n) + DISCORD_EPOCH)
   } catch {
-    return Date.now()
+    return 0
   }
 }
