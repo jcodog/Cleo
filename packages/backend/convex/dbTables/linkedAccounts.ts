@@ -5,6 +5,7 @@ import { linkedProvider } from "./shared"
 export const linkedAccounts = defineTable({
   userId: v.id("users"),
   provider: linkedProvider,
+  externalProvider: v.optional(v.string()),
   providerAccountId: v.string(),
   username: v.optional(v.string()),
   displayName: v.optional(v.string()),

@@ -5,17 +5,7 @@ import { nodeEnv, optionalString, optionalUrl } from "./shared"
 export const dashboardEnv = createEnv({
   server: {
     NODE_ENV: nodeEnv,
-
-    CONVEX_DEPLOYMENT: optionalString,
-    CONVEX_URL: optionalUrl,
-
     CLERK_SECRET_KEY: optionalString,
-
-    DISCORD_CLIENT_ID: optionalString,
-    DISCORD_CLIENT_SECRET: optionalString,
-
-    KICK_CLIENT_ID: optionalString,
-    KICK_CLIENT_SECRET: optionalString,
   },
   clientPrefix: "NEXT_PUBLIC_",
   client: {

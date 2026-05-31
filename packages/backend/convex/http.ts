@@ -33,9 +33,12 @@ http.route({
     }
 
     if (event.type === "user.created" || event.type === "user.updated") {
-      await ctx.runMutation(internal.mutations.users.clerk.upsertFromWebhook, {
-        data: event.data,
-      })
+      await ctx.runMutation(
+        internal.mutations.integrations.clerk.users.upsertFromWebhook,
+        {
+          data: event.data,
+        }
+      )
       return new Response(null, { status: 200 })
     }
 
@@ -43,9 +46,12 @@ http.route({
       event.type === "user.deleted" ? getDeletedClerkUserId(event.data) : null
 
     if (deletedClerkUserId) {
-      await ctx.runMutation(internal.mutations.users.clerk.deleteFromWebhook, {
-        clerkUserId: deletedClerkUserId,
-      })
+      await ctx.runMutation(
+        internal.mutations.integrations.clerk.users.deleteFromWebhook,
+        {
+          clerkUserId: deletedClerkUserId,
+        }
+      )
     }
 
     return new Response(null, { status: 200 })

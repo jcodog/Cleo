@@ -44,7 +44,7 @@ Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analyt
 
 ## Core stack
 
-- Bun
+- pnpm
 - Turborepo
 - Next.js
 - shadcn/ui
@@ -55,11 +55,16 @@ Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analyt
 
 ## Rules
 
-- Use Bun only.
+- Use the pinned pnpm version from `package.json`.
+- Use pnpm scripts for repo commands: `pnpm run <script>` or `pnpm --filter <workspace> run <script>`.
+- Use `pnpm exec <command>` for locally installed CLIs, and `pnpm dlx <package>` only for one-off CLIs that are not installed.
+- Do not use `bun`, `bunx`, `npm`, `npx`, or `yarn` for scripts, validation, codegen, package installs, or local CLIs.
 - Do not introduce Prisma.
 - Use Convex for backend data and business logic.
 - Use Clerk as the primary auth provider.
-- Treat Discord, Kick, Twitch, and GitHub as linked accounts.
+- Treat Discord as the primary Clerk auth identity.
+- Treat Twitch and Kick as secondary linked accounts.
+- Do not add Prisma, Next API routes, or server actions for backend logic.
 - Keep app UI dark-first, clean, and consistent with the Cleo design system.
 - Do not add stats support to Cleo.
 
@@ -68,21 +73,21 @@ Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analyt
 Install dependencies:
 
 ```bash
-bun install
+pnpm install
 ```
 
 Run development:
 
 ```bash
-bun run dev
+pnpm run dev
 ```
 
 Run checks:
 
 ```bash
-bun run lint
-bun run typecheck
-bun run build
+pnpm --filter <workspace> run lint
+pnpm --filter <workspace> run typecheck
+pnpm --filter <workspace> run build
 ```
 
 ## License

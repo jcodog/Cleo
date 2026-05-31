@@ -26,7 +26,7 @@ Stats are a separate product/project.
 
 ## Stack
 
-- Bun
+- pnpm
 - Turborepo
 - TypeScript
 - Next.js
@@ -69,7 +69,9 @@ General UI direction:
 - Do not add Prisma.
 - Use Convex as the backend source of truth.
 - Use Clerk as the primary auth provider.
-- Treat Discord, Kick, Twitch, and GitHub as linked accounts.
+- Treat Discord as the primary Clerk auth identity.
+- Treat Twitch and Kick as secondary linked accounts.
+- Do not use Next API routes or server actions for backend logic.
 - Keep shared logic in packages.
 - Keep app-specific code inside apps.
 - Keep changes small and focused.
@@ -80,6 +82,39 @@ General UI direction:
 - Do not port legacy dashboard UI blindly.
 - Do not redesign major dashboard pages until the backend and auth foundations are stable.
 - Use relevant skills and MCPs selectively when they improve accuracy; do not invoke every available tool blindly.
+
+## Terminal rules
+
+Development may already be running in WezTerm.
+
+Before starting any dev server, watcher, tunnel, broad validation command, or log tail, inspect existing WezTerm panes first:
+
+```bash
+wezterm cli list --format json
+```
+
+If a Cleo dev pane is already running, read its recent output instead of starting another process:
+
+```bash
+wezterm cli get-text --pane-id <PANE_ID> --start-line -300
+```
+
+Do not start duplicate `pnpm dev`, `turbo dev`, `next dev`, `convex dev`, workers, websocket, bot, or tunnel processes.
+
+Use existing WezTerm output as the first source of truth for dev server errors, route errors, compile errors, runtime errors, and browser-triggered logs.
+
+Do not use `wezterm cli send-text`, `spawn`, `split-pane`, `kill-pane`, or `activate-pane` unless Jason explicitly asks.
+
+If the correct pane is unclear, ask Jason which pane ID to inspect.
+
+## Package manager and command runner
+
+- This repo uses the pinned `pnpm` version from `package.json`.
+- Use pnpm scripts for project commands: `pnpm run <script>` from a workspace, or `pnpm --filter <workspace> run <script>` from the repo root.
+- Use `pnpm exec <command>` for locally installed CLIs such as Convex, Next.js, ESLint, Prettier, and shadcn.
+- Use `pnpm dlx <package>` only when a one-off CLI is not already installed in the workspace.
+- Do not use `bun`, `bunx`, `npm`, `npx`, or `yarn` for repo scripts, validation, codegen, package installs, or local CLIs.
+- Do not add or update dependencies with another package manager. Use pnpm so `pnpm-lock.yaml` remains the only lockfile.
 
 ## Apps
 
@@ -102,9 +137,9 @@ General UI direction:
 Do not run repo-root validation commands:
 
 ```bash
-bun run lint
-bun run typecheck
-bun run build
+pnpm run lint
+pnpm run typecheck
+pnpm run build
 turbo lint
 turbo typecheck
 turbo build
@@ -117,6 +152,15 @@ Run only targeted package/app checks from the relevant workspace when they exist
 - `packages/logger`
 - `packages/env`
 - `apps/dashboard`
+
+Use pnpm scripts for workspace commands. For example:
+
+```bash
+pnpm --filter dashboard run lint
+pnpm --filter dashboard run typecheck
+pnpm --filter @workspace/backend run typecheck
+pnpm --filter @workspace/backend run codegen
+```
 
 Report:
 

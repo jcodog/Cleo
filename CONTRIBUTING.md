@@ -12,10 +12,16 @@ Stats are a separate product/project.
 
 ## Architecture rules
 
+- Use the pinned pnpm version from `package.json`.
+- Use pnpm scripts for repo commands: `pnpm run <script>` or `pnpm --filter <workspace> run <script>`.
+- Use `pnpm exec <command>` for locally installed CLIs, and `pnpm dlx <package>` only for one-off CLIs that are not installed.
+- Do not use `bun`, `bunx`, `npm`, `npx`, or `yarn` for scripts, validation, codegen, package installs, or local CLIs.
 - Use Convex for backend data and business logic.
 - Do not add Prisma.
 - Use Clerk as the primary auth identity.
-- Treat Discord, Kick, Twitch, and GitHub as linked accounts.
+- Treat Discord as the primary Clerk auth identity.
+- Treat Twitch and Kick as secondary linked accounts.
+- Do not add Next API routes or server actions for backend logic.
 - Keep shared logic in packages, not duplicated inside apps.
 - Keep UI consistent with the Cleo design system.
 - Prefer small, focused changes.
@@ -62,7 +68,7 @@ Every PR should include:
 Before opening a PR, run the relevant checks when they exist:
 
 ```bash
-bun run lint
-bun run typecheck
-bun run build
+pnpm --filter <workspace> run lint
+pnpm --filter <workspace> run typecheck
+pnpm --filter <workspace> run build
 ```

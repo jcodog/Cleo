@@ -15,16 +15,16 @@
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
-    "convex": "^1.37.0",
-    "svix": "^1.93.0"
+    "convex": "^1.39.1",
+    "svix": "^1.95.1"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
+    "@types/node": "catalog:",
     "@typescript/native-preview": "latest",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "^10.3.0",
-    "typescript": "^6.0.3"
+    "eslint": "catalog:",
+    "typescript": "catalog:"
   },
   "exports": {
     ".": "./src/index.ts",
