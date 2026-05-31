@@ -4,18 +4,15 @@ import { nodeEnv, optionalString, optionalUrl } from "./shared"
 
 export const discordEnv = createEnv({
   server: {
-    NODE_ENV: nodeEnv,
-
-    CONVEX_URL: optionalUrl,
-
-    DISCORD_CLIENT_ID: optionalString,
+    // NODE_ENV: nodeEnv,
+    // CONVEX_URL: optionalUrl,
+    // DISCORD_CLIENT_ID: optionalString,
     DISCORD_BOT_TOKEN: optionalString,
-    DISCORD_BOT_PERMISSIONS: optionalString,
-    DISCORD_PUBLIC_KEY: optionalString,
-    DISCORD_APPLICATION_ID: optionalString,
-    DISCORD_INSTALL_REDIRECT_URI: optionalUrl,
-
-    OPENAI_API_KEY: optionalString,
+    // DISCORD_BOT_PERMISSIONS: optionalString,
+    // DISCORD_PUBLIC_KEY: optionalString,
+    // DISCORD_APPLICATION_ID: optionalString,
+    // DISCORD_INSTALL_REDIRECT_URI: optionalUrl,
+    // OPENAI_API_KEY: optionalString,
   },
   runtimeEnv: process.env,
 })

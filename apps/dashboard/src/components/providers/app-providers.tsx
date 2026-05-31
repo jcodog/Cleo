@@ -6,8 +6,9 @@ import { ConvexReactClient } from "convex/react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { dark, shadcn } from "@clerk/themes"
 import { useTheme } from "next-themes"
+import { dashboardEnv } from "@workspace/env/dashboard"
 
-const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
+const convexUrl = dashboardEnv.NEXT_PUBLIC_CONVEX_URL
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null
 
 export function AppProviders({ children }: { children: ReactNode }) {

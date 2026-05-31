@@ -3,6 +3,7 @@ import { Webhook } from "svix"
 
 import { internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
+import { backendEnv } from "@workspace/env/backend"
 
 type ClerkWebhookEvent =
   | {
@@ -61,7 +62,7 @@ http.route({
 async function validateClerkWebhook(
   request: Request
 ): Promise<ClerkWebhookEvent | null> {
-  const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
+  const webhookSecret = backendEnv.CLERK_WEBHOOK_SECRET
 
   if (!webhookSecret) {
     throw new Error("Missing CLERK_WEBHOOK_SECRET")

@@ -1,0 +1,32 @@
+{
+  "name": "@workspace/discord-bot",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env.local src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier -w \"**/*.{ts,json}\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@workspace/backend": "workspace:*",
+    "@workspace/env": "workspace:*",
+    "@workspace/logger": "workspace:*",
+    "@workspace/shared": "workspace:*",
+    "convex": "^1.39.1",
+    "discord.js": "^14.26.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "tsx": "^4.22.3",
+    "typescript": "catalog:"
+  }
+}
