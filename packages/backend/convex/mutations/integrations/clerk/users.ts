@@ -75,8 +75,8 @@ export const upsertFromWebhook = internalMutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         email,
-        displayName: displayName ?? undefined,
-        imageUrl: imageUrl ?? undefined,
+        displayName: displayName ?? null,
+        imageUrl: imageUrl ?? null,
         updatedAt: now,
       })
 
@@ -85,8 +85,8 @@ export const upsertFromWebhook = internalMutation({
       userId = await ctx.db.insert("users", {
         clerkUserId: data.id,
         email,
-        ...(displayName !== undefined ? { displayName } : {}),
-        ...(imageUrl !== undefined ? { imageUrl } : {}),
+        displayName: displayName ?? null,
+        imageUrl: imageUrl ?? null,
         role: "user",
         status: "active",
         createdAt: now,

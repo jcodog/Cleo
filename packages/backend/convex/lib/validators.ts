@@ -69,8 +69,8 @@ export const userDoc = v.object({
   _creationTime: v.number(),
   clerkUserId: v.string(),
   email: v.string(),
-  displayName: v.optional(v.string()),
-  imageUrl: v.optional(v.string()),
+  displayName: v.optional(v.union(v.string(), v.null())),
+  imageUrl: v.optional(v.union(v.string(), v.null())),
   role: v.union(
     v.literal("user"),
     v.literal("staff"),

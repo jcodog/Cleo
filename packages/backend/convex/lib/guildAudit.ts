@@ -79,7 +79,7 @@ export async function insertDashboardGuildAuditEvent(
     ...(discordAccount?.providerAccountId !== undefined
       ? { actorDiscordUserId: discordAccount.providerAccountId }
       : {}),
-    ...(args.user?.displayName !== undefined
+    ...(typeof args.user?.displayName === "string"
       ? { actorDisplayName: args.user.displayName }
       : {}),
     ...(args.metadata !== undefined ? { metadata: args.metadata } : {}),

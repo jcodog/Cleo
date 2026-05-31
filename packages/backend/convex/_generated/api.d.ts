@@ -600,9 +600,9 @@ export declare const api: {
               _id: Id<"users">;
               clerkUserId: string;
               createdAt: number;
-              displayName?: string;
+              displayName?: string | null;
               email: string;
-              imageUrl?: string;
+              imageUrl?: string | null;
               role: "user" | "staff" | "admin" | "superadmin";
               status?: "active" | "disabled";
               updatedAt: number;
@@ -1292,9 +1292,9 @@ export declare const internal: {
                     _id: Id<"users">;
                     clerkUserId: string;
                     createdAt: number;
-                    displayName?: string;
+                    displayName?: string | null;
                     email: string;
-                    imageUrl?: string;
+                    imageUrl?: string | null;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
                     updatedAt: number;
@@ -1377,9 +1377,9 @@ export declare const internal: {
                     _id: Id<"users">;
                     clerkUserId: string;
                     createdAt: number;
-                    displayName?: string;
+                    displayName?: string | null;
                     email: string;
-                    imageUrl?: string;
+                    imageUrl?: string | null;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
                     updatedAt: number;
@@ -1444,9 +1444,9 @@ export declare const internal: {
                     _id: Id<"users">;
                     clerkUserId: string;
                     createdAt: number;
-                    displayName?: string;
+                    displayName?: string | null;
                     email: string;
-                    imageUrl?: string;
+                    imageUrl?: string | null;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
                     updatedAt: number;

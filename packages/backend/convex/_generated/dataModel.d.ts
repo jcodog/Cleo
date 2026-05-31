@@ -401,9 +401,9 @@ export type DataModel = {
     document: {
       clerkUserId: string;
       createdAt: number;
-      displayName?: string;
+      displayName?: string | null;
       email: string;
-      imageUrl?: string;
+      imageUrl?: string | null;
       role: "user" | "staff" | "admin" | "superadmin";
       status?: "active" | "disabled";
       updatedAt: number;
