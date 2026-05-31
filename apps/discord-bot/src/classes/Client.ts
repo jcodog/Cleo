@@ -11,7 +11,7 @@ import type { Command } from "./Command"
 import type { Event } from "./Event"
 import { loadCommands } from "../loaders/loadCommands"
 import { loadEvents } from "../loaders/loadEvents"
-import { botLog } from "@workspace/discord-bot/utils/botLog"
+import { botLog, botLogError } from "@workspace/discord-bot/utils/botLog"
 
 const defaultClientOptions = {
   intents: [
@@ -29,7 +29,11 @@ export class BotClient extends Client {
     super(options)
   }
 
-  public async start(token: string): Promise<void> {
+  public async start(token: string | undefined): Promise<void> {
+    if (!token) {
+      return botLogError("Missing environment variable DISCORD_BOT_TOKEN")
+    }
+
     botLog("Starting Cleo Discord bot runtime...", "info")
     await this.registerHandlers()
 

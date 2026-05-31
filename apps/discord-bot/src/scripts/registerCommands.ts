@@ -1,0 +1,261 @@
+import { readdir } from "node:fs/promises"
+import path from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
+
+import { REST, Routes } from "discord.js"
+
+import { discordEnv } from "@workspace/env/discord"
+
+import type {
+  CommandData,
+  CommandOptions,
+} from "@workspace/discord-bot/classes/Command"
+import { botLog, botLogError } from "@workspace/discord-bot/utils/botLog"
+
+type CommandModule = {
+  default?: unknown
+  command?: unknown
+}
+
+type RegisterTarget =
+  | {
+      type: "guild"
+      guildId: string
+    }
+  | {
+      type: "global"
+    }
+
+const commandsDirectory = fileURLToPath(
+  new URL("../handlers/commands", import.meta.url)
+)
+
+const logInfo = (message: string) => botLog(message, "info")
+const logSuccess = (message: string) => botLog(message, "success")
+const logWarn = (message: string) => botLog(message, "warn")
+const logError = (message: string, error: unknown) =>
+  botLogError(message, error)
+
+function isCommandOptions(value: unknown): value is CommandOptions {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const command = value as Partial<CommandOptions>
+
+  return Boolean(command.data) && typeof command.execute === "function"
+}
+
+function readArgValue(flag: string): string | undefined {
+  const exactArg = process.argv.find((arg) => arg.startsWith(`${flag}=`))
+
+  if (exactArg) {
+    return exactArg.slice(flag.length + 1)
+  }
+
+  const flagIndex = process.argv.indexOf(flag)
+
+  if (flagIndex === -1) {
+    return undefined
+  }
+
+  return process.argv[flagIndex + 1]
+}
+
+function resolveRegisterTarget(): RegisterTarget {
+  const wantsGlobal = process.argv.includes("--global")
+  const wantsGuild =
+    process.argv.includes("--guild") ||
+    process.argv.some((arg) => arg.startsWith("--guild="))
+
+  if (wantsGlobal && wantsGuild) {
+    throw new Error("Use either --global or --guild, not both.")
+  }
+
+  if (wantsGlobal) {
+    return {
+      type: "global",
+    }
+  }
+
+  if (wantsGuild) {
+    const guildId = readArgValue("--guild") ?? discordEnv.DISCORD_TEST_GUILD_ID
+
+    if (!guildId) {
+      throw new Error(
+        "Missing guild ID. Pass --guild=<guild_id> or set DISCORD_TEST_GUILD_ID."
+      )
+    }
+
+    return {
+      type: "guild",
+      guildId,
+    }
+  }
+
+  throw new Error(
+    "Missing registration target. Use --guild for dev or --global for production"
+  )
+}
+
+async function findCommandFiles(
+  directory: string,
+  depth = 0,
+  maxDepth = 3
+): Promise<string[]> {
+  const entries = await readdir(directory, {
+    withFileTypes: true,
+  })
+
+  const files: string[] = []
+
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name)
+
+    if (entry.isDirectory()) {
+      if (depth >= maxDepth) {
+        logWarn(
+          `Skipping command folder deeper than ${maxDepth} levels: ${entryPath}`
+        )
+        continue
+      }
+
+      const nestedFiles = await findCommandFiles(entryPath, depth + 1, maxDepth)
+      files.push(...nestedFiles)
+      continue
+    }
+
+    if (!entry.isFile()) {
+      continue
+    }
+
+    if (
+      entry.name.endsWith(".d.ts") ||
+      (!entry.name.endsWith(".ts") && !entry.name.endsWith(".js"))
+    ) {
+      continue
+    }
+
+    files.push(entryPath)
+  }
+
+  return files.sort((a, b) => a.localeCompare(b))
+}
+
+async function loadCommandData(): Promise<CommandData[]> {
+  const commandFilePaths = await findCommandFiles(commandsDirectory)
+
+  const commandData: CommandData[] = []
+  const commandNames = new Set<string>()
+
+  for (const filePath of commandFilePaths) {
+    const moduleUrl = pathToFileURL(filePath).href
+    const importedModule = (await import(moduleUrl)) as CommandModule
+
+    const command = importedModule.default ?? importedModule.command
+
+    const relativeFilePath = path.relative(commandsDirectory, filePath)
+
+    if (!isCommandOptions(command)) {
+      logWarn(
+        `Skipping ${relativeFilePath}, missing command data or execute handler.`
+      )
+      continue
+    }
+
+    if (commandNames.has(command.data.name)) {
+      throw new Error(`Duplicate command name found: /${command.data.name}`)
+    }
+
+    commandNames.add(command.data.name)
+    commandData.push(command.data)
+
+    logInfo(`Loaded /${command.data.name} from ${relativeFilePath}`)
+  }
+
+  return commandData
+}
+
+async function putCommandData(
+  rest: REST,
+  route: string,
+  commandData: CommandData[]
+) {
+  return rest.put(route as `/${string}`, {
+    body: commandData,
+  })
+}
+
+async function clearCommandScope(
+  rest: REST,
+  route: string,
+  scopeLabel: string
+) {
+  logInfo(`Clearing existing commands from ${scopeLabel}...`)
+
+  await putCommandData(rest, route, [])
+
+  logSuccess(`Cleared existing commands from ${scopeLabel}.`)
+}
+
+async function registerCommands() {
+  const token = discordEnv.DISCORD_BOT_TOKEN
+  const applicationId = discordEnv.DISCORD_APPLICATION_ID
+
+  if (!token) {
+    throw new Error("Missing DISCORD_BOT_TOKEN.")
+  }
+
+  if (!applicationId) {
+    throw new Error("Missing DISCORD_APPLICATION_ID.")
+  }
+
+  const target = resolveRegisterTarget()
+
+  // Load and validate first, so we do not wipe Discord commands if local files are broken.
+  const commandData = await loadCommandData()
+
+  const rest = new REST({ version: "10" }).setToken(token)
+
+  const globalRoute = Routes.applicationCommands(applicationId)
+
+  const targetRoute =
+    target.type === "guild"
+      ? Routes.applicationGuildCommands(applicationId, target.guildId)
+      : globalRoute
+
+  const targetLabel =
+    target.type === "guild"
+      ? `guild ${target.guildId}`
+      : "global application commands"
+
+  // Always clear global commands first.
+  // This prevents old global commands from hanging around during guild-only dev registration.
+  await clearCommandScope(rest, globalRoute, "global application commands")
+
+  // If registering to a guild, also clear that guild's local command scope.
+  if (target.type === "guild") {
+    await clearCommandScope(rest, targetRoute, targetLabel)
+  }
+
+  logInfo(`Registering ${commandData.length} command(s) to ${targetLabel}...`)
+
+  const response = await putCommandData(rest, targetRoute, commandData)
+
+  const registeredCount = Array.isArray(response)
+    ? response.length
+    : commandData.length
+
+  logSuccess(`Registered ${registeredCount} command(s) to ${targetLabel}.`)
+}
+
+try {
+  await registerCommands()
+} catch (error) {
+  const message =
+    error instanceof Error ? (error.stack ?? error.message) : String(error)
+
+  logError("Failed to register Discord slash commands.", message)
+
+  process.exitCode = 1
+}
