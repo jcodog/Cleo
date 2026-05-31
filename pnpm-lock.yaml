@@ -77,6 +77,9 @@ importers:
 
   .:
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.9.1
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:packages/eslint-config
