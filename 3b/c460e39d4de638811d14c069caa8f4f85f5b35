@@ -1,0 +1,30 @@
+apps/discord-bot/src/services/guildRuntimeConfig.ts
+  s_b9adedd15e2f4a::t_93fb0e5bdebeb9 50-56
+  s_b9adedd15e2f4a::t_c755046f5ba08b 1-49,57-118
+packages/backend/convex/_generated/api.d.ts
+  s_b9adedd15e2f4a::t_e64f439eea5ef5 88-115,2509-2536
+apps/discord-bot/src/services/convexBotClient.ts
+  s_b9adedd15e2f4a::t_6a8c853f196be5 92,97-98,102,106,109,113-122,177-189
+packages/backend/convex/queries/bot/discord/guildConfigs/runtimeConfigByDiscordId.ts
+  s_b9adedd15e2f4a::t_3e57a0147b5911 1-71
+packages/backend/convex/actions/bot/discord/guildConfigs/getRuntimeConfig.ts
+  s_b9adedd15e2f4a::t_6f71826b46051f 1-28
+packages/backend/convex/lib/botDiscordGuildRuntimeConfig.ts
+  s_b9adedd15e2f4a::t_eae7e869b73c3e 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "3bc460e39d4de638811d14c069caa8f4f85f5b35",
+  "prompts": {},
+  "sessions": {
+    "s_b9adedd15e2f4a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e9db7-8c61-7852-ae17-cb97c7e6b663",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
