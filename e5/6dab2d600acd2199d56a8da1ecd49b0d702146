@@ -1,0 +1,46 @@
+packages/backend/convex/lib/validators.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 14,19-29,80
+packages/backend/convex/actions/bot/discord/gateway/syncReady.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 9,11-13,15,19-20,34-35,40-42,44-45,47-51,66-74,78-84,86-92,95-122,127,129-142
+  s_44a59d0921ed81::t_e624e4de6ec011 21-29,94
+  s_44a59d0921ed81::t_88d85f44478c8b 93,123-126,128
+  s_44a59d0921ed81::t_80b60542538577 6,85
+packages/backend/convex/mutations/bot/discord/guilds/upsertFromGateway.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 16,21,31-39,52,79
+apps/discord-bot/src/handlers/events/guildCreate.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 10,19
+packages/backend/convex/mutations/bot/discord/guilds/markBotLeft.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 41
+packages/backend/convex/mutations/dashboard/discord/guildAuditEvents/upsertDiscordAuditLogs.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 12,24
+  s_44a59d0921ed81::t_e624e4de6ec011 10,64-74,91
+packages/backend/convex/actions/bot/discord/gateway/lib/gatewayGuild.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 7,12,30-34,47-51,72-129,136-148
+packages/backend/convex/actions/bot/discord/gateway/guildJoined.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 8-12,18,23-27
+packages/backend/convex/lib/discordRest.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 2,4,68,134,795
+apps/discord-bot/src/services/convexBotClient.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 18-59,113-119,122-123,128-129,136,139,144
+packages/backend/convex/queries/bot/discord/guilds/readyReconciliation.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 1-32
+apps/discord-bot/src/handlers/events/clientReady.ts
+  s_44a59d0921ed81::t_194ed79b2e5e9d 15-17,34-37,43-49
+  s_44a59d0921ed81::t_80b60542538577 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e56dab2d600acd2199d56a8da1ecd49b0d702146",
+  "prompts": {},
+  "sessions": {
+    "s_44a59d0921ed81": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e9d52-8056-71a0-b172-26bbba23f4c1",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
