@@ -89,6 +89,27 @@ function getConvexSyncConfig(operation: string) {
   }
 }
 
+async function callWithConvex<T>(
+  operation: string,
+  callback: (config: {
+    client: ConvexHttpClient
+    secret: string
+  }) => Promise<T>
+): Promise<T | null> {
+  const config = getConvexSyncConfig(operation)
+
+  if (!config) {
+    return null
+  }
+
+  try {
+    return await callback(config)
+  } catch (error) {
+    botLogError(`Convex ${operation} failed.`, error)
+    return null
+  }
+}
+
 async function syncWithConvex(
   operation: string,
   callback: (config: {
@@ -96,17 +117,7 @@ async function syncWithConvex(
     secret: string
   }) => Promise<void>
 ): Promise<void> {
-  const config = getConvexSyncConfig(operation)
-
-  if (!config) {
-    return
-  }
-
-  try {
-    await callback(config)
-  } catch (error) {
-    botLogError(`Convex ${operation} failed.`, error)
-  }
+  await callWithConvex(operation, callback)
 }
 
 export const convexBotClient = {
@@ -162,5 +173,19 @@ export const convexBotClient = {
 
       botLog(`Synced left guild ${parsedGuild.discordGuildId} to Convex.`, "debug")
     })
+  },
+
+  async fetchGuildRuntimeConfig(discordGuildId: string): Promise<unknown | null> {
+    return await callWithConvex(
+      "guild runtime config fetch",
+      async ({ client, secret }) =>
+        await client.action(
+          api.actions.bot.discord.guildConfigs.getRuntimeConfig.fetch,
+          {
+            secret,
+            discordGuildId,
+          }
+        )
+    )
   },
 }

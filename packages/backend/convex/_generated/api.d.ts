@@ -85,6 +85,34 @@ export declare const api: {
             >;
           };
         };
+        guildConfigs: {
+          getRuntimeConfig: {
+            fetch: FunctionReference<
+              "action",
+              "public",
+              { discordGuildId: string; secret: string },
+              | {
+                  config: {
+                    announcementChannelId?: string;
+                    discordGuildId: string;
+                    logChannelId?: string;
+                    logLevel?: "none" | "minimal" | "medium" | "maximum";
+                    loggingEnabled: boolean;
+                    modLogChannelId?: string;
+                    moderationEnabled: boolean;
+                    updatesChannelId?: string;
+                    welcomeChannelId?: string;
+                    welcomeEnabled: boolean;
+                  };
+                  status: "ready";
+                }
+              | {
+                  reason: "unknownGuild" | "botLeft" | "missingConfig";
+                  status: "disabled";
+                }
+            >;
+          };
+        };
       };
     };
     dashboard: {
@@ -2478,6 +2506,34 @@ export declare const internal: {
   queries: {
     bot: {
       discord: {
+        guildConfigs: {
+          runtimeConfigByDiscordId: {
+            get: FunctionReference<
+              "query",
+              "internal",
+              { discordGuildId: string },
+              | {
+                  config: {
+                    announcementChannelId?: string;
+                    discordGuildId: string;
+                    logChannelId?: string;
+                    logLevel?: "none" | "minimal" | "medium" | "maximum";
+                    loggingEnabled: boolean;
+                    modLogChannelId?: string;
+                    moderationEnabled: boolean;
+                    updatesChannelId?: string;
+                    welcomeChannelId?: string;
+                    welcomeEnabled: boolean;
+                  };
+                  status: "ready";
+                }
+              | {
+                  reason: "unknownGuild" | "botLeft" | "missingConfig";
+                  status: "disabled";
+                }
+            >;
+          };
+        };
         guilds: {
           readyReconciliation: {
             listPage: FunctionReference<
