@@ -13,11 +13,12 @@ export const upsert = internalMutation({
     memberCount: v.optional(v.number()),
     presenceCount: v.optional(v.number()),
     botJoinedAt: v.optional(v.number()),
-    lastSyncedAt: v.optional(v.number()),
+    lastSyncedAt: v.number(),
   },
   returns: v.id("guilds"),
   handler: async (ctx, args): Promise<Id<"guilds">> => {
     const now = Date.now()
+    const incomingSyncedAt = args.lastSyncedAt
 
     const existing = await ctx.db
       .query("guilds")
@@ -27,6 +28,15 @@ export const upsert = internalMutation({
       .unique()
 
     if (existing) {
+      const latestSyncedAt = Math.max(
+        existing.lastSyncedAt ?? 0,
+        existing.botLeftAt ?? 0
+      )
+
+      if (incomingSyncedAt <= latestSyncedAt) {
+        return existing._id
+      }
+
       await ctx.db.patch(existing._id, {
         name: args.name,
         description: args.description,
@@ -39,7 +49,7 @@ export const upsert = internalMutation({
           ? { botJoinedAt: args.botJoinedAt }
           : {}),
         botLeftAt: undefined,
-        lastSyncedAt: args.lastSyncedAt ?? now,
+        lastSyncedAt: incomingSyncedAt,
         updatedAt: now,
       })
 
@@ -66,7 +76,7 @@ export const upsert = internalMutation({
       ...(args.botJoinedAt !== undefined
         ? { botJoinedAt: args.botJoinedAt }
         : {}),
-      lastSyncedAt: args.lastSyncedAt ?? now,
+      lastSyncedAt: incomingSyncedAt,
       createdAt: now,
       updatedAt: now,
     })

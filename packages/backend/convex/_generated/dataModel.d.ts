@@ -147,8 +147,53 @@ export type DataModel = {
                 | boolean
                 | number
                 | string
-                | Array<null | boolean | number | string>
-                | Record<string, null | boolean | number | string>
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
               >
             | Record<
                 string,
@@ -156,8 +201,53 @@ export type DataModel = {
                 | boolean
                 | number
                 | string
-                | Array<null | boolean | number | string>
-                | Record<string, null | boolean | number | string>
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
               >
           >
         | Record<
@@ -171,8 +261,53 @@ export type DataModel = {
                 | boolean
                 | number
                 | string
-                | Array<null | boolean | number | string>
-                | Record<string, null | boolean | number | string>
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
               >
             | Record<
                 string,
@@ -180,8 +315,53 @@ export type DataModel = {
                 | boolean
                 | number
                 | string
-                | Array<null | boolean | number | string>
-                | Record<string, null | boolean | number | string>
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
               >
           >;
       source: "dashboard" | "discord-bot" | "kick-bot" | "ws-relay" | "backend";
@@ -247,8 +427,53 @@ export type DataModel = {
                 | boolean
                 | number
                 | string
-                | Array<null | boolean | number | string>
-                | Record<string, null | boolean | number | string>
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
               >
             | Record<
                 string,
@@ -256,8 +481,53 @@ export type DataModel = {
                 | boolean
                 | number
                 | string
-                | Array<null | boolean | number | string>
-                | Record<string, null | boolean | number | string>
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
               >
           >
         | Record<
@@ -271,8 +541,53 @@ export type DataModel = {
                 | boolean
                 | number
                 | string
-                | Array<null | boolean | number | string>
-                | Record<string, null | boolean | number | string>
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
               >
             | Record<
                 string,
@@ -280,8 +595,53 @@ export type DataModel = {
                 | boolean
                 | number
                 | string
-                | Array<null | boolean | number | string>
-                | Record<string, null | boolean | number | string>
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
               >
           >;
       occurredAt: number;

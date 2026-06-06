@@ -7,6 +7,7 @@ import { Events, type Guild } from "discord.js"
 export default new Event({
   name: Events.GuildCreate,
   async execute(guild: Guild) {
+    const syncedAt = Date.now()
     const snapshot = createGuildSnapshot(guild)
 
     botLog(
@@ -15,7 +16,7 @@ export default new Event({
     )
 
     try {
-      await convexBotClient.syncGuildJoined(snapshot)
+      await convexBotClient.syncGuildJoined(snapshot, syncedAt)
     } catch (error) {
       botLogError("Unexpected Convex guild join sync failure.", error)
     }

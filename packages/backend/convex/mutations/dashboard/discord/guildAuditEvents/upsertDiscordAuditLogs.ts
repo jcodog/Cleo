@@ -7,8 +7,9 @@ import {
   insertGuildAuditEvent,
 } from "../../../../lib/guildAudit"
 import {
+  isConvexJsonValue,
   jsonShallowObject,
-  jsonShallowValue,
+  jsonObject,
   jsonValue,
 } from "../../../../lib/validators"
 
@@ -20,7 +21,7 @@ const discordAuditLogEntry = v.object({
   actorDisplayName: v.optional(v.string()),
   targetDiscordId: v.optional(v.string()),
   reason: v.optional(v.string()),
-  changes: v.optional(v.array(jsonShallowValue)),
+  changes: v.optional(v.array(jsonObject)),
   options: v.optional(jsonShallowObject),
   occurredAt: v.number(),
 })
@@ -60,6 +61,17 @@ export const upsertMany = internalMutation({
         continue
       }
 
+      const metadata = {
+        actionType: entry.actionType,
+        reason: entry.reason ?? null,
+        changes: entry.changes ?? null,
+        options: entry.options ?? null,
+      }
+
+      if (!isConvexJsonValue(metadata)) {
+        throw new Error("Discord audit log metadata must be Convex JSON.")
+      }
+
       await insertGuildAuditEvent(ctx, {
         guild,
         source: "discord-audit-log",
@@ -76,12 +88,7 @@ export const upsertMany = internalMutation({
           : {}),
         targetType: "discord",
         externalId: entry.discordAuditLogId,
-        metadata: {
-          actionType: entry.actionType,
-          reason: entry.reason ?? null,
-          changes: entry.changes ?? null,
-          options: entry.options ?? null,
-        },
+        metadata,
         occurredAt: entry.occurredAt,
       })
       inserted += 1

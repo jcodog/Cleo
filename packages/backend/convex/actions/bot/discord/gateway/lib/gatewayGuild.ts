@@ -4,10 +4,12 @@ import { ConvexError, v } from "convex/values"
 
 const DISCORD_SNOWFLAKE_PATTERN = /^\d{17,20}$/
 const MAX_READY_GUILDS_PER_SYNC = 10_000
+const MAX_SHARDS_PER_READY_SYNC = 10_000
 const MAX_GUILD_NAME_LENGTH = 100
 const MAX_GUILD_DESCRIPTION_LENGTH = 1_024
 const MAX_ICON_HASH_LENGTH = 256
 const MAX_ICON_URL_LENGTH = 2_048
+const MAX_EVENT_CLOCK_SKEW_MS = 5 * 60 * 1000
 const ALLOWED_ICON_HOSTS = new Set([
   "cdn.discordapp.com",
   "media.discordapp.net",
@@ -25,6 +27,11 @@ export const gatewayGuild = v.object({
   botJoinedAt: v.optional(v.number()),
 })
 
+export const gatewayShardScope = v.object({
+  shardIds: v.array(v.number()),
+  shardCount: v.number(),
+})
+
 export type GatewayGuild = {
   discordGuildId: string
   name: string
@@ -35,6 +42,11 @@ export type GatewayGuild = {
   memberCount?: number
   presenceCount?: number
   botJoinedAt?: number
+}
+
+export type GatewayShardScope = {
+  shardIds: number[]
+  shardCount: number
 }
 
 export function assertGatewayGuild(guild: GatewayGuild, now: number): void {
@@ -57,10 +69,83 @@ export function assertGatewayGuild(guild: GatewayGuild, now: number): void {
   assertOptionalTimestamp("botJoinedAt", guild.botJoinedAt, now)
 }
 
+export function assertGatewayEventTimestamp(
+  field: string,
+  value: number,
+  now: number
+): void {
+  if (
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > now + MAX_EVENT_CLOCK_SKEW_MS
+  ) {
+    throw new ConvexError({
+      code: "INVALID_DISCORD_GUILD_EVENT_TIMESTAMP",
+      message: `${field} must be a valid Discord gateway event timestamp.`,
+    })
+  }
+}
+
+export function assertGatewayShardScope(scope: GatewayShardScope): void {
+  if (
+    !Number.isSafeInteger(scope.shardCount) ||
+    scope.shardCount <= 0 ||
+    scope.shardCount > MAX_SHARDS_PER_READY_SYNC
+  ) {
+    throw new ConvexError({
+      code: "INVALID_DISCORD_GATEWAY_SHARD_SCOPE",
+      message: "shardCount must be a positive safe integer within shard limits.",
+    })
+  }
+
+  if (
+    scope.shardIds.length === 0 ||
+    scope.shardIds.length > MAX_SHARDS_PER_READY_SYNC
+  ) {
+    throw new ConvexError({
+      code: "INVALID_DISCORD_GATEWAY_SHARD_SCOPE",
+      message: "shardIds must include at least one handled shard.",
+    })
+  }
+
+  const seenShardIds = new Set<number>()
+
+  for (const shardId of scope.shardIds) {
+    if (
+      !Number.isSafeInteger(shardId) ||
+      shardId < 0 ||
+      shardId >= scope.shardCount ||
+      seenShardIds.has(shardId)
+    ) {
+      throw new ConvexError({
+        code: "INVALID_DISCORD_GATEWAY_SHARD_SCOPE",
+        message: "shardIds must be unique shard IDs within shardCount.",
+      })
+    }
+
+    seenShardIds.add(shardId)
+  }
+}
+
 export function assertOptionalGuildName(name: string | undefined): void {
   if (name !== undefined) {
     assertBoundedString("name", name, MAX_GUILD_NAME_LENGTH)
   }
+}
+
+export function getDiscordGuildShardId(
+  discordGuildId: string,
+  shardCount: number
+): number | null {
+  if (
+    !DISCORD_SNOWFLAKE_PATTERN.test(discordGuildId) ||
+    !Number.isSafeInteger(shardCount) ||
+    shardCount <= 0
+  ) {
+    return null
+  }
+
+  return Number((BigInt(discordGuildId) >> 22n) % BigInt(shardCount))
 }
 
 export function uniqueGatewayGuilds(guilds: GatewayGuild[]): GatewayGuild[] {

@@ -11,11 +11,21 @@ const jsonValueLevel2 = v.union(
   v.array(jsonValueLevel1),
   v.record(v.string(), jsonValueLevel1)
 )
-
-export const jsonValue = v.union(
+const jsonValueLevel3 = v.union(
   jsonPrimitive,
   v.array(jsonValueLevel2),
   v.record(v.string(), jsonValueLevel2)
+)
+const jsonValueLevel4 = v.union(
+  jsonPrimitive,
+  v.array(jsonValueLevel3),
+  v.record(v.string(), jsonValueLevel3)
+)
+
+export const jsonValue = v.union(
+  jsonPrimitive,
+  v.array(jsonValueLevel4),
+  v.record(v.string(), jsonValueLevel4)
 )
 export const jsonObject = v.record(v.string(), jsonValue)
 export const jsonShallowValue = jsonValueLevel1
@@ -67,7 +77,7 @@ function isConvexJsonValueWithDepth(
     return true
   }
 
-  if (depth >= 3) {
+  if (depth >= 5) {
     return false
   }
 

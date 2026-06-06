@@ -1,8 +1,8 @@
 import {
+  isConvexJsonObject,
   isConvexJsonShallowObject,
-  isConvexJsonShallowValue,
+  type ConvexJsonObject,
   type ConvexJsonShallowObject,
-  type ConvexJsonShallowValue,
 } from "./validators"
 
 const DISCORD_API_BASE_URL = "https://discord.com/api/v10"
@@ -65,7 +65,7 @@ type DiscordAuditLogEntry = {
   target_id?: string | null
   user_id?: string | null
   reason?: string | null
-  changes?: ConvexJsonShallowValue[]
+  changes?: ConvexJsonObject[]
   options?: ConvexJsonShallowObject
 }
 
@@ -131,7 +131,7 @@ export type DiscordGuildAuditLogEntry = {
   actorDisplayName?: string
   targetDiscordId?: string
   reason?: string
-  changes?: ConvexJsonShallowValue[]
+  changes?: ConvexJsonObject[]
   options?: ConvexJsonShallowObject
   occurredAt: number
 }
@@ -792,7 +792,7 @@ function isDiscordAuditLogEntry(value: unknown): value is DiscordAuditLogEntry {
       value.reason === null) &&
     (!("changes" in value) ||
       (Array.isArray(value.changes) &&
-        value.changes.every(isConvexJsonShallowValue))) &&
+        value.changes.every(isConvexJsonObject))) &&
     (!("options" in value) || isConvexJsonShallowObject(value.options))
   )
 }

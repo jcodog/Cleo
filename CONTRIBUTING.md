@@ -8,7 +8,7 @@ Cleo does not contain stats tracking.
 
 Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analytics, stats dashboards, stats commands, or stats AI tools.
 
-Stats are a separate product/project.
+Stats are a separate product/project called [CoD Stats](https://codstats.tech) with the following [repo](https://github.com/jcodog/CoD-Stats-Tracker).
 
 ## Architecture rules
 

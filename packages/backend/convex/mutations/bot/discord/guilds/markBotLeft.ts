@@ -38,7 +38,7 @@ export const mark = internalMutation({
     await ctx.db.patch(guild._id, {
       ...(args.name !== undefined ? { name: args.name } : {}),
       botLeftAt: leftAt,
-      lastSyncedAt: now,
+      lastSyncedAt: leftAt,
       updatedAt: now,
     })
 

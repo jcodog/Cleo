@@ -15,6 +15,48 @@ import { z } from "zod"
 const convexUrl = discordEnv.CONVEX_URL
 const convexSecret = discordEnv.DISCORD_BOT_CONVEX_SECRET
 
+const gatewayEventTimestampSchema = z.number().refine(
+  (value) => Number.isSafeInteger(value) && value >= 0,
+  "Gateway event timestamp must be a non-negative safe integer."
+)
+
+const gatewayShardIdSchema = z.number().refine(
+  (value) => Number.isSafeInteger(value) && value >= 0,
+  "Gateway shard IDs must be non-negative safe integers."
+)
+
+const gatewayShardScopeSchema = z
+  .object({
+    shardIds: z.array(gatewayShardIdSchema).min(1),
+    shardCount: z.number().refine(
+      (value) => Number.isSafeInteger(value) && value > 0,
+      "Gateway shard count must be a positive safe integer."
+    ),
+  })
+  .superRefine((scope, ctx) => {
+    const shardIds = new Set(scope.shardIds)
+
+    if (shardIds.size !== scope.shardIds.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Gateway shard IDs must be unique.",
+        path: ["shardIds"],
+      })
+    }
+
+    for (const [index, shardId] of scope.shardIds.entries()) {
+      if (shardId >= scope.shardCount) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Gateway shard ID must be less than shard count.",
+          path: ["shardIds", index],
+        })
+      }
+    }
+  })
+
+type GatewayShardScope = z.infer<typeof gatewayShardScopeSchema>
+
 const convex = convexUrl
   ? new ConvexHttpClient(convexUrl, {
       logger: false,
@@ -68,26 +110,38 @@ async function syncWithConvex(
 }
 
 export const convexBotClient = {
-  async syncReadyGuilds(guilds: GuildSnapshot[]) {
+  async syncReadyGuilds(
+    guilds: GuildSnapshot[],
+    options: {
+      shardScope: GatewayShardScope
+      syncedAt: number
+    }
+  ) {
     await syncWithConvex("ready guild sync", async ({ client, secret }) => {
       const parsedGuilds = z.array(guildSnapshotSchema).parse(guilds)
+      const parsedSyncedAt = gatewayEventTimestampSchema.parse(options.syncedAt)
+      const parsedShardScope = gatewayShardScopeSchema.parse(options.shardScope)
 
       await client.action(api.actions.bot.discord.gateway.syncReady.sync, {
         secret,
         guilds: parsedGuilds,
+        shardScope: parsedShardScope,
+        syncedAt: parsedSyncedAt,
       })
 
       botLog(`Synced ${parsedGuilds.length} ready guild(s) to Convex.`, "debug")
     })
   },
 
-  async syncGuildJoined(guild: GuildSnapshot) {
+  async syncGuildJoined(guild: GuildSnapshot, syncedAt: number) {
     await syncWithConvex("guild join sync", async ({ client, secret }) => {
       const parsedGuild = guildSnapshotSchema.parse(guild)
+      const parsedSyncedAt = gatewayEventTimestampSchema.parse(syncedAt)
 
       await client.action(api.actions.bot.discord.gateway.guildJoined.sync, {
         secret,
         guild: parsedGuild,
+        syncedAt: parsedSyncedAt,
       })
 
       botLog(
