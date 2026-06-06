@@ -1,4 +1,94 @@
-import { v } from "convex/values"
+import { v, type Infer } from "convex/values"
+
+const jsonPrimitive = v.union(v.null(), v.boolean(), v.number(), v.string())
+const jsonValueLevel1 = v.union(
+  jsonPrimitive,
+  v.array(jsonPrimitive),
+  v.record(v.string(), jsonPrimitive)
+)
+const jsonValueLevel2 = v.union(
+  jsonPrimitive,
+  v.array(jsonValueLevel1),
+  v.record(v.string(), jsonValueLevel1)
+)
+
+export const jsonValue = v.union(
+  jsonPrimitive,
+  v.array(jsonValueLevel2),
+  v.record(v.string(), jsonValueLevel2)
+)
+export const jsonObject = v.record(v.string(), jsonValue)
+export const jsonShallowValue = jsonValueLevel1
+export const jsonShallowObject = v.record(v.string(), jsonShallowValue)
+
+export type ConvexJsonValue = Infer<typeof jsonValue>
+export type ConvexJsonObject = Infer<typeof jsonObject>
+export type ConvexJsonShallowValue = Infer<typeof jsonShallowValue>
+export type ConvexJsonShallowObject = Infer<typeof jsonShallowObject>
+
+export function isConvexJsonValue(value: unknown): value is ConvexJsonValue {
+  return isConvexJsonValueWithDepth(value, 0)
+}
+
+export function isConvexJsonObject(value: unknown): value is ConvexJsonObject {
+  return (
+    isObjectRecord(value) &&
+    Object.values(value).every((nestedValue) =>
+      isConvexJsonValueWithDepth(nestedValue, 0)
+    )
+  )
+}
+
+export function isConvexJsonShallowValue(
+  value: unknown
+): value is ConvexJsonShallowValue {
+  return isConvexJsonValueWithDepth(value, 2)
+}
+
+export function isConvexJsonShallowObject(
+  value: unknown
+): value is ConvexJsonShallowObject {
+  return (
+    isObjectRecord(value) &&
+    Object.values(value).every(isConvexJsonShallowValue)
+  )
+}
+
+function isConvexJsonValueWithDepth(
+  value: unknown,
+  depth: number
+): value is ConvexJsonValue {
+  if (
+    value === null ||
+    typeof value === "boolean" ||
+    typeof value === "number" ||
+    typeof value === "string"
+  ) {
+    return true
+  }
+
+  if (depth >= 3) {
+    return false
+  }
+
+  if (Array.isArray(value)) {
+    return value.every((nestedValue) =>
+      isConvexJsonValueWithDepth(nestedValue, depth + 1)
+    )
+  }
+
+  if (isObjectRecord(value)) {
+    return Object.values(value).every((nestedValue) =>
+      isConvexJsonValueWithDepth(nestedValue, depth + 1)
+    )
+  }
+
+  return false
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
 
 export const guildConfigLogLevel = v.union(
   v.literal("none"),

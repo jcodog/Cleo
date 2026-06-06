@@ -19,7 +19,7 @@
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
-    "convex": "^1.39.1",
+    "convex": "^1.40.0",
     "discord.js": "^14.26.4",
     "zod": "^4.4.3"
   },
@@ -29,7 +29,7 @@
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
     "prettier": "catalog:",
-    "tsx": "^4.22.3",
+    "tsx": "^4.22.4",
     "typescript": "catalog:"
   }
 }

@@ -38,6 +38,7 @@ export const upsert = internalMutation({
         ...(args.botJoinedAt !== undefined
           ? { botJoinedAt: args.botJoinedAt }
           : {}),
+        botLeftAt: undefined,
         lastSyncedAt: args.lastSyncedAt ?? now,
         updatedAt: now,
       })

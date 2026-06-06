@@ -1,56 +1,16 @@
-import { ConvexError, v, type Validator } from "convex/values"
+import { ConvexError, v } from "convex/values"
 import type { Id } from "../../../_generated/dataModel"
 import { internalMutation, type MutationCtx } from "../../../_generated/server"
 import { getClerkLinkedProvider } from "../../../lib/clerkProviders"
-
-type ClerkEmailAddress = {
-  id?: string
-  email_address?: string
-  emailAddress?: string
-}
-
-type ClerkExternalAccount = {
-  id?: string | null
-  provider?: string | null
-  provider_user_id?: string | null
-  providerUserId?: string | null
-  external_account_id?: string | null
-  externalAccountId?: string | null
-  username?: string | null
-  email_address?: string | null
-  emailAddress?: string | null
-  first_name?: string | null
-  firstName?: string | null
-  last_name?: string | null
-  lastName?: string | null
-  image_url?: string | null
-  imageUrl?: string | null
-  avatar_url?: string | null
-  avatarUrl?: string | null
-  approved_scopes?: string | string[] | null
-  approvedScopes?: string | string[] | null
-}
-
-type ClerkUserData = {
-  id: string
-  primary_email_address_id?: string | null
-  primaryEmailAddressId?: string | null
-  email_addresses?: ClerkEmailAddress[]
-  emailAddresses?: ClerkEmailAddress[]
-  external_accounts?: ClerkExternalAccount[]
-  externalAccounts?: ClerkExternalAccount[]
-  first_name?: string | null
-  firstName?: string | null
-  last_name?: string | null
-  lastName?: string | null
-  username?: string | null
-  image_url?: string | null
-  imageUrl?: string | null
-}
+import {
+  clerkUserData,
+  type ClerkExternalAccount,
+  type ClerkUserData,
+} from "../../../lib/clerkUserData"
 
 export const upsertFromWebhook = internalMutation({
   args: {
-    data: v.any() as Validator<ClerkUserData>,
+    data: clerkUserData,
   },
   returns: v.id("users"),
   handler: async (ctx, { data }): Promise<Id<"users">> => {

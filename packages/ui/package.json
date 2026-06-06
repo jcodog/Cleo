@@ -36,9 +36,9 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "shadcn": "^4.8.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "shadcn": "^4.10.0",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"
   },

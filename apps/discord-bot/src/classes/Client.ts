@@ -1,6 +1,7 @@
 import {
   Client,
   Collection,
+  Events,
   GatewayIntentBits,
   Partials,
   type ClientEvents,
@@ -10,7 +11,7 @@ import {
 import type { Command } from "./Command"
 import type { Event } from "./Event"
 import { loadCommands } from "../loaders/loadCommands"
-import { loadEvents } from "../loaders/loadEvents"
+import { loadEvents, type LoadedEvent } from "../loaders/loadEvents"
 import { botLog, botLogError } from "@workspace/discord-bot/utils/botLog"
 
 const defaultClientOptions = {
@@ -61,13 +62,30 @@ export class BotClient extends Client {
     const events = await loadEvents()
 
     for (const event of events) {
-      this.registerEvent(event)
+      this.registerLoadedEvent(event)
 
       const mode = event.once ? "once" : "on"
       botLog(`Loaded event: ${String(event.name)} (${mode})`, "success")
     }
 
     botLog(`Registered ${events.length} event handler(s).`, "info")
+  }
+
+  private registerLoadedEvent(event: LoadedEvent): void {
+    switch (event.name) {
+      case Events.ClientReady:
+        this.registerEvent(event)
+        return
+      case Events.GuildCreate:
+        this.registerEvent(event)
+        return
+      case Events.GuildDelete:
+        this.registerEvent(event)
+        return
+      case Events.InteractionCreate:
+        this.registerEvent(event)
+        return
+    }
   }
 
   private registerEvent<TEventName extends keyof ClientEvents>(

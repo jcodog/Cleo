@@ -6,6 +6,11 @@ import {
   insertDashboardGuildAuditEvent,
   insertGuildAuditEvent,
 } from "../../../../lib/guildAudit"
+import {
+  jsonShallowObject,
+  jsonShallowValue,
+  jsonValue,
+} from "../../../../lib/validators"
 
 const discordAuditLogEntry = v.object({
   discordAuditLogId: v.string(),
@@ -15,8 +20,8 @@ const discordAuditLogEntry = v.object({
   actorDisplayName: v.optional(v.string()),
   targetDiscordId: v.optional(v.string()),
   reason: v.optional(v.string()),
-  changes: v.optional(v.array(v.any())),
-  options: v.optional(v.any()),
+  changes: v.optional(v.array(jsonShallowValue)),
+  options: v.optional(jsonShallowObject),
   occurredAt: v.number(),
 })
 
@@ -99,7 +104,7 @@ export const createBotAction = internalMutation({
     targetDiscordId: v.optional(v.string()),
     targetType: v.optional(v.string()),
     externalId: v.optional(v.string()),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(jsonValue),
     occurredAt: v.optional(v.number()),
   },
   returns: v.id("guildAuditEvents"),
@@ -138,7 +143,7 @@ export const createDashboardAction = internalMutation({
     userId: v.optional(v.id("users")),
     eventType: v.string(),
     summary: v.string(),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(jsonValue),
     occurredAt: v.optional(v.number()),
   },
   returns: v.id("guildAuditEvents"),

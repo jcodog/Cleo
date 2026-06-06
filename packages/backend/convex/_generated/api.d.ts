@@ -21,6 +21,69 @@ import type { GenericId as Id } from "convex/values";
  */
 export declare const api: {
   actions: {
+    bot: {
+      discord: {
+        gateway: {
+          guildJoined: {
+            sync: FunctionReference<
+              "action",
+              "public",
+              {
+                guild: {
+                  botJoinedAt?: number;
+                  description?: string;
+                  discordGuildId: string;
+                  iconHash?: string;
+                  iconUrl?: string;
+                  memberCount?: number;
+                  name: string;
+                  ownerDiscordId?: string;
+                  presenceCount?: number;
+                };
+                secret: string;
+              },
+              null
+            >;
+          };
+          guildLeft: {
+            sync: FunctionReference<
+              "action",
+              "public",
+              {
+                guild: {
+                  discordGuildId: string;
+                  leftAt?: number;
+                  name?: string;
+                };
+                secret: string;
+              },
+              null
+            >;
+          };
+          syncReady: {
+            sync: FunctionReference<
+              "action",
+              "public",
+              {
+                guilds: Array<{
+                  botJoinedAt?: number;
+                  description?: string;
+                  discordGuildId: string;
+                  iconHash?: string;
+                  iconUrl?: string;
+                  memberCount?: number;
+                  name: string;
+                  ownerDiscordId?: string;
+                  presenceCount?: number;
+                }>;
+                secret: string;
+              },
+              null
+            >;
+          };
+        };
+      };
+    };
     dashboard: {
       account: {
         syncDiscordIdentity: {
@@ -960,6 +1023,14 @@ export declare const internal: {
           };
         };
         guilds: {
+          markBotLeft: {
+            mark: FunctionReference<
+              "mutation",
+              "internal",
+              { discordGuildId: string; leftAt?: number; name?: string },
+              null
+            >;
+          };
           upsertFromGateway: {
             upsert: FunctionReference<
               "mutation",
@@ -995,7 +1066,58 @@ export declare const internal: {
                 eventType: string;
                 externalId?: string;
                 guildId: Id<"guilds">;
-                metadata?: any;
+                metadata?:
+                  | null
+                  | boolean
+                  | number
+                  | string
+                  | Array<
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<null | boolean | number | string>
+                          | Record<string, null | boolean | number | string>
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<null | boolean | number | string>
+                          | Record<string, null | boolean | number | string>
+                        >
+                    >
+                  | Record<
+                      string,
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<null | boolean | number | string>
+                          | Record<string, null | boolean | number | string>
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<null | boolean | number | string>
+                          | Record<string, null | boolean | number | string>
+                        >
+                    >;
                 occurredAt?: number;
                 summary: string;
                 targetDiscordId?: string;
@@ -1009,7 +1131,58 @@ export declare const internal: {
               {
                 eventType: string;
                 guildId: Id<"guilds">;
-                metadata?: any;
+                metadata?:
+                  | null
+                  | boolean
+                  | number
+                  | string
+                  | Array<
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<null | boolean | number | string>
+                          | Record<string, null | boolean | number | string>
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<null | boolean | number | string>
+                          | Record<string, null | boolean | number | string>
+                        >
+                    >
+                  | Record<
+                      string,
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<null | boolean | number | string>
+                          | Record<string, null | boolean | number | string>
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<null | boolean | number | string>
+                          | Record<string, null | boolean | number | string>
+                        >
+                    >;
                 occurredAt?: number;
                 summary: string;
                 userId?: Id<"users">;
@@ -1024,10 +1197,25 @@ export declare const internal: {
                   actionType: number;
                   actorDiscordUserId?: string;
                   actorDisplayName?: string;
-                  changes?: Array<any>;
+                  changes?: Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<null | boolean | number | string>
+                    | Record<string, null | boolean | number | string>
+                  >;
                   discordAuditLogId: string;
                   occurredAt: number;
-                  options?: any;
+                  options?: Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<null | boolean | number | string>
+                    | Record<string, null | boolean | number | string>
+                  >;
                   reason?: string;
                   summary: string;
                   targetDiscordId?: string;
@@ -1178,7 +1366,72 @@ export declare const internal: {
           upsertFromWebhook: FunctionReference<
             "mutation",
             "internal",
-            { data: any },
+            {
+              data: {
+                emailAddresses?: Array<{
+                  emailAddress?: string;
+                  email_address?: string;
+                  id?: string;
+                }>;
+                email_addresses?: Array<{
+                  emailAddress?: string;
+                  email_address?: string;
+                  id?: string;
+                }>;
+                externalAccounts?: Array<{
+                  approvedScopes?: string | Array<string> | null;
+                  approved_scopes?: string | Array<string> | null;
+                  avatarUrl?: string | null;
+                  avatar_url?: string | null;
+                  emailAddress?: string | null;
+                  email_address?: string | null;
+                  externalAccountId?: string | null;
+                  external_account_id?: string | null;
+                  firstName?: string | null;
+                  first_name?: string | null;
+                  id?: string | null;
+                  imageUrl?: string | null;
+                  image_url?: string | null;
+                  lastName?: string | null;
+                  last_name?: string | null;
+                  provider?: string | null;
+                  providerUserId?: string | null;
+                  provider_user_id?: string | null;
+                  username?: string | null;
+                }>;
+                external_accounts?: Array<{
+                  approvedScopes?: string | Array<string> | null;
+                  approved_scopes?: string | Array<string> | null;
+                  avatarUrl?: string | null;
+                  avatar_url?: string | null;
+                  emailAddress?: string | null;
+                  email_address?: string | null;
+                  externalAccountId?: string | null;
+                  external_account_id?: string | null;
+                  firstName?: string | null;
+                  first_name?: string | null;
+                  id?: string | null;
+                  imageUrl?: string | null;
+                  image_url?: string | null;
+                  lastName?: string | null;
+                  last_name?: string | null;
+                  provider?: string | null;
+                  providerUserId?: string | null;
+                  provider_user_id?: string | null;
+                  username?: string | null;
+                }>;
+                firstName?: string | null;
+                first_name?: string | null;
+                id: string;
+                imageUrl?: string | null;
+                image_url?: string | null;
+                lastName?: string | null;
+                last_name?: string | null;
+                primaryEmailAddressId?: string | null;
+                primary_email_address_id?: string | null;
+                username?: string | null;
+              };
+            },
             Id<"users">
           >;
         };
@@ -1193,7 +1446,58 @@ export declare const internal: {
             {
               level: "debug" | "info" | "warn" | "error";
               message: string;
-              metadata?: any;
+              metadata?:
+                | null
+                | boolean
+                | number
+                | string
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >;
               source:
                 | "dashboard"
                 | "discord-bot"

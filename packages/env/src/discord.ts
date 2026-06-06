@@ -1,17 +1,19 @@
 import { createEnv } from "@t3-oss/env-core"
 
-import { nodeEnv, optionalString, optionalUrl } from "./shared"
+import { optionalString, optionalUrl } from "./shared"
 
 export const discordEnv = createEnv({
   server: {
     // NODE_ENV: nodeEnv,
-    // CONVEX_URL: optionalUrl,
+    CONVEX_URL: optionalUrl,
+    DISCORD_BOT_CONVEX_SECRET: optionalString,
     DISCORD_BOT_TOKEN: optionalString,
-    // DISCORD_BOT_PERMISSIONS: optionalString,
+    DISCORD_BOT_PERMISSIONS: optionalString,
     // DISCORD_PUBLIC_KEY: optionalString,
+    DISCORD_CLIENT_ID: optionalString,
     DISCORD_APPLICATION_ID: optionalString,
     DISCORD_TEST_GUILD_ID: optionalString,
-    // DISCORD_INSTALL_REDIRECT_URI: optionalUrl,
+    DISCORD_INSTALL_REDIRECT_URI: optionalUrl,
     // OPENAI_API_KEY: optionalString,
   },
   runtimeEnv: process.env,

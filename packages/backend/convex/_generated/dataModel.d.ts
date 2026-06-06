@@ -132,7 +132,58 @@ export type DataModel = {
       guildId?: string;
       level: "debug" | "info" | "warn" | "error";
       message: string;
-      metadata?: any;
+      metadata?:
+        | null
+        | boolean
+        | number
+        | string
+        | Array<
+            | null
+            | boolean
+            | number
+            | string
+            | Array<
+                | null
+                | boolean
+                | number
+                | string
+                | Array<null | boolean | number | string>
+                | Record<string, null | boolean | number | string>
+              >
+            | Record<
+                string,
+                | null
+                | boolean
+                | number
+                | string
+                | Array<null | boolean | number | string>
+                | Record<string, null | boolean | number | string>
+              >
+          >
+        | Record<
+            string,
+            | null
+            | boolean
+            | number
+            | string
+            | Array<
+                | null
+                | boolean
+                | number
+                | string
+                | Array<null | boolean | number | string>
+                | Record<string, null | boolean | number | string>
+              >
+            | Record<
+                string,
+                | null
+                | boolean
+                | number
+                | string
+                | Array<null | boolean | number | string>
+                | Record<string, null | boolean | number | string>
+              >
+          >;
       source: "dashboard" | "discord-bot" | "kick-bot" | "ws-relay" | "backend";
       stack?: string;
       _id: Id<"errorLogs">;
@@ -147,6 +198,7 @@ export type DataModel = {
       | "level"
       | "message"
       | "metadata"
+      | `metadata.${string}`
       | "source"
       | "stack";
     indexes: {
@@ -180,7 +232,58 @@ export type DataModel = {
       eventType: string;
       externalId?: string;
       guildId: Id<"guilds">;
-      metadata?: any;
+      metadata?:
+        | null
+        | boolean
+        | number
+        | string
+        | Array<
+            | null
+            | boolean
+            | number
+            | string
+            | Array<
+                | null
+                | boolean
+                | number
+                | string
+                | Array<null | boolean | number | string>
+                | Record<string, null | boolean | number | string>
+              >
+            | Record<
+                string,
+                | null
+                | boolean
+                | number
+                | string
+                | Array<null | boolean | number | string>
+                | Record<string, null | boolean | number | string>
+              >
+          >
+        | Record<
+            string,
+            | null
+            | boolean
+            | number
+            | string
+            | Array<
+                | null
+                | boolean
+                | number
+                | string
+                | Array<null | boolean | number | string>
+                | Record<string, null | boolean | number | string>
+              >
+            | Record<
+                string,
+                | null
+                | boolean
+                | number
+                | string
+                | Array<null | boolean | number | string>
+                | Record<string, null | boolean | number | string>
+              >
+          >;
       occurredAt: number;
       source: "dashboard" | "discord-audit-log" | "bot-action";
       summary: string;
@@ -201,6 +304,7 @@ export type DataModel = {
       | "externalId"
       | "guildId"
       | "metadata"
+      | `metadata.${string}`
       | "occurredAt"
       | "source"
       | "summary"

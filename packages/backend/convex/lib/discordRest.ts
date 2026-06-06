@@ -1,3 +1,10 @@
+import {
+  isConvexJsonShallowObject,
+  isConvexJsonShallowValue,
+  type ConvexJsonShallowObject,
+  type ConvexJsonShallowValue,
+} from "./validators"
+
 const DISCORD_API_BASE_URL = "https://discord.com/api/v10"
 const DISCORD_CDN_BASE_URL = "https://cdn.discordapp.com"
 const DISCORD_GUILD_TEXT_CHANNEL = 0
@@ -58,8 +65,8 @@ type DiscordAuditLogEntry = {
   target_id?: string | null
   user_id?: string | null
   reason?: string | null
-  changes?: unknown[]
-  options?: Record<string, unknown>
+  changes?: ConvexJsonShallowValue[]
+  options?: ConvexJsonShallowObject
 }
 
 type DiscordAuditLogResponse = {
@@ -124,8 +131,8 @@ export type DiscordGuildAuditLogEntry = {
   actorDisplayName?: string
   targetDiscordId?: string
   reason?: string
-  changes?: unknown[]
-  options?: Record<string, unknown>
+  changes?: ConvexJsonShallowValue[]
+  options?: ConvexJsonShallowObject
   occurredAt: number
 }
 
@@ -783,8 +790,10 @@ function isDiscordAuditLogEntry(value: unknown): value is DiscordAuditLogEntry {
     (!("reason" in value) ||
       typeof value.reason === "string" ||
       value.reason === null) &&
-    (!("changes" in value) || Array.isArray(value.changes)) &&
-    (!("options" in value) || isObjectRecord(value.options))
+    (!("changes" in value) ||
+      (Array.isArray(value.changes) &&
+        value.changes.every(isConvexJsonShallowValue))) &&
+    (!("options" in value) || isConvexJsonShallowObject(value.options))
   )
 }
 
@@ -799,10 +808,6 @@ function isDiscordAuditLogUser(value: unknown): value is DiscordAuditLogUser {
       typeof value.global_name === "string" ||
       value.global_name === null)
   )
-}
-
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function getDiscordUserDisplayName(user: DiscordAuditLogUser): string {

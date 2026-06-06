@@ -4,6 +4,7 @@ import { v } from "convex/values"
 import type { Id } from "../../../_generated/dataModel"
 import { internalMutation } from "../../../_generated/server"
 import { appSource, logLevel } from "../../../dbTables/shared"
+import { jsonValue } from "../../../lib/validators"
 
 export const create = internalMutation({
   args: {
@@ -11,7 +12,7 @@ export const create = internalMutation({
     level: logLevel,
     message: v.string(),
     stack: v.optional(v.string()),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(jsonValue),
   },
   returns: v.id("errorLogs"),
   handler: async (ctx, args): Promise<Id<"errorLogs">> => {
