@@ -1,0 +1,44 @@
+packages/env/package.json
+  s_844b4f13f0bdc6::t_20f50fe088884f 9
+apps/discord-bot/package.json
+  s_844b4f13f0bdc6::t_20f50fe088884f 13
+packages/shared/package.json
+  s_844b4f13f0bdc6::t_20f50fe088884f 9
+turbo.json
+  s_844b4f13f0bdc6::t_20f50fe088884f 36
+.github/coverage-baseline.md
+  s_844b4f13f0bdc6::t_20f50fe088884f 1-16
+  s_844b4f13f0bdc6::t_3fcfb79f4957e0 17
+packages/backend/package.json
+  s_844b4f13f0bdc6::t_20f50fe088884f 13
+.github/workflows/regression.yml
+  s_844b4f13f0bdc6::t_20f50fe088884f 46,49-69
+apps/dashboard/package.json
+  s_844b4f13f0bdc6::t_20f50fe088884f 13
+packages/ui/package.json
+  s_844b4f13f0bdc6::t_20f50fe088884f 7
+  s_844b4f13f0bdc6::t_b09e52c847830a 10
+packages/logger/package.json
+  s_844b4f13f0bdc6::t_20f50fe088884f 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "4492ef09d41eb3bb80cb02d1542f836d5913ca5f",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_844b4f13f0bdc6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019eacbd-6593-78b2-b992-5c3ad3d91480",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
