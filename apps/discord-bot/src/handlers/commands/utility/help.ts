@@ -1,10 +1,23 @@
 import { Command } from "@workspace/discord-bot/classes/Command"
-import { MessageFlags } from "discord.js"
+import {
+  ApplicationIntegrationType,
+  InteractionContextType,
+  MessageFlags,
+} from "discord.js"
 
 export default new Command({
   data: {
     name: "help",
     description: "View Cleo's available commands.",
+    integration_types: [
+      ApplicationIntegrationType.GuildInstall,
+      ApplicationIntegrationType.UserInstall,
+    ],
+    contexts: [
+      InteractionContextType.BotDM,
+      InteractionContextType.Guild,
+      InteractionContextType.PrivateChannel,
+    ],
   },
   async execute({ interaction }) {
     await interaction.reply({

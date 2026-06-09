@@ -2,7 +2,12 @@ import { readdir } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { REST, Routes } from "discord.js"
+import {
+  ApplicationIntegrationType,
+  InteractionContextType,
+  REST,
+  Routes,
+} from "discord.js"
 
 import { discordEnv } from "@workspace/env/discord"
 
@@ -176,6 +181,41 @@ async function loadCommandData(): Promise<CommandData[]> {
   return commandData
 }
 
+function prepareCommandDataForTarget(
+  commandData: CommandData[],
+  target: RegisterTarget
+): CommandData[] {
+  if (target.type === "global") {
+    return commandData
+  }
+
+  const guildCommandData: CommandData[] = []
+
+  for (const command of commandData) {
+    const supportsGuild =
+      command.contexts?.includes(InteractionContextType.Guild) ?? true
+
+    if (!supportsGuild) {
+      logInfo(
+        `Skipping /${command.name} for guild registration because it does not support guild interactions.`
+      )
+
+      continue
+    }
+
+    const guildCommand = {
+      ...command,
+    }
+
+    delete guildCommand.contexts
+    delete guildCommand.integration_types
+
+    guildCommandData.push(guildCommand)
+  }
+
+  return guildCommandData
+}
+
 async function putCommandData(
   rest: REST,
   route: string,
@@ -198,6 +238,36 @@ async function clearCommandScope(
   logSuccess(`Cleared existing commands from ${scopeLabel}.`)
 }
 
+function validateCommandData(commandData: CommandData[]) {
+  for (const command of commandData) {
+    if (!command.contexts?.length) {
+      throw new Error(
+        `Command /${command.name} does not declare any interaction contexts.`
+      )
+    }
+
+    if (!command.integration_types?.length) {
+      throw new Error(
+        `Command /${command.name} does not declare any installation types.`
+      )
+    }
+
+    const supportsPrivateChannels = command.contexts.includes(
+      InteractionContextType.PrivateChannel
+    )
+
+    const supportsUserInstall = command.integration_types.includes(
+      ApplicationIntegrationType.UserInstall
+    )
+
+    if (supportsPrivateChannels && !supportsUserInstall) {
+      throw new Error(
+        `Command /${command.name} supports private channels but does not support user installation.`
+      )
+    }
+  }
+}
+
 async function registerCommands() {
   const token = discordEnv.DISCORD_BOT_TOKEN
   const applicationId = discordEnv.DISCORD_APPLICATION_ID
@@ -213,7 +283,15 @@ async function registerCommands() {
   const target = resolveRegisterTarget()
 
   // Load and validate first, so we do not wipe Discord commands if local files are broken.
-  const commandData = await loadCommandData()
+  const loadedCommandData = await loadCommandData()
+  validateCommandData(loadedCommandData)
+  const commandData = prepareCommandDataForTarget(loadedCommandData, target)
+
+  if (commandData.length === 0) {
+    throw new Error(
+      `No commands support the selected ${target.type} registration target.`
+    )
+  }
 
   const rest = new REST({ version: "10" }).setToken(token)
 

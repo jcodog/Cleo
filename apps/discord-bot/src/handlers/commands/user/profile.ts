@@ -1,10 +1,19 @@
 import { Command } from "@workspace/discord-bot/classes/Command"
-import { MessageFlags } from "discord.js"
+import {
+  ApplicationIntegrationType,
+  InteractionContextType,
+  MessageFlags,
+} from "discord.js"
 
 export default new Command({
   data: {
     name: "profile",
     description: "View your Discord profile details known to Cleo.",
+    integration_types: [ApplicationIntegrationType.UserInstall],
+    contexts: [
+      InteractionContextType.BotDM,
+      InteractionContextType.PrivateChannel,
+    ],
   },
   async execute({ interaction }) {
     const user = interaction.user

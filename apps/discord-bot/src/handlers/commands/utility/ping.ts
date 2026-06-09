@@ -1,4 +1,8 @@
-import { MessageFlags } from "discord.js"
+import {
+  ApplicationIntegrationType,
+  InteractionContextType,
+  MessageFlags,
+} from "discord.js"
 
 import { Command } from "@workspace/discord-bot/classes/Command"
 
@@ -6,6 +10,15 @@ export default new Command({
   data: {
     name: "ping",
     description: "Check whether Cleo is responding",
+    integration_types: [
+      ApplicationIntegrationType.GuildInstall,
+      ApplicationIntegrationType.UserInstall,
+    ],
+    contexts: [
+      InteractionContextType.BotDM,
+      InteractionContextType.Guild,
+      InteractionContextType.PrivateChannel,
+    ],
   },
   async execute({ interaction }) {
     const receivedAt = Date.now()
