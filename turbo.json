@@ -33,7 +33,7 @@
       "outputs": []
     },
     "test:coverage": {
-      "dependsOn": ["test", "^test:coverage"],
+      "dependsOn": ["^test:coverage"],
       "outputs": ["coverage/**"]
     },
     "dev": {

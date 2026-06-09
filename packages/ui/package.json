@@ -4,10 +4,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "lint": "eslint src",
+    "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "test:coverage": "c8 --all --src=src/lib --include=\"src/lib/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=99 --statements=99 --functions=99 --branches=99 --src=src/lib --include=\"src/lib/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

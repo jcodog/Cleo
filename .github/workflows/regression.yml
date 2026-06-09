@@ -37,17 +37,36 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run workspace tests
-        run: pnpm test
-
       - name: Typecheck workspace
         run: pnpm typecheck
 
       - name: Lint workspace
         run: pnpm lint
 
-      - name: Generate workspace coverage
+      - name: Run workspace tests with coverage
         run: pnpm test:coverage
+
+      - name: Verify Cobertura reports
+        run: |
+          reports=(
+            "apps/dashboard/coverage/cobertura-coverage.xml"
+            "apps/discord-bot/coverage/cobertura-coverage.xml"
+            "packages/backend/coverage/cobertura-coverage.xml"
+            "packages/env/coverage/cobertura-coverage.xml"
+            "packages/logger/coverage/cobertura-coverage.xml"
+            "packages/shared/coverage/cobertura-coverage.xml"
+            "packages/ui/coverage/cobertura-coverage.xml"
+          )
+
+          missing=0
+          for report in "${reports[@]}"; do
+            if [[ ! -f "$report" ]]; then
+              echo "Missing coverage report: $report"
+              missing=1
+            fi
+          done
+
+          exit "$missing"
 
       - name: Upload Cobertura artifacts
         uses: actions/upload-artifact@v4

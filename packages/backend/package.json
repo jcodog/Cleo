@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "tsx --test \"src/**/*.test.ts\" \"convex/**/*.test.ts\"",
-    "test:coverage": "c8 --all --src=. --include=\"src/**/*.ts\" --include=\"convex/**/*.ts\" --exclude=\"**/*.test.ts\" --exclude=\"convex/_generated/**\" --exclude=\"convex/auth.config.ts\" --exclude=\"convex/schema.ts\" --exclude=\"src/index.ts\" --exclude=\"src/env/**\" --exclude=\"src/lib/index.ts\" --exclude=\"src/shared/index.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\" \"convex/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=10 --statements=10 --functions=32 --branches=46 --src=. --include=\"src/**/*.ts\" --include=\"convex/**/*.ts\" --exclude=\"**/*.test.ts\" --exclude=\"convex/_generated/**\" --exclude=\"convex/auth.config.ts\" --exclude=\"convex/schema.ts\" --exclude=\"src/index.ts\" --exclude=\"src/env/**\" --exclude=\"src/lib/index.ts\" --exclude=\"src/shared/index.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\" \"convex/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

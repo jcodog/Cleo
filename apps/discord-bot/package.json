@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "format": "prettier -w \"**/*.{ts,json}\"",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "test:coverage": "c8 --all --src=src --include=\"src/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=49 --statements=49 --functions=52 --branches=84 --src=src --include=\"src/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "commands:register": "tsx --env-file=.env.local src/scripts/registerCommands.ts",
     "commands:register:guild": "tsx --env-file=.env.local src/scripts/registerCommands.ts --guild",
