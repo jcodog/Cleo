@@ -1,0 +1,102 @@
+apps/dashboard/src/features/discord-guild-workspace/sections.test.ts
+  s_f93b396c96df0c::t_94ed8cbfc51beb 1-16
+packages/backend/package.json
+  s_f93b396c96df0c::t_ab63d484123164 13
+  s_f93b396c96df0c::t_77715cfbb10613 12
+apps/dashboard/src/features/discord-guild-workspace/lib/format.test.ts
+  s_f93b396c96df0c::t_94ed8cbfc51beb 1-45
+apps/discord-bot/package.json
+  s_f93b396c96df0c::t_f404c0ccddddd1 13
+  s_f93b396c96df0c::t_78fcc1855c20e4 12
+packages/ui/src/lib/utils.test.ts
+  s_f93b396c96df0c::t_94ed8cbfc51beb 1-3,5-6,8-12
+  s_f93b396c96df0c::t_d3d53821f318c7 4
+  s_f93b396c96df0c::t_53280a2a2e26d8 7
+packages/logger/package.json
+  s_f93b396c96df0c::t_77715cfbb10613 8-9
+apps/dashboard/src/features/discord-guild-workspace/lib/config.test.ts
+  s_f93b396c96df0c::t_94ed8cbfc51beb 1-69
+.github/workflows/regression.yml
+  s_f93b396c96df0c::t_4e0e211aefc3ca 52-73,113-120
+  s_f93b396c96df0c::t_a81c5e496a891a 12
+  s_f93b396c96df0c::t_e543cbe29387d5 1-11,13-51,74-112
+packages/backend/src/lib/ids.test.ts
+  s_f93b396c96df0c::t_77715cfbb10613 1-24
+package.json
+  s_f93b396c96df0c::t_78fcc1855c20e4 10
+  s_f93b396c96df0c::t_f404c0ccddddd1 11-12
+  s_f93b396c96df0c::t_bb97dc86018018 18,21
+turbo.json
+  s_f93b396c96df0c::t_78fcc1855c20e4 31-33
+  s_f93b396c96df0c::t_f404c0ccddddd1 35-38
+  s_f93b396c96df0c::t_36c9576efcb05f 13-14
+apps/discord-bot/src/scripts/registerCommands.ts
+  s_f93b396c96df0c::t_78fcc1855c20e4 25,58,64,70,73-77,79,92,189,246-248,250-255,284,343-358,360,362-363
+  s_f93b396c96df0c::t_531b052520968c 54-57
+apps/discord-bot/src/loaders/loadEvents.test.ts
+  s_f93b396c96df0c::t_94ed8cbfc51beb 1-28
+packages/env/package.json
+  s_f93b396c96df0c::t_ab63d484123164 9
+  s_f93b396c96df0c::t_77715cfbb10613 8
+packages/logger/src/index.test.ts
+  s_f93b396c96df0c::t_77715cfbb10613 1-59
+apps/dashboard/package.json
+  s_f93b396c96df0c::t_94ed8cbfc51beb 12-13
+apps/discord-bot/src/utils/createGuildSnapshot.test.ts
+  s_f93b396c96df0c::t_cbc5eddab1cce7 1-102
+packages/shared/src/constants.test.ts
+  s_f93b396c96df0c::t_94ed8cbfc51beb 20-21,45-54
+  s_f93b396c96df0c::t_77715cfbb10613 1-19,22-44,55
+apps/discord-bot/src/services/guildRuntimeConfig.ts
+  s_f93b396c96df0c::t_531b052520968c 106-109,121
+  s_f93b396c96df0c::t_78fcc1855c20e4 68-73,91-105,110-112,132
+packages/shared/package.json
+  s_f93b396c96df0c::t_77715cfbb10613 8
+  s_f93b396c96df0c::t_ab63d484123164 9
+packages/shared/src/providers.test.ts
+  s_f93b396c96df0c::t_94ed8cbfc51beb 7-10,14-16
+  s_f93b396c96df0c::t_77715cfbb10613 1-6,11-13,17-21
+packages/backend/convex/actions/bot/discord/gateway/lib/gatewayGuild.test.ts
+  s_f93b396c96df0c::t_77715cfbb10613 1-165
+packages/env/src/shared.test.ts
+  s_f93b396c96df0c::t_94ed8cbfc51beb 15-18,27-59
+  s_f93b396c96df0c::t_77715cfbb10613 1-14,19-26,60
+packages/ui/package.json
+  s_f93b396c96df0c::t_46c84deef98ec9 7
+  s_f93b396c96df0c::t_94ed8cbfc51beb 9-10
+packages/eslint-config/react-internal.js
+  s_f93b396c96df0c::t_e37a8273eda695 38
+apps/discord-bot/src/services/guildRuntimeConfig.test.ts
+  s_f93b396c96df0c::t_cbc5eddab1cce7 1-147
+packages/backend/convex/lib/validators.test.ts
+  s_f93b396c96df0c::t_77715cfbb10613 1-23,25,27-28
+  s_f93b396c96df0c::t_352d30e24307d4 24,26
+packages/backend/src/lib/errors.test.ts
+  s_f93b396c96df0c::t_77715cfbb10613 1-27
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  s_f93b396c96df0c::t_cbc5eddab1cce7 1-128,132-171
+  s_f93b396c96df0c::t_cc960254ce8d72 129-131
+packages/backend/src/lib/time.test.ts
+  s_f93b396c96df0c::t_77715cfbb10613 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "04de95175239dd4389c504553cb4ad6318146bc8",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_f93b396c96df0c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019eac75-e4b2-7db0-8ca6-1549d0e593cd",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
