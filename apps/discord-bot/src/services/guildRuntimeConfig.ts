@@ -65,6 +65,12 @@ export type DiscordGuildRuntimeConfigResult =
       reason: DiscordGuildRuntimeConfigDisabledReason
     }
 
+type RuntimeConfigValidationOptions = {
+  discordGuildId: string
+  backendResult: unknown | null
+  onError?: (message: string, error?: unknown) => void
+}
+
 export async function fetchDiscordGuildRuntimeConfig(
   discordGuildId: string
 ): Promise<DiscordGuildRuntimeConfigResult> {
@@ -82,6 +88,28 @@ export async function fetchDiscordGuildRuntimeConfig(
     parsedGuildId.data
   )
 
+  return validateDiscordGuildRuntimeConfigBackendResult({
+    discordGuildId: parsedGuildId.data,
+    backendResult,
+    onError: botLogError,
+  })
+}
+
+export function validateDiscordGuildRuntimeConfigBackendResult({
+  discordGuildId,
+  backendResult,
+  onError,
+}: RuntimeConfigValidationOptions): DiscordGuildRuntimeConfigResult {
+  const parsedGuildId = discordSnowflakeSchema.safeParse(discordGuildId)
+
+  if (!parsedGuildId.success) {
+    onError?.(
+      "Invalid Discord guild ID for runtime config fetch.",
+      parsedGuildId.error
+    )
+    return disabledConfig("invalidGuildId")
+  }
+
   if (backendResult === null) {
     return disabledConfig("convexUnavailable")
   }
@@ -90,7 +118,7 @@ export async function fetchDiscordGuildRuntimeConfig(
     backendGuildRuntimeConfigResultSchema.safeParse(backendResult)
 
   if (!parsedResult.success) {
-    botLogError(
+    onError?.(
       "Invalid Convex guild runtime config response.",
       parsedResult.error
     )
@@ -101,7 +129,7 @@ export async function fetchDiscordGuildRuntimeConfig(
     parsedResult.data.status === "ready" &&
     parsedResult.data.config.discordGuildId !== parsedGuildId.data
   ) {
-    botLogError("Convex returned runtime config for a different Discord guild.")
+    onError?.("Convex returned runtime config for a different Discord guild.")
     return disabledConfig("invalidBackendResponse")
   }
 

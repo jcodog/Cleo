@@ -9,6 +9,8 @@
     "codegen": "convex codegen",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "test": "tsx --test \"src/**/*.test.ts\" \"convex/**/*.test.ts\"",
+    "test:coverage": "c8 --all --src=. --include=\"src/**/*.ts\" --include=\"convex/**/*.ts\" --exclude=\"**/*.test.ts\" --exclude=\"convex/_generated/**\" --exclude=\"convex/auth.config.ts\" --exclude=\"convex/schema.ts\" --exclude=\"src/index.ts\" --exclude=\"src/env/**\" --exclude=\"src/lib/index.ts\" --exclude=\"src/shared/index.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\" \"convex/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

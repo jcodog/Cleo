@@ -22,7 +22,7 @@ type CommandModule = {
   command?: unknown
 }
 
-type RegisterTarget =
+export type RegisterTarget =
   | {
       type: "guild"
       guildId: string
@@ -51,27 +51,32 @@ function isCommandOptions(value: unknown): value is CommandOptions {
   return Boolean(command.data) && typeof command.execute === "function"
 }
 
-function readArgValue(flag: string): string | undefined {
-  const exactArg = process.argv.find((arg) => arg.startsWith(`${flag}=`))
+function readArgValue(
+  args: readonly string[],
+  flag: string
+): string | undefined {
+  const exactArg = args.find((arg) => arg.startsWith(`${flag}=`))
 
   if (exactArg) {
     return exactArg.slice(flag.length + 1)
   }
 
-  const flagIndex = process.argv.indexOf(flag)
+  const flagIndex = args.indexOf(flag)
 
   if (flagIndex === -1) {
     return undefined
   }
 
-  return process.argv[flagIndex + 1]
+  return args[flagIndex + 1]
 }
 
-function resolveRegisterTarget(): RegisterTarget {
-  const wantsGlobal = process.argv.includes("--global")
+export function resolveRegisterTarget(
+  args: readonly string[] = process.argv,
+  testGuildId: string | undefined = discordEnv.DISCORD_TEST_GUILD_ID
+): RegisterTarget {
+  const wantsGlobal = args.includes("--global")
   const wantsGuild =
-    process.argv.includes("--guild") ||
-    process.argv.some((arg) => arg.startsWith("--guild="))
+    args.includes("--guild") || args.some((arg) => arg.startsWith("--guild="))
 
   if (wantsGlobal && wantsGuild) {
     throw new Error("Use either --global or --guild, not both.")
@@ -84,7 +89,7 @@ function resolveRegisterTarget(): RegisterTarget {
   }
 
   if (wantsGuild) {
-    const guildId = readArgValue("--guild") ?? discordEnv.DISCORD_TEST_GUILD_ID
+    const guildId = readArgValue(args, "--guild") ?? testGuildId
 
     if (!guildId) {
       throw new Error(
@@ -181,7 +186,7 @@ async function loadCommandData(): Promise<CommandData[]> {
   return commandData
 }
 
-function prepareCommandDataForTarget(
+export function prepareCommandDataForTarget(
   commandData: CommandData[],
   target: RegisterTarget
 ): CommandData[] {
@@ -238,8 +243,16 @@ async function clearCommandScope(
   logSuccess(`Cleared existing commands from ${scopeLabel}.`)
 }
 
-function validateCommandData(commandData: CommandData[]) {
+export function validateCommandData(commandData: CommandData[]) {
+  const commandNames = new Set<string>()
+
   for (const command of commandData) {
+    if (commandNames.has(command.name)) {
+      throw new Error(`Duplicate command name found: /${command.name}`)
+    }
+
+    commandNames.add(command.name)
+
     if (!command.contexts?.length) {
       throw new Error(
         `Command /${command.name} does not declare any interaction contexts.`
@@ -268,7 +281,7 @@ function validateCommandData(commandData: CommandData[]) {
   }
 }
 
-async function registerCommands() {
+export async function registerCommands() {
   const token = discordEnv.DISCORD_BOT_TOKEN
   const applicationId = discordEnv.DISCORD_APPLICATION_ID
 
@@ -327,13 +340,25 @@ async function registerCommands() {
   logSuccess(`Registered ${registeredCount} command(s) to ${targetLabel}.`)
 }
 
-try {
-  await registerCommands()
-} catch (error) {
-  const message =
-    error instanceof Error ? (error.stack ?? error.message) : String(error)
+function isDirectEntrypoint(): boolean {
+  const entrypoint = process.argv[1]
 
-  logError("Failed to register Discord slash commands.", message)
+  if (!entrypoint) {
+    return false
+  }
 
-  process.exitCode = 1
+  return pathToFileURL(path.resolve(entrypoint)).href === import.meta.url
+}
+
+if (isDirectEntrypoint()) {
+  try {
+    await registerCommands()
+  } catch (error) {
+    const message =
+      error instanceof Error ? (error.stack ?? error.message) : String(error)
+
+    logError("Failed to register Discord slash commands.", message)
+
+    process.exitCode = 1
+  }
 }

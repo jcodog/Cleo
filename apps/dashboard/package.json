@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --src=src/features/discord-guild-workspace --include=\"src/features/discord-guild-workspace/**/*.ts\" --exclude=\"src/**/*.test.ts\" --exclude=\"src/**/index.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

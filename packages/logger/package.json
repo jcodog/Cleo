@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "lint": "eslint .",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --src=src --include=\"src/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
