@@ -1,0 +1,20 @@
+apps/discord-bot/src/scripts/registerCommands.ts
+  h_2bc691fceb4fe5 6-7,9,184-216,218,241-270,286-294
+apps/discord-bot/src/handlers/commands/utility/help.ts
+  h_2bc691fceb4fe5 3-5,12-20
+apps/discord-bot/src/handlers/commands/user/profile.ts
+  h_2bc691fceb4fe5 3-5,12-16
+apps/discord-bot/src/handlers/commands/utility/ping.ts
+  h_2bc691fceb4fe5 2-4,13-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "28184c2b06519f108b38554341040b0f6a0e24ee",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
