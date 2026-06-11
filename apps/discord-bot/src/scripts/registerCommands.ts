@@ -23,6 +23,25 @@ export type RegisterTarget =
       type: "global"
     }
 
+type CommandRegistrationRest = {
+  put: (
+    route: `/${string}`,
+    options: {
+      body: CommandData[]
+    }
+  ) => Promise<unknown> | unknown
+}
+
+type RegisterCommandsOptions = {
+  args?: readonly string[]
+  testGuildId?: string
+  token?: string
+  applicationId?: string
+  rest?: CommandRegistrationRest
+  commandData?: CommandData[]
+  cleanupGlobalCommandsAfterGuildRegistration?: boolean
+}
+
 const logInfo = (message: string) => botLog(message, "info")
 const logSuccess = (message: string) => botLog(message, "success")
 const logError = (message: string, error: unknown) =>
@@ -127,7 +146,7 @@ export function prepareCommandDataForTarget(
 }
 
 async function putCommandData(
-  rest: REST,
+  rest: CommandRegistrationRest,
   route: string,
   commandData: CommandData[]
 ) {
@@ -136,16 +155,21 @@ async function putCommandData(
   })
 }
 
-async function clearCommandScope(
-  rest: REST,
+async function overwriteCommandScope(
+  rest: CommandRegistrationRest,
   route: string,
-  scopeLabel: string
+  scopeLabel: string,
+  commandData: CommandData[]
 ) {
-  logInfo(`Clearing existing commands from ${scopeLabel}...`)
+  logInfo(`Registering ${commandData.length} command(s) to ${scopeLabel}...`)
 
-  await putCommandData(rest, route, [])
+  const response = await putCommandData(rest, route, commandData)
 
-  logSuccess(`Cleared existing commands from ${scopeLabel}.`)
+  const registeredCount = Array.isArray(response)
+    ? response.length
+    : commandData.length
+
+  logSuccess(`Registered ${registeredCount} command(s) to ${scopeLabel}.`)
 }
 
 export function validateCommandData(commandData: CommandData[]) {
@@ -186,9 +210,12 @@ export function validateCommandData(commandData: CommandData[]) {
   }
 }
 
-export async function registerCommands() {
-  const token = discordEnv.DISCORD_BOT_TOKEN
-  const applicationId = discordEnv.DISCORD_APPLICATION_ID
+export async function registerCommands(
+  options: RegisterCommandsOptions = {}
+) {
+  const token = options.token ?? discordEnv.DISCORD_BOT_TOKEN
+  const applicationId =
+    options.applicationId ?? discordEnv.DISCORD_APPLICATION_ID
 
   if (!token) {
     throw new Error("Missing DISCORD_BOT_TOKEN.")
@@ -198,10 +225,10 @@ export async function registerCommands() {
     throw new Error("Missing DISCORD_APPLICATION_ID.")
   }
 
-  const target = resolveRegisterTarget()
+  const target = resolveRegisterTarget(options.args, options.testGuildId)
 
   // Load and validate first, so we do not wipe Discord commands if local files are broken.
-  const loadedCommandData = await loadCommandData()
+  const loadedCommandData = options.commandData ?? (await loadCommandData())
   validateCommandData(loadedCommandData)
   const commandData = prepareCommandDataForTarget(loadedCommandData, target)
 
@@ -211,7 +238,8 @@ export async function registerCommands() {
     )
   }
 
-  const rest = new REST({ version: "10" }).setToken(token)
+  const rest =
+    options.rest ?? new REST({ version: "10" }).setToken(token)
 
   const globalRoute = Routes.applicationCommands(applicationId)
 
@@ -225,24 +253,16 @@ export async function registerCommands() {
       ? `guild ${target.guildId}`
       : "global application commands"
 
-  // Always clear global commands first.
-  // This prevents old global commands from hanging around during guild-only dev registration.
-  await clearCommandScope(rest, globalRoute, "global application commands")
+  await overwriteCommandScope(rest, targetRoute, targetLabel, commandData)
 
-  // If registering to a guild, also clear that guild's local command scope.
-  if (target.type === "guild") {
-    await clearCommandScope(rest, targetRoute, targetLabel)
+  if (
+    target.type === "guild" &&
+    (options.cleanupGlobalCommandsAfterGuildRegistration ?? true)
+  ) {
+    // Guild commands are installed first. If cleanup fails, stale global commands
+    // remain temporarily instead of deleting the working command surface first.
+    await overwriteCommandScope(rest, globalRoute, "global application commands", [])
   }
-
-  logInfo(`Registering ${commandData.length} command(s) to ${targetLabel}...`)
-
-  const response = await putCommandData(rest, targetRoute, commandData)
-
-  const registeredCount = Array.isArray(response)
-    ? response.length
-    : commandData.length
-
-  logSuccess(`Registered ${registeredCount} command(s) to ${targetLabel}.`)
 }
 
 function isDirectEntrypoint(): boolean {

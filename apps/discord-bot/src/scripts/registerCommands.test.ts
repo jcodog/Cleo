@@ -4,6 +4,7 @@ import { test } from "node:test"
 import {
   ApplicationIntegrationType,
   InteractionContextType,
+  Routes,
 } from "discord.js"
 
 import type { CommandData } from "@workspace/discord-bot/classes/Command"
@@ -11,11 +12,13 @@ import { loadCommands } from "@workspace/discord-bot/loaders/loadCommands"
 
 import {
   prepareCommandDataForTarget,
+  registerCommands,
   resolveRegisterTarget,
   validateCommandData,
 } from "./registerCommands"
 
 const guildId = "123456789012345678"
+const applicationId = "987654321098765432"
 
 function commandData(overrides: Partial<CommandData> = {}): CommandData {
   return {
@@ -24,6 +27,36 @@ function commandData(overrides: Partial<CommandData> = {}): CommandData {
     contexts: [InteractionContextType.Guild],
     integration_types: [ApplicationIntegrationType.GuildInstall],
     ...overrides,
+  }
+}
+
+function createRecordingRest(options: { failOnCall?: number } = {}) {
+  const calls: {
+    route: string
+    body: CommandData[]
+  }[] = []
+
+  return {
+    calls,
+    rest: {
+      async put(
+        route: `/${string}`,
+        request: {
+          body: CommandData[]
+        }
+      ) {
+        calls.push({
+          route,
+          body: request.body,
+        })
+
+        if (calls.length === options.failOnCall) {
+          throw new Error("Discord REST overwrite failed.")
+        }
+
+        return request.body
+      },
+    },
   }
 }
 
@@ -168,4 +201,168 @@ test("guild registration filters unsupported commands and strips global metadata
     ApplicationIntegrationType.GuildInstall,
     ApplicationIntegrationType.UserInstall,
   ])
+})
+
+test("global registration makes one complete overwrite request", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+
+  const commands = [
+    commandData(),
+    commandData({
+      name: "profile",
+      contexts: [
+        InteractionContextType.BotDM,
+        InteractionContextType.PrivateChannel,
+      ],
+      integration_types: [ApplicationIntegrationType.UserInstall],
+    }),
+  ]
+  const { calls, rest } = createRecordingRest()
+
+  await registerCommands({
+    args: ["node", "register", "--global"],
+    token: "token",
+    applicationId,
+    rest,
+    commandData: commands,
+  })
+
+  assert.deepEqual(calls, [
+    {
+      route: Routes.applicationCommands(applicationId),
+      body: commands,
+    },
+  ])
+})
+
+test("global registration does not issue an empty overwrite before replacement", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+
+  const commands = [commandData()]
+  const { calls, rest } = createRecordingRest()
+
+  await registerCommands({
+    args: ["node", "register", "--global"],
+    token: "token",
+    applicationId,
+    rest,
+    commandData: commands,
+  })
+
+  assert.equal(calls.length, 1)
+  assert.deepEqual(calls[0]?.body, commands)
+  assert.notDeepEqual(calls[0]?.body, [])
+})
+
+test("failed global replacement is not preceded by a destructive clear", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+
+  const commands = [commandData()]
+  const { calls, rest } = createRecordingRest({ failOnCall: 1 })
+
+  await assert.rejects(
+    registerCommands({
+      args: ["node", "register", "--global"],
+      token: "token",
+      applicationId,
+      rest,
+      commandData: commands,
+    }),
+    /Discord REST overwrite failed/
+  )
+
+  assert.deepEqual(calls, [
+    {
+      route: Routes.applicationCommands(applicationId),
+      body: commands,
+    },
+  ])
+})
+
+test("guild registration installs guild payload before global cleanup", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+
+  const guildCommand = commandData({
+    name: "help",
+    contexts: [InteractionContextType.Guild, InteractionContextType.BotDM],
+    integration_types: [
+      ApplicationIntegrationType.GuildInstall,
+      ApplicationIntegrationType.UserInstall,
+    ],
+  })
+  const userOnlyCommand = commandData({
+    name: "profile",
+    contexts: [
+      InteractionContextType.BotDM,
+      InteractionContextType.PrivateChannel,
+    ],
+    integration_types: [ApplicationIntegrationType.UserInstall],
+  })
+  const { calls, rest } = createRecordingRest()
+
+  await registerCommands({
+    args: ["node", "register", "--guild", guildId],
+    token: "token",
+    applicationId,
+    rest,
+    commandData: [guildCommand, userOnlyCommand],
+  })
+
+  assert.deepEqual(calls, [
+    {
+      route: Routes.applicationGuildCommands(applicationId, guildId),
+      body: [
+        {
+          name: "help",
+          description: "Check whether Cleo is responding",
+        },
+      ],
+    },
+    {
+      route: Routes.applicationCommands(applicationId),
+      body: [],
+    },
+  ])
+})
+
+test("invalid payloads fail before any REST request", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+
+  const invalidPayload = createRecordingRest()
+
+  await assert.rejects(
+    registerCommands({
+      args: ["node", "register", "--global"],
+      token: "token",
+      applicationId,
+      rest: invalidPayload.rest,
+      commandData: [commandData({ contexts: [] })],
+    }),
+    /does not declare any interaction contexts/
+  )
+
+  assert.deepEqual(invalidPayload.calls, [])
+
+  const emptyPreparedPayload = createRecordingRest()
+
+  await assert.rejects(
+    registerCommands({
+      args: ["node", "register", "--guild", guildId],
+      token: "token",
+      applicationId,
+      rest: emptyPreparedPayload.rest,
+      commandData: [
+        commandData({
+          contexts: [
+            InteractionContextType.BotDM,
+            InteractionContextType.PrivateChannel,
+          ],
+          integration_types: [ApplicationIntegrationType.UserInstall],
+        }),
+      ],
+    }),
+    /No commands support the selected guild registration target/
+  )
+
+  assert.deepEqual(emptyPreparedPayload.calls, [])
 })
