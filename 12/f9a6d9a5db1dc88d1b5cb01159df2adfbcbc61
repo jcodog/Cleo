@@ -1,0 +1,161 @@
+apps/discord-bot/src/services/convexBotClient.test.ts
+  s_7f7fb83e292ed4::t_981ef1fe8df525 1-5,8-104,147-148
+  s_7f7fb83e292ed4::t_7ae820d934f065 6-7,105-146
+apps/discord-bot/src/services/guildRuntimeConfig.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 1-2
+  s_7f7fb83e292ed4::t_e1d219b4b544b2 3-15,26-27,32,36,47-48,56-59,64
+packages/shared/src/discordRuntimeConfig.ts
+  s_7f7fb83e292ed4::t_e0b512429dd1b1 1-212,227-228,231,234-237,239,247,255,263,271,276-281,288,291,294,297,300-301,328-330,335-350
+  s_7f7fb83e292ed4::t_5bc743c2ca0296 331-334
+  s_7f7fb83e292ed4::t_497f3ca65a8233 213-226,282-284
+  s_7f7fb83e292ed4::t_738ce0682d810d 229-230,232-233,238,240-246,248-254,256-262,264-270,272-275,285-287,289-290,292-293,295-296,298-299,302-327
+apps/discord-bot/src/handlers/commands/utility/ping.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 7
+packages/backend/convex/actions/bot/discord/gateway/lib/gatewayGuild.ts
+  s_7f7fb83e292ed4::t_c478dddb169fdb 3,143
+  s_7f7fb83e292ed4::t_3a025f7d919092 6-7
+apps/discord-bot/src/handlers/events/interactionCreate.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 3,5
+apps/discord-bot/src/classes/Client.ts
+  s_7f7fb83e292ed4::t_bcaa7dad832799 11,13,57-73,95,125-127,129-146
+  s_7f7fb83e292ed4::t_ff1daf22845647 16-19,94,96-99,128
+  s_7f7fb83e292ed4::t_818245b13c6952 15,39,100,111-124,147-194
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 14
+apps/discord-bot/src/runtime/shutdown.test.ts
+  s_7f7fb83e292ed4::t_e50d2d507c1a7b 79-111
+  s_7f7fb83e292ed4::t_1a1e9d787bc550 1-78
+apps/discord-bot/src/loaders/loadCommands.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 1-4
+packages/shared/package.json
+  s_7f7fb83e292ed4::t_c0fb7632fe2b22 21
+packages/backend/convex/actions/bot/discord/gateway/guildJoined.ts
+  s_7f7fb83e292ed4::t_22a302c294f43c 7
+apps/discord-bot/src/runtime/shutdown.ts
+  s_7f7fb83e292ed4::t_2f6ea44916b486 1-2,4-61
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 3
+packages/shared/src/discordRuntimeConfig.test.ts
+  s_7f7fb83e292ed4::t_7a34b12e24e46a 131-139
+  s_7f7fb83e292ed4::t_a9b0fc0d72a171 1-96,118-122,190-193,213-233,260-261
+  s_7f7fb83e292ed4::t_2dbca22e8120c2 97-117,123-130,140-189,194-212,234-259
+apps/discord-bot/tsconfig.json
+  s_7f7fb83e292ed4::t_7bbfaaf9e8d092 9
+apps/discord-bot/src/handlers/commands/utility/help.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 1
+apps/discord-bot/src/scripts/registerCommands.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 13-15
+apps/discord-bot/src/classes/Client.test.ts
+  s_7f7fb83e292ed4::t_833d9b810854e1 166-220
+  s_7f7fb83e292ed4::t_372ed6441fc978 94
+  s_7f7fb83e292ed4::t_375fca93f95240 16-18,21,28,30
+  s_7f7fb83e292ed4::t_eda1ffe316bc97 4-9,11,14,24-25,29,31,37-59,73,75-93,95-129,230-234,236-237,239
+  s_7f7fb83e292ed4::t_b7df8886411af2 133,138-139,141,161-163
+  s_7f7fb83e292ed4::t_66866dabf2ddba 130-132,134-137,140,142-144,147-160,164-165,221-229
+packages/backend/convex/lib/botDiscordGuildRuntimeConfig.ts
+  s_7f7fb83e292ed4::t_db294bb303305b 1-4,7-14,17-26,34
+apps/discord-bot/src/services/guildRuntimeConfig.test.ts
+  s_7f7fb83e292ed4::t_6170d3641a6bfb 129
+packages/backend/convex/actions/bot/discord/gateway/syncReady.test.ts
+  s_7f7fb83e292ed4::t_bafa5323ca1282 1-7,9-22,27-71,86
+  s_7f7fb83e292ed4::t_cac9c6df94a022 8,23-26,72-85
+packages/backend/convex/dbTables/guilds.ts
+  s_7f7fb83e292ed4::t_30da990327ea96 21-23,26-28
+apps/discord-bot/src/handlers/events/guildDelete.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 1-4
+packages/backend/convex/actions/bot/discord/lib/discordId.ts
+  s_7f7fb83e292ed4::t_d465598f350c65 1-13
+apps/discord-bot/src/utils/replyWithCommandError.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 1
+  s_7f7fb83e292ed4::t_3ae96578e86e8b 13-21,38-39
+apps/discord-bot/src/utils/botLog.test.ts
+  s_7f7fb83e292ed4::t_4c683bf959ff05 40-58
+  s_7f7fb83e292ed4::t_a94f2c06b9e15c 1-5,7-30,33,39
+  s_7f7fb83e292ed4::t_68169d0f9de7fe 6
+  s_7f7fb83e292ed4::t_c95eba85d5816a 31-32,34-38
+  s_7f7fb83e292ed4::t_6399f3814ed61c 59-79
+apps/discord-bot/src/index.ts
+  s_7f7fb83e292ed4::t_2df63005b588c0 3,22,41-44,46-51
+  s_7f7fb83e292ed4::t_0f1e2ba3892bb5 2,7,9-21,23-40,45
+packages/shared/src/index.ts
+  s_7f7fb83e292ed4::t_b250aa3261d554 2
+packages/backend/convex/actions/bot/discord/gateway/lib/gatewayGuild.test.ts
+  s_7f7fb83e292ed4::t_edcd87a339b290 12
+packages/backend/convex/queries/bot/discord/guilds/readyReconciliation.ts
+  s_7f7fb83e292ed4::t_20714557b90a9d 16,21-26
+apps/discord-bot/src/handlers/events/interactionCreate.test.ts
+  s_7f7fb83e292ed4::t_72e1d661d2ceb5 151-180
+  s_7f7fb83e292ed4::t_1e716fb396d5c9 4-8,146
+  s_7f7fb83e292ed4::t_077400dcf84eba 1-3,9,12-145,147-150,181-207,211-217,219-220,223,225-234,242
+  s_7f7fb83e292ed4::t_98dc3672fcf677 208-210
+  s_7f7fb83e292ed4::t_588e0317412df5 218,221-222,224,235-241
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 10-11
+packages/logger/src/index.test.ts
+  s_7f7fb83e292ed4::t_139effbb0170c0 4-10,23,34,43-45,47,49-55,59-66
+  s_7f7fb83e292ed4::t_b3cdc57ad1a0eb 46,48
+  s_7f7fb83e292ed4::t_9fa4ae86625ed8 56-58,67-84,87-88,92-99,101,105-106,109-110,123-132
+apps/discord-bot/src/handlers/commands/user/profile.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 1
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 10-11
+packages/backend/convex/actions/bot/discord/guildConfigs/getRuntimeConfig.ts
+  s_7f7fb83e292ed4::t_fc5c1d41ed5c08 8-9
+packages/backend/convex/mutations/bot/discord/guilds/syncReadyBatch.ts
+  s_7f7fb83e292ed4::t_fb682cd9e89285 182-185
+  s_7f7fb83e292ed4::t_16f9f88a944d1b 186-187,189-192
+  s_7f7fb83e292ed4::t_60770c33c50024 1-2,4-181,188,193-228,230-268
+  s_7f7fb83e292ed4::t_839a121dd721ca 3,229
+packages/backend/convex/actions/bot/discord/gateway/guildLeft.ts
+  s_7f7fb83e292ed4::t_098eb8aa74830f 7,11
+packages/backend/convex/mutations/bot/discord/guilds/syncReadyBatch.test.ts
+  s_7f7fb83e292ed4::t_d3e532cd1a8396 1-146
+apps/discord-bot/src/loaders/loadEvents.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 1-4
+apps/discord-bot/src/services/convexBotClient.ts
+  s_7f7fb83e292ed4::t_6f1e95e32cadb7 150-151,153-154,167-168
+  s_7f7fb83e292ed4::t_251de756a4bb56 157
+  s_7f7fb83e292ed4::t_a52840aae7f0cc 204-220,222-227,298
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 2,6,10
+  s_7f7fb83e292ed4::t_ab8933642f0afd 17,63-83,112-138,140-149,152,156,158-166,169-202,291-294,296,306-313,315-316
+  s_7f7fb83e292ed4::t_8419be870be2e2 18-19,84-111,221,228-287,336-338
+apps/discord-bot/src/handlers/events/clientReady.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 3-5,9
+apps/discord-bot/src/handlers/events/guildCreate.ts
+  s_7f7fb83e292ed4::t_ce6ea98a41f00a 1-4
+packages/backend/convex/actions/bot/discord/gateway/syncReady.ts
+  s_7f7fb83e292ed4::t_1bc1534efbb6d5 7-8,13,16,21-23,56-60,62,92-108,113-121,124-125,128-147,151-155,157-164,166-167,169-173,176
+  s_7f7fb83e292ed4::t_1c180e4506418b 109-112,179-189
+  s_7f7fb83e292ed4::t_62604714928df3 174-175
+packages/backend/convex/mutations/bot/discord/guilds/markBotLeftBatch.ts
+  s_7f7fb83e292ed4::t_0edefc7115fc7f 1-76
+apps/discord-bot/src/utils/botLog.ts
+  s_7f7fb83e292ed4::t_b6ce3d6e9e3dc0 2,71-72,74,80
+  s_7f7fb83e292ed4::t_2e57ee9b3f8a7e 1,4-7,56-60
+  s_7f7fb83e292ed4::t_587284d6a0505f 81-83,94-102
+  s_7f7fb83e292ed4::t_0fb37eadf93c61 3,61-70,73,75-79,85-86,89-90,93,103-106
+packages/logger/src/index.ts
+  s_7f7fb83e292ed4::t_df84dff2368064 33
+  s_7f7fb83e292ed4::t_0cc0d4b04ee320 34-35,57
+  s_7f7fb83e292ed4::t_f132c8e7e69961 18,28,32,36-37,51-56,60-82,126-128
+  s_7f7fb83e292ed4::t_c438eeccd4de61 29
+  s_7f7fb83e292ed4::t_c21f7550d94fbd 30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "12f9a6d9a5db1dc88d1b5cb01159df2adfbcbc61",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_7f7fb83e292ed4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019eb634-48ff-79f3-8334-a98fdcd30815",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
