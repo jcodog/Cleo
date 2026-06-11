@@ -1,0 +1,40 @@
+apps/discord-bot/src/classes/Client.test.ts
+  s_844b4f13f0bdc6::t_802dffe85e01af 1-14,18-46
+  s_844b4f13f0bdc6::t_1661f83ad2b759 15-17
+README.md
+  s_844b4f13f0bdc6::t_4a61a3fc3da980 3,9,11,13-14,16-17,19,21,23-30,34-38,40-41,43-44,46-47,49-53,59,65,67,78-79,91,97,102,105-116
+apps/discord-bot/src/loaders/loadCommands.ts
+  s_844b4f13f0bdc6::t_04ec19400c7358 11,13
+  s_844b4f13f0bdc6::t_1661f83ad2b759 6-10
+apps/discord-bot/src/classes/Client.ts
+  s_844b4f13f0bdc6::t_b5da89871187f8 88-89,91-94
+  s_844b4f13f0bdc6::t_19790439f3ce09 90
+apps/discord-bot/src/loaders/loadCommands.test.ts
+  s_844b4f13f0bdc6::t_802dffe85e01af 1-26
+apps/discord-bot/src/handlers/commands/utility/help.ts
+  s_844b4f13f0bdc6::t_4a61a3fc3da980 32
+apps/discord-bot/src/scripts/registerCommands.ts
+  s_844b4f13f0bdc6::t_04ec19400c7358 2,14,88-89,91
+  s_844b4f13f0bdc6::t_719d5565f026e1 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "d46c05cc60cdbe0fceb7e4737695e6819574afec",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_844b4f13f0bdc6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019eacbd-6593-78b2-b992-5c3ad3d91480",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
