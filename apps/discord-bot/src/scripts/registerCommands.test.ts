@@ -7,8 +7,8 @@ import {
   Routes,
 } from "discord.js"
 
-import type { CommandData } from "@workspace/discord-bot/classes/Command"
-import { loadCommands } from "@workspace/discord-bot/loaders/loadCommands"
+import type { CommandData } from "@/classes/Command"
+import { loadCommands } from "@/loaders/loadCommands"
 
 import {
   prepareCommandDataForTarget,

@@ -1,3 +1,10 @@
+import {
+  redactLogMetadata,
+  redactLogText,
+  serializeLogError,
+  type LogMetadata,
+} from "@workspace/logger"
+
 type BotLogLevel = "info" | "success" | "warn" | "error" | "debug"
 
 const colors = {
@@ -46,17 +53,55 @@ export function botLog(message: string, level: BotLogLevel = "info"): void {
   console.log(`${timestamp} ${coloredLevel} | ${message}`)
 }
 
-export function botLogError(message: string, error?: unknown): void {
-  botLog(message, "error")
+export function botLogError(
+  message: string,
+  error?: unknown,
+  metadata?: LogMetadata
+): void {
+  const details = [
+    redactLogText(message),
+    ...(error ? [formatErrorSummary(error)] : []),
+    ...(metadata ? [formatMetadataSummary(metadata)] : []),
+  ].filter((detail) => detail.length > 0)
 
-  if (!error) {
-    return
+  botLog(details.join(" "), "error")
+}
+
+function formatErrorSummary(error: unknown): string {
+  const serializedError = serializeLogError(error)
+  const errorName =
+    typeof serializedError.name === "string" ? serializedError.name : undefined
+  const errorMessage =
+    typeof serializedError.message === "string" ? serializedError.message : ""
+
+  if (errorMessage) {
+    return `(${errorName ?? "Error"}: ${errorMessage})`
   }
 
-  if (error instanceof Error) {
-    console.error(`${colors.red}${error.stack ?? error.message}${colors.reset}`)
-    return
+  if (typeof serializedError.stack === "string" && serializedError.stack) {
+    return `(${errorName ?? "Error"}: ${formatStackSummary(serializedError.stack)})`
   }
 
-  console.error(`${colors.red}${String(error)}${colors.reset}`)
+  if (errorName && errorName !== "Error") {
+    return `(${errorName})`
+  }
+
+  if ("value" in serializedError) {
+    return `(${JSON.stringify(serializedError.value)})`
+  }
+
+  return ""
+}
+
+function formatStackSummary(stack: string): string {
+  return stack
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(" | ")
+}
+
+function formatMetadataSummary(metadata: LogMetadata): string {
+  return JSON.stringify(redactLogMetadata(metadata))
 }

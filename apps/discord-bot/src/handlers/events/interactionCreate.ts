@@ -1,8 +1,8 @@
 import { Events, MessageFlags } from "discord.js"
 
-import type { BotClient } from "@workspace/discord-bot/classes/Client"
+import type { BotClient } from "@/classes/Client"
 import { Event } from "../../classes/Event"
-import { replyWithCommandError } from "@workspace/discord-bot/utils/replyWithCommandError"
+import { replyWithCommandError } from "@/utils/replyWithCommandError"
 
 export default new Event({
   name: Events.InteractionCreate,

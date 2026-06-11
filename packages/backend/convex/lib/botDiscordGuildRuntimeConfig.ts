@@ -1,11 +1,29 @@
+import {
+  BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS,
+  DISCORD_GUILD_RUNTIME_CONFIG_LOG_LEVELS,
+} from "@workspace/shared/discordRuntimeConfig"
 import { v } from "convex/values"
 
-import { guildConfigLogLevel } from "./validators"
+const [
+  disabledUnknownGuild,
+  disabledBotLeft,
+  disabledMissingConfig,
+] = BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS
+
+const [logLevelNone, logLevelMinimal, logLevelMedium, logLevelMaximum] =
+  DISCORD_GUILD_RUNTIME_CONFIG_LOG_LEVELS
 
 const botDiscordGuildRuntimeConfigDisabledReason = v.union(
-  v.literal("unknownGuild"),
-  v.literal("botLeft"),
-  v.literal("missingConfig")
+  v.literal(disabledUnknownGuild),
+  v.literal(disabledBotLeft),
+  v.literal(disabledMissingConfig)
+)
+
+const botDiscordGuildRuntimeConfigLogLevel = v.union(
+  v.literal(logLevelNone),
+  v.literal(logLevelMinimal),
+  v.literal(logLevelMedium),
+  v.literal(logLevelMaximum)
 )
 
 export const botDiscordGuildRuntimeConfig = v.object({
@@ -13,7 +31,7 @@ export const botDiscordGuildRuntimeConfig = v.object({
   moderationEnabled: v.boolean(),
   welcomeEnabled: v.boolean(),
   loggingEnabled: v.boolean(),
-  logLevel: v.optional(guildConfigLogLevel),
+  logLevel: v.optional(botDiscordGuildRuntimeConfigLogLevel),
   logChannelId: v.optional(v.string()),
   modLogChannelId: v.optional(v.string()),
   welcomeChannelId: v.optional(v.string()),

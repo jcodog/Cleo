@@ -10,9 +10,9 @@ import {
 
 import { discordEnv } from "@workspace/env/discord"
 
-import type { CommandData } from "@workspace/discord-bot/classes/Command"
-import { loadCommands } from "@workspace/discord-bot/loaders/loadCommands"
-import { botLog, botLogError } from "@workspace/discord-bot/utils/botLog"
+import type { CommandData } from "@/classes/Command"
+import { loadCommands } from "@/loaders/loadCommands"
+import { botLog, botLogError } from "@/utils/botLog"
 
 export type RegisterTarget =
   | {

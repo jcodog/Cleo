@@ -6,7 +6,7 @@
     "noEmit": true,
     "rootDir": ".",
     "paths": {
-      "@workspace/discord-bot/*": ["./src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],

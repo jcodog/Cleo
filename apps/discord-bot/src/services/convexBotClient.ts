@@ -1,19 +1,22 @@
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import { botLog, botLogError } from "@workspace/discord-bot/utils/botLog"
+import { botLog, botLogError } from "@/utils/botLog"
 import type {
   GuildLeftSnapshot,
   GuildSnapshot,
-} from "@workspace/discord-bot/utils/createGuildSnapshot"
+} from "@/utils/createGuildSnapshot"
 import {
   guildLeftSnapshotSchema,
   guildSnapshotSchema,
-} from "@workspace/discord-bot/utils/createGuildSnapshot"
+} from "@/utils/createGuildSnapshot"
 import { discordEnv } from "@workspace/env/discord"
 import { ConvexHttpClient } from "convex/browser"
 import { z } from "zod"
 
 const convexUrl = discordEnv.CONVEX_URL
 const convexSecret = discordEnv.DISCORD_BOT_CONVEX_SECRET
+const convexClients = new Map<string, ConvexHttpClient>()
+const CONVEX_UDF_FAILED_STATUS = 560
+const MAX_CONVEX_ERROR_BODY_LENGTH = 500
 
 const gatewayEventTimestampSchema = z.number().refine(
   (value) => Number.isSafeInteger(value) && value >= 0,
@@ -57,25 +60,242 @@ const gatewayShardScopeSchema = z
 
 type GatewayShardScope = z.infer<typeof gatewayShardScopeSchema>
 
-const convex = convexUrl
-  ? new ConvexHttpClient(convexUrl, {
-      logger: false,
-    })
-  : null
+type ConvexBotRuntimeEnv = {
+  convexUrl?: string
+  convexSecret?: string
+  nodeEnv?: string
+}
 
-function getMissingConvexConfig(): string[] {
-  return [
-    ...(convexUrl ? [] : ["CONVEX_URL"]),
-    ...(convexSecret ? [] : ["DISCORD_BOT_CONVEX_SECRET"]),
+type ConvexBotRuntimeConfig =
+  | {
+      status: "ready"
+      convexUrl: string
+      convexSecret: string
+    }
+  | {
+      status: "disabled"
+      missingConfig: string[]
+    }
+  | {
+      status: "invalid"
+      error: Error
+    }
+
+export class ConvexHttpRequestError extends Error {
+  public override readonly name = "ConvexHttpRequestError"
+
+  public constructor({
+    body,
+    method,
+    status,
+    statusText,
+    url,
+  }: {
+    body: string
+    method: string
+    status: number
+    statusText: string
+    url: string
+  }) {
+    const statusLabel = statusText ? `${status} ${statusText}` : String(status)
+    const bodyPreview = truncateConvexErrorBody(body)
+
+    super(
+      [
+        `Convex HTTP request failed: ${method} ${url} returned ${statusLabel}.`,
+        ...(bodyPreview ? [`Response body: ${bodyPreview}`] : []),
+      ].join(" ")
+    )
+  }
+}
+
+export function validateConvexUrl(
+  value: string,
+  nodeEnv = process.env.NODE_ENV
+): string {
+  let parsedUrl: URL
+
+  try {
+    parsedUrl = new URL(value)
+  } catch {
+    throw new Error("CONVEX_URL must be a valid URL.")
+  }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error("CONVEX_URL must not include credentials.")
+  }
+
+  if (parsedUrl.protocol === "https:") {
+    return parsedUrl.toString()
+  }
+
+  if (
+    parsedUrl.protocol === "http:" &&
+    nodeEnv !== "production" &&
+    isLoopbackHostname(parsedUrl.hostname)
+  ) {
+    return parsedUrl.toString()
+  }
+
+  throw new Error(
+    "CONVEX_URL must use https unless it is explicit loopback HTTP in development."
+  )
+}
+
+export function resolveConvexBotRuntimeConfig({
+  convexUrl,
+  convexSecret,
+  nodeEnv = process.env.NODE_ENV,
+}: ConvexBotRuntimeEnv): ConvexBotRuntimeConfig {
+  const configuredConvexUrl = convexUrl
+  const configuredConvexSecret = convexSecret
+  const missingConfig = [
+    ...(configuredConvexUrl ? [] : ["CONVEX_URL"]),
+    ...(configuredConvexSecret ? [] : ["DISCORD_BOT_CONVEX_SECRET"]),
   ]
+
+  if (!configuredConvexUrl || !configuredConvexSecret) {
+    return {
+      status: "disabled",
+      missingConfig,
+    }
+  }
+
+  try {
+    return {
+      status: "ready",
+      convexUrl: validateConvexUrl(configuredConvexUrl, nodeEnv),
+      convexSecret: configuredConvexSecret,
+    }
+  } catch (error) {
+    return {
+      status: "invalid",
+      error: error instanceof Error ? error : new Error(String(error)),
+    }
+  }
+}
+
+export function assertConvexBotRuntimeConfig(
+  env: ConvexBotRuntimeEnv = {
+    convexUrl,
+    convexSecret,
+    nodeEnv: process.env.NODE_ENV,
+  }
+): void {
+  const config = resolveConvexBotRuntimeConfig(env)
+
+  if (config.status === "ready") {
+    return
+  }
+
+  if (config.status === "invalid") {
+    throw config.error
+  }
+
+  if (env.nodeEnv === "production") {
+    throw new Error(
+      `Missing production Discord bot runtime config: ${config.missingConfig.join(
+        ", "
+      )}.`
+    )
+  }
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  )
+}
+
+function getConvexClient(validatedConvexUrl: string): ConvexHttpClient {
+  const existing = convexClients.get(validatedConvexUrl)
+
+  if (existing) {
+    return existing
+  }
+
+  const client = new ConvexHttpClient(validatedConvexUrl, {
+    fetch: createConvexDiagnosticFetch(),
+    logger: false,
+  })
+
+  convexClients.set(validatedConvexUrl, client)
+
+  return client
+}
+
+export function createConvexDiagnosticFetch(
+  fetchImplementation: typeof fetch = fetch
+): typeof fetch {
+  return async (input, init) => {
+    const response = await fetchImplementation(input, init)
+
+    if (response.ok || response.status === CONVEX_UDF_FAILED_STATUS) {
+      return response
+    }
+
+    const responseBody = await readResponseBody(response)
+
+    throw new ConvexHttpRequestError({
+      body: responseBody,
+      method: getFetchMethod(input, init),
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url || getFetchUrl(input),
+    })
+  }
+}
+
+async function readResponseBody(response: Response): Promise<string> {
+  try {
+    return await response.clone().text()
+  } catch {
+    return ""
+  }
+}
+
+function getFetchMethod(input: RequestInfo | URL, init: RequestInit | undefined) {
+  if (init?.method) {
+    return init.method.toUpperCase()
+  }
+
+  if (input instanceof Request) {
+    return input.method.toUpperCase()
+  }
+
+  return "GET"
+}
+
+function getFetchUrl(input: RequestInfo | URL): string {
+  if (input instanceof Request) {
+    return input.url
+  }
+
+  return String(input)
+}
+
+function truncateConvexErrorBody(body: string): string {
+  const trimmedBody = body.trim()
+
+  if (trimmedBody.length <= MAX_CONVEX_ERROR_BODY_LENGTH) {
+    return trimmedBody
+  }
+
+  return `${trimmedBody.slice(0, MAX_CONVEX_ERROR_BODY_LENGTH)}...`
 }
 
 function getConvexSyncConfig(operation: string) {
-  const missingConfig = getMissingConvexConfig()
+  const runtimeConfig = resolveConvexBotRuntimeConfig({
+    convexUrl,
+    convexSecret,
+  })
 
-  if (missingConfig.length > 0 || !convex || !convexSecret) {
+  if (runtimeConfig.status === "disabled") {
     botLog(
-      `Convex sync disabled, skipped ${operation}: missing ${missingConfig.join(
+      `Convex sync disabled, skipped ${operation}: missing ${runtimeConfig.missingConfig.join(
         ", "
       )}.`,
       "warn"
@@ -83,9 +303,17 @@ function getConvexSyncConfig(operation: string) {
     return null
   }
 
+  if (runtimeConfig.status === "invalid") {
+    botLogError(
+      `Convex sync disabled, skipped ${operation}: invalid CONVEX_URL.`,
+      runtimeConfig.error
+    )
+    return null
+  }
+
   return {
-    client: convex,
-    secret: convexSecret,
+    client: getConvexClient(runtimeConfig.convexUrl),
+    secret: runtimeConfig.convexSecret,
   }
 }
 
@@ -105,7 +333,9 @@ async function callWithConvex<T>(
   try {
     return await callback(config)
   } catch (error) {
-    botLogError(`Convex ${operation} failed.`, error)
+    botLogError(`Convex ${operation} failed.`, error, {
+      operation,
+    })
     return null
   }
 }

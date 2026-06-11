@@ -18,6 +18,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",
+    "./discordRuntimeConfig": "./src/discordRuntimeConfig.ts",
     "./providers": "./src/providers.ts"
   }
 }

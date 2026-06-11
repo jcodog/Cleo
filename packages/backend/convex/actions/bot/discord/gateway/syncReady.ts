@@ -4,27 +4,31 @@ import { v } from "convex/values"
 
 import { internal } from "../../../../_generated/api"
 import { action, type ActionCtx } from "../../../../_generated/server"
-import { assertValidBotSecret } from "./lib/auth"
+import type { ReadyGuildInput } from "../../../../mutations/bot/discord/guilds/syncReadyBatch"
+import { assertValidBotSecret } from "../lib/auth"
 import {
   assertGatewayEventTimestamp,
   assertGatewayGuild,
   assertGatewayShardScope,
+  gatewayGuild,
   gatewayShardScope,
   getDiscordGuildShardId,
-  gatewayGuild,
+  type GatewayGuild,
   type GatewayShardScope,
   uniqueGatewayGuilds,
 } from "./lib/gatewayGuild"
 
+// READY can contain thousands of guilds during reconnects. A batch size of 100
+// keeps each Convex mutation bounded while avoiding an uncontrolled write burst.
+export const READY_GUILD_BATCH_SIZE = 100
 const RECONCILIATION_PAGE_SIZE = 100
 
-type ReadyReconciliationPage = {
-  page: {
-    discordGuildId: string
-    botLeftAt?: number
-  }[]
+type ReadyShardReconciliationPage = {
   continueCursor: string
   isDone: boolean
+  scanned: number
+  markedLeft: number
+  skipped: number
 }
 
 export const sync = action({
@@ -48,18 +52,15 @@ export const sync = action({
       assertGatewayGuild(guild, now)
     }
 
-    for (const guild of guilds) {
-      const guildId = await ctx.runMutation(
-        internal.mutations.bot.discord.guilds.upsertFromGateway.upsert,
+    const readyGuilds = createReadyGuildInputs(guilds, args.shardScope)
+
+    for (const batch of chunkReadyGuilds(readyGuilds)) {
+      await ctx.runMutation(
+        internal.mutations.bot.discord.guilds.syncReadyBatch.sync,
         {
-          ...guild,
+          guilds: batch,
           lastSyncedAt: syncedAt,
         }
-      )
-
-      await ctx.runMutation(
-        internal.mutations.bot.discord.guildConfigs.ensure.forGuild,
-        { guildId }
       )
     }
 
@@ -87,56 +88,79 @@ async function reconcileAbsentReadyGuilds({
   shardScope: GatewayShardScope
   syncedAt: number
 }) {
-  const handledShardIds = new Set(shardScope.shardIds)
-  let cursor: string | null = null
+  const readyDiscordGuildIdList = Array.from(readyDiscordGuildIds)
 
-  while (true) {
-    const guildsPage: ReadyReconciliationPage = await ctx.runQuery(
-      internal.queries.bot.discord.guilds.readyReconciliation.listPage,
-      {
-        paginationOpts: {
-          cursor,
-          numItems: RECONCILIATION_PAGE_SIZE,
-          maximumRowsRead: RECONCILIATION_PAGE_SIZE,
-        },
-      }
-    )
+  for (const shardId of shardScope.shardIds) {
+    const readyShardKey = createReadyShardKey(shardScope.shardCount, shardId)
+    let cursor: string | null = null
 
-    for (const guild of guildsPage.page) {
-      if (
-        guild.botLeftAt !== undefined ||
-        readyDiscordGuildIds.has(guild.discordGuildId) ||
-        !isGuildInShardScope(guild.discordGuildId, shardScope, handledShardIds)
-      ) {
-        continue
-      }
-
-      await ctx.runMutation(
-        internal.mutations.bot.discord.guilds.markBotLeft.mark,
+    while (true) {
+      const page: ReadyShardReconciliationPage = await ctx.runMutation(
+        internal.mutations.bot.discord.guilds.markBotLeftBatch
+          .markAbsentForReadyShardPage,
         {
-          discordGuildId: guild.discordGuildId,
+          readyShardKey,
+          readyDiscordGuildIds: readyDiscordGuildIdList,
           leftAt: syncedAt,
+          paginationOpts: {
+            cursor,
+            numItems: RECONCILIATION_PAGE_SIZE,
+            maximumRowsRead: RECONCILIATION_PAGE_SIZE,
+          },
         }
       )
-    }
 
-    if (guildsPage.isDone) {
-      break
-    }
+      if (page.isDone) {
+        break
+      }
 
-    cursor = guildsPage.continueCursor
+      cursor = page.continueCursor
+    }
   }
 }
 
-function isGuildInShardScope(
-  discordGuildId: string,
-  shardScope: GatewayShardScope,
-  handledShardIds: Set<number>
-): boolean {
-  const shardId = getDiscordGuildShardId(
-    discordGuildId,
-    shardScope.shardCount
-  )
+export function createReadyGuildInputs(
+  guilds: GatewayGuild[],
+  shardScope: GatewayShardScope
+): ReadyGuildInput[] {
+  const handledShardIds = new Set(shardScope.shardIds)
 
-  return shardId !== null && handledShardIds.has(shardId)
+  return guilds.map((guild) => {
+    const readyShardId = getDiscordGuildShardId(
+      guild.discordGuildId,
+      shardScope.shardCount
+    )
+
+    if (readyShardId === null || !handledShardIds.has(readyShardId)) {
+      throw new Error(
+        `Guild ${guild.discordGuildId} is outside the handled READY shard scope.`
+      )
+    }
+
+    return {
+      ...guild,
+      readyShardId,
+      readyShardCount: shardScope.shardCount,
+      readyShardKey: createReadyShardKey(shardScope.shardCount, readyShardId),
+    }
+  })
+}
+
+export function chunkReadyGuilds<T>(
+  values: T[],
+  batchSize = READY_GUILD_BATCH_SIZE
+): T[][] {
+  const batches: T[][] = []
+
+  for (let index = 0; index < values.length; index += batchSize) {
+    batches.push(values.slice(index, index + batchSize))
+  }
+
+  return batches
+}
+
+export function createReadyShardKey(shardCount: number, shardId: number): string {
+  // Include shardCount so reconciliation only marks absences for the topology
+  // represented by the current READY snapshot.
+  return `${shardCount}:${shardId}`
 }

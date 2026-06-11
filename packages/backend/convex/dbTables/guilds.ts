@@ -18,6 +18,11 @@ export const guilds = defineTable({
 
   lastOpenedAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
+  readyShardId: v.optional(v.number()),
+  readyShardCount: v.optional(v.number()),
+  readyShardKey: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
-}).index("by_discord_guild_id", ["discordGuildId"])
+})
+  .index("by_discord_guild_id", ["discordGuildId"])
+  .index("by_ready_shard_key", ["readyShardKey"])

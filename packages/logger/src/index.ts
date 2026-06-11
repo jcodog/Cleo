@@ -15,6 +15,7 @@ const SENSITIVE_KEY_PARTS = [
   "authorization",
   "authheader",
   "cookie",
+  "credential",
   "jwt",
   "password",
   "refresh_token",
@@ -24,6 +25,16 @@ const SENSITIVE_KEY_PARTS = [
 ] as const
 
 const REDACTED = "[redacted]"
+const AUTHORIZATION_PATTERN =
+  /\b(authorization\s*[:=]\s*)(bearer\s+)?[^\s,;)]+/gi
+const COOKIE_PATTERN =
+  /\b(cookie|set-cookie)\s*[:=]\s*[^,\n\r]+?(?=\s+[a-z][a-z0-9+.-]*:\/\/|\s+\w+\s*[:=]|$|,)/gi
+const SENSITIVE_QUERY_PARAM_PATTERN =
+  /([?&](?:api[_-]?key|authorization|auth|cookie|jwt|password|refresh[_-]?token|secret|session|token)=)[^&#\s)]+/gi
+const SENSITIVE_ASSIGNMENT_PATTERN =
+  /\b(api[_-]?key|authorization|auth|cookie|jwt|password|refresh[_-]?token|secret|session|token)\s*=\s*[^\s,;)]+/gi
+const URL_CREDENTIAL_PATTERN =
+  /\b([a-z][a-z0-9+.-]*:\/\/)([^/@\s:]+):([^/@\s]+)@/gi
 
 export function isSensitiveLogKey(key: string): boolean {
   const normalized = key.replaceAll(/[^a-zA-Z0-9]/g, "").toLowerCase()
@@ -35,6 +46,38 @@ export function isSensitiveLogKey(key: string): boolean {
 
 export function redactLogMetadata<T>(value: T): T {
   return redactValue(value, new WeakSet()) as T
+}
+
+export function redactLogText(value: string): string {
+  return value
+    .replaceAll(URL_CREDENTIAL_PATTERN, "$1[redacted]@")
+    .replaceAll(AUTHORIZATION_PATTERN, "$1$2[redacted]")
+    .replaceAll(COOKIE_PATTERN, "$1=[redacted]")
+    .replaceAll(SENSITIVE_QUERY_PARAM_PATTERN, "$1[redacted]")
+    .replaceAll(SENSITIVE_ASSIGNMENT_PATTERN, "$1=[redacted]")
+}
+
+export function serializeLogError(error: unknown): LogMetadata {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: redactLogText(error.message),
+      ...(error.stack ? { stack: redactLogText(error.stack) } : {}),
+      ...(error.cause !== undefined
+        ? { cause: redactLogMetadata(error.cause) }
+        : {}),
+    }
+  }
+
+  if (error && typeof error === "object") {
+    return {
+      value: redactLogMetadata(error),
+    }
+  }
+
+  return {
+    value: redactLogText(String(error)),
+  }
 }
 
 export function createLogger(namespace: string): Logger {
@@ -80,6 +123,10 @@ function redactValue(value: unknown, seen: WeakSet<object>): unknown {
   }
 
   if (!value || typeof value !== "object") {
+    if (typeof value === "string") {
+      return redactLogText(value)
+    }
+
     return value
   }
 

@@ -1,8 +1,10 @@
 "use node"
 
+import { isDiscordSnowflake } from "@workspace/shared/discordRuntimeConfig"
 import { ConvexError, v } from "convex/values"
 
-const DISCORD_SNOWFLAKE_PATTERN = /^\d{17,20}$/
+import { assertDiscordSnowflake } from "../../lib/discordId"
+
 const MAX_READY_GUILDS_PER_SYNC = 10_000
 const MAX_SHARDS_PER_READY_SYNC = 10_000
 const MAX_GUILD_NAME_LENGTH = 100
@@ -138,7 +140,7 @@ export function getDiscordGuildShardId(
   shardCount: number
 ): number | null {
   if (
-    !DISCORD_SNOWFLAKE_PATTERN.test(discordGuildId) ||
+    !isDiscordSnowflake(discordGuildId) ||
     !Number.isSafeInteger(shardCount) ||
     shardCount <= 0
   ) {
@@ -164,15 +166,6 @@ export function uniqueGatewayGuilds(guilds: GatewayGuild[]): GatewayGuild[] {
       }, new Map<string, GatewayGuild>())
       .values()
   )
-}
-
-export function assertDiscordSnowflake(field: string, value: string): void {
-  if (!DISCORD_SNOWFLAKE_PATTERN.test(value)) {
-    throw new ConvexError({
-      code: "INVALID_DISCORD_SNOWFLAKE",
-      message: `${field} must be a valid Discord snowflake.`,
-    })
-  }
 }
 
 function assertBoundedString(

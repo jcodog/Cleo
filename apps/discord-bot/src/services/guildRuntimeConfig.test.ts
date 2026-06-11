@@ -126,7 +126,7 @@ test("runtime config validation rejects mismatched backend guild IDs", () => {
   )
 
   assert.deepEqual(errors, [
-    "Convex returned runtime config for a different Discord guild.",
+    "Invalid Convex guild runtime config response.",
   ])
 })
 

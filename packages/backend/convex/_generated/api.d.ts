@@ -1062,6 +1062,69 @@ export declare const internal: {
               null
             >;
           };
+          markBotLeftBatch: {
+            mark: FunctionReference<
+              "mutation",
+              "internal",
+              { discordGuildIds: Array<string>; leftAt: number },
+              { markedLeft: number; requested: number; skipped: number }
+            >;
+            markAbsentForReadyShardPage: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                leftAt: number;
+                paginationOpts: {
+                  cursor: string | null;
+                  endCursor?: string | null;
+                  id?: number;
+                  maximumBytesRead?: number;
+                  maximumRowsRead?: number;
+                  numItems: number;
+                };
+                readyDiscordGuildIds: Array<string>;
+                readyShardKey: string;
+              },
+              {
+                continueCursor: string;
+                isDone: boolean;
+                markedLeft: number;
+                scanned: number;
+                skipped: number;
+              }
+            >;
+          };
+          syncReadyBatch: {
+            sync: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                guilds: Array<{
+                  botJoinedAt?: number;
+                  description?: string;
+                  discordGuildId: string;
+                  iconHash?: string;
+                  iconUrl?: string;
+                  memberCount?: number;
+                  name: string;
+                  ownerDiscordId?: string;
+                  presenceCount?: number;
+                  readyShardCount: number;
+                  readyShardId: number;
+                  readyShardKey: string;
+                }>;
+                lastSyncedAt: number;
+              },
+              {
+                insertedConfigs: number;
+                insertedGuilds: number;
+                patchedGuilds: number;
+                processed: number;
+                skippedStaleGuilds: number;
+                skippedUnchangedGuilds: number;
+              }
+            >;
+          };
           upsertFromGateway: {
             upsert: FunctionReference<
               "mutation",
@@ -2531,31 +2594,6 @@ export declare const internal: {
                   reason: "unknownGuild" | "botLeft" | "missingConfig";
                   status: "disabled";
                 }
-            >;
-          };
-        };
-        guilds: {
-          readyReconciliation: {
-            listPage: FunctionReference<
-              "query",
-              "internal",
-              {
-                paginationOpts: {
-                  cursor: string | null;
-                  endCursor?: string | null;
-                  id?: number;
-                  maximumBytesRead?: number;
-                  maximumRowsRead?: number;
-                  numItems: number;
-                };
-              },
-              {
-                continueCursor: string;
-                isDone: boolean;
-                page: Array<{ botLeftAt?: number; discordGuildId: string }>;
-                pageStatus?: "SplitRecommended" | "SplitRequired" | null;
-                splitCursor?: string | null;
-              }
             >;
           };
         };

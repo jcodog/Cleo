@@ -1,4 +1,4 @@
-import { Command } from "@workspace/discord-bot/classes/Command"
+import { Command } from "@/classes/Command"
 import {
   ApplicationIntegrationType,
   InteractionContextType,

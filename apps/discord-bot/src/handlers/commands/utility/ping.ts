@@ -4,7 +4,7 @@ import {
   MessageFlags,
 } from "discord.js"
 
-import { Command } from "@workspace/discord-bot/classes/Command"
+import { Command } from "@/classes/Command"
 
 export default new Command({
   data: {

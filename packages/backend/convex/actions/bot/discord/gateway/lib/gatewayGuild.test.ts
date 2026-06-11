@@ -2,7 +2,6 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 
 import {
-  assertDiscordSnowflake,
   assertGatewayEventTimestamp,
   assertGatewayGuild,
   assertGatewayShardScope,
@@ -10,6 +9,7 @@ import {
   type GatewayGuild,
   uniqueGatewayGuilds,
 } from "./gatewayGuild"
+import { assertDiscordSnowflake } from "../../lib/discordId"
 
 const nowMs = 1_700_000_000_000
 const guildId = "123456789012345678"

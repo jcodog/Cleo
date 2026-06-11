@@ -784,6 +784,9 @@ export type DataModel = {
       name: string;
       ownerDiscordId?: string;
       presenceCount?: number;
+      readyShardCount?: number;
+      readyShardId?: number;
+      readyShardKey?: string;
       updatedAt: number;
       _id: Id<"guilds">;
       _creationTime: number;
@@ -805,11 +808,15 @@ export type DataModel = {
       | "name"
       | "ownerDiscordId"
       | "presenceCount"
+      | "readyShardCount"
+      | "readyShardId"
+      | "readyShardKey"
       | "updatedAt";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_discord_guild_id: ["discordGuildId", "_creationTime"];
+      by_ready_shard_key: ["readyShardKey", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

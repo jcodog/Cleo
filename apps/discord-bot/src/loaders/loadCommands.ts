@@ -1,7 +1,7 @@
-import type { Command } from "@workspace/discord-bot/classes/Command"
-import profile from "@workspace/discord-bot/handlers/commands/user/profile"
-import help from "@workspace/discord-bot/handlers/commands/utility/help"
-import ping from "@workspace/discord-bot/handlers/commands/utility/ping"
+import type { Command } from "@/classes/Command"
+import profile from "@/handlers/commands/user/profile"
+import help from "@/handlers/commands/utility/help"
+import ping from "@/handlers/commands/utility/ping"
 
 export const commandRegistry = [
   ping,

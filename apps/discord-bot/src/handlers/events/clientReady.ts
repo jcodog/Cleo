@@ -1,12 +1,12 @@
 import { Events, type Client } from "discord.js"
 
-import { Event } from "@workspace/discord-bot/classes/Event"
-import { convexBotClient } from "@workspace/discord-bot/services/convexBotClient"
-import { botLog, botLogError } from "@workspace/discord-bot/utils/botLog"
+import { Event } from "@/classes/Event"
+import { convexBotClient } from "@/services/convexBotClient"
+import { botLog, botLogError } from "@/utils/botLog"
 import {
   createGuildSnapshot,
   type GuildSnapshot,
-} from "@workspace/discord-bot/utils/createGuildSnapshot"
+} from "@/utils/createGuildSnapshot"
 
 export default new Event({
   name: Events.ClientReady,
