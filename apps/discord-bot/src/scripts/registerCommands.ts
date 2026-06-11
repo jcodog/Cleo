@@ -1,6 +1,5 @@
-import { readdir } from "node:fs/promises"
 import path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { pathToFileURL } from "node:url"
 
 import {
   ApplicationIntegrationType,
@@ -11,16 +10,9 @@ import {
 
 import { discordEnv } from "@workspace/env/discord"
 
-import type {
-  CommandData,
-  CommandOptions,
-} from "@workspace/discord-bot/classes/Command"
+import type { CommandData } from "@workspace/discord-bot/classes/Command"
+import { loadCommands } from "@workspace/discord-bot/loaders/loadCommands"
 import { botLog, botLogError } from "@workspace/discord-bot/utils/botLog"
-
-type CommandModule = {
-  default?: unknown
-  command?: unknown
-}
 
 export type RegisterTarget =
   | {
@@ -31,25 +23,10 @@ export type RegisterTarget =
       type: "global"
     }
 
-const commandsDirectory = fileURLToPath(
-  new URL("../handlers/commands", import.meta.url)
-)
-
 const logInfo = (message: string) => botLog(message, "info")
 const logSuccess = (message: string) => botLog(message, "success")
-const logWarn = (message: string) => botLog(message, "warn")
 const logError = (message: string, error: unknown) =>
   botLogError(message, error)
-
-function isCommandOptions(value: unknown): value is CommandOptions {
-  if (!value || typeof value !== "object") {
-    return false
-  }
-
-  const command = value as Partial<CommandOptions>
-
-  return Boolean(command.data) && typeof command.execute === "function"
-}
 
 function readArgValue(
   args: readonly string[],
@@ -108,82 +85,10 @@ export function resolveRegisterTarget(
   )
 }
 
-async function findCommandFiles(
-  directory: string,
-  depth = 0,
-  maxDepth = 3
-): Promise<string[]> {
-  const entries = await readdir(directory, {
-    withFileTypes: true,
-  })
+export async function loadCommandData(): Promise<CommandData[]> {
+  const commands = await loadCommands()
 
-  const files: string[] = []
-
-  for (const entry of entries) {
-    const entryPath = path.join(directory, entry.name)
-
-    if (entry.isDirectory()) {
-      if (depth >= maxDepth) {
-        logWarn(
-          `Skipping command folder deeper than ${maxDepth} levels: ${entryPath}`
-        )
-        continue
-      }
-
-      const nestedFiles = await findCommandFiles(entryPath, depth + 1, maxDepth)
-      files.push(...nestedFiles)
-      continue
-    }
-
-    if (!entry.isFile()) {
-      continue
-    }
-
-    if (
-      entry.name.endsWith(".d.ts") ||
-      (!entry.name.endsWith(".ts") && !entry.name.endsWith(".js"))
-    ) {
-      continue
-    }
-
-    files.push(entryPath)
-  }
-
-  return files.sort((a, b) => a.localeCompare(b))
-}
-
-async function loadCommandData(): Promise<CommandData[]> {
-  const commandFilePaths = await findCommandFiles(commandsDirectory)
-
-  const commandData: CommandData[] = []
-  const commandNames = new Set<string>()
-
-  for (const filePath of commandFilePaths) {
-    const moduleUrl = pathToFileURL(filePath).href
-    const importedModule = (await import(moduleUrl)) as CommandModule
-
-    const command = importedModule.default ?? importedModule.command
-
-    const relativeFilePath = path.relative(commandsDirectory, filePath)
-
-    if (!isCommandOptions(command)) {
-      logWarn(
-        `Skipping ${relativeFilePath}, missing command data or execute handler.`
-      )
-      continue
-    }
-
-    if (commandNames.has(command.data.name)) {
-      throw new Error(`Duplicate command name found: /${command.data.name}`)
-    }
-
-    commandNames.add(command.data.name)
-    commandData.push(command.data)
-
-    logInfo(`Loaded /${command.data.name} from ${relativeFilePath}`)
-  }
-
-  return commandData
+  return commands.map((command) => command.data)
 }
 
 export function prepareCommandDataForTarget(

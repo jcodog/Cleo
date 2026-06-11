@@ -29,7 +29,7 @@ export default new Command({
         "`/help` - View this guide.",
         "`/profile` - View your Discord profile details known to Cleo.",
         "",
-        "More server management tools are coming as the dashboad migration continues.",
+        "More server management tools are coming as the dashboard migration continues.",
       ].join("\n"),
     })
   },

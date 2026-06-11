@@ -85,6 +85,13 @@ export class BotClient extends Client {
       case Events.InteractionCreate:
         this.registerEvent(event)
         return
+      default: {
+        const unsupportedEvent = event as Event<keyof ClientEvents>
+
+        throw new Error(
+          `Unsupported loaded event: ${String(unsupportedEvent.name)}`
+        )
+      }
     }
   }
 
