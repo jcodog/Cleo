@@ -12,7 +12,11 @@ import {
 test("Convex URL validation requires HTTPS for non-loopback hosts", () => {
   assert.equal(
     validateConvexUrl("https://example.convex.cloud", "production"),
-    "https://example.convex.cloud/"
+    "https://example.convex.cloud"
+  )
+  assert.equal(
+    validateConvexUrl("https://example.convex.cloud/", "production"),
+    "https://example.convex.cloud"
   )
 
   assert.throws(
@@ -24,15 +28,15 @@ test("Convex URL validation requires HTTPS for non-loopback hosts", () => {
 test("Convex URL validation permits loopback HTTP outside production only", () => {
   assert.equal(
     validateConvexUrl("http://localhost:3210", "development"),
-    "http://localhost:3210/"
+    "http://localhost:3210"
   )
   assert.equal(
     validateConvexUrl("http://127.0.0.1:3210", "test"),
-    "http://127.0.0.1:3210/"
+    "http://127.0.0.1:3210"
   )
   assert.equal(
     validateConvexUrl("http://[::1]:3210", "development"),
-    "http://[::1]:3210/"
+    "http://[::1]:3210"
   )
 
   assert.throws(
@@ -46,6 +50,18 @@ test("Convex URL validation rejects invalid URLs and credentials", () => {
   assert.throws(
     () => validateConvexUrl("https://user:pass@example.convex.cloud"),
     /must not include credentials/
+  )
+  assert.throws(
+    () => validateConvexUrl("https://example.convex.cloud/api/action"),
+    /without a path/
+  )
+  assert.throws(
+    () => validateConvexUrl("https://example.convex.cloud?token=secret"),
+    /without a path/
+  )
+  assert.throws(
+    () => validateConvexUrl("https://example.convex.cloud#fragment"),
+    /without a path/
   )
 })
 
@@ -70,7 +86,7 @@ test("Convex runtime config resolution is deterministic", () => {
     }),
     {
       status: "ready",
-      convexUrl: "https://example.convex.cloud/",
+      convexUrl: "https://example.convex.cloud",
       convexSecret: "secret",
     }
   )

@@ -125,8 +125,16 @@ export function validateConvexUrl(
     throw new Error("CONVEX_URL must not include credentials.")
   }
 
+  if (
+    parsedUrl.pathname.replaceAll("/", "") ||
+    parsedUrl.search ||
+    parsedUrl.hash
+  ) {
+    throw new Error("CONVEX_URL must be an origin without a path, query, or hash.")
+  }
+
   if (parsedUrl.protocol === "https:") {
-    return parsedUrl.toString()
+    return parsedUrl.origin
   }
 
   if (
@@ -134,7 +142,7 @@ export function validateConvexUrl(
     nodeEnv !== "production" &&
     isLoopbackHostname(parsedUrl.hostname)
   ) {
-    return parsedUrl.toString()
+    return parsedUrl.origin
   }
 
   throw new Error(
