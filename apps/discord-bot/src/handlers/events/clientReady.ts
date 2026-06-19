@@ -39,6 +39,10 @@ export async function handleClientReady(
 
   log(`Cleo is online as ${client.user.tag}`, "success")
   log(`Connected to ${client.guilds.cache.size} guild(s).`, "info")
+  log(
+    `READY sync shard scope: ids=${shardScope.shardIds.join(",")}; count=${shardScope.shardCount}.`,
+    "info"
+  )
 
   const snapshots: GuildSnapshot[] = []
 

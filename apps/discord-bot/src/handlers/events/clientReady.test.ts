@@ -64,6 +64,7 @@ test("clientReady logs ready state and syncs guild snapshots to Convex", async (
   assert.deepEqual(logs, [
     "Cleo is online as Cleo#0001",
     "Connected to 1 guild(s).",
+    "READY sync shard scope: ids=2; count=8.",
     "Guild available: Cleo HQ (123456789012345678) with 42 member(s).",
   ])
   assert.deepEqual(calls, [
