@@ -1,0 +1,14 @@
+apps/discord-bot/src/handlers/commands/user/profile.ts
+  h_2bc691fceb4fe5 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "1271e2eea8963d2201effa3df4f44f82e2717775",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
