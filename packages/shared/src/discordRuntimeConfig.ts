@@ -31,6 +31,7 @@ export const DISCORD_GUILD_RUNTIME_CONFIG_OPTIONAL_FIELD_NAMES = [
   "logChannelId",
   "modLogChannelId",
   "welcomeChannelId",
+  "welcomeSubtext",
   "updatesChannelId",
   "announcementChannelId",
 ] as const
@@ -62,6 +63,7 @@ export type DiscordGuildRuntimeConfig = {
   logChannelId?: string
   modLogChannelId?: string
   welcomeChannelId?: string
+  welcomeSubtext?: string
   updatesChannelId?: string
   announcementChannelId?: string
 }
@@ -259,6 +261,14 @@ function validateDiscordGuildRuntimeConfig(
     return welcomeChannelId
   }
 
+  const welcomeSubtext = validateOptionalText(
+    "welcomeSubtext",
+    value.welcomeSubtext
+  )
+  if (!welcomeSubtext.success) {
+    return welcomeSubtext
+  }
+
   const updatesChannelId = validateOptionalDiscordSnowflake(
     "updatesChannelId",
     value.updatesChannelId
@@ -292,6 +302,9 @@ function validateDiscordGuildRuntimeConfig(
       ...(welcomeChannelId.data !== undefined
         ? { welcomeChannelId: welcomeChannelId.data }
         : {}),
+      ...(welcomeSubtext.data !== undefined
+        ? { welcomeSubtext: welcomeSubtext.data }
+        : {}),
       ...(updatesChannelId.data !== undefined
         ? { updatesChannelId: updatesChannelId.data }
         : {}),
@@ -319,6 +332,36 @@ function validateOptionalDiscordSnowflake(
   }
 
   if (typeof value !== "string" || !isDiscordSnowflake(value)) {
+    return validationError(`Runtime config has invalid ${fieldName}.`)
+  }
+
+  return {
+    success: true,
+    data: value,
+  }
+}
+
+function validateOptionalText(
+  fieldName: string,
+  value: unknown
+):
+  | {
+      success: true
+      data?: string
+    }
+  | {
+      success: false
+      error: string
+    } {
+  if (value === undefined) {
+    return { success: true }
+  }
+
+  if (
+    typeof value !== "string" ||
+    value.trim().length === 0 ||
+    value.length > 120
+  ) {
     return validationError(`Runtime config has invalid ${fieldName}.`)
   }
 

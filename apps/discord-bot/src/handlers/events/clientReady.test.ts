@@ -3,7 +3,7 @@ import { test } from "node:test"
 
 import type { GuildSnapshot } from "@/utils/createGuildSnapshot"
 
-import { handleClientReady } from "./clientReady"
+import { formatReadySyncScopeLog, handleClientReady } from "./clientReady"
 
 type SyncReadyCall = {
   guilds: GuildSnapshot[]
@@ -51,6 +51,7 @@ test("clientReady logs ready state and syncs guild snapshots to Convex", async (
 
   await handleClientReady(createClient() as never, {
     now: () => 5_000,
+    configureStatus: () => undefined,
     log: (message) => {
       logs.push(message)
     },
@@ -95,6 +96,7 @@ test("clientReady catches Convex sync failures", async () => {
   await assert.doesNotReject(async () => {
     await handleClientReady(createClient() as never, {
       log: () => undefined,
+      configureStatus: () => undefined,
       convexClient: {
         async syncReadyGuilds() {
           throw new Error("Convex unavailable")
@@ -112,4 +114,24 @@ test("clientReady catches Convex sync failures", async () => {
     "Unexpected Convex ready guild sync failure."
   )
   assert.ok((loggedErrors[0] as { error: unknown }).error instanceof Error)
+})
+
+test("ready sync scope log hides shard wording in single runtime", () => {
+  assert.equal(
+    formatReadySyncScopeLog({
+      shardIds: [0],
+      shardCount: 1,
+    }),
+    "READY sync scope: single runtime."
+  )
+})
+
+test("ready sync scope log includes shard details for sharded runtime", () => {
+  assert.equal(
+    formatReadySyncScopeLog({
+      shardIds: [2],
+      shardCount: 8,
+    }),
+    "READY sync shard scope: ids=2; count=8."
+  )
 })

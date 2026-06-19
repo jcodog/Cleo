@@ -127,6 +127,9 @@ function buildUpdatedConfig(
       ? { commandPrefix: config.commandPrefix }
       : {}),
     ...(config.logLevel !== undefined ? { logLevel: config.logLevel } : {}),
+    ...(config.welcomeSubtext !== undefined
+      ? { welcomeSubtext: config.welcomeSubtext }
+      : {}),
     ...buildChannelFields({
       logChannelId:
         channels.logChannelId !== undefined

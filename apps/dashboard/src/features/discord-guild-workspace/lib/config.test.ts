@@ -8,6 +8,7 @@ import {
   getModuleItems,
   getModuleValues,
   toOptionalChannelValue,
+  toOptionalTextValue,
 } from "./config"
 
 const config = {
@@ -17,6 +18,7 @@ const config = {
   loggingEnabled: false,
   logChannelId: "123456789012345678",
   welcomeChannelId: "234567890123456789",
+  welcomeSubtext: "Settle in, say hello, and enjoy the server.",
 } as GuildConfig
 
 test("guild workspace module helpers derive values from nullable config", () => {
@@ -64,6 +66,11 @@ test("guild workspace channel helpers normalize empty and configured channels", 
     },
   ])
 
-  assert.equal(toOptionalChannelValue("  123456789012345678  "), "123456789012345678")
+  assert.equal(
+    toOptionalChannelValue("  123456789012345678  "),
+    "123456789012345678"
+  )
   assert.equal(toOptionalChannelValue("   "), null)
+  assert.equal(toOptionalTextValue("  Hello there  "), "Hello there")
+  assert.equal(toOptionalTextValue("   "), null)
 })

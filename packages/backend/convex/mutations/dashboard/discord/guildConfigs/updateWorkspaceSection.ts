@@ -10,7 +10,9 @@ import { insertDashboardGuildAuditEvent } from "../../../../lib/guildAudit"
 import { guildConfigDoc } from "../../../../lib/validators"
 
 const optionalChannelId = v.optional(v.union(v.string(), v.null()))
+const optionalText = v.optional(v.union(v.string(), v.null()))
 const DISCORD_SNOWFLAKE_PATTERN = /^\d{17,20}$/
+const WELCOME_SUBTEXT_MAX_LENGTH = 120
 
 export const update = mutation({
   args: {
@@ -26,6 +28,11 @@ export const update = mutation({
       updatesChannelId: optionalChannelId,
       announcementChannelId: optionalChannelId,
     }),
+    welcome: v.optional(
+      v.object({
+        subtext: optionalText,
+      })
+    ),
   },
   returns: guildConfigDoc,
   handler: async (ctx, args) => {
@@ -38,6 +45,7 @@ export const update = mutation({
       guildId: guild._id,
       modules: args.modules,
       now,
+      welcome: args.welcome,
     })
 
     if (existingConfig) {
@@ -78,12 +86,14 @@ function buildNextConfig({
   guildId,
   modules,
   now,
+  welcome,
 }: {
   channels: ChannelPatch
   config: Doc<"guildConfigs"> | null
   guildId: Doc<"guilds">["_id"]
   modules: ModulePatch
   now: number
+  welcome: WelcomePatch | undefined
 }): Omit<Doc<"guildConfigs">, "_id" | "_creationTime"> {
   return {
     guildId,
@@ -96,6 +106,12 @@ function buildNextConfig({
       ? { commandPrefix: config.commandPrefix }
       : {}),
     ...(config?.logLevel !== undefined ? { logLevel: config.logLevel } : {}),
+    ...buildWelcomeFields({
+      subtext:
+        welcome?.subtext !== undefined
+          ? welcome.subtext
+          : config?.welcomeSubtext,
+    }),
     ...buildChannelFields({
       logChannelId:
         channels.logChannelId !== undefined
@@ -173,6 +189,18 @@ function buildChannelFields(channels: ChannelPatch) {
   }
 }
 
+function buildWelcomeFields(welcome: WelcomePatch) {
+  const welcomeSubtext = normalizeOptionalText(
+    "welcomeSubtext",
+    welcome.subtext,
+    WELCOME_SUBTEXT_MAX_LENGTH
+  )
+
+  return {
+    ...(welcomeSubtext !== undefined ? { welcomeSubtext } : {}),
+  }
+}
+
 function normalizeChannelId(
   channelId: string | null | undefined
 ): string | undefined {
@@ -196,6 +224,31 @@ function normalizeChannelId(
   return trimmedChannelId
 }
 
+function normalizeOptionalText(
+  fieldName: string,
+  value: string | null | undefined,
+  maxLength: number
+): string | undefined {
+  if (value === null || value === undefined) {
+    return undefined
+  }
+
+  const trimmedValue = value.trim()
+
+  if (trimmedValue.length === 0) {
+    return undefined
+  }
+
+  if (trimmedValue.length > maxLength) {
+    throw new ConvexError({
+      code: "INVALID_TEXT_LENGTH",
+      message: `${fieldName} must be ${maxLength} characters or fewer.`,
+    })
+  }
+
+  return trimmedValue
+}
+
 function getConfigAuditFields(config: Doc<"guildConfigs">) {
   return {
     moderationEnabled: config.moderationEnabled,
@@ -203,6 +256,7 @@ function getConfigAuditFields(config: Doc<"guildConfigs">) {
     logChannelId: config.logChannelId ?? null,
     modLogChannelId: config.modLogChannelId ?? null,
     welcomeChannelId: config.welcomeChannelId ?? null,
+    welcomeSubtext: config.welcomeSubtext ?? null,
     updatesChannelId: config.updatesChannelId ?? null,
     announcementChannelId: config.announcementChannelId ?? null,
   }
@@ -259,4 +313,8 @@ type ChannelPatch = {
   welcomeChannelId?: string | null
   updatesChannelId?: string | null
   announcementChannelId?: string | null
+}
+
+type WelcomePatch = {
+  subtext?: string | null
 }

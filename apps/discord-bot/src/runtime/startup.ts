@@ -134,6 +134,7 @@ export async function startShardingManagerRuntime({
   assertDiscordBotToken(token)
 
   const manager = createManager(entrypoint, {
+    execArgv: ["--import", "tsx"],
     token,
     totalShards: shardCount,
     respawn: true,

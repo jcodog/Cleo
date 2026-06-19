@@ -22,6 +22,7 @@ const validConfig = {
   logChannelId: "234567890123456789",
   modLogChannelId: "345678901234567890",
   welcomeChannelId: "456789012345678901",
+  welcomeSubtext: "Settle in, say hello, and enjoy the server.",
   updatesChannelId: "567890123456789012",
   announcementChannelId: "678901234567890123",
 } satisfies DiscordGuildRuntimeConfig
@@ -53,6 +54,7 @@ test("runtime-config contract exposes stable variants and field names", () => {
     "logChannelId",
     "modLogChannelId",
     "welcomeChannelId",
+    "welcomeSubtext",
     "updatesChannelId",
     "announcementChannelId",
   ])
@@ -224,6 +226,19 @@ test("runtime-config validator rejects malformed and mismatched responses", () =
     ).success,
     false
   )
+
+  for (const welcomeSubtext of ["", " ".repeat(2), "x".repeat(121)]) {
+    assert.equal(
+      validateBackendDiscordGuildRuntimeConfigResult({
+        status: "ready",
+        config: {
+          ...validConfig,
+          welcomeSubtext,
+        },
+      }).success,
+      false
+    )
+  }
 
   assert.equal(
     validateBackendDiscordGuildRuntimeConfigResult({

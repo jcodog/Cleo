@@ -740,6 +740,7 @@ export type DataModel = {
       updatesChannelId?: string;
       welcomeChannelId?: string;
       welcomeEnabled: boolean;
+      welcomeSubtext?: string;
       _id: Id<"guildConfigs">;
       _creationTime: number;
     };
@@ -759,7 +760,8 @@ export type DataModel = {
       | "updatedAt"
       | "updatesChannelId"
       | "welcomeChannelId"
-      | "welcomeEnabled";
+      | "welcomeEnabled"
+      | "welcomeSubtext";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];

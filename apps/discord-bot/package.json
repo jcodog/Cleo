@@ -12,11 +12,13 @@
     "test": "tsx --test \"src/**/*.test.ts\"",
     "test:coverage": "c8 --all --check-coverage --lines=49 --statements=49 --functions=52 --branches=84 --src=src --include=\"src/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
+    "welcome:preview": "tsx --env-file=.env.local src/scripts/sendWelcomePreview.ts",
     "commands:register": "tsx --env-file=.env.local src/scripts/registerCommands.ts",
     "commands:register:guild": "tsx --env-file=.env.local src/scripts/registerCommands.ts --guild",
     "commands:register:global": "tsx --env-file=.env.local src/scripts/registerCommands.ts --global"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.0",
     "@workspace/backend": "workspace:*",
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",

@@ -103,6 +103,7 @@ export declare const api: {
                     updatesChannelId?: string;
                     welcomeChannelId?: string;
                     welcomeEnabled: boolean;
+                    welcomeSubtext?: string;
                   };
                   status: "ready";
                 }
@@ -593,6 +594,7 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeSubtext?: string;
               }
             >;
           };
@@ -626,6 +628,7 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeSubtext?: string;
               }
             >;
           };
@@ -646,6 +649,7 @@ export declare const api: {
                   moderationEnabled?: boolean;
                   welcomeEnabled?: boolean;
                 };
+                welcome?: { subtext?: string | null };
               },
               {
                 _creationTime: number;
@@ -664,6 +668,7 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeSubtext?: string;
               }
             >;
           };
@@ -776,6 +781,7 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeSubtext?: string;
               } | null
             >;
           };
@@ -903,6 +909,7 @@ export declare const api: {
                       updatesChannelId?: string;
                       welcomeChannelId?: string;
                       welcomeEnabled: boolean;
+                      welcomeSubtext?: string;
                     } | null;
                     guildId: Id<"guilds">;
                     iconHash?: string;
@@ -952,6 +959,7 @@ export declare const api: {
                       updatesChannelId?: string;
                       welcomeChannelId?: string;
                       welcomeEnabled: boolean;
+                      welcomeSubtext?: string;
                     } | null;
                     guildId: Id<"guilds">;
                     iconHash?: string;
@@ -2592,6 +2600,7 @@ export declare const internal: {
                     updatesChannelId?: string;
                     welcomeChannelId?: string;
                     welcomeEnabled: boolean;
+                    welcomeSubtext?: string;
                   };
                   status: "ready";
                 }

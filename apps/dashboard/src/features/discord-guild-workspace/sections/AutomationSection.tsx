@@ -21,14 +21,17 @@ import {
   FieldContent,
   FieldDescription,
   FieldGroup,
+  FieldLabel,
   FieldTitle,
 } from "@workspace/ui/components/field"
+import { Input } from "@workspace/ui/components/input"
 import { Switch } from "@workspace/ui/components/switch"
 import { useMutation } from "convex/react"
 
 import {
   AUTOMATION_CHANNEL_FIELDS,
   toOptionalChannelValue,
+  toOptionalTextValue,
   type ChannelValues,
 } from "../lib/config"
 import { getErrorMessage } from "../lib/format"
@@ -58,6 +61,9 @@ export function AutomationSection({
     updatesChannelId: overview.guildConfig?.updatesChannelId ?? "",
     announcementChannelId: overview.guildConfig?.announcementChannelId ?? "",
   }))
+  const [welcomeSubtext, setWelcomeSubtext] = useState(
+    overview.guildConfig?.welcomeSubtext ?? ""
+  )
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -82,6 +88,9 @@ export function AutomationSection({
             channels.announcementChannelId
           ),
         },
+        welcome: {
+          subtext: toOptionalTextValue(welcomeSubtext),
+        },
       })
       setSaveState("success")
     } catch (error) {
@@ -102,10 +111,10 @@ export function AutomationSection({
         <CardContent className="flex flex-col gap-5">
           <Alert>
             <IconInfoCircle aria-hidden />
-            <AlertTitle>Automation Runtime Pending</AlertTitle>
+            <AlertTitle>Welcome Runtime Active</AlertTitle>
             <AlertDescription>
-              Welcome messages and announcements require the future Discord bot
-              runtime. This page only saves schema-backed settings.
+              Welcome messages are delivered by the Discord bot from saved
+              runtime config. Announcements are stored for later runtime work.
             </AlertDescription>
           </Alert>
 
@@ -129,6 +138,27 @@ export function AutomationSection({
               </FieldContent>
             </Field>
           </FieldGroup>
+
+          <Field>
+            <FieldLabel htmlFor="welcomeSubtext">Welcome Subtext</FieldLabel>
+            <Input
+              autoComplete="off"
+              disabled={isBotLeft || saveState === "saving"}
+              id="welcomeSubtext"
+              maxLength={120}
+              name="welcomeSubtext"
+              onChange={(event) => {
+                setWelcomeSubtext(event.target.value)
+                setSaveState("idle")
+                setErrorMessage(null)
+              }}
+              placeholder="Settle in, say hello, and enjoy the server."
+              value={welcomeSubtext}
+            />
+            <FieldDescription>
+              Optional line shown under the member name on welcome cards.
+            </FieldDescription>
+          </Field>
 
           <ChannelFieldGroup
             disabled={isBotLeft || saveState === "saving"}

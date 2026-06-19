@@ -2,6 +2,7 @@ import { Events, type Client } from "discord.js"
 
 import { Event } from "@/classes/Event"
 import { convexBotClient } from "@/services/convexBotClient"
+import { configureRotatingStatus } from "@/services/rotatingStatus"
 import { botLog, botLogError } from "@/utils/botLog"
 import {
   createGuildSnapshot,
@@ -13,6 +14,7 @@ type ReadySyncClient = Pick<typeof convexBotClient, "syncReadyGuilds">
 type ClientReadyDependencies = {
   convexClient?: ReadySyncClient
   now?: () => number
+  configureStatus?: typeof configureRotatingStatus
   log?: typeof botLog
   logError?: typeof botLogError
 }
@@ -30,6 +32,7 @@ export async function handleClientReady(
   {
     convexClient = convexBotClient,
     now = Date.now,
+    configureStatus = configureRotatingStatus,
     log = botLog,
     logError = botLogError,
   }: ClientReadyDependencies = {}
@@ -39,10 +42,8 @@ export async function handleClientReady(
 
   log(`Cleo is online as ${client.user.tag}`, "success")
   log(`Connected to ${client.guilds.cache.size} guild(s).`, "info")
-  log(
-    `READY sync shard scope: ids=${shardScope.shardIds.join(",")}; count=${shardScope.shardCount}.`,
-    "info"
-  )
+  log(formatReadySyncScopeLog(shardScope), "info")
+  configureStatus(client)
 
   const snapshots: GuildSnapshot[] = []
 
@@ -71,4 +72,18 @@ export function getReadyShardScope(client: Client<true>) {
     shardIds: client.shard?.ids ?? [0],
     shardCount: client.shard?.count ?? 1,
   }
+}
+
+export function formatReadySyncScopeLog({
+  shardCount,
+  shardIds,
+}: {
+  shardIds: number[]
+  shardCount: number
+}): string {
+  if (shardCount === 1 && shardIds.length === 1 && shardIds[0] === 0) {
+    return "READY sync scope: single runtime."
+  }
+
+  return `READY sync shard scope: ids=${shardIds.join(",")}; count=${shardCount}.`
 }

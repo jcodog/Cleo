@@ -100,6 +100,7 @@ test("sharded startup path invokes the manager path without dashboard guild conf
   assert.equal(fakeManager.spawnCalls, 1)
   assert.equal(createdWithFile, "src/index.ts")
   assert.deepEqual(createdWithOptions, {
+    execArgv: ["--import", "tsx"],
     token: "bot-token",
     totalShards: 4,
     respawn: true,

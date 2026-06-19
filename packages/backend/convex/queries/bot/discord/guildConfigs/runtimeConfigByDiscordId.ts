@@ -59,6 +59,9 @@ export const get = internalQuery({
         ...(config.welcomeChannelId !== undefined
           ? { welcomeChannelId: config.welcomeChannelId }
           : {}),
+        ...(config.welcomeSubtext !== undefined
+          ? { welcomeSubtext: config.welcomeSubtext }
+          : {}),
         ...(config.updatesChannelId !== undefined
           ? { updatesChannelId: config.updatesChannelId }
           : {}),

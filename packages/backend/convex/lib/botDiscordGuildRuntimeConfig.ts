@@ -35,6 +35,7 @@ export const botDiscordGuildRuntimeConfig = v.object({
   logChannelId: v.optional(v.string()),
   modLogChannelId: v.optional(v.string()),
   welcomeChannelId: v.optional(v.string()),
+  welcomeSubtext: v.optional(v.string()),
   updatesChannelId: v.optional(v.string()),
   announcementChannelId: v.optional(v.string()),
 })
