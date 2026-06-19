@@ -16,25 +16,30 @@ const convexUrl = discordEnv.CONVEX_URL
 const convexSecret = discordEnv.DISCORD_BOT_CONVEX_SECRET
 const convexClients = new Map<string, ConvexHttpClient>()
 const CONVEX_UDF_FAILED_STATUS = 560
-const MAX_CONVEX_ERROR_BODY_LENGTH = 500
 
-const gatewayEventTimestampSchema = z.number().refine(
-  (value) => Number.isSafeInteger(value) && value >= 0,
-  "Gateway event timestamp must be a non-negative safe integer."
-)
+const gatewayEventTimestampSchema = z
+  .number()
+  .refine(
+    (value) => Number.isSafeInteger(value) && value >= 0,
+    "Gateway event timestamp must be a non-negative safe integer."
+  )
 
-const gatewayShardIdSchema = z.number().refine(
-  (value) => Number.isSafeInteger(value) && value >= 0,
-  "Gateway shard IDs must be non-negative safe integers."
-)
+const gatewayShardIdSchema = z
+  .number()
+  .refine(
+    (value) => Number.isSafeInteger(value) && value >= 0,
+    "Gateway shard IDs must be non-negative safe integers."
+  )
 
 const gatewayShardScopeSchema = z
   .object({
     shardIds: z.array(gatewayShardIdSchema).min(1),
-    shardCount: z.number().refine(
-      (value) => Number.isSafeInteger(value) && value > 0,
-      "Gateway shard count must be a positive safe integer."
-    ),
+    shardCount: z
+      .number()
+      .refine(
+        (value) => Number.isSafeInteger(value) && value > 0,
+        "Gateway shard count must be a positive safe integer."
+      ),
   })
   .superRefine((scope, ctx) => {
     const shardIds = new Set(scope.shardIds)
@@ -85,26 +90,20 @@ export class ConvexHttpRequestError extends Error {
   public override readonly name = "ConvexHttpRequestError"
 
   public constructor({
-    body,
     method,
     status,
     statusText,
     url,
   }: {
-    body: string
     method: string
     status: number
     statusText: string
     url: string
   }) {
     const statusLabel = statusText ? `${status} ${statusText}` : String(status)
-    const bodyPreview = truncateConvexErrorBody(body)
 
     super(
-      [
-        `Convex HTTP request failed: ${method} ${url} returned ${statusLabel}.`,
-        ...(bodyPreview ? [`Response body: ${bodyPreview}`] : []),
-      ].join(" ")
+      `Convex HTTP request failed: ${method} ${url} returned ${statusLabel}.`
     )
   }
 }
@@ -130,7 +129,9 @@ export function validateConvexUrl(
     parsedUrl.search ||
     parsedUrl.hash
   ) {
-    throw new Error("CONVEX_URL must be an origin without a path, query, or hash.")
+    throw new Error(
+      "CONVEX_URL must be an origin without a path, query, or hash."
+    )
   }
 
   if (parsedUrl.protocol === "https:") {
@@ -245,10 +246,7 @@ export function createConvexDiagnosticFetch(
       return response
     }
 
-    const responseBody = await readResponseBody(response)
-
     throw new ConvexHttpRequestError({
-      body: responseBody,
       method: getFetchMethod(input, init),
       status: response.status,
       statusText: response.statusText,
@@ -257,15 +255,10 @@ export function createConvexDiagnosticFetch(
   }
 }
 
-async function readResponseBody(response: Response): Promise<string> {
-  try {
-    return await response.clone().text()
-  } catch {
-    return ""
-  }
-}
-
-function getFetchMethod(input: RequestInfo | URL, init: RequestInit | undefined) {
+function getFetchMethod(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined
+) {
   if (init?.method) {
     return init.method.toUpperCase()
   }
@@ -283,16 +276,6 @@ function getFetchUrl(input: RequestInfo | URL): string {
   }
 
   return String(input)
-}
-
-function truncateConvexErrorBody(body: string): string {
-  const trimmedBody = body.trim()
-
-  if (trimmedBody.length <= MAX_CONVEX_ERROR_BODY_LENGTH) {
-    return trimmedBody
-  }
-
-  return `${trimmedBody.slice(0, MAX_CONVEX_ERROR_BODY_LENGTH)}...`
 }
 
 function getConvexSyncConfig(operation: string) {
@@ -327,10 +310,7 @@ function getConvexSyncConfig(operation: string) {
 
 async function callWithConvex<T>(
   operation: string,
-  callback: (config: {
-    client: ConvexHttpClient
-    secret: string
-  }) => Promise<T>
+  callback: (config: { client: ConvexHttpClient; secret: string }) => Promise<T>
 ): Promise<T | null> {
   const config = getConvexSyncConfig(operation)
 
@@ -409,11 +389,16 @@ export const convexBotClient = {
         guild: parsedGuild,
       })
 
-      botLog(`Synced left guild ${parsedGuild.discordGuildId} to Convex.`, "debug")
+      botLog(
+        `Synced left guild ${parsedGuild.discordGuildId} to Convex.`,
+        "debug"
+      )
     })
   },
 
-  async fetchGuildRuntimeConfig(discordGuildId: string): Promise<unknown | null> {
+  async fetchGuildRuntimeConfig(
+    discordGuildId: string
+  ): Promise<unknown | null> {
     return await callWithConvex(
       "guild runtime config fetch",
       async ({ client, secret }) =>

@@ -22,15 +22,27 @@ export default new Command({
   async execute({ interaction }) {
     await interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: [
-        "**Cleo command help**",
-        "",
-        "`/ping` - Check Cleo's Discord connection latency.",
-        "`/help` - View this guide.",
-        "`/profile` - View your Discord profile details known to Cleo.",
-        "",
-        "More server management tools are coming as the dashboard migration continues.",
-      ].join("\n"),
+      content: createHelpContent({
+        includeProfile: !interaction.inGuild(),
+      }),
     })
   },
 })
+
+export function createHelpContent({
+  includeProfile,
+}: {
+  includeProfile: boolean
+}): string {
+  return [
+    "**Cleo command help**",
+    "",
+    "`/ping` - Check Cleo's Discord connection latency.",
+    "`/help` - View this guide.",
+    ...(includeProfile
+      ? ["`/profile` - View your Discord profile details known to Cleo."]
+      : []),
+    "",
+    "More server management tools are coming as the dashboard migration continues.",
+  ].join("\n")
+}

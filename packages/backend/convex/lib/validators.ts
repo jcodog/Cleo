@@ -235,6 +235,9 @@ export const guildDoc = v.object({
   botLeftAt: v.optional(v.number()),
   lastOpenedAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
+  readyShardId: v.optional(v.number()),
+  readyShardCount: v.optional(v.number()),
+  readyShardKey: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
 })

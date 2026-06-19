@@ -66,9 +66,6 @@ export const sync = action({
 
     await reconcileAbsentReadyGuilds({
       ctx,
-      readyDiscordGuildIds: new Set(
-        guilds.map((guild) => guild.discordGuildId)
-      ),
       shardScope: args.shardScope,
       syncedAt,
     })
@@ -77,19 +74,15 @@ export const sync = action({
   },
 })
 
-async function reconcileAbsentReadyGuilds({
+export async function reconcileAbsentReadyGuilds({
   ctx,
-  readyDiscordGuildIds,
   shardScope,
   syncedAt,
 }: {
   ctx: ActionCtx
-  readyDiscordGuildIds: Set<string>
   shardScope: GatewayShardScope
   syncedAt: number
 }) {
-  const readyDiscordGuildIdList = Array.from(readyDiscordGuildIds)
-
   for (const shardId of shardScope.shardIds) {
     const readyShardKey = createReadyShardKey(shardScope.shardCount, shardId)
     let cursor: string | null = null
@@ -100,7 +93,6 @@ async function reconcileAbsentReadyGuilds({
           .markAbsentForReadyShardPage,
         {
           readyShardKey,
-          readyDiscordGuildIds: readyDiscordGuildIdList,
           leftAt: syncedAt,
           paginationOpts: {
             cursor,
@@ -159,7 +151,10 @@ export function chunkReadyGuilds<T>(
   return batches
 }
 
-export function createReadyShardKey(shardCount: number, shardId: number): string {
+export function createReadyShardKey(
+  shardCount: number,
+  shardId: number
+): string {
   // Include shardCount so reconciliation only marks absences for the topology
   // represented by the current READY snapshot.
   return `${shardCount}:${shardId}`

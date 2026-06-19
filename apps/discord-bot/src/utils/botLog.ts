@@ -49,8 +49,9 @@ export function botLog(message: string, level: BotLogLevel = "info"): void {
   const timestamp = `${colors.dim}[${getTimestamp()}]${colors.reset}`
   const levelLabel = level.toUpperCase().padEnd(levelWidth, " ")
   const coloredLevel = `${levelColors[level]}${levelLabel}${colors.reset}`
+  const redactedMessage = redactLogText(message)
 
-  console.log(`${timestamp} ${coloredLevel} | ${message}`)
+  console.log(`${timestamp} ${coloredLevel} | ${redactedMessage}`)
 }
 
 export function botLogError(

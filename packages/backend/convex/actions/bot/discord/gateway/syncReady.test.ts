@@ -5,12 +5,10 @@ import {
   chunkReadyGuilds,
   createReadyGuildInputs,
   createReadyShardKey,
+  reconcileAbsentReadyGuilds,
   READY_GUILD_BATCH_SIZE,
 } from "./syncReady"
-import {
-  getDiscordGuildShardId,
-  type GatewayGuild,
-} from "./lib/gatewayGuild"
+import { getDiscordGuildShardId, type GatewayGuild } from "./lib/gatewayGuild"
 
 const guild = {
   discordGuildId: "123456789012345678",
@@ -68,4 +66,58 @@ test("READY shard keys define shard-count change behavior", () => {
   assert.equal(createReadyShardKey(16, 4), "16:4")
   assert.equal(createReadyShardKey(32, 4), "32:4")
   assert.notEqual(createReadyShardKey(16, 4), createReadyShardKey(32, 4))
+})
+
+test("READY reconciliation pages do not receive the full READY guild snapshot", async () => {
+  const calls: unknown[] = []
+  const ctx = {
+    async runMutation(_mutation: unknown, args: unknown) {
+      calls.push(args)
+
+      return {
+        continueCursor: calls.length === 1 ? "next" : "",
+        isDone: calls.length === 2,
+        scanned: 100,
+        markedLeft: 1,
+        skipped: 99,
+      }
+    },
+  }
+
+  await reconcileAbsentReadyGuilds({
+    ctx: ctx as never,
+    shardScope: {
+      shardIds: [3],
+      shardCount: 16,
+    },
+    syncedAt: 5_000,
+  })
+
+  assert.deepEqual(calls, [
+    {
+      readyShardKey: "16:3",
+      leftAt: 5_000,
+      paginationOpts: {
+        cursor: null,
+        numItems: 100,
+        maximumRowsRead: 100,
+      },
+    },
+    {
+      readyShardKey: "16:3",
+      leftAt: 5_000,
+      paginationOpts: {
+        cursor: "next",
+        numItems: 100,
+        maximumRowsRead: 100,
+      },
+    },
+  ])
+
+  for (const call of calls) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(call, "readyDiscordGuildIds"),
+      false
+    )
+  }
 })

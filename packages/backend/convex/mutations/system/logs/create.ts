@@ -1,36 +1,55 @@
-import { redactLogMetadata } from "@workspace/logger"
-import { v } from "convex/values"
+import { redactLogMetadata, redactLogText } from "@workspace/logger"
+import { v, type Infer } from "convex/values"
 
 import type { Id } from "../../../_generated/dataModel"
 import { internalMutation } from "../../../_generated/server"
 import { appSource, logLevel } from "../../../dbTables/shared"
-import { jsonValue } from "../../../lib/validators"
+import { jsonValue, type ConvexJsonValue } from "../../../lib/validators"
+
+const createErrorLogArgs = {
+  source: appSource,
+  level: logLevel,
+  message: v.string(),
+  stack: v.optional(v.string()),
+  metadata: v.optional(jsonValue),
+}
+type CreateErrorLogArgs = {
+  source: Infer<typeof appSource>
+  level: Infer<typeof logLevel>
+  message: string
+  stack?: string
+  metadata?: ConvexJsonValue
+}
 
 export const create = internalMutation({
-  args: {
-    source: appSource,
-    level: logLevel,
-    message: v.string(),
-    stack: v.optional(v.string()),
-    metadata: v.optional(jsonValue),
-  },
+  args: createErrorLogArgs,
   returns: v.id("errorLogs"),
   handler: async (ctx, args): Promise<Id<"errorLogs">> => {
-    const guildScope = getGuildScope(args.metadata)
-
-    return await ctx.db.insert("errorLogs", {
-      source: args.source,
-      level: args.level,
-      message: args.message,
-      ...(args.stack !== undefined ? { stack: args.stack } : {}),
-      ...guildScope,
-      ...(args.metadata !== undefined
-        ? { metadata: redactLogMetadata(args.metadata) }
-        : {}),
-      createdAt: Date.now(),
-    })
+    return await ctx.db.insert(
+      "errorLogs",
+      createErrorLogDocument(args, Date.now())
+    )
   },
 })
+
+export function createErrorLogDocument(
+  args: CreateErrorLogArgs,
+  createdAt: number
+) {
+  const guildScope = getGuildScope(args.metadata)
+
+  return {
+    source: args.source,
+    level: args.level,
+    message: redactLogText(args.message),
+    ...(args.stack !== undefined ? { stack: redactLogText(args.stack) } : {}),
+    ...guildScope,
+    ...(args.metadata !== undefined
+      ? { metadata: redactLogMetadata(args.metadata) }
+      : {}),
+    createdAt,
+  }
+}
 
 function getGuildScope(metadata: unknown): {
   guildId?: string

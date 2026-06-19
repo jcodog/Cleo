@@ -123,10 +123,18 @@ test("production runtime config fails startup when Convex credentials are missin
 
 test("Convex diagnostic fetch exposes non-UDF HTTP failures", async () => {
   const diagnosticFetch = createConvexDiagnosticFetch(async () => {
-    return new Response("", {
-      status: 404,
-      statusText: "Not Found",
-    })
+    return new Response(
+      JSON.stringify({
+        email: "user@example.com",
+        token: "secret-token",
+        cookie: "session=secret-cookie",
+        userData: "private profile content",
+      }),
+      {
+        status: 404,
+        statusText: "Not Found",
+      }
+    )
   })
 
   await assert.rejects(
@@ -138,7 +146,11 @@ test("Convex diagnostic fetch exposes non-UDF HTTP failures", async () => {
       error instanceof ConvexHttpRequestError &&
       /POST https:\/\/example\.convex\.cloud\/api\/action returned 404 Not Found/.test(
         error.message
-      )
+      ) &&
+      !/user@example\.com/.test(error.message) &&
+      !/secret-token/.test(error.message) &&
+      !/secret-cookie/.test(error.message) &&
+      !/private profile content/.test(error.message)
   )
 })
 

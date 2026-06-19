@@ -72,7 +72,6 @@ export const mark = internalMutation({
 export const markAbsentForReadyShardPage = internalMutation({
   args: {
     readyShardKey: v.string(),
-    readyDiscordGuildIds: v.array(v.string()),
     leftAt: v.number(),
     paginationOpts: paginationOptsValidator,
   },
@@ -86,7 +85,6 @@ export const markAbsentForReadyShardPage = internalMutation({
   handler: async (ctx, args) => {
     const now = Date.now()
     const leftAt = normalizeLeftAt(args.leftAt, now)
-    const readyDiscordGuildIds = new Set(args.readyDiscordGuildIds)
     let markedLeft = 0
     let skipped = 0
 
@@ -98,7 +96,7 @@ export const markAbsentForReadyShardPage = internalMutation({
       .paginate(args.paginationOpts)
 
     for (const guild of page.page) {
-      if (!shouldMarkReadyShardGuildAbsent(guild, readyDiscordGuildIds, leftAt)) {
+      if (!shouldMarkReadyShardGuildAbsent(guild, leftAt)) {
         skipped += 1
         continue
       }
@@ -123,13 +121,9 @@ export const markAbsentForReadyShardPage = internalMutation({
 
 export function shouldMarkReadyShardGuildAbsent(
   guild: ReadyShardGuild,
-  readyDiscordGuildIds: ReadonlySet<string>,
   leftAt: number
 ): boolean {
-  if (
-    guild.botLeftAt !== undefined ||
-    readyDiscordGuildIds.has(guild.discordGuildId)
-  ) {
+  if (guild.botLeftAt !== undefined) {
     return false
   }
 
@@ -150,7 +144,8 @@ function normalizeLeftAt(leftAt: number, now: number): number {
   ) {
     throw new ConvexError({
       code: "INVALID_DISCORD_GUILD_EVENT_TIMESTAMP",
-      message: "leftAt must be a valid non-future Discord guild event timestamp.",
+      message:
+        "leftAt must be a valid non-future Discord guild event timestamp.",
     })
   }
 

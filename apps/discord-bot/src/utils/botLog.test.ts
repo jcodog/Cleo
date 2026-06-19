@@ -1,7 +1,23 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { botLogError } from "./botLog"
+import { botLog, botLogError } from "./botLog"
+
+test("botLog redacts normal message text without changing formatting", (t) => {
+  const logLines: string[] = []
+
+  t.mock.method(console, "log", (line: string) => {
+    logLines.push(line)
+  })
+
+  botLog("User user@example.com sent token=secret", "info")
+
+  assert.equal(logLines.length, 1)
+  assert.match(logLines[0] ?? "", /INFO\s+/)
+  assert.match(logLines[0] ?? "", / \| /)
+  assert.match(logLines[0] ?? "", /User \[redacted\] sent token=\[redacted\]/)
+  assert.doesNotMatch(logLines[0] ?? "", /user@example\.com|secret/)
+})
 
 test("botLogError writes concise sanitized error metadata", (t) => {
   const logLines: string[] = []
@@ -53,7 +69,10 @@ test("botLogError includes sanitized stack context for empty-message errors", (t
 
   assert.equal(logLines.length, 1)
   assert.match(logLines[0] ?? "", /Convex ready guild sync failed\./)
-  assert.match(logLines[0] ?? "", /https:\/\/\[redacted\]@example.com\/path\?token=\[redacted\]/)
+  assert.match(
+    logLines[0] ?? "",
+    /https:\/\/\[redacted\]@example.com\/path\?token=\[redacted\]/
+  )
   assert.doesNotMatch(logLines[0] ?? "", /secret/)
 })
 

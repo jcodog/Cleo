@@ -4,15 +4,12 @@ import { test } from "node:test"
 import { shouldMarkReadyShardGuildAbsent } from "./markBotLeftBatch"
 
 test("READY shard reconciliation marks only absent active guilds", () => {
-  const readyDiscordGuildIds = new Set(["111111111111111111"])
-
   assert.equal(
     shouldMarkReadyShardGuildAbsent(
       {
         discordGuildId: "111111111111111111",
-        lastSyncedAt: 1_000,
+        lastSyncedAt: 2_000,
       },
-      readyDiscordGuildIds,
       2_000
     ),
     false
@@ -24,7 +21,6 @@ test("READY shard reconciliation marks only absent active guilds", () => {
         discordGuildId: "222222222222222222",
         lastSyncedAt: 1_000,
       },
-      readyDiscordGuildIds,
       2_000
     ),
     true
@@ -37,7 +33,6 @@ test("READY shard reconciliation marks only absent active guilds", () => {
         botLeftAt: 1_500,
         lastSyncedAt: 1_500,
       },
-      readyDiscordGuildIds,
       2_000
     ),
     false
@@ -51,7 +46,6 @@ test("READY shard reconciliation preserves newer presence timestamps", () => {
         discordGuildId: "222222222222222222",
         lastSyncedAt: 2_000,
       },
-      new Set(),
       2_000
     ),
     false
@@ -63,7 +57,6 @@ test("READY shard reconciliation preserves newer presence timestamps", () => {
         discordGuildId: "222222222222222222",
         botInstallationVerifiedAt: 2_500,
       },
-      new Set(),
       2_000
     ),
     false

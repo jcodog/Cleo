@@ -844,6 +844,9 @@ export declare const api: {
                 name: string;
                 ownerDiscordId?: string;
                 presenceCount?: number;
+                readyShardCount?: number;
+                readyShardId?: number;
+                readyShardKey?: string;
                 updatedAt: number;
               } | null
             >;
@@ -1082,7 +1085,6 @@ export declare const internal: {
                   maximumRowsRead?: number;
                   numItems: number;
                 };
-                readyDiscordGuildIds: Array<string>;
                 readyShardKey: string;
               },
               {
@@ -2125,6 +2127,9 @@ export declare const internal: {
                 name: string;
                 ownerDiscordId?: string;
                 presenceCount?: number;
+                readyShardCount?: number;
+                readyShardId?: number;
+                readyShardKey?: string;
                 updatedAt: number;
               }
             >;
@@ -2628,6 +2633,9 @@ export declare const internal: {
                     name: string;
                     ownerDiscordId?: string;
                     presenceCount?: number;
+                    readyShardCount?: number;
+                    readyShardId?: number;
+                    readyShardKey?: string;
                     updatedAt: number;
                   };
                   status: "ready";

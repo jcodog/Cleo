@@ -1,27 +1,114 @@
 "use client"
 
-import * as React from "react"
-import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react"
 
-function ThemeProvider({
-  children,
-  ...props
-}: React.ComponentProps<typeof NextThemesProvider>) {
+type Theme = "dark" | "light" | "system"
+type ResolvedTheme = Exclude<Theme, "system">
+
+type ThemeContextValue = {
+  theme: Theme
+  resolvedTheme: ResolvedTheme
+  setTheme: (theme: Theme) => void
+}
+
+const STORAGE_KEY = "theme"
+const ThemeContext = createContext<ThemeContextValue | null>(null)
+
+function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>("system")
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>("light")
+  const resolvedTheme = theme === "system" ? systemTheme : theme
+
+  useEffect(() => {
+    window.requestAnimationFrame(() => {
+      setThemeState(getStoredTheme())
+      setSystemTheme(getSystemTheme())
+    })
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    const updateSystemTheme = () => setSystemTheme(getSystemTheme())
+
+    mediaQuery.addEventListener("change", updateSystemTheme)
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateSystemTheme)
+    }
+  }, [])
+
+  useEffect(() => {
+    const root = document.documentElement
+
+    root.classList.toggle("dark", resolvedTheme === "dark")
+    root.style.colorScheme = resolvedTheme
+  }, [resolvedTheme])
+
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      theme,
+      resolvedTheme,
+      setTheme(nextTheme) {
+        setThemeState(nextTheme)
+
+        if (nextTheme === "system") {
+          window.localStorage.removeItem(STORAGE_KEY)
+        } else {
+          window.localStorage.setItem(STORAGE_KEY, nextTheme)
+        }
+      },
+    }),
+    [theme, resolvedTheme]
+  )
+
   return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-      {...props}
-    >
+    <ThemeContext.Provider value={value}>
       <ThemeHotkey />
       {children}
-    </NextThemesProvider>
+    </ThemeContext.Provider>
   )
 }
 
-function isTypingTarget(target: EventTarget | null) {
+function useTheme(): ThemeContextValue {
+  const context = useContext(ThemeContext)
+
+  if (!context) {
+    throw new Error("useTheme must be used within ThemeProvider.")
+  }
+
+  return context
+}
+
+function isTheme(value: string | null): value is Theme {
+  return value === "dark" || value === "light" || value === "system"
+}
+
+function getStoredTheme(): Theme {
+  if (typeof window === "undefined") {
+    return "system"
+  }
+
+  const storedTheme = window.localStorage.getItem(STORAGE_KEY)
+
+  return isTheme(storedTheme) ? storedTheme : "system"
+}
+
+function getSystemTheme(): ResolvedTheme {
+  if (typeof window === "undefined") {
+    return "light"
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light"
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false
   }
@@ -37,7 +124,7 @@ function isTypingTarget(target: EventTarget | null) {
 function ThemeHotkey() {
   const { resolvedTheme, setTheme } = useTheme()
 
-  React.useEffect(() => {
+  useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented || event.repeat) {
         return
@@ -68,4 +155,4 @@ function ThemeHotkey() {
   return null
 }
 
-export { ThemeProvider }
+export { ThemeProvider, useTheme }

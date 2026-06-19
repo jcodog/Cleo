@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { UserButton } from "@clerk/nextjs"
 
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
@@ -14,8 +17,28 @@ export function AppTopbar() {
         <p className="truncate text-sm font-medium">CleoAI Dashboard</p>
       </div>
 
-      <UserButton showName />
+      <MountedUserButton />
       <ThemeToggle />
     </header>
   )
+}
+
+function MountedUserButton() {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      setMounted(true)
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+    }
+  }, [])
+
+  if (!mounted) {
+    return <div aria-hidden="true" className="h-8 w-28 shrink-0" />
+  }
+
+  return <UserButton showName />
 }
