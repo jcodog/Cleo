@@ -8,7 +8,7 @@ import {
 export default new Command({
   data: {
     name: "profile",
-    description: "View your Discord profile details known to Cleo.",
+    description: "View your profile details known to Cleo.",
     integration_types: [ApplicationIntegrationType.UserInstall],
     contexts: [
       InteractionContextType.BotDM,
