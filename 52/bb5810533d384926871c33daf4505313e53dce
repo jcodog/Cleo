@@ -1,0 +1,27 @@
+apps/discord-bot/src/services/guildRuntimeConfig.ts
+  s_f5da47ac827f4d::t_65413c1eddb0ee 2,5,25-311,315-316,318-322,324-325,366-373
+apps/discord-bot/src/services/guildRuntimeConfig.test.ts
+  s_f5da47ac827f4d::t_825bf2fefbb121 463,466-469,475
+  s_f5da47ac827f4d::t_522ee44eaece86 5-8,151-462,464-465,470-474,476-526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "52bb5810533d384926871c33daf4505313e53dce",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_f5da47ac827f4d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ee0bf-2348-7f20-ae2f-935441ec9c79",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
