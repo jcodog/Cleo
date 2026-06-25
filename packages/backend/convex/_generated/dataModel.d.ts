@@ -27,6 +27,32 @@ import type { GenericId } from "convex/values";
  */
 
 export type DataModel = {
+  appFeatureGates: {
+    document: {
+      createdAt: number;
+      enabled: boolean;
+      enabledForClerkUserIds?: Array<string>;
+      key: "discordRuntimeIncidents";
+      updatedAt: number;
+      _id: Id<"appFeatureGates">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "createdAt"
+      | "enabled"
+      | "enabledForClerkUserIds"
+      | "key"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_key: ["key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   discordBotRuntimeErrors: {
     document: {
       commandName?: string;

@@ -9,6 +9,7 @@ import { discordGuildInstallSessions } from "./dbTables/discordGuildInstallSessi
 import { guildAuditEvents } from "./dbTables/guildAuditEvents"
 import { guildAuditLogSyncStates } from "./dbTables/guildAuditLogSyncStates"
 import { discordBotRuntimeErrors } from "./dbTables/discordBotRuntimeErrors"
+import { appFeatureGates } from "./dbTables/appFeatureGates"
 
 export default defineSchema({
   users,
@@ -20,5 +21,6 @@ export default defineSchema({
   errorLogs,
   guildAuditEvents,
   guildAuditLogSyncStates,
-  discordBotRuntimeErrors
+  discordBotRuntimeErrors,
+  appFeatureGates,
 })

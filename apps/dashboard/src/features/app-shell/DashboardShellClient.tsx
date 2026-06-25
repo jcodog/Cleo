@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation"
 import {
   IconActivity,
+  IconAlertTriangle,
   IconBolt,
   IconCommand,
   IconDeviceDesktop,
@@ -16,6 +17,8 @@ import {
   IconShield,
   IconWebhook,
 } from "@tabler/icons-react"
+import { api } from "@workspace/backend/convex/_generated/api.js"
+import { useQuery } from "convex/react"
 
 import {
   type AppShellPlatform,
@@ -30,6 +33,9 @@ export function DashboardShellClient({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const runtimeIncidentAccess = useQuery(
+    api.queries.dashboard.discord.runtimeIncidents.access.get
+  )
   const currentPlatform = getPlatformFromPathname(pathname)
   const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
@@ -48,96 +54,108 @@ export function DashboardShellClient({
       ? `/dashboard/${activeDiscordGuildId}/${section}`
       : "/dashboard"
 
+  const discordNavSections: AppShellNavSection[] = [
+    {
+      items: [
+        {
+          title: "Overview",
+          href: discordOverviewHref,
+          icon: IconHome,
+          isActive:
+            pathname === "/dashboard" ||
+            pathname === discordOverviewHref ||
+            (activeDiscordGuildId !== undefined &&
+              pathname === `/dashboard/${activeDiscordGuildId}/overview`),
+        },
+        {
+          title: "Modules",
+          href: discordGuildSectionHref("modules"),
+          icon: IconListDetails,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/modules`),
+          disabled: !hasSelectedDiscordGuild,
+        },
+        {
+          title: "Channels",
+          href: discordGuildSectionHref("channels"),
+          icon: IconHash,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/channels`),
+          disabled: !hasSelectedDiscordGuild,
+        },
+        {
+          title: "Moderation",
+          href: discordGuildSectionHref("moderation"),
+          icon: IconShield,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(
+              `/dashboard/${activeDiscordGuildId}/moderation`
+            ),
+          disabled: !hasSelectedDiscordGuild,
+        },
+        {
+          title: "Automation",
+          href: discordGuildSectionHref("automation"),
+          icon: IconBolt,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(
+              `/dashboard/${activeDiscordGuildId}/automation`
+            ),
+          disabled: !hasSelectedDiscordGuild,
+        },
+        {
+          title: "Commands",
+          href: discordGuildSectionHref("commands"),
+          icon: IconCommand,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/commands`),
+          disabled: !hasSelectedDiscordGuild,
+        },
+        {
+          title: "Logs",
+          href: discordGuildSectionHref("logs"),
+          icon: IconLogs,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/logs`),
+          disabled: !hasSelectedDiscordGuild,
+        },
+        {
+          title: "Settings",
+          href: discordGuildSectionHref("settings"),
+          icon: IconSettings,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/settings`),
+          disabled: !hasSelectedDiscordGuild,
+        },
+      ],
+    },
+  ]
+
+  if (runtimeIncidentAccess?.status === "ready") {
+    discordNavSections.push({
+      title: "Staff",
+      items: [
+        {
+          title: "Runtime Incidents",
+          href: "/dashboard/staff/discord-runtime-incidents",
+          icon: IconAlertTriangle,
+          isActive: pathname.startsWith(
+            "/dashboard/staff/discord-runtime-incidents"
+          ),
+        },
+      ],
+    })
+  }
+
   const platformNavSections: Record<AppShellPlatform, AppShellNavSection[]> = {
-    discord: [
-      {
-        items: [
-          {
-            title: "Overview",
-            href: discordOverviewHref,
-            icon: IconHome,
-            isActive:
-              pathname === "/dashboard" ||
-              pathname === discordOverviewHref ||
-              (activeDiscordGuildId !== undefined &&
-                pathname === `/dashboard/${activeDiscordGuildId}/overview`),
-          },
-          {
-            title: "Modules",
-            href: discordGuildSectionHref("modules"),
-            icon: IconListDetails,
-            isActive:
-              activeDiscordGuildId !== undefined &&
-              pathname.startsWith(`/dashboard/${activeDiscordGuildId}/modules`),
-            disabled: !hasSelectedDiscordGuild,
-          },
-          {
-            title: "Channels",
-            href: discordGuildSectionHref("channels"),
-            icon: IconHash,
-            isActive:
-              activeDiscordGuildId !== undefined &&
-              pathname.startsWith(
-                `/dashboard/${activeDiscordGuildId}/channels`
-              ),
-            disabled: !hasSelectedDiscordGuild,
-          },
-          {
-            title: "Moderation",
-            href: discordGuildSectionHref("moderation"),
-            icon: IconShield,
-            isActive:
-              activeDiscordGuildId !== undefined &&
-              pathname.startsWith(
-                `/dashboard/${activeDiscordGuildId}/moderation`
-              ),
-            disabled: !hasSelectedDiscordGuild,
-          },
-          {
-            title: "Automation",
-            href: discordGuildSectionHref("automation"),
-            icon: IconBolt,
-            isActive:
-              activeDiscordGuildId !== undefined &&
-              pathname.startsWith(
-                `/dashboard/${activeDiscordGuildId}/automation`
-              ),
-            disabled: !hasSelectedDiscordGuild,
-          },
-          {
-            title: "Commands",
-            href: discordGuildSectionHref("commands"),
-            icon: IconCommand,
-            isActive:
-              activeDiscordGuildId !== undefined &&
-              pathname.startsWith(
-                `/dashboard/${activeDiscordGuildId}/commands`
-              ),
-            disabled: !hasSelectedDiscordGuild,
-          },
-          {
-            title: "Logs",
-            href: discordGuildSectionHref("logs"),
-            icon: IconLogs,
-            isActive:
-              activeDiscordGuildId !== undefined &&
-              pathname.startsWith(`/dashboard/${activeDiscordGuildId}/logs`),
-            disabled: !hasSelectedDiscordGuild,
-          },
-          {
-            title: "Settings",
-            href: discordGuildSectionHref("settings"),
-            icon: IconSettings,
-            isActive:
-              activeDiscordGuildId !== undefined &&
-              pathname.startsWith(
-                `/dashboard/${activeDiscordGuildId}/settings`
-              ),
-            disabled: !hasSelectedDiscordGuild,
-          },
-        ],
-      },
-    ],
+    discord: discordNavSections,
     kick: [
       {
         items: [
@@ -266,7 +284,12 @@ function getPlatformFromPathname(pathname: string): AppShellPlatform {
 function getRouteDiscordGuildId(pathname: string): string | undefined {
   const [, section, guildId] = pathname.split("/")
 
-  if (section !== "dashboard" || !guildId || guildId === "add-server") {
+  if (
+    section !== "dashboard" ||
+    !guildId ||
+    guildId === "add-server" ||
+    guildId === "staff"
+  ) {
     return undefined
   }
 
