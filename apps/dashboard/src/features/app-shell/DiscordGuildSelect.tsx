@@ -19,6 +19,7 @@ import {
 } from "@workspace/ui/components/dropdown-menu"
 
 import { useAppShellStore } from "@/components/stores/app-shell-store"
+import { getRouteDiscordGuildId } from "@/features/app-shell/routes"
 
 type DiscordGuildOption = {
   guildId: Id<"guilds">
@@ -173,16 +174,6 @@ export function DiscordGuildSelect() {
       </DropdownMenu>
     </div>
   )
-}
-
-function getRouteDiscordGuildId(pathname: string): string | undefined {
-  const [, section, guildId] = pathname.split("/")
-
-  if (section !== "dashboard" || !guildId || guildId === "add-server") {
-    return undefined
-  }
-
-  return guildId
 }
 
 function getGuildSwitchHref(

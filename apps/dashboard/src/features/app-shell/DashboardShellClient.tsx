@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation"
 import {
   IconActivity,
-  IconAlertTriangle,
   IconBolt,
   IconCommand,
   IconDeviceDesktop,
@@ -15,16 +14,20 @@ import {
   IconRobot,
   IconSettings,
   IconShield,
+  IconShieldLock,
   IconWebhook,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { useQuery } from "convex/react"
 
-import {
-  type AppShellPlatform,
-  useAppShellStore,
-} from "@/components/stores/app-shell-store"
+import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { AppShell } from "@/features/app-shell/AppShell"
+import {
+  getAppShellAreaFromPathname,
+  getRouteDiscordGuildId,
+  type AppShellArea,
+} from "@/features/app-shell/routes"
+import { getStaffTopbarEntry } from "@/features/app-shell/staffAccess"
 import type { AppShellNavSection } from "@/features/app-shell/types"
 
 export function DashboardShellClient({
@@ -36,7 +39,8 @@ export function DashboardShellClient({
   const runtimeIncidentAccess = useQuery(
     api.queries.dashboard.discord.runtimeIncidents.access.get
   )
-  const currentPlatform = getPlatformFromPathname(pathname)
+  const currentArea = getAppShellAreaFromPathname(pathname)
+  const staffEntry = getStaffTopbarEntry(currentArea, runtimeIncidentAccess)
   const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
@@ -138,24 +142,23 @@ export function DashboardShellClient({
     },
   ]
 
-  if (runtimeIncidentAccess?.status === "ready") {
-    discordNavSections.push({
+  const staffNavSections: AppShellNavSection[] = [
+    {
       title: "Staff",
       items: [
         {
           title: "Runtime Incidents",
-          href: "/dashboard/staff/discord-runtime-incidents",
-          icon: IconAlertTriangle,
-          isActive: pathname.startsWith(
-            "/dashboard/staff/discord-runtime-incidents"
-          ),
+          href: "/staff/discord-runtime-incidents",
+          icon: IconShieldLock,
+          isActive: pathname.startsWith("/staff/discord-runtime-incidents"),
         },
       ],
-    })
-  }
+    },
+  ]
 
-  const platformNavSections: Record<AppShellPlatform, AppShellNavSection[]> = {
+  const platformNavSections: Record<AppShellArea, AppShellNavSection[]> = {
     discord: discordNavSections,
+    staff: staffNavSections,
     kick: [
       {
         items: [
@@ -262,36 +265,12 @@ export function DashboardShellClient({
   return (
     <AppShell
       footerNavSections={[]}
-      navSections={platformNavSections[currentPlatform]}
+      navSections={platformNavSections[currentArea]}
+      showDiscordGuildSelect={currentArea !== "staff"}
+      showPlatformSelector={currentArea !== "staff"}
+      staffEntry={staffEntry}
     >
       {children}
     </AppShell>
   )
-}
-
-function getPlatformFromPathname(pathname: string): AppShellPlatform {
-  if (pathname === "/kick" || pathname.startsWith("/kick/")) {
-    return "kick"
-  }
-
-  if (pathname === "/twitch" || pathname.startsWith("/twitch/")) {
-    return "twitch"
-  }
-
-  return "discord"
-}
-
-function getRouteDiscordGuildId(pathname: string): string | undefined {
-  const [, section, guildId] = pathname.split("/")
-
-  if (
-    section !== "dashboard" ||
-    !guildId ||
-    guildId === "add-server" ||
-    guildId === "staff"
-  ) {
-    return undefined
-  }
-
-  return guildId
 }

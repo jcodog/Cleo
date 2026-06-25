@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from "react"
+import type { StaffTopbarEntry } from "@/features/app-shell/staffAccess"
 
 export type AppShellNavItem = {
   title: string
@@ -22,4 +23,7 @@ export type AppShellProps = {
   sidebarFooter?: ReactNode
   topbarLeft?: ReactNode
   topbarRight?: ReactNode
+  showDiscordGuildSelect?: boolean
+  showPlatformSelector?: boolean
+  staffEntry?: StaffTopbarEntry | null
 }
