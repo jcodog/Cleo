@@ -11,6 +11,7 @@ import {
 import { discordEnv } from "@workspace/env/discord"
 import { ConvexHttpClient } from "convex/browser"
 import { z } from "zod"
+import type { FunctionArgs, FunctionReturnType } from "convex/server"
 
 const convexUrl = discordEnv.CONVEX_URL
 const convexSecret = discordEnv.DISCORD_BOT_CONVEX_SECRET
@@ -85,6 +86,50 @@ type ConvexBotRuntimeConfig =
       status: "invalid"
       error: Error
     }
+
+export type DiscordBotRuntimeErrorSeverity =
+  | "info"
+  | "warn"
+  | "error"
+  | "critical"
+
+export type DiscordBotRuntimeErrorServiceArea =
+  | "startup"
+  | "gateway"
+  | "command"
+  | "configuration"
+  | "permission"
+  | "backend"
+  | "transport"
+  | "welcome"
+  | "moderation"
+  | "logging"
+  | "unknown"
+
+type ReportRuntimeErrorArgs = FunctionArgs<
+  typeof api.actions.bot.discord.runtimeErrors.report.report
+>
+
+export type DiscordBotRuntimeErrorReportMetadata =
+  ReportRuntimeErrorArgs["metadata"]
+
+export type DiscordBotRuntimeErrorReportResult = FunctionReturnType<
+  typeof api.actions.bot.discord.runtimeErrors.report.report
+>
+
+export type DiscordBotRuntimeErrorReport = {
+  severity: DiscordBotRuntimeErrorSeverity
+  serviceArea: DiscordBotRuntimeErrorServiceArea
+  message: string
+  stack?: string
+  discordGuildId?: string
+  commandName?: string
+  eventName?: string
+  operation?: string
+  fingerprint?: string
+  metadata?: DiscordBotRuntimeErrorReportMetadata
+  occurredAt?: number
+}
 
 export class ConvexHttpRequestError extends Error {
   public override readonly name = "ConvexHttpRequestError"
@@ -407,6 +452,32 @@ export const convexBotClient = {
           {
             secret,
             discordGuildId,
+          }
+        )
+    )
+  },
+
+  async reportRuntimeError(
+    report: DiscordBotRuntimeErrorReport
+  ): Promise<DiscordBotRuntimeErrorReportResult | null> {
+    return await callWithConvex(
+      "runtime error report",
+      async ({ client, secret }) =>
+        await client.action(
+          api.actions.bot.discord.runtimeErrors.report.report,
+          {
+            secret,
+            severity: report.severity,
+            serviceArea: report.serviceArea,
+            message: report.message,
+            stack: report.stack,
+            discordGuildId: report.discordGuildId,
+            commandName: report.commandName,
+            eventName: report.eventName,
+            operation: report.operation,
+            fingerprint: report.fingerprint,
+            metadata: report.metadata,
+            occurredAt: report.occurredAt,
           }
         )
     )

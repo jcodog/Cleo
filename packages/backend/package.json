@@ -18,7 +18,7 @@
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
     "convex": "^1.41.0",
-    "svix": "^1.95.2"
+    "svix": "^1.96.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

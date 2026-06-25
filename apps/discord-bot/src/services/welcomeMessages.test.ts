@@ -19,6 +19,7 @@ import type {
   DiscordGuildRuntimeConfigDisabledReason,
   DiscordGuildRuntimeConfigResult,
 } from "./guildRuntimeConfig"
+import type { DiscordRuntimeErrorReportInput } from "./runtimeErrorReporter"
 
 const guildId = "123456789012345678"
 const channelId = "234567890123456789"
@@ -136,17 +137,32 @@ function createMember({
   } as unknown as GuildMember
 }
 
+function createRuntimeErrorCollector() {
+  const reports: DiscordRuntimeErrorReportInput[] = []
+
+  return {
+    reports,
+    async reportRuntimeError(input: DiscordRuntimeErrorReportInput) {
+      reports.push(input)
+      return null
+    },
+  }
+}
+
 test("disabled config sends nothing", async () => {
   const channel = createChannel()
   const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
 
   await handleGuildMemberWelcome(member, {
     async fetchConfig() {
       return disabledConfig("missingConfig")
     },
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(channel.sentMessages.length, 0)
+  assert.equal(reporter.reports.length, 0)
 })
 
 test("unavailable and missing config send nothing", async () => {
@@ -156,25 +172,30 @@ test("unavailable and missing config send nothing", async () => {
   ]) {
     const channel = createChannel()
     const member = createMember({ channel })
+    const reporter = createRuntimeErrorCollector()
 
     await handleGuildMemberWelcome(member, {
       async fetchConfig() {
         return configResult
       },
+      reportRuntimeError: reporter.reportRuntimeError,
     })
 
     assert.equal(channel.sentMessages.length, 0)
+    assert.equal(reporter.reports.length, 0)
   }
 })
 
 test("enabled config sends one welcome message to configured channel", async () => {
   const channel = createChannel()
   const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
 
   await handleGuildMemberWelcome(member, {
     async fetchConfig() {
       return readyConfig()
     },
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(channel.sentMessages.length, 1)
@@ -183,6 +204,7 @@ test("enabled config sends one welcome message to configured channel", async () 
     "Welcome <@345678901234567890> to Cleo HQ"
   )
   assert.equal(channel.sentMessages[0]?.files?.length, 1)
+  assert.equal(reporter.reports.length, 0)
 })
 
 test("welcome requires both enabled flag and configured channel", async () => {
@@ -192,20 +214,24 @@ test("welcome requires both enabled flag and configured channel", async () => {
   ]) {
     const channel = createChannel()
     const member = createMember({ channel })
+    const reporter = createRuntimeErrorCollector()
 
     await handleGuildMemberWelcome(member, {
       async fetchConfig() {
         return configResult
       },
+      reportRuntimeError: reporter.reportRuntimeError,
     })
 
     assert.equal(channel.sentMessages.length, 0)
+    assert.equal(reporter.reports.length, 0)
   }
 })
 
 test("bot member is ignored", async () => {
   const channel = createChannel()
   const member = createMember({ channel, userBot: true })
+  const reporter = createRuntimeErrorCollector()
   let fetchedConfig = false
 
   await handleGuildMemberWelcome(member, {
@@ -213,14 +239,17 @@ test("bot member is ignored", async () => {
       fetchedConfig = true
       return readyConfig()
     },
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(fetchedConfig, false)
   assert.equal(channel.sentMessages.length, 0)
+  assert.equal(reporter.reports.length, 0)
 })
 
 test("missing channel fails safely", async () => {
   const member = createMember({ channel: null, fetchChannel: null })
+  const reporter = createRuntimeErrorCollector()
   let rendered = false
 
   await assert.doesNotReject(async () => {
@@ -232,10 +261,12 @@ test("missing channel fails safely", async () => {
         rendered = true
         return { content: "should not render" }
       },
+      reportRuntimeError: reporter.reportRuntimeError,
     })
   })
 
   assert.equal(rendered, false)
+  assert.equal(reporter.reports.length, 0)
 })
 
 test("unsupported channel type fails safely", async () => {
@@ -243,6 +274,7 @@ test("unsupported channel type fails safely", async () => {
     isTextBased: () => false,
   })
   const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
   let rendered = false
 
   await handleGuildMemberWelcome(member, {
@@ -253,10 +285,12 @@ test("unsupported channel type fails safely", async () => {
       rendered = true
       return { content: "should not render" }
     },
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(rendered, false)
   assert.equal(channel.sentMessages.length, 0)
+  assert.equal(reporter.reports.length, 0)
 })
 
 test("missing send permission fails safely before render", async () => {
@@ -264,6 +298,7 @@ test("missing send permission fails safely before render", async () => {
     permissions: [PermissionFlagsBits.ViewChannel],
   })
   const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
   let rendered = false
 
   await handleGuildMemberWelcome(member, {
@@ -274,10 +309,12 @@ test("missing send permission fails safely before render", async () => {
       rendered = true
       return { content: "should not render" }
     },
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(rendered, false)
   assert.equal(channel.sentMessages.length, 0)
+  assert.equal(reporter.reports.length, 0)
 })
 
 test("missing attach permission uses text fallback before card render", async () => {
@@ -288,6 +325,7 @@ test("missing attach permission uses text fallback before card render", async ()
     ],
   })
   const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
   let rendered = false
 
   await handleGuildMemberWelcome(member, {
@@ -298,6 +336,7 @@ test("missing attach permission uses text fallback before card render", async ()
       rendered = true
       return { content: "should not render" }
     },
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(rendered, false)
@@ -307,11 +346,13 @@ test("missing attach permission uses text fallback before card render", async ()
     "Welcome <@345678901234567890> to Cleo HQ"
   )
   assert.equal(channel.sentMessages[0]?.files, undefined)
+  assert.equal(reporter.reports.length, 0)
 })
 
-test("renderer failure uses text fallback policy", async () => {
+test("renderer failure uses text fallback policy and reports warning", async () => {
   const channel = createChannel()
   const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
   const loggedErrors: unknown[] = []
 
   await handleGuildMemberWelcome(member, {
@@ -324,6 +365,7 @@ test("renderer failure uses text fallback policy", async () => {
     logError(message, error, metadata) {
       loggedErrors.push({ message, error, metadata })
     },
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(channel.sentMessages.length, 1)
@@ -336,9 +378,74 @@ test("renderer failure uses text fallback policy", async () => {
       .fallbackPolicy,
     WELCOME_TEXT_FALLBACK_POLICY
   )
+
+  assert.equal(reporter.reports.length, 1)
+  assert.equal(reporter.reports[0]?.severity, "warn")
+  assert.equal(reporter.reports[0]?.serviceArea, "welcome")
+  assert.equal(
+    reporter.reports[0]?.message,
+    "Discord welcome card rendering failed."
+  )
+  assert.equal(reporter.reports[0]?.discordGuildId, guildId)
+  assert.equal(reporter.reports[0]?.eventName, "guildMemberAdd")
+  assert.equal(reporter.reports[0]?.operation, "renderWelcomeCard")
+  assert.equal(
+    reporter.reports[0]?.fingerprint,
+    `welcome:renderWelcomeCard:${guildId}:${channelId}`
+  )
+  assert.deepEqual(reporter.reports[0]?.metadata, {
+    userId: memberId,
+    channelId,
+  })
 })
 
-test("send failure is caught and does not crash", async () => {
+test("send failure is caught, logged, and reports error", async () => {
+  const channel = createChannel({
+    sendError: new Error("send failed"),
+  })
+  const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
+  const loggedErrors: unknown[] = []
+
+  await assert.doesNotReject(async () => {
+    await handleGuildMemberWelcome(member, {
+      async fetchConfig() {
+        return readyConfig()
+      },
+      logError(message, error, metadata) {
+        loggedErrors.push({ message, error, metadata })
+      },
+      reportRuntimeError: reporter.reportRuntimeError,
+    })
+  })
+
+  assert.equal(channel.sentMessages.length, 0)
+  assert.equal(
+    (loggedErrors[0] as { message: string }).message,
+    "Discord welcome message send failed."
+  )
+
+  assert.equal(reporter.reports.length, 1)
+  assert.equal(reporter.reports[0]?.severity, "error")
+  assert.equal(reporter.reports[0]?.serviceArea, "welcome")
+  assert.equal(
+    reporter.reports[0]?.message,
+    "Discord welcome message delivery failed."
+  )
+  assert.equal(reporter.reports[0]?.discordGuildId, guildId)
+  assert.equal(reporter.reports[0]?.eventName, "guildMemberAdd")
+  assert.equal(reporter.reports[0]?.operation, "sendWelcomeMessage")
+  assert.equal(
+    reporter.reports[0]?.fingerprint,
+    `welcome:sendWelcomeMessage:${guildId}:${channelId}`
+  )
+  assert.deepEqual(reporter.reports[0]?.metadata, {
+    userId: memberId,
+    channelId,
+  })
+})
+
+test("runtime report failure during welcome send is logged and swallowed", async () => {
   const channel = createChannel({
     sendError: new Error("send failed"),
   })
@@ -353,6 +460,9 @@ test("send failure is caught and does not crash", async () => {
       logError(message, error, metadata) {
         loggedErrors.push({ message, error, metadata })
       },
+      async reportRuntimeError() {
+        throw new Error("report failed")
+      },
     })
   })
 
@@ -360,6 +470,10 @@ test("send failure is caught and does not crash", async () => {
   assert.equal(
     (loggedErrors[0] as { message: string }).message,
     "Discord welcome message send failed."
+  )
+  assert.equal(
+    (loggedErrors[1] as { message: string }).message,
+    "Discord welcome runtime error report failed."
   )
 })
 
@@ -371,6 +485,7 @@ test("rich renderer falls back to text when rich permissions are missing", async
     ],
   })
   const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
   const renderWelcomeMessage: WelcomeMessageRenderer = () => ({
     content: "rich welcome",
     embeds: [],
@@ -383,6 +498,7 @@ test("rich renderer falls back to text when rich permissions are missing", async
     },
     renderWelcomeMessage,
     renderRequiresAttachFiles: false,
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(channel.sentMessages.length, 1)
@@ -391,6 +507,7 @@ test("rich renderer falls back to text when rich permissions are missing", async
     "Welcome <@345678901234567890> to Cleo HQ"
   )
   assert.equal(channel.sentMessages[0]?.files, undefined)
+  assert.equal(reporter.reports.length, 0)
 })
 
 test("embed renderer falls back to text when embed permission is missing", async () => {
@@ -401,6 +518,7 @@ test("embed renderer falls back to text when embed permission is missing", async
     ],
   })
   const member = createMember({ channel })
+  const reporter = createRuntimeErrorCollector()
   const renderWelcomeMessage: WelcomeMessageRenderer = () => ({
     content: "embed welcome",
     embeds: [
@@ -416,6 +534,7 @@ test("embed renderer falls back to text when embed permission is missing", async
     },
     renderWelcomeMessage,
     renderRequiresAttachFiles: false,
+    reportRuntimeError: reporter.reportRuntimeError,
   })
 
   assert.equal(channel.sentMessages.length, 1)
@@ -424,15 +543,17 @@ test("embed renderer falls back to text when embed permission is missing", async
     "Welcome <@345678901234567890> to Cleo HQ"
   )
   assert.equal(channel.sentMessages[0]?.embeds, undefined)
+  assert.equal(reporter.reports.length, 0)
 })
 
-test("welcome handler uses cached runtime-config service", () => {
+test("welcome handler uses cached runtime-config service and runtime reporter service", () => {
   const source = readFileSync(
     new URL("./welcomeMessages.ts", import.meta.url),
     "utf8"
   )
 
   assert.match(source, /fetchDiscordGuildRuntimeConfig/)
+  assert.match(source, /reportDiscordRuntimeError/)
   assert.doesNotMatch(source, /convexBotClient/)
   assert.doesNotMatch(source, /_generated\/api/)
 })

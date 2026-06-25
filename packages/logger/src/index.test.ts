@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { test } from "node:test"
 
 import {
@@ -159,4 +160,19 @@ test("createLogger writes redacted structured log payloads", (t) => {
     namespace: "test",
     message: "ok",
   })
+})
+
+test("@workspace/logger is not coupled to Convex or Discord runtime reporting", () => {
+  const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8")
+  const packageJson = readFileSync(
+    new URL("../package.json", import.meta.url),
+    "utf8"
+  )
+
+  assert.doesNotMatch(source, /convex/i)
+  assert.doesNotMatch(source, /runtimeErrorReporter/)
+  assert.doesNotMatch(source, /reportRuntimeError/)
+  assert.doesNotMatch(source, /discord/i)
+  assert.doesNotMatch(packageJson, /convex/i)
+  assert.doesNotMatch(packageJson, /discord/i)
 })

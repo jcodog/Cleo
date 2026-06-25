@@ -9,6 +9,7 @@ import {
 
 import { BotClient } from "@/classes/Client"
 import { Command } from "@/classes/Command"
+import type { DiscordRuntimeErrorReportInput } from "@/services/runtimeErrorReporter"
 
 import interactionCreate from "./interactionCreate"
 
@@ -72,6 +73,18 @@ function command(
   })
 }
 
+function createRuntimeErrorCollector() {
+  const reports: DiscordRuntimeErrorReportInput[] = []
+
+  return {
+    reports,
+    async reportRuntimeError(input: DiscordRuntimeErrorReportInput) {
+      reports.push(input)
+      return null
+    },
+  }
+}
+
 test("interactionCreate ignores non-chat-input interactions", async () => {
   let replied = false
   const interaction = createInteraction({
@@ -87,8 +100,13 @@ test("interactionCreate ignores non-chat-input interactions", async () => {
 })
 
 test("interactionCreate handles unknown command names safely", async () => {
+  const reporter = createRuntimeErrorCollector()
   const replies: InteractionReply[] = []
+  const client = new BotClient(undefined, {
+    reportRuntimeError: reporter.reportRuntimeError,
+  })
   const interaction = createInteraction({
+    client,
     commandName: "missing",
     async reply(message) {
       replies.push(message)
@@ -99,6 +117,7 @@ test("interactionCreate handles unknown command names safely", async () => {
 
   assert.equal(replies.length, 1)
   assert.equal(replies[0]?.content, "That command is not currently available.")
+  assert.equal(reporter.reports.length, 0)
 })
 
 test("interactionCreate executes a known successful command", async () => {
@@ -122,7 +141,10 @@ test("interactionCreate routes command failures through the reply helper", async
   t.mock.method(console, "log", () => undefined)
   t.mock.method(console, "error", () => undefined)
 
-  const client = new BotClient()
+  const reporter = createRuntimeErrorCollector()
+  const client = new BotClient(undefined, {
+    reportRuntimeError: reporter.reportRuntimeError,
+  })
   const replies: InteractionReply[] = []
   const interaction = createInteraction({
     client,
@@ -146,13 +168,30 @@ test("interactionCreate routes command failures through the reply helper", async
       flags: MessageFlags.Ephemeral,
     },
   ])
+  assert.equal(reporter.reports.length, 1)
+  assert.equal(reporter.reports[0]?.serviceArea, "command")
+  assert.equal(reporter.reports[0]?.commandName, "ping")
+  assert.equal(reporter.reports[0]?.discordGuildId, "222222222222222222")
+  assert.equal(reporter.reports[0]?.operation, "executeSlashCommand")
+  assert.equal(
+    reporter.reports[0]?.fingerprint,
+    "command:executeSlashCommand:ping"
+  )
+  assert.deepEqual(reporter.reports[0]?.metadata, {
+    operation: "executeSlashCommand",
+    interactionId: "111111111111111111",
+    discordChannelId: "333333333333333333",
+  })
 })
 
 test("interactionCreate edits deferred interactions on command failure", async (t) => {
   t.mock.method(console, "log", () => undefined)
   t.mock.method(console, "error", () => undefined)
 
-  const client = new BotClient()
+  const reporter = createRuntimeErrorCollector()
+  const client = new BotClient(undefined, {
+    reportRuntimeError: reporter.reportRuntimeError,
+  })
   const replies: InteractionReply[] = []
   const interaction = createInteraction({
     client,
@@ -176,10 +215,14 @@ test("interactionCreate edits deferred interactions on command failure", async (
       content: "Something went wrong while running that command.",
     },
   ])
+  assert.equal(reporter.reports.length, 1)
 })
 
 test("reply-helper failure does not create an unhandled rejection", async (t) => {
-  const client = new BotClient()
+  const reporter = createRuntimeErrorCollector()
+  const client = new BotClient(undefined, {
+    reportRuntimeError: reporter.reportRuntimeError,
+  })
   const unhandledRejections: unknown[] = []
   const unhandledRejectionHandler = (reason: unknown) => {
     unhandledRejections.push(reason)
@@ -211,10 +254,14 @@ test("reply-helper failure does not create an unhandled rejection", async (t) =>
   await new Promise((resolve) => setImmediate(resolve))
 
   assert.deepEqual(unhandledRejections, [])
+  assert.equal(reporter.reports.length, 1)
 })
 
 test("interaction command failure logging uses safe context", async (t) => {
-  const client = new BotClient()
+  const reporter = createRuntimeErrorCollector()
+  const client = new BotClient(undefined, {
+    reportRuntimeError: reporter.reportRuntimeError,
+  })
   const logLines: string[] = []
   const interaction = createInteraction({ client })
 
@@ -239,4 +286,50 @@ test("interaction command failure logging uses safe context", async (t) => {
   assert.match(logLines[0] ?? "", /"discordGuildId":"222222222222222222"/)
   assert.match(logLines[0] ?? "", /"discordChannelId":"333333333333333333"/)
   assert.match(logLines[0] ?? "", /"discordUserId":"444444444444444444"/)
+  assert.equal(reporter.reports.length, 1)
+})
+
+test("command reporter failures are logged and swallowed", async (t) => {
+  const client = new BotClient(undefined, {
+    async reportRuntimeError() {
+      throw new Error("report failed")
+    },
+  })
+  const replies: InteractionReply[] = []
+  const logLines: string[] = []
+  const interaction = createInteraction({
+    client,
+    async reply(message) {
+      replies.push(message)
+    },
+  })
+
+  t.mock.method(console, "log", (line: string) => {
+    logLines.push(line)
+  })
+  t.mock.method(console, "error", () => undefined)
+
+  client.commands.set(
+    "ping",
+    command(() => {
+      throw new Error("command failed")
+    })
+  )
+
+  await assert.doesNotReject(async () => {
+    await interactionCreate.execute(interaction as never)
+  })
+
+  assert.deepEqual(replies, [
+    {
+      content: "Something went wrong while running that command.",
+      flags: MessageFlags.Ephemeral,
+    },
+  ])
+  assert.equal(logLines.length, 2)
+  assert.match(logLines[0] ?? "", /Command failed: \/ping/)
+  assert.match(
+    logLines[1] ?? "",
+    /Discord command runtime error report failed\./
+  )
 })

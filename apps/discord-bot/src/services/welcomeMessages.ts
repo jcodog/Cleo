@@ -11,6 +11,7 @@ import {
   type DiscordGuildRuntimeConfig,
   type DiscordGuildRuntimeConfigResult,
 } from "@/services/guildRuntimeConfig"
+import { reportDiscordRuntimeError } from "@/services/runtimeErrorReporter"
 import { renderWelcomeCardMessage } from "@/services/welcomeCardRenderer"
 import { botLogError } from "@/utils/botLog"
 import type { LogMetadata } from "@workspace/logger"
@@ -18,6 +19,8 @@ import type { LogMetadata } from "@workspace/logger"
 type RuntimeConfigFetcher = (
   discordGuildId: string
 ) => Promise<DiscordGuildRuntimeConfigResult>
+
+type WelcomeRuntimeErrorReporter = typeof reportDiscordRuntimeError
 
 export type WelcomeMessageRenderer = (
   member: GuildMember
@@ -48,6 +51,7 @@ type WelcomeMessageOptions = {
   renderWelcomeMessage?: WelcomeMessageRenderer
   renderRequiresAttachFiles?: boolean
   logError?: typeof botLogError
+  reportRuntimeError?: WelcomeRuntimeErrorReporter
 }
 
 type WelcomeSendableChannel = GuildBasedChannel & {
@@ -73,7 +77,14 @@ export async function handleGuildMemberWelcome(
 
   const fetchConfig = options.fetchConfig ?? fetchDiscordGuildRuntimeConfig
   const logError = options.logError ?? botLogError
-  const configResult = await fetchRuntimeConfigQuietly(member, fetchConfig, logError)
+  const reportRuntimeError =
+    options.reportRuntimeError ?? reportDiscordRuntimeError
+
+  const configResult = await fetchRuntimeConfigQuietly(
+    member,
+    fetchConfig,
+    logError
+  )
 
   if (configResult?.status !== "ready") {
     return {
@@ -109,6 +120,7 @@ export async function handleGuildMemberWelcome(
   }
 
   const botMember = member.guild.members.me
+
   if (!botMember) {
     return {
       status: "botMemberUnavailable",
@@ -117,6 +129,7 @@ export async function handleGuildMemberWelcome(
   }
 
   const permissions = channel.permissionsFor(botMember)
+
   if (!permissions?.has(baseWelcomePermissions)) {
     return {
       status: "missingBasePermissions",
@@ -125,6 +138,7 @@ export async function handleGuildMemberWelcome(
   }
 
   const renderRequiresAttachFiles = options.renderRequiresAttachFiles ?? true
+
   if (
     renderRequiresAttachFiles &&
     !permissions.has(PermissionFlagsBits.AttachFiles)
@@ -134,6 +148,7 @@ export async function handleGuildMemberWelcome(
       channel,
       message: buildWelcomeTextFallback(member),
       logError,
+      reportRuntimeError,
     })
   }
 
@@ -141,10 +156,19 @@ export async function handleGuildMemberWelcome(
     config: configResult.config,
     renderWelcomeMessage: options.renderWelcomeMessage,
     logError,
+    reportRuntimeError,
+    channelId: channel.id,
   })
+
   const message = choosePermittedMessage(member, renderedMessage, permissions)
 
-  return await sendWelcomeMessage({ member, channel, message, logError })
+  return await sendWelcomeMessage({
+    member,
+    channel,
+    message,
+    logError,
+    reportRuntimeError,
+  })
 }
 
 async function sendWelcomeMessage({
@@ -152,14 +176,17 @@ async function sendWelcomeMessage({
   channel,
   message,
   logError,
+  reportRuntimeError,
 }: {
   member: GuildMember
   channel: WelcomeSendableChannel
   message: MessageCreateOptions
   logError: typeof botLogError
+  reportRuntimeError: WelcomeRuntimeErrorReporter
 }): Promise<WelcomeMessageDeliveryResult> {
   try {
     await channel.send(message)
+
     return {
       status: "sent",
       channelId: channel.id,
@@ -170,6 +197,19 @@ async function sendWelcomeMessage({
       discordChannelId: channel.id,
       discordUserId: member.id,
     })
+
+    await reportWelcomeRuntimeError({
+      error,
+      discordGuildId: member.guild.id,
+      userId: member.id,
+      channelId: channel.id,
+      operation: "sendWelcomeMessage",
+      message: "Discord welcome message delivery failed.",
+      severity: "error",
+      logError,
+      reportRuntimeError,
+    })
+
     return {
       status: "sendFailed",
       channelId: channel.id,
@@ -177,11 +217,11 @@ async function sendWelcomeMessage({
   }
 }
 
-export function buildWelcomeTextFallback(member: GuildMember): MessageCreateOptions {
+export function buildWelcomeTextFallback(
+  member: GuildMember
+): MessageCreateOptions {
   return {
-    content: [
-      `Welcome <@${member.id}> to ${member.guild.name}`,
-    ].join(" "),
+    content: [`Welcome <@${member.id}> to ${member.guild.name}`].join(" "),
     allowedMentions: {
       users: [member.id],
       roles: [],
@@ -211,6 +251,7 @@ async function fetchRuntimeConfigQuietly(
       discordGuildId: member.guild.id,
       discordUserId: member.id,
     })
+
     return null
   }
 }
@@ -240,8 +281,12 @@ function isTextSendableChannel(
 
 async function buildWelcomeMessage(
   member: GuildMember,
-  options: Pick<WelcomeMessageOptions, "renderWelcomeMessage" | "logError"> & {
+  options: Pick<
+    WelcomeMessageOptions,
+    "renderWelcomeMessage" | "logError" | "reportRuntimeError"
+  > & {
     config: DiscordGuildRuntimeConfig
+    channelId: string
   }
 ): Promise<MessageCreateOptions> {
   const renderWelcomeMessage =
@@ -249,15 +294,34 @@ async function buildWelcomeMessage(
     ((memberToRender) =>
       renderPlaceholderWelcomeMessage(memberToRender, options.config))
   const logError = options.logError ?? botLogError
+  const reportRuntimeError =
+    options.reportRuntimeError ?? reportDiscordRuntimeError
 
   try {
     return await renderWelcomeMessage(member)
   } catch (error) {
-    logError("Discord welcome message render failed; using text fallback.", error, {
+    logError(
+      "Discord welcome message render failed; using text fallback.",
+      error,
+      {
+        discordGuildId: member.guild.id,
+        discordUserId: member.id,
+        fallbackPolicy: WELCOME_TEXT_FALLBACK_POLICY,
+      } satisfies LogMetadata
+    )
+
+    await reportWelcomeRuntimeError({
+      error,
       discordGuildId: member.guild.id,
-      discordUserId: member.id,
-      fallbackPolicy: WELCOME_TEXT_FALLBACK_POLICY,
-    } satisfies LogMetadata)
+      userId: member.id,
+      channelId: options.channelId,
+      operation: "renderWelcomeCard",
+      message: "Discord welcome card rendering failed.",
+      severity: "warn",
+      logError,
+      reportRuntimeError,
+    })
+
     return buildWelcomeTextFallback(member)
   }
 }
@@ -267,7 +331,10 @@ function choosePermittedMessage(
   message: MessageCreateOptions,
   permissions: Readonly<PermissionsBitField>
 ): MessageCreateOptions {
-  if (usesAttachments(message) && !permissions.has(PermissionFlagsBits.AttachFiles)) {
+  if (
+    usesAttachments(message) &&
+    !permissions.has(PermissionFlagsBits.AttachFiles)
+  ) {
     return buildWelcomeTextFallback(member)
   }
 
@@ -284,4 +351,42 @@ function usesAttachments(message: MessageCreateOptions): boolean {
 
 function usesEmbeds(message: MessageCreateOptions): boolean {
   return Array.isArray(message.embeds) && message.embeds.length > 0
+}
+
+async function reportWelcomeRuntimeError(args: {
+  error: unknown
+  discordGuildId: string
+  userId: string
+  channelId?: string
+  operation: "renderWelcomeCard" | "sendWelcomeMessage"
+  message: string
+  severity: "warn" | "error"
+  logError: typeof botLogError
+  reportRuntimeError: WelcomeRuntimeErrorReporter
+}) {
+  try {
+    await args.reportRuntimeError({
+      severity: args.severity,
+      serviceArea: "welcome",
+      message: args.message,
+      error: args.error,
+      discordGuildId: args.discordGuildId,
+      eventName: "guildMemberAdd",
+      operation: args.operation,
+      fingerprint: args.channelId
+        ? `welcome:${args.operation}:${args.discordGuildId}:${args.channelId}`
+        : `welcome:${args.operation}:${args.discordGuildId}`,
+      metadata: {
+        userId: args.userId,
+        channelId: args.channelId,
+      },
+    })
+  } catch (reportError) {
+    args.logError("Discord welcome runtime error report failed.", reportError, {
+      discordGuildId: args.discordGuildId,
+      discordChannelId: args.channelId,
+      discordUserId: args.userId,
+      operation: args.operation,
+    })
+  }
 }

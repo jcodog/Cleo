@@ -12,6 +12,7 @@ import { Command } from "./Command"
 import { Event } from "./Event"
 import { BotClient } from "./Client"
 import { loadEvents } from "../loaders/loadEvents"
+import type { DiscordRuntimeErrorReportInput } from "@/services/runtimeErrorReporter"
 
 type LoadedClientEvent = {
   [TEventName in keyof ClientEvents]: Event<TEventName>
@@ -55,6 +56,18 @@ function command(name: string): Command {
       return undefined
     },
   })
+}
+
+function createRuntimeErrorCollector() {
+  const reports: DiscordRuntimeErrorReportInput[] = []
+
+  return {
+    reports,
+    async reportRuntimeError(input: DiscordRuntimeErrorReportInput) {
+      reports.push(input)
+      return null
+    },
+  }
 }
 
 test("loaded events attach listeners before they are logged as registered", async () => {
@@ -128,7 +141,10 @@ test("malformed loaded event definitions fail loudly", () => {
 })
 
 test("rejected event handlers are logged without unhandled rejections", async (t) => {
-  const client = new BotClient()
+  const reporter = createRuntimeErrorCollector()
+  const client = new BotClient(undefined, {
+    reportRuntimeError: reporter.reportRuntimeError,
+  })
   const unhandledRejections: unknown[] = []
   const logLines: string[] = []
   const unhandledRejectionHandler = (reason: unknown) => {
@@ -161,10 +177,21 @@ test("rejected event handlers are logged without unhandled rejections", async (t
   assert.equal(logLines.length, 1)
   assert.match(logLines[0] ?? "", /failed with token=\[redacted\]/)
   assert.match(logLines[0] ?? "", /"eventName":"debug"/)
+  assert.equal(reporter.reports.length, 1)
+  assert.equal(reporter.reports[0]?.serviceArea, "gateway")
+  assert.equal(reporter.reports[0]?.eventName, "debug")
+  assert.equal(reporter.reports[0]?.operation, "executeEventHandler")
+  assert.equal(
+    reporter.reports[0]?.fingerprint,
+    "gateway:executeEventHandler:debug"
+  )
 })
 
 test("rejected event handlers include safe event context", async (t) => {
-  const client = new BotClient()
+  const reporter = createRuntimeErrorCollector()
+  const client = new BotClient(undefined, {
+    reportRuntimeError: reporter.reportRuntimeError,
+  })
   const logLines: string[] = []
 
   t.mock.method(console, "log", (line: string) => {
@@ -198,7 +225,55 @@ test("rejected event handlers include safe event context", async (t) => {
   assert.match(logLines[0] ?? "", /"discordChannelId":"222222222222222222"/)
   assert.match(logLines[0] ?? "", /"commandName":"ping"/)
   assert.match(logLines[0] ?? "", /"subjectId":"999999999999999999"/)
+  assert.match(logLines[0] ?? "", /"interactionId":"999999999999999999"/)
   assert.match(logLines[0] ?? "", /"discordUserId":"333333333333333333"/)
+  assert.equal(reporter.reports.length, 1)
+  assert.equal(reporter.reports[0]?.discordGuildId, "111111111111111111")
+  assert.deepEqual(reporter.reports[0]?.metadata, {
+    operation: "executeEventHandler",
+    interactionId: "999999999999999999",
+    discordChannelId: "222222222222222222",
+    commandName: "ping",
+  })
+})
+
+test("event reporter failures are logged and swallowed", async (t) => {
+  const client = new BotClient(undefined, {
+    async reportRuntimeError() {
+      throw new Error("report failed")
+    },
+  })
+  const unhandledRejections: unknown[] = []
+  const logLines: string[] = []
+  const unhandledRejectionHandler = (reason: unknown) => {
+    unhandledRejections.push(reason)
+  }
+
+  t.mock.method(console, "log", (line: string) => {
+    logLines.push(line)
+  })
+  process.on("unhandledRejection", unhandledRejectionHandler)
+  t.after(() => {
+    process.off("unhandledRejection", unhandledRejectionHandler)
+  })
+
+  registerLoadedEvent(
+    client,
+    new Event({
+      name: Events.Debug,
+      async execute() {
+        throw new Error("event failed")
+      },
+    })
+  )
+
+  client.emit(Events.Debug, "message")
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.deepEqual(unhandledRejections, [])
+  assert.equal(logLines.length, 2)
+  assert.match(logLines[0] ?? "", /Discord event handler failed: debug/)
+  assert.match(logLines[1] ?? "", /Discord event runtime error report failed\./)
 })
 
 test("malformed loaded event definitions without names fail clearly", () => {

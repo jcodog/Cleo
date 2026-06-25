@@ -11,6 +11,10 @@ import type { Command } from "./Command"
 import { Event } from "./Event"
 import { loadCommands } from "../loaders/loadCommands"
 import { loadEvents } from "../loaders/loadEvents"
+import {
+  reportDiscordRuntimeError,
+  type DiscordRuntimeErrorReporter,
+} from "@/services/runtimeErrorReporter"
 import { botLog, botLogError } from "@/utils/botLog"
 import type { LogMetadata } from "@workspace/logger"
 
@@ -27,11 +31,21 @@ const defaultClientOptions = {
   partials: [Partials.GuildMember, Partials.User],
 } satisfies ClientOptions
 
+type BotClientRuntimeOptions = {
+  reportRuntimeError?: DiscordRuntimeErrorReporter
+}
+
 export class BotClient extends Client {
   public readonly commands = new Collection<string, Command>()
+  public readonly reportRuntimeError: DiscordRuntimeErrorReporter
 
-  public constructor(options: ClientOptions = defaultClientOptions) {
+  public constructor(
+    options: ClientOptions = defaultClientOptions,
+    runtimeOptions: BotClientRuntimeOptions = {}
+  ) {
     super(options)
+    this.reportRuntimeError =
+      runtimeOptions.reportRuntimeError ?? reportDiscordRuntimeError
   }
 
   public async start(token: string | undefined): Promise<void> {
@@ -97,7 +111,12 @@ export class BotClient extends Client {
       ...args: unknown[]
     ) => Promise<void> | void
     const listener = (...args: unknown[]) => {
-      void executeLoadedEvent(event.name, execute, args)
+      void executeLoadedEvent(
+        event.name,
+        execute,
+        args,
+        this.reportRuntimeError
+      )
     }
 
     if (event.once) {
@@ -112,16 +131,67 @@ export class BotClient extends Client {
 async function executeLoadedEvent(
   eventName: keyof ClientEvents,
   execute: (...args: unknown[]) => Promise<void> | void,
-  args: unknown[]
+  args: unknown[],
+  reportRuntimeError: DiscordRuntimeErrorReporter
 ): Promise<void> {
   try {
     await execute(...args)
   } catch (error) {
+    const context = getSafeEventContext(eventName, args)
+
     botLogError(
       `Discord event handler failed: ${String(eventName)}`,
       error,
-      getSafeEventContext(eventName, args)
+      context
     )
+
+    await reportGatewayEventFailure({
+      eventName,
+      error,
+      context,
+      reportRuntimeError,
+    })
+  }
+}
+
+async function reportGatewayEventFailure({
+  eventName,
+  error,
+  context,
+  reportRuntimeError,
+}: {
+  eventName: keyof ClientEvents
+  error: unknown
+  context: LogMetadata
+  reportRuntimeError: DiscordRuntimeErrorReporter
+}): Promise<void> {
+  const operation = "executeEventHandler"
+  const eventNameText = String(eventName)
+
+  try {
+    await reportRuntimeError({
+      severity: "error",
+      serviceArea: "gateway",
+      message: `Discord event handler failed: ${eventNameText}`,
+      error,
+      discordGuildId: getMetadataString(context, "discordGuildId"),
+      eventName: eventNameText,
+      operation,
+      fingerprint: `gateway:${operation}:${eventNameText}`,
+      metadata: {
+        operation,
+        interactionId: getMetadataString(context, "interactionId"),
+        discordChannelId: getMetadataString(context, "discordChannelId"),
+        commandName: getMetadataString(context, "commandName"),
+      },
+    })
+  } catch (reportError) {
+    botLogError("Discord event runtime error report failed.", reportError, {
+      eventName: eventNameText,
+      operation,
+      discordGuildId: getMetadataString(context, "discordGuildId"),
+      interactionId: getMetadataString(context, "interactionId"),
+    })
   }
 }
 
@@ -179,6 +249,14 @@ function getSafeEventContext(
 
   if ("id" in firstArg && typeof firstArg.id === "string") {
     context.subjectId = firstArg.id
+
+    if (
+      "guildId" in firstArg ||
+      "commandName" in firstArg ||
+      "isChatInputCommand" in firstArg
+    ) {
+      context.interactionId = firstArg.id
+    }
   }
 
   if (
@@ -192,4 +270,13 @@ function getSafeEventContext(
   }
 
   return context
+}
+
+function getMetadataString(
+  metadata: LogMetadata,
+  key: string
+): string | undefined {
+  const value = metadata[key]
+
+  return typeof value === "string" ? value : undefined
 }

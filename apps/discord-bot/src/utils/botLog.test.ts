@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { test } from "node:test"
 
 import { botLog, botLogError } from "./botLog"
@@ -95,4 +96,12 @@ test("botLogError formats non-Error values and named empty-message errors", (t) 
   assert.match(logLines[0] ?? "", /\{"authorization":"\[redacted\]"\}/)
   assert.match(logLines[1] ?? "", /\(AbortError/)
   assert.doesNotMatch(logLines.join("\n"), /Bearer secret/)
+})
+
+test("botLog helpers are local logging only", () => {
+  const source = readFileSync(new URL("./botLog.ts", import.meta.url), "utf8")
+
+  assert.doesNotMatch(source, /reportDiscordRuntimeError/)
+  assert.doesNotMatch(source, /runtimeErrorReporter/)
+  assert.doesNotMatch(source, /convexBotClient/)
 })

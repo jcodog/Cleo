@@ -27,6 +27,310 @@ import type { GenericId } from "convex/values";
  */
 
 export type DataModel = {
+  discordBotRuntimeErrors: {
+    document: {
+      commandName?: string;
+      createdAt: number;
+      discordGuildId?: string;
+      eventName?: string;
+      fingerprint: string;
+      firstSeenAt: number;
+      guildId?: Id<"guilds">;
+      lastSeenAt: number;
+      message: string;
+      metadata?:
+        | null
+        | boolean
+        | number
+        | string
+        | Array<
+            | null
+            | boolean
+            | number
+            | string
+            | Array<
+                | null
+                | boolean
+                | number
+                | string
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+              >
+            | Record<
+                string,
+                | null
+                | boolean
+                | number
+                | string
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+              >
+          >
+        | Record<
+            string,
+            | null
+            | boolean
+            | number
+            | string
+            | Array<
+                | null
+                | boolean
+                | number
+                | string
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+              >
+            | Record<
+                string,
+                | null
+                | boolean
+                | number
+                | string
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<null | boolean | number | string>
+                        | Record<string, null | boolean | number | string>
+                      >
+                  >
+              >
+          >;
+      occurrenceCount: number;
+      operation?: string;
+      serviceArea:
+        | "startup"
+        | "gateway"
+        | "command"
+        | "configuration"
+        | "permission"
+        | "backend"
+        | "transport"
+        | "welcome"
+        | "moderation"
+        | "logging"
+        | "unknown";
+      severity: "info" | "warn" | "error" | "critical";
+      stack?: string;
+      updatedAt: number;
+      _id: Id<"discordBotRuntimeErrors">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "commandName"
+      | "createdAt"
+      | "discordGuildId"
+      | "eventName"
+      | "fingerprint"
+      | "firstSeenAt"
+      | "guildId"
+      | "lastSeenAt"
+      | "message"
+      | "metadata"
+      | `metadata.${string}`
+      | "occurrenceCount"
+      | "operation"
+      | "serviceArea"
+      | "severity"
+      | "stack"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_discord_guild_id_and_last_seen_at: [
+        "discordGuildId",
+        "lastSeenAt",
+        "_creationTime",
+      ];
+      by_fingerprint: ["fingerprint", "_creationTime"];
+      by_guild_id_and_last_seen_at: ["guildId", "lastSeenAt", "_creationTime"];
+      by_last_seen_at: ["lastSeenAt", "_creationTime"];
+      by_service_area_and_last_seen_at: [
+        "serviceArea",
+        "lastSeenAt",
+        "_creationTime",
+      ];
+      by_severity_and_last_seen_at: ["severity", "lastSeenAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   discordGuildInstallSessions: {
     document: {
       completedAt?: number;

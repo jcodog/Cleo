@@ -1,5 +1,9 @@
 import type { Client, ShardingManager } from "discord.js"
 
+import {
+  reportDiscordRuntimeError,
+  type DiscordRuntimeErrorReporter,
+} from "@/services/runtimeErrorReporter"
 import { botLog, botLogError } from "@/utils/botLog"
 
 export type DiscordBotShutdownReason =
@@ -17,6 +21,7 @@ type ShutdownOptions = {
   exitCode: number
   error?: unknown
   exit?: (code?: number) => void
+  reportRuntimeError?: DiscordRuntimeErrorReporter
 }
 
 type ShardingManagerShutdownOptions = {
@@ -25,6 +30,7 @@ type ShardingManagerShutdownOptions = {
   exitCode: number
   error?: unknown
   exit?: (code?: number) => void
+  reportRuntimeError?: DiscordRuntimeErrorReporter
 }
 
 const cleanupHooks = new Set<CleanupHook>()
@@ -43,10 +49,17 @@ export async function shutdownDiscordBot({
   exitCode,
   error,
   exit = process.exit,
+  reportRuntimeError = reportDiscordRuntimeError,
 }: ShutdownOptions): Promise<void> {
   if (error) {
     botLogError(`Discord bot shutdown triggered: ${reason}`, error, {
       reason,
+    })
+    reportStartupOrFatalError({
+      error,
+      reason,
+      runtime: "bot",
+      reportRuntimeError,
     })
   } else {
     botLog(`Discord bot shutdown requested: ${reason}`, "warn")
@@ -74,6 +87,7 @@ export async function shutdownDiscordShardingManager({
   exitCode,
   error,
   exit = process.exit,
+  reportRuntimeError = reportDiscordRuntimeError,
 }: ShardingManagerShutdownOptions): Promise<void> {
   if (error) {
     botLogError(
@@ -83,6 +97,12 @@ export async function shutdownDiscordShardingManager({
         reason,
       }
     )
+    reportStartupOrFatalError({
+      error,
+      reason,
+      runtime: "shardingManager",
+      reportRuntimeError,
+    })
   } else {
     botLog(`Discord sharding manager shutdown requested: ${reason}`, "warn")
   }
@@ -112,4 +132,50 @@ export async function shutdownDiscordShardingManager({
     process.exitCode = exitCode
     exit(exitCode)
   }
+}
+
+function reportStartupOrFatalError({
+  error,
+  reason,
+  runtime,
+  reportRuntimeError,
+}: {
+  error: unknown
+  reason: DiscordBotShutdownReason
+  runtime: "bot" | "shardingManager"
+  reportRuntimeError: DiscordRuntimeErrorReporter
+}): void {
+  if (!isStartupOrFatalReason(reason)) {
+    return
+  }
+
+  void (async () => {
+    try {
+      await reportRuntimeError({
+        severity: "critical",
+        serviceArea: "startup",
+        message: `Discord bot runtime fatal error: ${reason}`,
+        error,
+        operation: "startupOrFatalShutdown",
+        fingerprint: `startup:startupOrFatalShutdown:${reason}:${runtime}`,
+        metadata: {
+          reason,
+          runtime,
+        },
+      })
+    } catch (reportError) {
+      botLogError("Discord startup runtime error report failed.", reportError, {
+        reason,
+        runtime,
+      })
+    }
+  })()
+}
+
+function isStartupOrFatalReason(reason: DiscordBotShutdownReason): boolean {
+  return (
+    reason === "startupFailure" ||
+    reason === "unhandledRejection" ||
+    reason === "uncaughtException"
+  )
 }

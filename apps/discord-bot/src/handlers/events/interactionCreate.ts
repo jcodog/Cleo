@@ -29,6 +29,7 @@ export default new Event({
       await replyWithCommandError({
         interaction,
         error,
+        reportRuntimeError: client.reportRuntimeError,
       })
     }
   },
