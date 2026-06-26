@@ -1,0 +1,170 @@
+apps/discord-bot/src/handlers/commands/user/profile.ts
+  s_2846224952a1a6::t_ff4f322dd1c51b 2
+apps/discord-bot/src/services/guildEventLogging.test.ts
+  s_2846224952a1a6::t_09853384e4d8c8 43-46,49-52,55-61,81,91,109-111,281-284
+  s_2846224952a1a6::t_4b01f472b408dc 515-601
+  s_2846224952a1a6::t_5b1ddb77160756 1-9,11-41,47-48,53-54,62-80,82-90,92-108,112-280,285-514,602-610
+  s_2846224952a1a6::t_55d461e7d55380 10
+  s_2846224952a1a6::t_cdaacedc403071 42
+packages/backend/convex/_generated/api.d.ts
+  s_2846224952a1a6::t_955e543d593b70 739-757,4881-4895
+  s_2846224952a1a6::t_8407095c9a74fd 117-435,2807-2811,2815,2817-3097,3099
+  s_2846224952a1a6::t_37fbd62eea2053 436-738,1842-1863,2374-2691,2806,2812-2814,2816,3098,3100-3107,4896-4899
+packages/backend/convex/queries/dashboard/discord/guilds/moderationActions.ts
+  s_2846224952a1a6::t_3a80ebc6dceb8c 1-131
+apps/discord-bot/src/handlers/events/channelDelete.ts
+  s_2846224952a1a6::t_a96d998a9c7133 1-11,16-20
+  s_2846224952a1a6::t_09853384e4d8c8 12-15
+packages/backend/package.json
+  s_2846224952a1a6::t_bcfcd7d70b9b8d 13
+packages/backend/convex/dbTables/discordGuildEvents.ts
+  s_2846224952a1a6::t_6de1114bde2388 1-33
+apps/discord-bot/src/services/profileLookup.test.ts
+  s_2846224952a1a6::t_745cd30396556a 1-187,221-243
+  s_2846224952a1a6::t_eaa42a2c497095 188-220
+package.json
+  s_2846224952a1a6::t_3d415913f150e0 12
+apps/discord-bot/src/loaders/loadCommands.ts
+  s_2846224952a1a6::t_a694f1e6c44fe4 2-3,11-12
+apps/discord-bot/src/handlers/events/channelCreate.ts
+  s_2846224952a1a6::t_a96d998a9c7133 1-16
+packages/backend/convex/mutations/bot/discord/guildEvents/record.test.ts
+  s_2846224952a1a6::t_5b2800969ab5f8 1-174
+apps/discord-bot/src/services/convexBotClient.ts
+  s_2846224952a1a6::t_80108bd44610f1 534-537,592-619
+  s_2846224952a1a6::t_ef7c0f04b4a52f 160-162,178-181,523-533
+  s_2846224952a1a6::t_9411eba9882a04 154-156,170-172
+  s_2846224952a1a6::t_6bd5c044a0deb8 98-110,157-159,173-177
+  s_2846224952a1a6::t_7995f9dcb422be 564-591
+  s_2846224952a1a6::t_28d8ade2d01bb0 69-97
+  s_2846224952a1a6::t_aadb0b356c568e 538
+apps/discord-bot/src/handlers/events/roleDelete.ts
+  s_2846224952a1a6::t_a96d998a9c7133 1-16
+apps/dashboard/package.json
+  s_2846224952a1a6::t_bcfcd7d70b9b8d 13
+packages/backend/convex/actions/bot/discord/moderationActions/record.ts
+  s_2846224952a1a6::t_3a80ebc6dceb8c 1-31
+packages/backend/convex/mutations/bot/discord/moderationActions/record.test.ts
+  s_2846224952a1a6::t_3a80ebc6dceb8c 1-155
+apps/discord-bot/src/loaders/loadEvents.test.ts
+  s_2846224952a1a6::t_a96d998a9c7133 19-26
+packages/ui/package.json
+  s_2846224952a1a6::t_bcfcd7d70b9b8d 10
+packages/backend/convex/mutations/bot/discord/guildEvents/record.ts
+  s_2846224952a1a6::t_5b2800969ab5f8 1-326
+packages/backend/convex/lib/discordModerationActions.ts
+  s_2846224952a1a6::t_0cccd744d03777 1-31
+apps/discord-bot/src/services/moderationActions.ts
+  s_2846224952a1a6::t_c35482994791b6 1-584
+apps/discord-bot/src/loaders/loadEvents.ts
+  s_2846224952a1a6::t_a96d998a9c7133 2-5,9,11-13,21-28
+apps/discord-bot/src/handlers/commands/moderation/kick.ts
+  s_2846224952a1a6::t_a694f1e6c44fe4 1-36
+packages/backend/convex/queries/bot/discord/profiles/byDiscordUserId.test.ts
+  s_2846224952a1a6::t_1f0382741d6dc0 1-38
+packages/env/src/shared.test.ts
+  s_2846224952a1a6::t_40d3aac351db87 50-54,59-66
+  s_2846224952a1a6::t_d8e481772a669c 77-80,109-115,121,128
+  s_2846224952a1a6::t_aa120ce418a475 55-58
+apps/dashboard/src/features/discord-guild-workspace/lib/format.test.ts
+  s_2846224952a1a6::t_d8e481772a669c 16
+  s_2846224952a1a6::t_aa120ce418a475 17-20,49-56
+apps/dashboard/src/features/discord-guild-workspace/sections/ModerationSection.tsx
+  s_2846224952a1a6::t_39f147d6950404 30-34,36,43,45,57-60,100-157,159-181,183-203,205,207-222,225-227,229,232-233,261-263,266,271-273,287
+  s_2846224952a1a6::t_3a9a81fd50440c 182
+  s_2846224952a1a6::t_9241197bd1408d 27-29
+  s_2846224952a1a6::t_35795c3da5a668 228
+  s_2846224952a1a6::t_888a2014e0e423 230-231
+  s_2846224952a1a6::t_f1a2bf497dbde9 234-236,258-260
+  s_2846224952a1a6::t_14032e18275d35 264-265
+  s_2846224952a1a6::t_f768c741f80e44 267-270
+  s_2846224952a1a6::t_30e560fa16e018 274-276,284-286
+apps/discord-bot/src/services/moderationActions.test.ts
+  s_2846224952a1a6::t_920456ddeebeca 320-348,431-475
+  s_2846224952a1a6::t_c72c9b02a65eb2 1-319,349-401,410-430,476-621
+  s_2846224952a1a6::t_c1b14d5af21d9e 402-409
+apps/dashboard/src/features/discord-guild-workspace/lib/config.test.ts
+  s_2846224952a1a6::t_6851bad052e03a 58-73
+  s_2846224952a1a6::t_d8e481772a669c 47,85
+packages/backend/convex/dbTables/discordModerationActions.ts
+  s_2846224952a1a6::t_0cccd744d03777 1-39
+apps/discord-bot/src/handlers/events/guildMemberAdd.ts
+  s_2846224952a1a6::t_a96d998a9c7133 4-7,13-15
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  s_2846224952a1a6::t_a694f1e6c44fe4 69
+packages/backend/convex/actions/bot/discord/guildEvents/record.ts
+  s_2846224952a1a6::t_5b2800969ab5f8 1-31
+apps/discord-bot/package.json
+  s_2846224952a1a6::t_bcfcd7d70b9b8d 13
+apps/discord-bot/src/services/guildEventLogging.ts
+  s_2846224952a1a6::t_09853384e4d8c8 10,280,501
+  s_2846224952a1a6::t_82369de7aa28bf 502-506
+  s_2846224952a1a6::t_a2563ae38d1bdc 1-9,11-120,126-279,281-500,507-589
+  s_2846224952a1a6::t_36d855d4817190 121-125
+packages/backend/convex/lib/botDiscordProfiles.ts
+  s_2846224952a1a6::t_1f0382741d6dc0 1-26
+packages/backend/convex/queries/bot/discord/profiles/byDiscordUserId.ts
+  s_2846224952a1a6::t_1f0382741d6dc0 1-61
+apps/dashboard/src/features/discord-guild-workspace/types.ts
+  s_2846224952a1a6::t_39f147d6950404 13-14
+  s_2846224952a1a6::t_c140c4c0522770 15
+apps/discord-bot/src/handlers/commands/moderation/ban.ts
+  s_2846224952a1a6::t_a694f1e6c44fe4 1-36
+apps/discord-bot/src/handlers/events/guildBanAdd.ts
+  s_2846224952a1a6::t_a96d998a9c7133 1-16
+apps/discord-bot/src/services/profileLookup.ts
+  s_2846224952a1a6::t_74fe260f24804b 1-22,25-165,167-173,175-176
+  s_2846224952a1a6::t_b7b6e0731764bd 23-24,166,174
+apps/discord-bot/src/handlers/events/guildBanRemove.ts
+  s_2846224952a1a6::t_a96d998a9c7133 1-16
+apps/discord-bot/src/handlers/commands/utility/help.test.ts
+  s_2846224952a1a6::t_a694f1e6c44fe4 9-12,16-17,22-25,28-29,47-50
+turbo.json
+  s_2846224952a1a6::t_3d415913f150e0 39
+apps/discord-bot/src/handlers/events/roleCreate.ts
+  s_2846224952a1a6::t_a96d998a9c7133 1-16
+packages/env/src/shared.ts
+  s_2846224952a1a6::t_e551ea3ebedc0a 65
+packages/logger/src/index.test.ts
+  s_2846224952a1a6::t_5440364fcb3b50 101-106
+  s_2846224952a1a6::t_d8e481772a669c 152,156,180-183
+  s_2846224952a1a6::t_6851bad052e03a 100
+  s_2846224952a1a6::t_40d3aac351db87 107-115,184
+packages/backend/convex/_generated/dataModel.d.ts
+  s_2846224952a1a6::t_8407095c9a74fd 360-656,676-677,685-687,695,704-706,728,739-741,752-754
+  s_2846224952a1a6::t_37fbd62eea2053 692-693,700-701,703,708,710,722-726,730,747-748,751,755-1007,1010-1018,1022-1024,1027-1032,1034,1037-1042
+  s_2846224952a1a6::t_b03a4c68e62116 675,678-684,688-691,694,696-699,702,707,709,711-721,727,729,731-738,742-746,749-750
+packages/backend/convex/schema.ts
+  s_2846224952a1a6::t_6de1114bde2388 13,28
+  s_2846224952a1a6::t_0cccd744d03777 14,29
+apps/discord-bot/src/classes/Client.ts
+  s_2846224952a1a6::t_a96d998a9c7133 30,32
+apps/discord-bot/src/handlers/events/guildMemberRemove.ts
+  s_2846224952a1a6::t_a96d998a9c7133 1-16
+packages/backend/convex/mutations/bot/discord/moderationActions/record.ts
+  s_2846224952a1a6::t_3a80ebc6dceb8c 1-232
+packages/backend/convex/actions/bot/discord/profiles/getByDiscordUserId.ts
+  s_2846224952a1a6::t_1f0382741d6dc0 1-28
+packages/backend/convex/lib/discordGuildEvents.ts
+  s_2846224952a1a6::t_6de1114bde2388 1-42
+apps/discord-bot/src/handlers/events/messageDelete.ts
+  s_2846224952a1a6::t_a96d998a9c7133 1-22
+apps/discord-bot/src/handlers/commands/utility/help.ts
+  s_2846224952a1a6::t_a694f1e6c44fe4 27,34,37,45-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "c7f8a108af23e99c174c9a1fb06539c8ba97c85d",
+  "prompts": {},
+  "sessions": {
+    "s_2846224952a1a6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f00a7-b849-7622-a3eb-ada01778073f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
