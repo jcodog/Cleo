@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint .",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "test:coverage": "c8 --all --check-coverage --lines=95 --statements=95 --functions=99 --branches=84 --src=src --include=\"src/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src --include=\"src/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/packages/logger\" --temp-directory=\"../../.coverage-tmp/packages/logger\" tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

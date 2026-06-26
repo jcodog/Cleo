@@ -27,8 +27,9 @@ const defaultClientOptions = {
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildMessages,
   ],
-  partials: [Partials.GuildMember, Partials.User],
+  partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.User],
 } satisfies ClientOptions
 
 type BotClientRuntimeOptions = {

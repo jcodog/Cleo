@@ -10,6 +10,9 @@ type GuildLogsResult = FunctionReturnType<
 type GuildAuditEventsResult = FunctionReturnType<
   typeof api.queries.dashboard.discord.guilds.auditEvents.list
 >
+type GuildModerationActionsResult = FunctionReturnType<
+  typeof api.queries.dashboard.discord.guilds.moderationActions.list
+>
 
 export type GuildOverview = Extract<
   GuildOverviewResult,
@@ -24,4 +27,8 @@ export type GuildAuditEvent = Extract<
   GuildAuditEventsResult,
   { status: "ready" }
 >["events"][number]
+export type GuildModerationAction = Extract<
+  GuildModerationActionsResult,
+  { status: "ready" }
+>["actions"][number]
 export type SaveState = "idle" | "saving" | "success" | "error"

@@ -9,7 +9,7 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "test:coverage": "turbo test:coverage"
+    "test:coverage": "turbo test:coverage --ui=stream"
   },
   "devDependencies": {
     "@types/node": "catalog:",

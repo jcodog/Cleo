@@ -62,6 +62,7 @@ export function createOptionalUrl(options: OptionalUrlOptions = {}) {
 
 function resolveNodeEnv(value: OptionalUrlOptions["nodeEnv"]): NodeEnv {
   const defaultNodeEnv =
+    /* c8 ignore next -- defensive for non-Node runtimes; this package is tested under Node. */
     typeof process === "undefined" ? undefined : process.env.NODE_ENV
   const resolvedValue =
     typeof value === "function" ? value() : (value ?? defaultNodeEnv)

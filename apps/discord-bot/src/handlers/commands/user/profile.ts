@@ -1,8 +1,8 @@
 import { Command } from "@/classes/Command"
+import { handleProfileCommand } from "@/services/profileLookup"
 import {
   ApplicationIntegrationType,
   InteractionContextType,
-  MessageFlags,
 } from "discord.js"
 
 export default new Command({
@@ -16,22 +16,6 @@ export default new Command({
     ],
   },
   async execute({ interaction }) {
-    const user = interaction.user
-    const guild = interaction.guild
-
-    await interaction.reply({
-      flags: MessageFlags.Ephemeral,
-      content: [
-        "**Your Cleo profile**",
-        "",
-        `Discord user: ${user.toString()}`,
-        `User ID: \`${user.id}\``,
-        `Username: \`${user.username}\``,
-        `Display name: \`${user.displayName}\``,
-        guild ? `Server: \`${guild.name}\`` : "Server: `Direct interaction`",
-        "",
-        "Dashboard-linked profile data will appear here once the backend bridge is connected.",
-      ].join("\n"),
-    })
+    await handleProfileCommand(interaction)
   },
 })

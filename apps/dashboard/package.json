@@ -10,7 +10,7 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "test:coverage": "c8 --all --check-coverage --lines=84 --statements=84 --functions=91 --branches=74 --src=src/features/discord-guild-workspace --include=\"src/features/discord-guild-workspace/**/*.ts\" --exclude=\"src/**/*.test.ts\" --exclude=\"src/**/index.ts\" --reporter=text --reporter=cobertura --reports-dir=coverage tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src/features/discord-guild-workspace --include=\"src/features/discord-guild-workspace/**/*.ts\" --exclude=\"src/**/*.test.ts\" --exclude=\"src/**/index.ts\" --exclude=\"src/features/discord-guild-workspace/types.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/dashboard\" --temp-directory=\"../../.coverage-tmp/apps/dashboard\" tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

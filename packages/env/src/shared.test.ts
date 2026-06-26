@@ -47,6 +47,23 @@ test("optionalUrl rejects external HTTP URLs", () => {
 })
 
 test("optionalUrl allows loopback HTTP outside production", () => {
+  const previousNodeEnv = process.env.NODE_ENV
+
+  process.env.NODE_ENV = "development"
+
+  try {
+    assert.equal(
+      createOptionalUrl().parse("http://localhost:3210"),
+      "http://localhost:3210"
+    )
+  } finally {
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = previousNodeEnv
+    }
+  }
+
   assert.equal(
     createOptionalUrl({ nodeEnv: "development" }).parse(
       "http://localhost:3210"
@@ -56,6 +73,10 @@ test("optionalUrl allows loopback HTTP outside production", () => {
   assert.equal(
     createOptionalUrl({ nodeEnv: "test" }).parse("http://127.0.0.1:3210"),
     "http://127.0.0.1:3210"
+  )
+  assert.equal(
+    createOptionalUrl({ nodeEnv: "test" }).parse("http://[::1]:3210"),
+    "http://[::1]:3210"
   )
 })
 
@@ -85,18 +106,26 @@ test("nodeEnv defaults to development and accepts known environments", () => {
 })
 
 test("optional server env modules load without credentials", async () => {
-  const [{ backendEnv }, { discordEnv }, { kickEnv }, { dashboardEnv }] =
+  const [
+    { backendEnv },
+    { discordEnv },
+    { kickEnv },
+    { dashboardEnv },
+    { webEnv },
+  ] =
     await Promise.all([
       import("./backend"),
       import("./discord"),
       import("./kick"),
       import("./dashboard"),
+      import("./web"),
     ])
 
   assert.ok("DISCORD_BOT_TOKEN" in backendEnv)
   assert.ok("DISCORD_TEST_GUILD_ID" in discordEnv)
   assert.ok("KICK_CLIENT_SECRET" in kickEnv)
   assert.ok("NEXT_PUBLIC_CONVEX_URL" in dashboardEnv)
+  assert.equal(webEnv, dashboardEnv)
 })
 
 test("wsEnv defaults the websocket port without credentials", async () => {

@@ -44,6 +44,7 @@ test("guild workspace module helpers derive values from nullable config", () => 
       label: "Welcome",
     },
   ])
+  assert.deepEqual(getModuleItems(null), [])
 })
 
 test("guild workspace channel helpers normalize empty and configured channels", () => {
@@ -54,6 +55,22 @@ test("guild workspace channel helpers normalize empty and configured channels", 
     updatesChannelId: "",
     announcementChannelId: "",
   })
+  assert.deepEqual(
+    getChannelValues({
+      logChannelId: "1",
+      modLogChannelId: "2",
+      welcomeChannelId: "3",
+      updatesChannelId: "4",
+      announcementChannelId: "5",
+    } as GuildConfig),
+    {
+      logChannelId: "1",
+      modLogChannelId: "2",
+      welcomeChannelId: "3",
+      updatesChannelId: "4",
+      announcementChannelId: "5",
+    }
+  )
 
   assert.deepEqual(getConfiguredChannelItems(config), [
     {
@@ -65,6 +82,7 @@ test("guild workspace channel helpers normalize empty and configured channels", 
       value: "234567890123456789",
     },
   ])
+  assert.deepEqual(getConfiguredChannelItems(null), [])
 
   assert.equal(
     toOptionalChannelValue("  123456789012345678  "),

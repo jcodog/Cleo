@@ -24,14 +24,17 @@ export default new Command({
       flags: MessageFlags.Ephemeral,
       content: createHelpContent({
         includeProfile: !interaction.inGuild(),
+        includeModeration: interaction.inGuild(),
       }),
     })
   },
 })
 
 export function createHelpContent({
+  includeModeration,
   includeProfile,
 }: {
+  includeModeration: boolean
   includeProfile: boolean
 }): string {
   return [
@@ -39,6 +42,12 @@ export function createHelpContent({
     "",
     "`/ping` - Check Cleo's Discord connection latency.",
     "`/help` - View this guide.",
+    ...(includeModeration
+      ? [
+          "`/ban` - Ban a server member.",
+          "`/kick` - Kick a server member.",
+        ]
+      : []),
     ...(includeProfile
       ? ["`/profile` - View your Discord profile details known to Cleo."]
       : []),

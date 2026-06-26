@@ -16,6 +16,14 @@ test("loaded events register the current gateway event surface once", async () =
     Events.GuildCreate,
     Events.GuildDelete,
     Events.GuildMemberAdd,
+    Events.GuildMemberRemove,
+    Events.GuildBanAdd,
+    Events.GuildBanRemove,
+    Events.ChannelCreate,
+    Events.ChannelDelete,
+    Events.GuildRoleCreate,
+    Events.GuildRoleDelete,
+    Events.MessageDelete,
   ]))
 })
 

@@ -66,6 +66,48 @@ const gatewayShardScopeSchema = z
 
 type GatewayShardScope = z.infer<typeof gatewayShardScopeSchema>
 
+const discordSnowflakeSchema = z
+  .string()
+  .regex(/^\d{17,20}$/, "Discord IDs must be valid snowflakes.")
+
+const discordGuildEventSchema = z.object({
+  discordGuildId: discordSnowflakeSchema,
+  eventType: z.enum([
+    "guildMemberAdd",
+    "guildMemberRemove",
+    "guildBanAdd",
+    "guildBanRemove",
+    "channelCreate",
+    "channelDelete",
+    "roleCreate",
+    "roleDelete",
+    "messageDelete",
+  ]),
+  actorDiscordUserId: discordSnowflakeSchema.optional(),
+  targetType: z.enum(["member", "user", "channel", "role", "message"]),
+  targetDiscordId: discordSnowflakeSchema.optional(),
+  targetDisplayName: z.string().optional(),
+  channelId: discordSnowflakeSchema.optional(),
+  roleId: discordSnowflakeSchema.optional(),
+  reason: z.string().optional(),
+  metadata: z.unknown().optional(),
+  occurredAt: gatewayEventTimestampSchema,
+  dedupeKey: z.string().optional(),
+})
+
+const discordModerationActionSchema = z.object({
+  discordGuildId: discordSnowflakeSchema,
+  actionType: z.enum(["ban", "kick"]),
+  actorDiscordUserId: discordSnowflakeSchema,
+  targetDiscordUserId: discordSnowflakeSchema,
+  reason: z.string().optional(),
+  result: z.enum(["success", "failed", "denied"]),
+  failureCode: z.string().optional(),
+  operationId: z.string(),
+  metadata: z.unknown().optional(),
+  occurredAt: gatewayEventTimestampSchema,
+})
+
 type ConvexBotRuntimeEnv = {
   convexUrl?: string
   convexSecret?: string
@@ -109,12 +151,33 @@ export type DiscordBotRuntimeErrorServiceArea =
 type ReportRuntimeErrorArgs = FunctionArgs<
   typeof api.actions.bot.discord.runtimeErrors.report.report
 >
+type RecordGuildEventArgs = FunctionArgs<
+  typeof api.actions.bot.discord.guildEvents.record.record
+>
+type RecordModerationActionArgs = FunctionArgs<
+  typeof api.actions.bot.discord.moderationActions.record.record
+>
+type FetchDiscordProfileArgs = FunctionArgs<
+  typeof api.actions.bot.discord.profiles.getByDiscordUserId.get
+>
 
 export type DiscordBotRuntimeErrorReportMetadata =
   ReportRuntimeErrorArgs["metadata"]
 
 export type DiscordBotRuntimeErrorReportResult = FunctionReturnType<
   typeof api.actions.bot.discord.runtimeErrors.report.report
+>
+export type DiscordGuildEventRecord = RecordGuildEventArgs["event"]
+export type DiscordGuildEventRecordResult = FunctionReturnType<
+  typeof api.actions.bot.discord.guildEvents.record.record
+>
+export type DiscordModerationActionRecord =
+  RecordModerationActionArgs["action"]
+export type DiscordModerationActionRecordResult = FunctionReturnType<
+  typeof api.actions.bot.discord.moderationActions.record.record
+>
+export type DiscordProfileLookupResult = FunctionReturnType<
+  typeof api.actions.bot.discord.profiles.getByDiscordUserId.get
 >
 
 export type DiscordBotRuntimeErrorReport = {
@@ -457,6 +520,22 @@ export const convexBotClient = {
     )
   },
 
+  async fetchDiscordProfileByUserId(
+    discordUserId: FetchDiscordProfileArgs["discordUserId"]
+  ): Promise<DiscordProfileLookupResult | null> {
+    return await callWithConvex(
+      "Discord profile lookup",
+      async ({ client, secret }) =>
+        await client.action(
+          api.actions.bot.discord.profiles.getByDiscordUserId.get,
+          {
+            secret,
+            discordUserId: discordSnowflakeSchema.parse(discordUserId),
+          }
+        )
+    )
+  },
+
   async reportRuntimeError(
     report: DiscordBotRuntimeErrorReport
   ): Promise<DiscordBotRuntimeErrorReportResult | null> {
@@ -480,6 +559,62 @@ export const convexBotClient = {
             occurredAt: report.occurredAt,
           }
         )
+    )
+  },
+
+  async recordGuildEvent(
+    event: DiscordGuildEventRecord
+  ): Promise<DiscordGuildEventRecordResult | null> {
+    return await callWithConvex(
+      "guild event record",
+      async ({ client, secret }) => {
+        const parsedEvent = discordGuildEventSchema.parse(
+          event
+        ) as DiscordGuildEventRecord
+
+        const result = await client.action(
+          api.actions.bot.discord.guildEvents.record.record,
+          {
+            secret,
+            event: parsedEvent,
+          }
+        )
+
+        botLog(
+          `Recorded Discord guild event ${parsedEvent.eventType} for ${parsedEvent.discordGuildId}.`,
+          "debug"
+        )
+
+        return result
+      }
+    )
+  },
+
+  async recordModerationAction(
+    action: DiscordModerationActionRecord
+  ): Promise<DiscordModerationActionRecordResult | null> {
+    return await callWithConvex(
+      "moderation action record",
+      async ({ client, secret }) => {
+        const parsedAction = discordModerationActionSchema.parse(
+          action
+        ) as DiscordModerationActionRecord
+
+        const result = await client.action(
+          api.actions.bot.discord.moderationActions.record.record,
+          {
+            secret,
+            action: parsedAction,
+          }
+        )
+
+        botLog(
+          `Recorded Discord moderation action ${parsedAction.actionType} for ${parsedAction.discordGuildId}.`,
+          "debug"
+        )
+
+        return result
+      }
     )
   },
 }

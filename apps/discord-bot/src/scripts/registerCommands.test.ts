@@ -66,7 +66,7 @@ test("loaded command metadata is valid and unique", async () => {
 
   assert.deepEqual(
     loadedCommandData.map((command) => command.name).sort(),
-    ["help", "ping", "profile"]
+    ["ban", "help", "kick", "ping", "profile"]
   )
 
   assert.doesNotThrow(() => validateCommandData(loadedCommandData))

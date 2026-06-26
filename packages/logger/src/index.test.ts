@@ -97,6 +97,22 @@ test("serializeLogError preserves useful error details after redaction", () => {
       authorization: "[redacted]",
     },
   })
+
+  const plainError = serializeLogError(new Error("plain failure"))
+
+  assert.equal(plainError.name, "Error")
+  assert.equal(plainError.message, "plain failure")
+  assert.equal("cause" in plainError, false)
+  assert.equal(typeof plainError.stack, "string")
+
+  const stacklessError = new Error("stackless failure")
+
+  stacklessError.stack = undefined
+
+  assert.deepEqual(serializeLogError(stacklessError), {
+    name: "Error",
+    message: "stackless failure",
+  })
 })
 
 test("serializeLogError redacts non-Error values", () => {
@@ -133,10 +149,11 @@ test("createLogger writes redacted structured log payloads", (t) => {
   })
   logger.error("failed for user@example.com with token=secret")
   logger.info("ok")
+  logger.debug("debug ok")
 
   assert.equal(lines.length, 1)
   assert.equal(errors.length, 1)
-  assert.equal(logs.length, 1)
+  assert.equal(logs.length, 2)
 
   const [line] = lines
   assert.ok(line)
@@ -159,6 +176,11 @@ test("createLogger writes redacted structured log payloads", (t) => {
     level: "info",
     namespace: "test",
     message: "ok",
+  })
+  assert.deepEqual(JSON.parse(logs[1] ?? ""), {
+    level: "debug",
+    namespace: "test",
+    message: "debug ok",
   })
 })
 
