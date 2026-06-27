@@ -1,0 +1,201 @@
+packages/backend/convex/queries/bot/discord/guildConfigs/runtimeConfigByDiscordId.ts
+  s_01f68ef6543bd9::t_8aa884f5168f00 33-42,58,78-90
+packages/backend/convex/lib/supportTickets.test.ts
+  s_01f68ef6543bd9::t_128cfdeb394423 1-74
+apps/dashboard/src/features/staff/support-tickets/SupportTicketsPageShell.tsx
+  s_01f68ef6543bd9::t_4510fba457befc 1-31,33-90,92-135
+  s_01f68ef6543bd9::t_7cbd546fc7741e 32,91
+apps/discord-bot/src/services/guildEventLogging.test.ts
+  s_01f68ef6543bd9::t_8fd45c16c62620 83,264-277,298-308,326-336,355-358,375-384,399-409,431-441,458-468,484-499,505-508,521-524,526-539,543-546,555-568,572-575,584-601
+  s_01f68ef6543bd9::t_867e2d29f679e9 30,76,214,223,353-354,359-370,374,385-398,410-417
+  s_01f68ef6543bd9::t_17d3e6b6574736 371-373
+  s_01f68ef6543bd9::t_8aa884f5168f00 75
+  s_01f68ef6543bd9::t_1dd0acda17b8cc 418
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  s_01f68ef6543bd9::t_433e267c668017 150,180,217,299
+  s_01f68ef6543bd9::t_7cbd546fc7741e 67-72,138-141
+apps/discord-bot/src/services/supportTickets.ts
+  s_01f68ef6543bd9::t_bfb38f854d7e13 139-146,148,150,152
+  s_01f68ef6543bd9::t_7cbd546fc7741e 184-186
+  s_01f68ef6543bd9::t_a87461e5e75827 35-43,46,191,220,287
+  s_01f68ef6543bd9::t_d52b7b02b33b3d 3-4,6-10,16,18-25,27-29,31-34,44-45,47-52,57-59,61,63,73-96,99-101,103-104,106,109,111-113,118,120,125-128,130-134,154-156,161,163-164,176-183,187-190,192-214,216,218-219,221-277,280-286,288,290-298,301-313,316,322,326,328,331,335-336,338,340-341,343,347,349,354-355
+  s_01f68ef6543bd9::t_d3f861cecd29d1 135-138,165
+  s_01f68ef6543bd9::t_fc3843e116e5e9 170
+  s_01f68ef6543bd9::t_2a94776c0e6e4e 17,68-71,166-169,171-175
+apps/discord-bot/src/services/convexBotClient.ts
+  s_01f68ef6543bd9::t_d52b7b02b33b3d 160-161,178-180,523-525,527,530,533-547
+  s_01f68ef6543bd9::t_7cbd546fc7741e 174
+apps/discord-bot/src/services/supportTickets.test.ts
+  s_01f68ef6543bd9::t_433e267c668017 4-9,11-13,15,17-20,23,26-28,36-56,60,62-74,76,81-94,98-102,104-110,114-120,123-124,129-131,133-140,143-147,171-176,178-193,196,200-202,204-217,219,246-250,252-257,259,261-266,268-269
+  s_01f68ef6543bd9::t_c6e8936db5be58 221-223,225-240,242
+  s_01f68ef6543bd9::t_7cbd546fc7741e 22,79,197
+  s_01f68ef6543bd9::t_d7ed62143bce83 243
+  s_01f68ef6543bd9::t_2a94776c0e6e4e 14,29-35,150-155,157-159,161-163,167-168
+packages/backend/convex/mutations/bot/discord/guildEvents/record.ts
+  s_01f68ef6543bd9::t_867e2d29f679e9 19,49-53,94,96-97,195-207,209,226-227,229-256
+  s_01f68ef6543bd9::t_651579dba4148b 5,65-70,78-81,95,160-194
+  s_01f68ef6543bd9::t_8fd45c16c62620 130-134,257
+  s_01f68ef6543bd9::t_3f537670b63e07 6-9
+  s_01f68ef6543bd9::t_17d3e6b6574736 208,210-225,228
+  s_01f68ef6543bd9::t_1d4c7e5a2002ed 258
+docs/product/cleo-pets-monetization.md
+  s_01f68ef6543bd9::t_cc03ee49bcdf66 134-136
+  s_01f68ef6543bd9::t_63bf1466c8476f 26-35
+  s_01f68ef6543bd9::t_7eb1b7983855de 143-146,191-193
+  s_01f68ef6543bd9::t_3427770fc656b8 38-47
+  s_01f68ef6543bd9::t_b914c1adda29f6 1-25,36-37,48-133,137-142,147-190,194-273
+docs/product/cleo-pets-model.md
+  s_01f68ef6543bd9::t_66402c95d07b04 1-71
+packages/backend/convex/_generated/dataModel.d.ts
+  s_01f68ef6543bd9::t_2ed648c1615e27 35,56-350,2043-2044,2052,2054-2059,2068-2070,2072-2075,2124,2128,2131-2135,2139,2141-2143,2145-2148,2150,2153,2174,2176-2180,2183,2200-2202,2208-2209,2211-2214
+  s_01f68ef6543bd9::t_63da2aa963d718 2042,2045-2051,2053,2060-2067,2071,2123,2125-2127,2129-2130,2136-2138,2140,2144,2149,2151-2152,2154-2173,2175,2181-2182,2184-2199,2203-2207,2210
+apps/discord-bot/src/loaders/loadCommands.test.ts
+  s_01f68ef6543bd9::t_433e267c668017 12-15
+apps/dashboard/src/features/discord-guild-workspace/sections.ts
+  s_01f68ef6543bd9::t_4510fba457befc 8,23
+apps/discord-bot/src/handlers/commands/utility/help.ts
+  s_01f68ef6543bd9::t_d52b7b02b33b3d 2,4,12,22-30,33
+packages/backend/convex/mutations/bot/discord/supportTickets/openOrResume.ts
+  s_01f68ef6543bd9::t_e9f753263dc144 3-6,21-22,26,117
+  s_01f68ef6543bd9::t_128cfdeb394423 1-2,7-20,23-25,27-116,118-174
+packages/backend/convex/dbTables/supportTicketMessages.ts
+  s_01f68ef6543bd9::t_91897d05da0361 1-10
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_01f68ef6543bd9::t_4510fba457befc 13,122-130,163-168
+  s_01f68ef6543bd9::t_7dd2202c5767ef 40,42
+packages/backend/convex/schema.ts
+  s_01f68ef6543bd9::t_91897d05da0361 15-17,39-41
+  s_01f68ef6543bd9::t_b6afb6de3698e9 18-23,42-45
+packages/backend/convex/lib/botDiscordGuildRuntimeConfig.ts
+  s_01f68ef6543bd9::t_8aa884f5168f00 4-6,10-11,29-40,46,54-58
+packages/shared/src/discordRuntimeConfig.test.ts
+  s_01f68ef6543bd9::t_8aa884f5168f00 21,29-33,59,67-71,185,216,230-234,237-253,299,311
+  s_01f68ef6543bd9::t_7ce006051b68bb 235-236
+.github/workflows/regression.yml
+  s_01f68ef6543bd9::t_867e2d29f679e9 52-58,77-83,89,97,105,113,121,129,137
+packages/shared/src/cleoPets.ts
+  s_01f68ef6543bd9::t_8ee44ae9ed71c1 200
+  s_01f68ef6543bd9::t_278fa8383cf068 433-444,446
+  s_01f68ef6543bd9::t_969326f1f7b738 1-199,201-432,445,447-593
+packages/backend/convex/dbTables/cleoPets.ts
+  s_01f68ef6543bd9::t_b6afb6de3698e9 1-179
+packages/shared/src/cleoEntitlements.ts
+  s_01f68ef6543bd9::t_b914c1adda29f6 1-39,41-62,65-151,153-253,255-261,277-316,318-371
+  s_01f68ef6543bd9::t_7eb1b7983855de 152,254,262-263,265-276
+  s_01f68ef6543bd9::t_6fa418c6ee413b 264
+  s_01f68ef6543bd9::t_3427770fc656b8 40,63-64,317
+apps/discord-bot/src/services/guildRuntimeConfig.test.ts
+  s_01f68ef6543bd9::t_8aa884f5168f00 18,25-29
+  s_f93b396c96df0c::t_71064480336588 137,470,503-505
+packages/backend/convex/queries/dashboard/staff/access.ts
+  s_01f68ef6543bd9::t_7dd2202c5767ef 1-16,19-25
+  s_01f68ef6543bd9::t_fc3843e116e5e9 17-18
+packages/shared/src/cleoEntitlements.test.ts
+  s_01f68ef6543bd9::t_7eb1b7983855de 341-350,379
+  s_01f68ef6543bd9::t_3427770fc656b8 143
+  s_01f68ef6543bd9::t_b914c1adda29f6 1-142,144-253,362-378,380-395
+  s_01f68ef6543bd9::t_d6f7674ee64ab5 254-340,351-361
+packages/backend/convex/dbTables/supportTickets.ts
+  s_01f68ef6543bd9::t_91897d05da0361 1-46
+packages/shared/src/cleoPets.test.ts
+  s_01f68ef6543bd9::t_278fa8383cf068 392,428,430-439
+  s_01f68ef6543bd9::t_969326f1f7b738 1-70,76-391,393-427,429,440-444
+  s_01f68ef6543bd9::t_8afb05e53c149f 71-75
+packages/backend/convex/dbTables/appFeatureGates.ts
+  s_01f68ef6543bd9::t_b6afb6de3698e9 4-7,11-14
+packages/backend/convex/_generated/api.d.ts
+  s_01f68ef6543bd9::t_fc3843e116e5e9 1115,1711,2453-2462,2466-2468,2488-2490,3596
+  s_01f68ef6543bd9::t_a967029fbd879c 103-110,1084-1114,1685-1710,2040-2077,2463-2465,2469-2487,3568-3595,5039-5046
+apps/discord-bot/src/services/guildEventLogging.ts
+  s_01f68ef6543bd9::t_867e2d29f679e9 29,47,50,83-104,113,118-126,129,141-144,149-152,169-172,188-191,215,221-224,305-311,314-315
+  s_01f68ef6543bd9::t_8fd45c16c62620 312-313,331-336,375-380,420-425,444-449,594-596,630,657-666
+  s_01f68ef6543bd9::t_03a59d6c20241d 316
+apps/dashboard/src/app/(app)/staff/support-tickets/page.tsx
+  s_01f68ef6543bd9::t_4510fba457befc 1-13
+packages/backend/convex/lib/supportTickets.ts
+  s_01f68ef6543bd9::t_128cfdeb394423 1-116
+.github/coverage-baseline.md
+  s_01f68ef6543bd9::t_8fd45c16c62620 8-16
+  s_01f68ef6543bd9::t_867e2d29f679e9 1,3-6,18-21
+packages/backend/convex/queries/dashboard/supportTickets/listJcn.ts
+  s_01f68ef6543bd9::t_f4904f6ad6dedb 1-74
+apps/discord-bot/src/services/welcomeMessages.test.ts
+  s_01f68ef6543bd9::t_bd763f8091e1ad 53
+packages/backend/convex/actions/bot/discord/supportTickets/openOrResume.ts
+  s_01f68ef6543bd9::t_f4904f6ad6dedb 5,14
+  s_01f68ef6543bd9::t_128cfdeb394423 1-4,7-10,12-13,15,17-24
+packages/backend/convex/mutations/bot/discord/guildEvents/record.test.ts
+  s_01f68ef6543bd9::t_867e2d29f679e9 6,176-200,202-218,223-259
+  s_01f68ef6543bd9::t_8fd45c16c62620 201,219-222
+apps/discord-bot/src/services/moderationActions.test.ts
+  s_01f68ef6543bd9::t_bd763f8091e1ad 64
+  s_2846224952a1a6::t_0ad18f1fd86d17 232-239,478-481,546
+apps/discord-bot/src/handlers/commands/utility/help.test.ts
+  s_01f68ef6543bd9::t_433e267c668017 4-24,26-30
+apps/dashboard/src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell.tsx
+  s_01f68ef6543bd9::t_4510fba457befc 30,232-234
+  s_01f68ef6543bd9::t_d5eed97585b553 235-239
+packages/shared/src/index.ts
+  s_01f68ef6543bd9::t_969326f1f7b738 3
+  s_01f68ef6543bd9::t_b914c1adda29f6 2
+packages/backend/convex/queries/dashboard/discord/guilds/support.ts
+  s_01f68ef6543bd9::t_f4904f6ad6dedb 2-158
+  s_01f68ef6543bd9::t_3fc6e83ee1e3e6 1
+packages/shared/src/discordRuntimeConfig.ts
+  s_01f68ef6543bd9::t_91897d05da0361 10-25,43,54-58,69-77,93,101-105,292,306-309,367-385,387-393,395,399-403,405,409,418,438-450,455-485
+  s_01f68ef6543bd9::t_e9f753263dc144 164-196,207-209,213-215,386,394,396-398,404,406-408,486
+  s_01f68ef6543bd9::t_7f3c0f1860a9f9 410
+  s_01f68ef6543bd9::t_24dd54b380bcfe 487
+apps/dashboard/src/features/discord-guild-workspace/sections/SupportSection.tsx
+  s_01f68ef6543bd9::t_4510fba457befc 1-89,93-158,162-300,302-323,325-340,342-405,407-423
+  s_01f68ef6543bd9::t_7cbd546fc7741e 90-92,159-161,301,324,341,406
+packages/shared/package.json
+  s_01f68ef6543bd9::t_969326f1f7b738 22
+  s_01f68ef6543bd9::t_b914c1adda29f6 21
+packages/backend/convex/dbTables/guildSupportConfigs.ts
+  s_01f68ef6543bd9::t_91897d05da0361 1-30
+packages/backend/convex/mutations/dashboard/discord/guildSupportConfigs/update.test.ts
+  s_01f68ef6543bd9::t_c7dc92a993d5a7 1-12,14-30
+  s_01f68ef6543bd9::t_d7ed62143bce83 13
+apps/dashboard/src/app/(app)/staff/page.tsx
+  s_01f68ef6543bd9::t_7dd2202c5767ef 11
+apps/discord-bot/src/scripts/sendWelcomePreview.ts
+  s_01f68ef6543bd9::t_bd763f8091e1ad 172
+packages/backend/convex/mutations/dashboard/discord/guildSupportConfigs/update.ts
+  s_01f68ef6543bd9::t_c7dc92a993d5a7 64-65,126,143
+  s_01f68ef6543bd9::t_f4904f6ad6dedb 1-63,66-125,127-142,144-160
+apps/dashboard/src/features/discord-guild-workspace/sections/LogsSection.tsx
+  s_01f68ef6543bd9::t_867e2d29f679e9 53-56,66-67,80-81,95-96,132-147,154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "073249af02562e75e6c3ffb862d05c22bf6ac8e4",
+  "prompts": {},
+  "sessions": {
+    "s_01f68ef6543bd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0ad5-2b8d-7253-87aa-7733d714bfe3",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_2846224952a1a6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f00a7-b849-7622-a3eb-ada01778073f",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_f93b396c96df0c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019eac75-e4b2-7db0-8ca6-1549d0e593cd",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
