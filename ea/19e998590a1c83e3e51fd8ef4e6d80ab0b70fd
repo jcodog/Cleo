@@ -1,0 +1,14 @@
+turbo.json
+  h_2bc691fceb4fe5 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ea19e998590a1c83e3e51fd8ef4e6d80ab0b70fd",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
