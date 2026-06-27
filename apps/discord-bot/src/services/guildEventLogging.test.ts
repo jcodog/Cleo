@@ -27,6 +27,7 @@ import {
   normalizeMessageDelete,
   normalizeRoleCreate,
   normalizeRoleDelete,
+  shouldMirrorDiscordGuildEvent,
 } from "./guildEventLogging"
 import type { DiscordRuntimeErrorReportInput } from "./runtimeErrorReporter"
 import type { DiscordGuildRuntimeConfigResult } from "./guildRuntimeConfig"
@@ -71,15 +72,15 @@ function readyConfig(
       moderationEnabled: false,
       welcomeEnabled: false,
       loggingEnabled: true,
+      supportEnabled: false,
+      logLevel: "maximum",
       logChannelId,
       ...overrides,
     },
   }
 }
 
-function createChannel(
-  overrides: ChannelDoubleOverrides = {}
-): ChannelDouble {
+function createChannel(overrides: ChannelDoubleOverrides = {}): ChannelDouble {
   const sentMessages: MessageCreateOptions[] = []
   const permissions = new PermissionsBitField(
     overrides.permissions ?? [
@@ -210,7 +211,7 @@ function createRuntimeErrorCollector() {
   }
 }
 
-function createPersistRecorder() {
+function createPersistRecorder(deduplicated = false) {
   const events: DiscordGuildEventRecord[] = []
 
   return {
@@ -219,7 +220,7 @@ function createPersistRecorder() {
       events.push(event)
       return {
         id: "event-id",
-        deduplicated: false,
+        deduplicated,
       } as never
     },
   }
@@ -260,17 +261,20 @@ test("bot event normalization works for each supported guild event", () => {
     ]
   )
 
-  assert.deepEqual(events.map((event) => event?.discordGuildId), [
-    guildId,
-    guildId,
-    guildId,
-    guildId,
-    guildId,
-    guildId,
-    guildId,
-    guildId,
-    guildId,
-  ])
+  assert.deepEqual(
+    events.map((event) => event?.discordGuildId),
+    [
+      guildId,
+      guildId,
+      guildId,
+      guildId,
+      guildId,
+      guildId,
+      guildId,
+      guildId,
+      guildId,
+    ]
+  )
 })
 
 test("messageDelete normalization does not include raw message content", () => {
@@ -291,13 +295,17 @@ test("disabled logging still persists and sends nothing", async () => {
   const reporter = createRuntimeErrorCollector()
   const persister = createPersistRecorder()
 
-  const result = await handleDiscordGuildEvent(event, { guild }, {
-    async fetchConfig() {
-      return readyConfig({ loggingEnabled: false })
-    },
-    persistEvent: persister.persistEvent,
-    reportRuntimeError: reporter.reportRuntimeError,
-  })
+  const result = await handleDiscordGuildEvent(
+    event,
+    { guild },
+    {
+      async fetchConfig() {
+        return readyConfig({ loggingEnabled: false })
+      },
+      persistEvent: persister.persistEvent,
+      reportRuntimeError: reporter.reportRuntimeError,
+    }
+  )
 
   assert.deepEqual(result, {
     persistence: "recorded",
@@ -315,13 +323,17 @@ test("enabled logging sends configured log message", async () => {
   const reporter = createRuntimeErrorCollector()
   const persister = createPersistRecorder()
 
-  const result = await handleDiscordGuildEvent(event, { guild }, {
-    async fetchConfig() {
-      return readyConfig()
-    },
-    persistEvent: persister.persistEvent,
-    reportRuntimeError: reporter.reportRuntimeError,
-  })
+  const result = await handleDiscordGuildEvent(
+    event,
+    { guild },
+    {
+      async fetchConfig() {
+        return readyConfig()
+      },
+      persistEvent: persister.persistEvent,
+      reportRuntimeError: reporter.reportRuntimeError,
+    }
+  )
 
   assert.deepEqual(result, {
     persistence: "recorded",
@@ -338,6 +350,72 @@ test("enabled logging sends configured log message", async () => {
   assert.equal(reporter.reports.length, 0)
 })
 
+test("guild logging levels apply a stable event policy", () => {
+  assert.equal(shouldMirrorDiscordGuildEvent("guildBanAdd", "minimal"), true)
+  assert.equal(
+    shouldMirrorDiscordGuildEvent("guildMemberAdd", "minimal"),
+    false
+  )
+  assert.equal(shouldMirrorDiscordGuildEvent("guildMemberAdd", "medium"), true)
+  assert.equal(shouldMirrorDiscordGuildEvent("messageDelete", "medium"), false)
+  assert.equal(shouldMirrorDiscordGuildEvent("messageDelete", "maximum"), true)
+  assert.equal(shouldMirrorDiscordGuildEvent("guildBanAdd", "none"), false)
+  assert.equal(shouldMirrorDiscordGuildEvent("messageDelete", undefined), true)
+})
+
+test("events below the configured log level persist without delivery", async () => {
+  const channel = createChannel()
+  const guild = createGuild(channel)
+  const event = normalizeMessageDelete(createMessage(guild), now)
+
+  if (!event) {
+    throw new Error("Expected a guild message event.")
+  }
+
+  const result = await handleDiscordGuildEvent(
+    event,
+    { guild },
+    {
+      async fetchConfig() {
+        return readyConfig({ logLevel: "medium" })
+      },
+      persistEvent: createPersistRecorder().persistEvent,
+    }
+  )
+
+  assert.deepEqual(result, {
+    persistence: "recorded",
+    delivery: "filteredByLogLevel",
+  })
+  assert.equal(channel.sentMessages.length, 0)
+})
+
+test("deduplicated events do not fetch config or deliver twice", async () => {
+  const channel = createChannel()
+  const guild = createGuild(channel)
+  const event = normalizeGuildMemberAdd(createMember(guild), now)
+  let configFetches = 0
+
+  const result = await handleDiscordGuildEvent(
+    event,
+    { guild },
+    {
+      async fetchConfig() {
+        configFetches += 1
+        return readyConfig()
+      },
+      persistEvent: createPersistRecorder(true).persistEvent,
+    }
+  )
+
+  assert.deepEqual(result, {
+    persistence: "recorded",
+    delivery: "deduplicated",
+  })
+  assert.equal(configFetches, 0)
+  assert.equal(channel.sentMessages.length, 0)
+})
+
 test("missing or unsupported log channel sends nothing quietly", async () => {
   const reporter = createRuntimeErrorCollector()
 
@@ -350,13 +428,17 @@ test("missing or unsupported log channel sends nothing quietly", async () => {
     const guild = createGuild(channel)
     const event = normalizeGuildMemberAdd(createMember(guild), now)
 
-    const result = await handleDiscordGuildEvent(event, { guild }, {
-      async fetchConfig() {
-        return readyConfig()
-      },
-      persistEvent: createPersistRecorder().persistEvent,
-      reportRuntimeError: reporter.reportRuntimeError,
-    })
+    const result = await handleDiscordGuildEvent(
+      event,
+      { guild },
+      {
+        async fetchConfig() {
+          return readyConfig()
+        },
+        persistEvent: createPersistRecorder().persistEvent,
+        reportRuntimeError: reporter.reportRuntimeError,
+      }
+    )
 
     assert.equal(result.persistence, "recorded")
     assert.match(result.delivery, /channelUnavailable|channelUnsupported/)
@@ -373,13 +455,17 @@ test("missing expected permissions sends nothing and does not report incident", 
   const event = normalizeGuildMemberAdd(createMember(guild), now)
   const reporter = createRuntimeErrorCollector()
 
-  const result = await handleDiscordGuildEvent(event, { guild }, {
-    async fetchConfig() {
-      return readyConfig()
-    },
-    persistEvent: createPersistRecorder().persistEvent,
-    reportRuntimeError: reporter.reportRuntimeError,
-  })
+  const result = await handleDiscordGuildEvent(
+    event,
+    { guild },
+    {
+      async fetchConfig() {
+        return readyConfig()
+      },
+      persistEvent: createPersistRecorder().persistEvent,
+      reportRuntimeError: reporter.reportRuntimeError,
+    }
+  )
 
   assert.deepEqual(result, {
     persistence: "recorded",
@@ -395,24 +481,31 @@ test("unexpected persistence failure is logged and reported safely", async () =>
   const reporter = createRuntimeErrorCollector()
   const loggedErrors: unknown[] = []
 
-  const result = await handleDiscordGuildEvent(event, { guild }, {
-    async fetchConfig() {
-      return readyConfig({ loggingEnabled: false })
-    },
-    async persistEvent() {
-      return null
-    },
-    logError(message, error, metadata) {
-      loggedErrors.push({ message, error, metadata })
-    },
-    reportRuntimeError: reporter.reportRuntimeError,
-  })
+  const result = await handleDiscordGuildEvent(
+    event,
+    { guild },
+    {
+      async fetchConfig() {
+        return readyConfig({ loggingEnabled: false })
+      },
+      async persistEvent() {
+        return null
+      },
+      logError(message, error, metadata) {
+        loggedErrors.push({ message, error, metadata })
+      },
+      reportRuntimeError: reporter.reportRuntimeError,
+    }
+  )
 
   assert.deepEqual(result, {
     persistence: "failed",
     delivery: "loggingDisabled",
   })
-  assert.equal((loggedErrors[0] as { message: string }).message, "Discord guild event persistence failed.")
+  assert.equal(
+    (loggedErrors[0] as { message: string }).message,
+    "Discord guild event persistence failed."
+  )
   assert.equal(reporter.reports.length, 1)
   assert.equal(reporter.reports[0]?.serviceArea, "logging")
   assert.equal(reporter.reports[0]?.operation, "persistGuildEvent")
@@ -425,25 +518,32 @@ test("formatter and send failures are logged and reported safely", async () => {
   const formatterGuild = createGuild(formatterChannel)
   const event = normalizeGuildMemberAdd(createMember(formatterGuild), now)
 
-  const formatterResult = await handleDiscordGuildEvent(event, {
-    guild: formatterGuild,
-  }, {
-    async fetchConfig() {
-      return readyConfig()
+  const formatterResult = await handleDiscordGuildEvent(
+    event,
+    {
+      guild: formatterGuild,
     },
-    persistEvent: createPersistRecorder().persistEvent,
-    formatLogMessage() {
-      throw new Error("formatter failed")
-    },
-    logError(message, error, metadata) {
-      formatterLoggedErrors.push({ message, error, metadata })
-    },
-    reportRuntimeError: formatterFailureReporter.reportRuntimeError,
-  })
+    {
+      async fetchConfig() {
+        return readyConfig()
+      },
+      persistEvent: createPersistRecorder().persistEvent,
+      formatLogMessage() {
+        throw new Error("formatter failed")
+      },
+      logError(message, error, metadata) {
+        formatterLoggedErrors.push({ message, error, metadata })
+      },
+      reportRuntimeError: formatterFailureReporter.reportRuntimeError,
+    }
+  )
 
   assert.equal(formatterResult.delivery, "formatFailed")
   assert.equal(formatterChannel.sentMessages.length, 0)
-  assert.equal(formatterFailureReporter.reports[0]?.operation, "formatGuildEventLog")
+  assert.equal(
+    formatterFailureReporter.reports[0]?.operation,
+    "formatGuildEventLog"
+  )
 
   const sendFailureReporter = createRuntimeErrorCollector()
   const sendLoggedErrors: unknown[] = []
@@ -452,20 +552,27 @@ test("formatter and send failures are logged and reported safely", async () => {
   })
   const sendGuild = createGuild(sendChannel)
 
-  const sendResult = await handleDiscordGuildEvent(event, { guild: sendGuild }, {
-    async fetchConfig() {
-      return readyConfig()
-    },
-    persistEvent: createPersistRecorder().persistEvent,
-    logError(message, error, metadata) {
-      sendLoggedErrors.push({ message, error, metadata })
-    },
-    reportRuntimeError: sendFailureReporter.reportRuntimeError,
-  })
+  const sendResult = await handleDiscordGuildEvent(
+    event,
+    { guild: sendGuild },
+    {
+      async fetchConfig() {
+        return readyConfig()
+      },
+      persistEvent: createPersistRecorder().persistEvent,
+      logError(message, error, metadata) {
+        sendLoggedErrors.push({ message, error, metadata })
+      },
+      reportRuntimeError: sendFailureReporter.reportRuntimeError,
+    }
+  )
 
   assert.equal(sendResult.delivery, "sendFailed")
   assert.equal(sendFailureReporter.reports[0]?.operation, "sendGuildEventLog")
-  assert.equal((sendLoggedErrors[0] as { message: string }).message, "Discord guild event log delivery failed.")
+  assert.equal(
+    (sendLoggedErrors[0] as { message: string }).message,
+    "Discord guild event log delivery failed."
+  )
 })
 
 test("runtime reporter failure during guild event handling is swallowed", async () => {
@@ -474,20 +581,24 @@ test("runtime reporter failure during guild event handling is swallowed", async 
   const loggedErrors: unknown[] = []
 
   await assert.doesNotReject(async () => {
-    await handleDiscordGuildEvent(event, { guild }, {
-      async fetchConfig() {
-        return readyConfig({ loggingEnabled: false })
-      },
-      async persistEvent() {
-        throw new Error("persist failed")
-      },
-      logError(message, error, metadata) {
-        loggedErrors.push({ message, error, metadata })
-      },
-      async reportRuntimeError() {
-        throw new Error("report failed")
-      },
-    })
+    await handleDiscordGuildEvent(
+      event,
+      { guild },
+      {
+        async fetchConfig() {
+          return readyConfig({ loggingEnabled: false })
+        },
+        async persistEvent() {
+          throw new Error("persist failed")
+        },
+        logError(message, error, metadata) {
+          loggedErrors.push({ message, error, metadata })
+        },
+        async reportRuntimeError() {
+          throw new Error("report failed")
+        },
+      }
+    )
   })
 
   assert.equal(

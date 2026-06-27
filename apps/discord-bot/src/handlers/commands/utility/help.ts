@@ -1,14 +1,15 @@
 import { Command } from "@/classes/Command"
+import { handleHelpCommand } from "@/services/supportTickets"
 import {
+  ApplicationCommandOptionType,
   ApplicationIntegrationType,
   InteractionContextType,
-  MessageFlags,
 } from "discord.js"
 
 export default new Command({
   data: {
     name: "help",
-    description: "View Cleo's available commands.",
+    description: "Open or resume a private Cleo support request.",
     integration_types: [
       ApplicationIntegrationType.GuildInstall,
       ApplicationIntegrationType.UserInstall,
@@ -18,40 +19,17 @@ export default new Command({
       InteractionContextType.Guild,
       InteractionContextType.PrivateChannel,
     ],
+    options: [
+      {
+        type: ApplicationCommandOptionType.String,
+        name: "message",
+        description: "What do you need help with?",
+        required: false,
+        max_length: 1_000,
+      },
+    ],
   },
   async execute({ interaction }) {
-    await interaction.reply({
-      flags: MessageFlags.Ephemeral,
-      content: createHelpContent({
-        includeProfile: !interaction.inGuild(),
-        includeModeration: interaction.inGuild(),
-      }),
-    })
+    await handleHelpCommand(interaction)
   },
 })
-
-export function createHelpContent({
-  includeModeration,
-  includeProfile,
-}: {
-  includeModeration: boolean
-  includeProfile: boolean
-}): string {
-  return [
-    "**Cleo command help**",
-    "",
-    "`/ping` - Check Cleo's Discord connection latency.",
-    "`/help` - View this guide.",
-    ...(includeModeration
-      ? [
-          "`/ban` - Ban a server member.",
-          "`/kick` - Kick a server member.",
-        ]
-      : []),
-    ...(includeProfile
-      ? ["`/profile` - View your Discord profile details known to Cleo."]
-      : []),
-    "",
-    "More server management tools are coming as the dashboard migration continues.",
-  ].join("\n")
-}

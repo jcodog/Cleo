@@ -7,6 +7,22 @@ export const DISCORD_GUILD_RUNTIME_CONFIG_LOG_LEVELS = [
   "maximum",
 ] as const
 
+export const DISCORD_GUILD_SUPPORT_TARGET_TYPES = [
+  "channel",
+  "thread",
+  "forum",
+] as const
+
+export const DISCORD_GUILD_SUPPORT_TRANSCRIPT_POLICIES = [
+  "metadata-only",
+  "explicit-messages",
+] as const
+
+export const DISCORD_GUILD_SUPPORT_ESCALATION_POLICIES = [
+  "none",
+  "jcn-product-only",
+] as const
+
 export const BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS = [
   "unknownGuild",
   "botLeft",
@@ -24,6 +40,7 @@ export const DISCORD_GUILD_RUNTIME_CONFIG_REQUIRED_FIELD_NAMES = [
   "moderationEnabled",
   "welcomeEnabled",
   "loggingEnabled",
+  "supportEnabled",
 ] as const
 
 export const DISCORD_GUILD_RUNTIME_CONFIG_OPTIONAL_FIELD_NAMES = [
@@ -34,6 +51,11 @@ export const DISCORD_GUILD_RUNTIME_CONFIG_OPTIONAL_FIELD_NAMES = [
   "welcomeSubtext",
   "updatesChannelId",
   "announcementChannelId",
+  "supportStaffRoleIds",
+  "supportTargetId",
+  "supportTargetType",
+  "supportTranscriptPolicy",
+  "supportEscalationPolicy",
 ] as const
 
 export const DISCORD_GUILD_RUNTIME_CONFIG_FIELD_NAMES = [
@@ -43,6 +65,15 @@ export const DISCORD_GUILD_RUNTIME_CONFIG_FIELD_NAMES = [
 
 export type DiscordGuildRuntimeConfigLogLevel =
   (typeof DISCORD_GUILD_RUNTIME_CONFIG_LOG_LEVELS)[number]
+
+export type DiscordGuildSupportTargetType =
+  (typeof DISCORD_GUILD_SUPPORT_TARGET_TYPES)[number]
+
+export type DiscordGuildSupportTranscriptPolicy =
+  (typeof DISCORD_GUILD_SUPPORT_TRANSCRIPT_POLICIES)[number]
+
+export type DiscordGuildSupportEscalationPolicy =
+  (typeof DISCORD_GUILD_SUPPORT_ESCALATION_POLICIES)[number]
 
 export type BackendDiscordGuildRuntimeConfigDisabledReason =
   (typeof BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS)[number]
@@ -59,6 +90,7 @@ export type DiscordGuildRuntimeConfig = {
   moderationEnabled: boolean
   welcomeEnabled: boolean
   loggingEnabled: boolean
+  supportEnabled: boolean
   logLevel?: DiscordGuildRuntimeConfigLogLevel
   logChannelId?: string
   modLogChannelId?: string
@@ -66,6 +98,11 @@ export type DiscordGuildRuntimeConfig = {
   welcomeSubtext?: string
   updatesChannelId?: string
   announcementChannelId?: string
+  supportStaffRoleIds?: string[]
+  supportTargetId?: string
+  supportTargetType?: DiscordGuildSupportTargetType
+  supportTranscriptPolicy?: DiscordGuildSupportTranscriptPolicy
+  supportEscalationPolicy?: DiscordGuildSupportEscalationPolicy
 }
 
 export type BackendDiscordGuildRuntimeConfigResult =
@@ -124,6 +161,39 @@ export function isDiscordGuildRuntimeConfigLogLevel(
   )
 }
 
+export function isDiscordGuildSupportTargetType(
+  value: unknown
+): value is DiscordGuildSupportTargetType {
+  return (
+    typeof value === "string" &&
+    DISCORD_GUILD_SUPPORT_TARGET_TYPES.includes(
+      value as DiscordGuildSupportTargetType
+    )
+  )
+}
+
+export function isDiscordGuildSupportTranscriptPolicy(
+  value: unknown
+): value is DiscordGuildSupportTranscriptPolicy {
+  return (
+    typeof value === "string" &&
+    DISCORD_GUILD_SUPPORT_TRANSCRIPT_POLICIES.includes(
+      value as DiscordGuildSupportTranscriptPolicy
+    )
+  )
+}
+
+export function isDiscordGuildSupportEscalationPolicy(
+  value: unknown
+): value is DiscordGuildSupportEscalationPolicy {
+  return (
+    typeof value === "string" &&
+    DISCORD_GUILD_SUPPORT_ESCALATION_POLICIES.includes(
+      value as DiscordGuildSupportEscalationPolicy
+    )
+  )
+}
+
 export function validateBackendDiscordGuildRuntimeConfigResult(
   value: unknown,
   expectedDiscordGuildId?: string
@@ -134,11 +204,15 @@ export function validateBackendDiscordGuildRuntimeConfigResult(
 
   if (value.status === "disabled") {
     if (!hasOnlyKeys(value, ["status", "reason"])) {
-      return validationError("Disabled runtime config result has unknown fields.")
+      return validationError(
+        "Disabled runtime config result has unknown fields."
+      )
     }
 
     if (!isBackendDiscordGuildRuntimeConfigDisabledReason(value.reason)) {
-      return validationError("Disabled runtime config result has invalid reason.")
+      return validationError(
+        "Disabled runtime config result has invalid reason."
+      )
     }
 
     return {
@@ -215,6 +289,7 @@ function validateDiscordGuildRuntimeConfig(
   const moderationEnabled = value.moderationEnabled
   const welcomeEnabled = value.welcomeEnabled
   const loggingEnabled = value.loggingEnabled
+  const supportEnabled = value.supportEnabled
 
   if (typeof moderationEnabled !== "boolean") {
     return validationError("Runtime config has invalid moderationEnabled.")
@@ -226,6 +301,10 @@ function validateDiscordGuildRuntimeConfig(
 
   if (typeof loggingEnabled !== "boolean") {
     return validationError("Runtime config has invalid loggingEnabled.")
+  }
+
+  if (typeof supportEnabled !== "boolean") {
+    return validationError("Runtime config has invalid supportEnabled.")
   }
 
   const logLevel = value.logLevel
@@ -285,6 +364,50 @@ function validateDiscordGuildRuntimeConfig(
     return announcementChannelId
   }
 
+  const supportStaffRoleIds = validateOptionalDiscordSnowflakeArray(
+    "supportStaffRoleIds",
+    value.supportStaffRoleIds
+  )
+  if (!supportStaffRoleIds.success) {
+    return supportStaffRoleIds
+  }
+
+  const supportTargetId = validateOptionalDiscordSnowflake(
+    "supportTargetId",
+    value.supportTargetId
+  )
+  if (!supportTargetId.success) {
+    return supportTargetId
+  }
+
+  const supportTargetType = value.supportTargetType
+  if (
+    supportTargetType !== undefined &&
+    !isDiscordGuildSupportTargetType(supportTargetType)
+  ) {
+    return validationError("Runtime config has invalid support target type.")
+  }
+
+  const supportTranscriptPolicy = value.supportTranscriptPolicy
+  if (
+    supportTranscriptPolicy !== undefined &&
+    !isDiscordGuildSupportTranscriptPolicy(supportTranscriptPolicy)
+  ) {
+    return validationError(
+      "Runtime config has invalid support transcript policy."
+    )
+  }
+
+  const supportEscalationPolicy = value.supportEscalationPolicy
+  if (
+    supportEscalationPolicy !== undefined &&
+    !isDiscordGuildSupportEscalationPolicy(supportEscalationPolicy)
+  ) {
+    return validationError(
+      "Runtime config has invalid support escalation policy."
+    )
+  }
+
   return {
     success: true,
     data: {
@@ -292,6 +415,7 @@ function validateDiscordGuildRuntimeConfig(
       moderationEnabled,
       welcomeEnabled,
       loggingEnabled,
+      supportEnabled,
       ...(logLevel !== undefined ? { logLevel } : {}),
       ...(logChannelId.data !== undefined
         ? { logChannelId: logChannelId.data }
@@ -311,7 +435,53 @@ function validateDiscordGuildRuntimeConfig(
       ...(announcementChannelId.data !== undefined
         ? { announcementChannelId: announcementChannelId.data }
         : {}),
+      ...(supportStaffRoleIds.data !== undefined
+        ? { supportStaffRoleIds: supportStaffRoleIds.data }
+        : {}),
+      ...(supportTargetId.data !== undefined
+        ? { supportTargetId: supportTargetId.data }
+        : {}),
+      ...(supportTargetType !== undefined ? { supportTargetType } : {}),
+      ...(supportTranscriptPolicy !== undefined
+        ? { supportTranscriptPolicy }
+        : {}),
+      ...(supportEscalationPolicy !== undefined
+        ? { supportEscalationPolicy }
+        : {}),
     },
+  }
+}
+
+function validateOptionalDiscordSnowflakeArray(
+  fieldName: string,
+  value: unknown
+):
+  | {
+      success: true
+      data?: string[]
+    }
+  | {
+      success: false
+      error: string
+    } {
+  if (value === undefined) {
+    return { success: true }
+  }
+
+  if (
+    !Array.isArray(value) ||
+    value.length > 20 ||
+    value.some(
+      (item) => typeof item !== "string" || !isDiscordSnowflake(item)
+    ) ||
+    new Set(value).size !== value.length
+  ) {
+    return validationError(`Runtime config has invalid ${fieldName}.`)
+  }
+
+  return {
+    success: true,
+    data: value,
   }
 }
 

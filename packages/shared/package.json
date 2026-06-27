@@ -18,6 +18,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",
+    "./cleoEntitlements": "./src/cleoEntitlements.ts",
+    "./cleoPets": "./src/cleoPets.ts",
     "./discordRuntimeConfig": "./src/discordRuntimeConfig.ts",
     "./providers": "./src/providers.ts"
   }

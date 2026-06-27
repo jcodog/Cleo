@@ -169,6 +169,7 @@ function resolvePreviewConfig(
           moderationEnabled: false,
           welcomeEnabled: false,
           loggingEnabled: false,
+          supportEnabled: false,
         }
   const welcomeChannelId = options.channelId ?? existingConfig.welcomeChannelId
 

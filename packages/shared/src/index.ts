@@ -1,3 +1,5 @@
 export * from "./constants"
+export * from "./cleoEntitlements"
+export * from "./cleoPets"
 export * from "./discordRuntimeConfig"
 export * from "./providers"

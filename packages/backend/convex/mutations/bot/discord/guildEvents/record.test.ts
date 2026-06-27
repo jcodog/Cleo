@@ -3,6 +3,7 @@ import { test } from "node:test"
 
 import {
   normaliseDiscordGuildEventForStorage,
+  projectDiscordGuildEventToAudit,
   sanitiseDiscordGuildEventMetadata,
 } from "./record"
 import type { DiscordGuildEventRecordInput } from "../../../../lib/discordGuildEvents"
@@ -172,3 +173,87 @@ test("empty metadata is omitted after raw content stripping", () => {
     undefined
   )
 })
+
+test("guild event audit projection is readable and keeps safe details", () => {
+  const storedEvent = normaliseDiscordGuildEventForStorage(
+    event({
+      eventType: "guildBanAdd",
+      targetType: "user",
+      targetDisplayName: "Jason",
+      reason: "Policy violation",
+      metadata: {
+        count: 1,
+      },
+    }),
+    now
+  )
+
+  assert.deepEqual(projectDiscordGuildEventToAudit(storedEvent), {
+    summary: "User banned: Jason",
+    metadata: {
+      reason: "Policy violation",
+      targetDisplayName: "Jason",
+    },
+  })
+})
+
+test("guild event audit projection labels every supported event type", () => {
+  const cases: Array<[DiscordGuildEventRecordInput["eventType"], string]> = [
+    ["guildMemberAdd", "Member joined"],
+    ["guildMemberRemove", "Member left"],
+    ["guildBanAdd", "User banned"],
+    ["guildBanRemove", "User unbanned"],
+    ["channelCreate", "Channel created"],
+    ["channelDelete", "Channel deleted"],
+    ["roleCreate", "Role created"],
+    ["roleDelete", "Role deleted"],
+    ["messageDelete", "Message deleted"],
+  ]
+
+  for (const [eventType, label] of cases) {
+    const storedEvent = normaliseDiscordGuildEventForStorage(
+      eventForType(eventType),
+      now
+    )
+
+    assert.match(
+      projectDiscordGuildEventToAudit(storedEvent).summary,
+      new RegExp(label)
+    )
+  }
+})
+
+function eventForType(
+  eventType: DiscordGuildEventRecordInput["eventType"]
+): DiscordGuildEventRecordInput {
+  const base = event({ eventType })
+
+  if (eventType === "channelCreate" || eventType === "channelDelete") {
+    return {
+      ...base,
+      targetType: "channel",
+      targetDiscordId: undefined,
+      channelId,
+    }
+  }
+
+  if (eventType === "roleCreate" || eventType === "roleDelete") {
+    return {
+      ...base,
+      targetType: "role",
+      targetDiscordId: undefined,
+      roleId: "456789012345678901",
+    }
+  }
+
+  if (eventType === "messageDelete") {
+    return {
+      ...base,
+      targetType: "message",
+      targetDiscordId: "567890123456789012",
+      channelId,
+    }
+  }
+
+  return base
+}

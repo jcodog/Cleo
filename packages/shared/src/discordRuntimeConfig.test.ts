@@ -18,6 +18,7 @@ const validConfig = {
   moderationEnabled: false,
   welcomeEnabled: true,
   loggingEnabled: true,
+  supportEnabled: true,
   logLevel: "medium",
   logChannelId: "234567890123456789",
   modLogChannelId: "345678901234567890",
@@ -25,6 +26,11 @@ const validConfig = {
   welcomeSubtext: "Settle in, say hello, and enjoy the server.",
   updatesChannelId: "567890123456789012",
   announcementChannelId: "678901234567890123",
+  supportStaffRoleIds: ["789012345678901234"],
+  supportTargetId: "890123456789012345",
+  supportTargetType: "forum",
+  supportTranscriptPolicy: "explicit-messages",
+  supportEscalationPolicy: "jcn-product-only",
 } satisfies DiscordGuildRuntimeConfig
 
 test("Discord snowflake validation is shared and deterministic", () => {
@@ -50,6 +56,7 @@ test("runtime-config contract exposes stable variants and field names", () => {
     "moderationEnabled",
     "welcomeEnabled",
     "loggingEnabled",
+    "supportEnabled",
     "logLevel",
     "logChannelId",
     "modLogChannelId",
@@ -57,6 +64,11 @@ test("runtime-config contract exposes stable variants and field names", () => {
     "welcomeSubtext",
     "updatesChannelId",
     "announcementChannelId",
+    "supportStaffRoleIds",
+    "supportTargetId",
+    "supportTargetType",
+    "supportTranscriptPolicy",
+    "supportEscalationPolicy",
   ])
 })
 
@@ -170,6 +182,7 @@ test("runtime-config validator rejects malformed and mismatched responses", () =
     "moderationEnabled",
     "welcomeEnabled",
     "loggingEnabled",
+    "supportEnabled",
   ] as const) {
     assert.equal(
       validateBackendDiscordGuildRuntimeConfigResult({
@@ -200,6 +213,7 @@ test("runtime-config validator rejects malformed and mismatched responses", () =
     "welcomeChannelId",
     "updatesChannelId",
     "announcementChannelId",
+    "supportTargetId",
   ] as const) {
     assert.equal(
       validateBackendDiscordGuildRuntimeConfigResult({
@@ -207,6 +221,30 @@ test("runtime-config validator rejects malformed and mismatched responses", () =
         config: {
           ...validConfig,
           [fieldName]: "bad-channel",
+        },
+      }).success,
+      false
+    )
+  }
+
+  for (const invalidSupportFields of [
+    { supportStaffRoleIds: ["bad-role"] },
+    {
+      supportStaffRoleIds: [
+        validConfig.supportStaffRoleIds[0],
+        validConfig.supportStaffRoleIds[0],
+      ],
+    },
+    { supportTargetType: "category" },
+    { supportTranscriptPolicy: "everything" },
+    { supportEscalationPolicy: "always" },
+  ]) {
+    assert.equal(
+      validateBackendDiscordGuildRuntimeConfigResult({
+        status: "ready",
+        config: {
+          ...validConfig,
+          ...invalidSupportFields,
         },
       }).success,
       false
@@ -258,6 +296,7 @@ test("runtime-config validator accepts configs without optional fields", () => {
         moderationEnabled: false,
         welcomeEnabled: false,
         loggingEnabled: false,
+        supportEnabled: false,
       },
     }),
     {
@@ -269,6 +308,7 @@ test("runtime-config validator accepts configs without optional fields", () => {
           moderationEnabled: false,
           welcomeEnabled: false,
           loggingEnabled: false,
+          supportEnabled: false,
         },
       },
     }

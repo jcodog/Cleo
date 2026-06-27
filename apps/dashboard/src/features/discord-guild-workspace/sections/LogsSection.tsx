@@ -50,6 +50,10 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
     api.queries.dashboard.discord.guilds.auditEvents.list,
     { discordGuildId, source: "discord-audit-log" }
   )
+  const liveEventResult = useQuery(
+    api.queries.dashboard.discord.guilds.auditEvents.list,
+    { discordGuildId, source: "bot-action" }
+  )
   const syncAuditLogs = useAction(
     api.actions.dashboard.discord.guilds.syncAuditLogs.sync
   )
@@ -59,7 +63,8 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
   if (
     logsResult === undefined ||
     dashboardAuditResult === undefined ||
-    serverAuditResult === undefined
+    serverAuditResult === undefined ||
+    liveEventResult === undefined
   ) {
     return (
       <div className="flex max-w-4xl flex-col gap-3">
@@ -72,7 +77,8 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
   if (
     logsResult.status === "notFound" ||
     dashboardAuditResult.status === "notFound" ||
-    serverAuditResult.status === "notFound"
+    serverAuditResult.status === "notFound" ||
+    liveEventResult.status === "notFound"
   ) {
     return (
       <WorkspaceState
@@ -86,7 +92,8 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
   if (
     logsResult.status === "forbidden" ||
     dashboardAuditResult.status === "forbidden" ||
-    serverAuditResult.status === "forbidden"
+    serverAuditResult.status === "forbidden" ||
+    liveEventResult.status === "forbidden"
   ) {
     return (
       <WorkspaceState
@@ -124,11 +131,27 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
     <div className="flex max-w-5xl flex-col gap-6">
       <Card>
         <CardHeader>
+          <CardTitle>Live Cleo Events</CardTitle>
+          <CardDescription>
+            Guild activity captured live by Cleo&apos;s Discord gateway.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuditEventList
+            emptyDescription="Supported member, ban, channel, role, and message-delete events will appear here while Cleo is connected."
+            emptyTitle="No Live Cleo Events"
+            events={liveEventResult.events}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <CardTitle>Discord Server Audit Log</CardTitle>
               <CardDescription>
-                Manual server-side Discord REST import of this server&apos;s audit
+                Recovery and backfill from Discord&apos;s server-side REST audit
                 log.
               </CardDescription>
             </div>

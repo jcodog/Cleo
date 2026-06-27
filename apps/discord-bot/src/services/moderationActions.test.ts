@@ -61,6 +61,7 @@ function readyConfig(
       moderationEnabled,
       welcomeEnabled: false,
       loggingEnabled: false,
+      supportEnabled: false,
     },
   }
 }
@@ -228,11 +229,14 @@ test("/ban and /kick metadata registration is guild-only with clean options", ()
       ApplicationIntegrationType.GuildInstall,
     ])
     assert.equal(command.data.default_member_permissions, permission.toString())
-    assert.deepEqual(command.data.options?.map((option) => option.name), [
-      "user",
-      "reason",
-    ])
-    assert.equal(command.data.options?.[0]?.type, ApplicationCommandOptionType.User)
+    assert.deepEqual(
+      command.data.options?.map((option) => option.name),
+      ["user", "reason"]
+    )
+    assert.equal(
+      command.data.options?.[0]?.type,
+      ApplicationCommandOptionType.User
+    )
     assert.equal(command.data.options?.[0]?.required, true)
     assert.equal(
       command.data.options?.[1]?.type,
@@ -471,7 +475,10 @@ test("moderation replies edit deferred interactions", async () => {
     failureCode: "actorMissingPermission",
   })
   assert.equal(interaction.replies.length, 0)
-  assert.match((interaction.edits[0] as { content: string }).content, /permission/)
+  assert.match(
+    (interaction.edits[0] as { content: string }).content,
+    /permission/
+  )
   assert.equal(reporter.reports.length, 0)
 })
 
@@ -536,10 +543,7 @@ test("Discord API failure records failed outcome and reports runtime incident", 
   assert.equal(recorder.records[0]?.failureCode, "discordApiFailed")
   assert.equal(reporter.reports.length, 1)
   assert.equal(reporter.reports[0]?.serviceArea, "moderation")
-  assert.equal(
-    reporter.reports[0]?.operation,
-    "executeDiscordModerationAction"
-  )
+  assert.equal(reporter.reports[0]?.operation, "executeDiscordModerationAction")
 })
 
 test("Convex record failure is logged and reported without hiding command reply", async () => {

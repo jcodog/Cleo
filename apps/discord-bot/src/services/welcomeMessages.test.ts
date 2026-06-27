@@ -50,6 +50,7 @@ function readyConfig(
       moderationEnabled: false,
       welcomeEnabled: true,
       loggingEnabled: false,
+      supportEnabled: false,
       welcomeChannelId: channelId,
       ...overrides,
     },

@@ -32,7 +32,7 @@ export type DataModel = {
       createdAt: number;
       enabled: boolean;
       enabledForClerkUserIds?: Array<string>;
-      key: "discordRuntimeIncidents";
+      key: "discordRuntimeIncidents" | "cleoDiscordProfileWidgetPublishing";
       updatedAt: number;
       _id: Id<"appFeatureGates">;
       _creationTime: number;
@@ -49,6 +49,301 @@ export type DataModel = {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_key: ["key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  cleoPetBattleRecords: {
+    document: {
+      createdAt: number;
+      mode: "unranked" | "ranked" | "event";
+      occurredAt: number;
+      opponentSnapshot: { level: number; speciesKey: string };
+      outcome: "win" | "loss" | "draw";
+      petId: Id<"cleoPets">;
+      ratingAfter: number;
+      ratingBefore: number;
+      rewardSnapshot: {
+        bondAwarded: number;
+        cosmeticKey?: string;
+        xpAwarded: number;
+      };
+      seasonKey: string;
+      streakAfter: number;
+      userId: Id<"users">;
+      _id: Id<"cleoPetBattleRecords">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "createdAt"
+      | "mode"
+      | "occurredAt"
+      | "opponentSnapshot"
+      | "opponentSnapshot.level"
+      | "opponentSnapshot.speciesKey"
+      | "outcome"
+      | "petId"
+      | "ratingAfter"
+      | "ratingBefore"
+      | "rewardSnapshot"
+      | "rewardSnapshot.bondAwarded"
+      | "rewardSnapshot.cosmeticKey"
+      | "rewardSnapshot.xpAwarded"
+      | "seasonKey"
+      | "streakAfter"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_pet_id_and_occurred_at: ["petId", "occurredAt", "_creationTime"];
+      by_season_key_and_rating_after: [
+        "seasonKey",
+        "ratingAfter",
+        "_creationTime",
+      ];
+      by_user_id_and_occurred_at: ["userId", "occurredAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  cleoPetInventories: {
+    document: {
+      consumableEventEntries: number;
+      consumableUnrankedEnergy: number;
+      createdAt: number;
+      discoveredSpeciesKeys: Array<string>;
+      unlockedCosmeticKeys: Array<string>;
+      updatedAt: number;
+      userId: Id<"users">;
+      _id: Id<"cleoPetInventories">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "consumableEventEntries"
+      | "consumableUnrankedEnergy"
+      | "createdAt"
+      | "discoveredSpeciesKeys"
+      | "unlockedCosmeticKeys"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_user_id: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  cleoPets: {
+    document: {
+      baseStats: {
+        focus: number;
+        guard: number;
+        power: number;
+        speed: number;
+        vitality: number;
+      };
+      battleSummary: {
+        bestStreak: number;
+        currentStreak: number;
+        draws: number;
+        losses: number;
+        rank:
+          | "unranked"
+          | "bronze"
+          | "silver"
+          | "gold"
+          | "platinum"
+          | "diamond"
+          | "master";
+        rating: number;
+        seasonPoints: number;
+        seasonTier:
+          | "unranked"
+          | "bronze"
+          | "silver"
+          | "gold"
+          | "platinum"
+          | "diamond"
+          | "master";
+        wins: number;
+      };
+      bond: number;
+      derivedStats: {
+        focus: number;
+        guard: number;
+        power: number;
+        speed: number;
+        vitality: number;
+      };
+      element:
+        | "neutral"
+        | "ember"
+        | "tide"
+        | "bloom"
+        | "spark"
+        | "frost"
+        | "shadow";
+      equippedCosmeticKeys: Array<string>;
+      evolutionStage: "base" | "evolved" | "ascended";
+      growthStats: {
+        focus: number;
+        guard: number;
+        power: number;
+        speed: number;
+        vitality: number;
+      };
+      level: number;
+      mood: number;
+      name?: string;
+      obtainedAt: number;
+      ownerUserId: Id<"users">;
+      rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
+      speciesKey: string;
+      updatedAt: number;
+      xp: number;
+      _id: Id<"cleoPets">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "baseStats"
+      | "baseStats.focus"
+      | "baseStats.guard"
+      | "baseStats.power"
+      | "baseStats.speed"
+      | "baseStats.vitality"
+      | "battleSummary"
+      | "battleSummary.bestStreak"
+      | "battleSummary.currentStreak"
+      | "battleSummary.draws"
+      | "battleSummary.losses"
+      | "battleSummary.rank"
+      | "battleSummary.rating"
+      | "battleSummary.seasonPoints"
+      | "battleSummary.seasonTier"
+      | "battleSummary.wins"
+      | "bond"
+      | "derivedStats"
+      | "derivedStats.focus"
+      | "derivedStats.guard"
+      | "derivedStats.power"
+      | "derivedStats.speed"
+      | "derivedStats.vitality"
+      | "element"
+      | "equippedCosmeticKeys"
+      | "evolutionStage"
+      | "growthStats"
+      | "growthStats.focus"
+      | "growthStats.guard"
+      | "growthStats.power"
+      | "growthStats.speed"
+      | "growthStats.vitality"
+      | "level"
+      | "mood"
+      | "name"
+      | "obtainedAt"
+      | "ownerUserId"
+      | "rarity"
+      | "speciesKey"
+      | "updatedAt"
+      | "xp";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_owner_user_id: ["ownerUserId", "_creationTime"];
+      by_owner_user_id_and_obtained_at: [
+        "ownerUserId",
+        "obtainedAt",
+        "_creationTime",
+      ];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  cleoProfiles: {
+    document: {
+      activePetId?: Id<"cleoPets">;
+      activeTitleKey?: string;
+      cardFrameKey?: string;
+      cardLayoutKey?: string;
+      cardMode: "pet" | "battle" | "trainer" | "season" | "collection";
+      cardThemeKey?: string;
+      createdAt: number;
+      developerForgeSnapshot?: {
+        activeRelease?: string;
+        blockerCount?: number;
+        cachedAt: number;
+        currentFocus?: string;
+        progressPercent?: number;
+        shippedCount?: number;
+      };
+      publicEnabled: boolean;
+      publicSlug?: string;
+      showDeveloperBadge: boolean;
+      updatedAt: number;
+      userId: Id<"users">;
+      visibleFields: Array<
+        | "display-name"
+        | "active-title"
+        | "pet-name"
+        | "species"
+        | "rarity"
+        | "element"
+        | "level"
+        | "mood"
+        | "bond"
+        | "evolution-stage"
+        | "rank"
+        | "wins"
+        | "losses"
+        | "streak"
+        | "season-tier"
+        | "season-points"
+        | "collection-progress"
+        | "developer-badge"
+        | "developer-active-release"
+        | "developer-progress"
+        | "developer-current-focus"
+        | "developer-shipped-count"
+        | "developer-blocker-count"
+      >;
+      _id: Id<"cleoProfiles">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "activePetId"
+      | "activeTitleKey"
+      | "cardFrameKey"
+      | "cardLayoutKey"
+      | "cardMode"
+      | "cardThemeKey"
+      | "createdAt"
+      | "developerForgeSnapshot"
+      | "developerForgeSnapshot.activeRelease"
+      | "developerForgeSnapshot.blockerCount"
+      | "developerForgeSnapshot.cachedAt"
+      | "developerForgeSnapshot.currentFocus"
+      | "developerForgeSnapshot.progressPercent"
+      | "developerForgeSnapshot.shippedCount"
+      | "publicEnabled"
+      | "publicSlug"
+      | "showDeveloperBadge"
+      | "updatedAt"
+      | "userId"
+      | "visibleFields";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_public_slug: ["publicSlug", "_creationTime"];
+      by_user_id: ["userId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -1744,6 +2039,40 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  guildSupportConfigs: {
+    document: {
+      createdAt: number;
+      enabled: boolean;
+      escalationPolicy: "none" | "jcn-product-only";
+      guildId: Id<"guilds">;
+      staffRoleIds: Array<string>;
+      targetId?: string;
+      targetType: "channel" | "thread" | "forum";
+      transcriptPolicy: "metadata-only" | "explicit-messages";
+      updatedAt: number;
+      _id: Id<"guildSupportConfigs">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "createdAt"
+      | "enabled"
+      | "escalationPolicy"
+      | "guildId"
+      | "staffRoleIds"
+      | "targetId"
+      | "targetType"
+      | "transcriptPolicy"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_guild_id: ["guildId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   linkedAccounts: {
     document: {
       accessTokenSecretId?: string;
@@ -1787,6 +2116,98 @@ export type DataModel = {
         "_creationTime",
       ];
       by_user_id: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  supportTicketMessages: {
+    document: {
+      authorDiscordUserId: string;
+      authorType: "requester";
+      body: string;
+      createdAt: number;
+      ticketId: Id<"supportTickets">;
+      _id: Id<"supportTicketMessages">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "authorDiscordUserId"
+      | "authorType"
+      | "body"
+      | "createdAt"
+      | "ticketId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_ticket_id_and_created_at: ["ticketId", "createdAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  supportTickets: {
+    document: {
+      activeKey?: string;
+      closedAt?: number;
+      createdAt: number;
+      discordGuildId?: string;
+      escalationPolicy: "none" | "jcn-product-only";
+      guildId?: Id<"guilds">;
+      lastActivityAt: number;
+      lastOpenedAt: number;
+      openCount: number;
+      requesterDiscordUserId: string;
+      requesterUserId?: Id<"users">;
+      resolvedAt?: number;
+      routingTargetId?: string;
+      routingTargetType?: "channel" | "thread" | "forum";
+      scope: "jcn" | "guild";
+      source: "discord-help";
+      status:
+        | "open"
+        | "waiting-on-requester"
+        | "waiting-on-staff"
+        | "resolved"
+        | "closed";
+      transcriptPolicy: "metadata-only" | "explicit-messages";
+      updatedAt: number;
+      _id: Id<"supportTickets">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "activeKey"
+      | "closedAt"
+      | "createdAt"
+      | "discordGuildId"
+      | "escalationPolicy"
+      | "guildId"
+      | "lastActivityAt"
+      | "lastOpenedAt"
+      | "openCount"
+      | "requesterDiscordUserId"
+      | "requesterUserId"
+      | "resolvedAt"
+      | "routingTargetId"
+      | "routingTargetType"
+      | "scope"
+      | "source"
+      | "status"
+      | "transcriptPolicy"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_active_key: ["activeKey", "_creationTime"];
+      by_guild_id_and_updated_at: ["guildId", "updatedAt", "_creationTime"];
+      by_requester_discord_user_id_and_updated_at: [
+        "requesterDiscordUserId",
+        "updatedAt",
+        "_creationTime",
+      ];
+      by_scope_and_updated_at: ["scope", "updatedAt", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

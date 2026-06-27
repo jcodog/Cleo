@@ -8,5 +8,5 @@ export default async function StaffPage() {
     return authResult.redirectToSignIn()
   }
 
-  redirect("/staff/discord-runtime-incidents")
+  redirect("/staff/support-tickets")
 }

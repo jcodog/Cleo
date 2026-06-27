@@ -10,6 +10,7 @@ import {
   IconHome,
   IconListDetails,
   IconLogs,
+  IconLifebuoy,
   IconMessageChatbot,
   IconRobot,
   IconSettings,
@@ -36,11 +37,9 @@ export function DashboardShellClient({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const runtimeIncidentAccess = useQuery(
-    api.queries.dashboard.discord.runtimeIncidents.access.get
-  )
+  const staffAccess = useQuery(api.queries.dashboard.staff.access.get)
   const currentArea = getAppShellAreaFromPathname(pathname)
-  const staffEntry = getStaffTopbarEntry(currentArea, runtimeIncidentAccess)
+  const staffEntry = getStaffTopbarEntry(currentArea, staffAccess)
   const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
@@ -121,6 +120,15 @@ export function DashboardShellClient({
           disabled: !hasSelectedDiscordGuild,
         },
         {
+          title: "Support",
+          href: discordGuildSectionHref("support"),
+          icon: IconLifebuoy,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/support`),
+          disabled: !hasSelectedDiscordGuild,
+        },
+        {
           title: "Logs",
           href: discordGuildSectionHref("logs"),
           icon: IconLogs,
@@ -151,6 +159,12 @@ export function DashboardShellClient({
           href: "/staff/discord-runtime-incidents",
           icon: IconShieldLock,
           isActive: pathname.startsWith("/staff/discord-runtime-incidents"),
+        },
+        {
+          title: "Support Tickets",
+          href: "/staff/support-tickets",
+          icon: IconLifebuoy,
+          isActive: pathname.startsWith("/staff/support-tickets"),
         },
       ],
     },

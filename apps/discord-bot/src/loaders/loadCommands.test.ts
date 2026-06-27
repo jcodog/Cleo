@@ -9,6 +9,10 @@ test("runtime command loading uses the shared command registry", async () => {
 
   assert.notEqual(commands, commandRegistry)
   assert.deepEqual(commands, [...commandRegistry])
+  assert.deepEqual(
+    commands.map((command) => command.data.name),
+    ["ping", "help", "ban", "kick"]
+  )
 })
 
 test("slash command deployment uses the runtime command registry data", async () => {

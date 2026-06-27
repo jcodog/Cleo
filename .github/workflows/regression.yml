@@ -49,13 +49,13 @@ jobs:
       - name: Verify Cobertura reports
         run: |
           reports=(
-            "apps/dashboard/coverage/cobertura-coverage.xml"
-            "apps/discord-bot/coverage/cobertura-coverage.xml"
-            "packages/backend/coverage/cobertura-coverage.xml"
-            "packages/env/coverage/cobertura-coverage.xml"
-            "packages/logger/coverage/cobertura-coverage.xml"
-            "packages/shared/coverage/cobertura-coverage.xml"
-            "packages/ui/coverage/cobertura-coverage.xml"
+            "coverage/apps/dashboard/cobertura-coverage.xml"
+            "coverage/apps/discord-bot/cobertura-coverage.xml"
+            "coverage/packages/backend/cobertura-coverage.xml"
+            "coverage/packages/env/cobertura-coverage.xml"
+            "coverage/packages/logger/cobertura-coverage.xml"
+            "coverage/packages/shared/cobertura-coverage.xml"
+            "coverage/packages/ui/cobertura-coverage.xml"
           )
 
           missing=0
@@ -74,19 +74,19 @@ jobs:
           name: cobertura-coverage-reports
           if-no-files-found: error
           path: |
-            apps/dashboard/coverage/cobertura-coverage.xml
-            apps/discord-bot/coverage/cobertura-coverage.xml
-            packages/backend/coverage/cobertura-coverage.xml
-            packages/env/coverage/cobertura-coverage.xml
-            packages/logger/coverage/cobertura-coverage.xml
-            packages/shared/coverage/cobertura-coverage.xml
-            packages/ui/coverage/cobertura-coverage.xml
+            coverage/apps/dashboard/cobertura-coverage.xml
+            coverage/apps/discord-bot/cobertura-coverage.xml
+            coverage/packages/backend/cobertura-coverage.xml
+            coverage/packages/env/cobertura-coverage.xml
+            coverage/packages/logger/cobertura-coverage.xml
+            coverage/packages/shared/cobertura-coverage.xml
+            coverage/packages/ui/cobertura-coverage.xml
 
       - name: Upload dashboard coverage
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
         with:
-          file: apps/dashboard/coverage/cobertura-coverage.xml
+          file: coverage/apps/dashboard/cobertura-coverage.xml
           language: JavaScript
           label: code-coverage/dashboard
 
@@ -94,7 +94,7 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
         with:
-          file: apps/discord-bot/coverage/cobertura-coverage.xml
+          file: coverage/apps/discord-bot/cobertura-coverage.xml
           language: JavaScript
           label: code-coverage/discord-bot
 
@@ -102,7 +102,7 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
         with:
-          file: packages/backend/coverage/cobertura-coverage.xml
+          file: coverage/packages/backend/cobertura-coverage.xml
           language: JavaScript
           label: code-coverage/backend
 
@@ -110,7 +110,7 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
         with:
-          file: packages/env/coverage/cobertura-coverage.xml
+          file: coverage/packages/env/cobertura-coverage.xml
           language: JavaScript
           label: code-coverage/env
 
@@ -118,7 +118,7 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
         with:
-          file: packages/logger/coverage/cobertura-coverage.xml
+          file: coverage/packages/logger/cobertura-coverage.xml
           language: JavaScript
           label: code-coverage/logger
 
@@ -126,7 +126,7 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
         with:
-          file: packages/shared/coverage/cobertura-coverage.xml
+          file: coverage/packages/shared/cobertura-coverage.xml
           language: JavaScript
           label: code-coverage/shared
 
@@ -134,6 +134,6 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
         with:
-          file: packages/ui/coverage/cobertura-coverage.xml
+          file: coverage/packages/ui/cobertura-coverage.xml
           language: JavaScript
           label: code-coverage/ui

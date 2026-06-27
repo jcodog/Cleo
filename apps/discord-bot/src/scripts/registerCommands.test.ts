@@ -64,10 +64,12 @@ test("loaded command metadata is valid and unique", async () => {
   const commands = await loadCommands()
   const loadedCommandData = commands.map((command) => command.data)
 
-  assert.deepEqual(
-    loadedCommandData.map((command) => command.name).sort(),
-    ["ban", "help", "kick", "ping", "profile"]
-  )
+  assert.deepEqual(loadedCommandData.map((command) => command.name).sort(), [
+    "ban",
+    "help",
+    "kick",
+    "ping",
+  ])
 
   assert.doesNotThrow(() => validateCommandData(loadedCommandData))
 
@@ -133,7 +135,10 @@ test("registration target resolution is deterministic", () => {
 
   assert.throws(
     () =>
-      resolveRegisterTarget(["node", "register", "--global", "--guild"], guildId),
+      resolveRegisterTarget(
+        ["node", "register", "--global", "--guild"],
+        guildId
+      ),
     /Use either --global or --guild/
   )
 })
@@ -142,7 +147,7 @@ test("global registration keeps the full command payload", () => {
   const commands = [
     commandData(),
     commandData({
-      name: "profile",
+      name: "private",
       contexts: [
         InteractionContextType.BotDM,
         InteractionContextType.PrivateChannel,
@@ -172,7 +177,7 @@ test("guild registration filters unsupported commands and strips global metadata
   })
 
   const userOnlyCommand = commandData({
-    name: "profile",
+    name: "private",
     contexts: [
       InteractionContextType.BotDM,
       InteractionContextType.PrivateChannel,
@@ -209,7 +214,7 @@ test("global registration makes one complete overwrite request", async (t) => {
   const commands = [
     commandData(),
     commandData({
-      name: "profile",
+      name: "private",
       contexts: [
         InteractionContextType.BotDM,
         InteractionContextType.PrivateChannel,
@@ -291,7 +296,7 @@ test("guild registration installs guild payload before global cleanup", async (t
     ],
   })
   const userOnlyCommand = commandData({
-    name: "profile",
+    name: "private",
     contexts: [
       InteractionContextType.BotDM,
       InteractionContextType.PrivateChannel,

@@ -2,8 +2,11 @@ import { redactLogMetadata, redactLogText } from "@workspace/logger"
 import { isDiscordSnowflake } from "@workspace/shared/discordRuntimeConfig"
 import { ConvexError, v, type Infer } from "convex/values"
 
-import type { Id } from "../../../../_generated/dataModel"
-import { internalMutation } from "../../../../_generated/server"
+import type { Doc, Id } from "../../../../_generated/dataModel"
+import {
+  internalMutation,
+  type MutationCtx,
+} from "../../../../_generated/server"
 import {
   discordGuildEventRecordInput,
   type DiscordGuildEventRecordInput,
@@ -13,6 +16,7 @@ import {
   jsonValue,
   type ConvexJsonValue,
 } from "../../../../lib/validators"
+import { insertGuildAuditEvent } from "../../../../lib/guildAudit"
 
 const MAX_EVENT_CLOCK_SKEW_MS = 5 * 60 * 1000
 const MAX_DEDUPE_KEY_LENGTH = 300
@@ -42,6 +46,11 @@ type DiscordGuildEventInsert = {
   dedupeKey: string
 }
 
+type GuildAuditProjection = {
+  summary: string
+  metadata: ConvexJsonValue
+}
+
 export const record = internalMutation({
   args: {
     event: discordGuildEventRecordInput,
@@ -53,19 +62,6 @@ export const record = internalMutation({
   handler: async (ctx, args) => {
     const now = Date.now()
     const event = normaliseDiscordGuildEventForStorage(args.event, now)
-
-    const existing = await ctx.db
-      .query("discordGuildEvents")
-      .withIndex("by_dedupe_key", (q) => q.eq("dedupeKey", event.dedupeKey))
-      .unique()
-
-    if (existing) {
-      return {
-        id: existing._id,
-        deduplicated: true,
-      }
-    }
-
     const guild = await ctx.db
       .query("guilds")
       .withIndex("by_discord_guild_id", (q) =>
@@ -73,11 +69,31 @@ export const record = internalMutation({
       )
       .unique()
 
+    const existing = await ctx.db
+      .query("discordGuildEvents")
+      .withIndex("by_dedupe_key", (q) => q.eq("dedupeKey", event.dedupeKey))
+      .unique()
+
+    if (existing) {
+      if (guild) {
+        await ensureGuildAuditProjection(ctx, guild, existing)
+      }
+
+      return {
+        id: existing._id,
+        deduplicated: true,
+      }
+    }
+
     const id = await ctx.db.insert("discordGuildEvents", {
       ...event,
       ...(guild ? { guildId: guild._id as Id<"guilds"> } : {}),
       createdAt: now,
     })
+
+    if (guild) {
+      await ensureGuildAuditProjection(ctx, guild, event)
+    }
 
     return {
       id,
@@ -111,7 +127,11 @@ export function normaliseDiscordGuildEventForStorage(
     input.targetDisplayName,
     MAX_TARGET_DISPLAY_NAME_LENGTH
   )
-  const reason = normaliseOptionalText("reason", input.reason, MAX_REASON_LENGTH)
+  const reason = normaliseOptionalText(
+    "reason",
+    input.reason,
+    MAX_REASON_LENGTH
+  )
   const metadata = sanitiseDiscordGuildEventMetadata(input.metadata)
   const dedupeKey = normaliseDedupeKey(input)
 
@@ -136,6 +156,105 @@ export function normaliseDiscordGuildEventForStorage(
     dedupeKey,
   }
 }
+
+async function ensureGuildAuditProjection(
+  ctx: MutationCtx,
+  guild: Doc<"guilds">,
+  event: DiscordGuildEventInsert
+): Promise<void> {
+  const externalId = `gateway:${event.dedupeKey}`
+  const existingProjection = await ctx.db
+    .query("guildAuditEvents")
+    .withIndex("by_guild_id_and_external_id", (q) =>
+      q.eq("guildId", guild._id).eq("externalId", externalId)
+    )
+    .unique()
+
+  if (existingProjection) {
+    return
+  }
+
+  const projection = projectDiscordGuildEventToAudit(event)
+
+  await insertGuildAuditEvent(ctx, {
+    guild,
+    source: "bot-action",
+    eventType: event.eventType,
+    summary: projection.summary,
+    ...(event.actorDiscordUserId !== undefined
+      ? { actorDiscordUserId: event.actorDiscordUserId }
+      : {}),
+    ...(event.targetDiscordId !== undefined
+      ? { targetDiscordId: event.targetDiscordId }
+      : {}),
+    targetType: event.targetType,
+    externalId,
+    metadata: projection.metadata,
+    occurredAt: event.occurredAt,
+  })
+}
+
+export function projectDiscordGuildEventToAudit(
+  event: DiscordGuildEventInsert
+): GuildAuditProjection {
+  const target =
+    event.targetDisplayName ??
+    event.targetDiscordId ??
+    event.channelId ??
+    event.roleId
+  const summary = target
+    ? `${getDiscordGuildEventLabel(event.eventType)}: ${target}`
+    : getDiscordGuildEventLabel(event.eventType)
+  const metadata: Record<string, string> = {}
+
+  if (event.reason !== undefined) {
+    metadata.reason = event.reason
+  }
+
+  if (event.channelId !== undefined) {
+    metadata.channelId = event.channelId
+  }
+
+  if (event.roleId !== undefined) {
+    metadata.roleId = event.roleId
+  }
+
+  if (event.targetDisplayName !== undefined) {
+    metadata.targetDisplayName = event.targetDisplayName
+  }
+
+  return {
+    summary,
+    metadata,
+  }
+}
+
+function getDiscordGuildEventLabel(
+  eventType: DiscordGuildEventInputEventType
+): string {
+  switch (eventType) {
+    case "guildMemberAdd":
+      return "Member joined"
+    case "guildMemberRemove":
+      return "Member left"
+    case "guildBanAdd":
+      return "User banned"
+    case "guildBanRemove":
+      return "User unbanned"
+    case "channelCreate":
+      return "Channel created"
+    case "channelDelete":
+      return "Channel deleted"
+    case "roleCreate":
+      return "Role created"
+    case "roleDelete":
+      return "Role deleted"
+    case "messageDelete":
+      return "Message deleted"
+  }
+}
+
+type DiscordGuildEventInputEventType = DiscordGuildEventRecordInput["eventType"]
 
 export function sanitiseDiscordGuildEventMetadata(
   metadata: Infer<typeof jsonValue> | undefined

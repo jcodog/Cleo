@@ -26,6 +26,7 @@ import {
   type DiscordRuntimeErrorReporter,
 } from "@/services/runtimeErrorReporter"
 import { botLogError } from "@/utils/botLog"
+import type { DiscordGuildRuntimeConfigLogLevel } from "@workspace/shared/discordRuntimeConfig"
 
 type RuntimeConfigFetcher = (
   discordGuildId: string
@@ -43,8 +44,10 @@ export type DiscordGuildEventProcessingResult = {
   persistence: "recorded" | "failed"
   delivery:
     | "sent"
+    | "deduplicated"
     | "configUnavailable"
     | "loggingDisabled"
+    | "filteredByLogLevel"
     | "missingLogChannel"
     | "guildUnavailable"
     | "channelUnavailable"
@@ -77,6 +80,28 @@ const baseLogPermissions = [
   PermissionFlagsBits.SendMessages,
 ] as const
 
+const eventMinimumLogLevel: Record<
+  DiscordGuildEventRecord["eventType"],
+  Exclude<DiscordGuildRuntimeConfigLogLevel, "none">
+> = {
+  guildBanAdd: "minimal",
+  guildBanRemove: "minimal",
+  guildMemberAdd: "medium",
+  guildMemberRemove: "medium",
+  channelCreate: "medium",
+  channelDelete: "medium",
+  roleCreate: "medium",
+  roleDelete: "medium",
+  messageDelete: "maximum",
+}
+
+const logLevelRank: Record<DiscordGuildRuntimeConfigLogLevel, number> = {
+  none: 0,
+  minimal: 1,
+  medium: 2,
+  maximum: 3,
+}
+
 export async function handleDiscordGuildEvent(
   event: DiscordGuildEventRecord,
   context: GuildEventContext,
@@ -85,20 +110,23 @@ export async function handleDiscordGuildEvent(
   const logError = options.logError ?? botLogError
   const reportRuntimeError =
     options.reportRuntimeError ?? reportDiscordRuntimeError
-  const persistence = await persistDiscordGuildEvent(event, {
+  const persistenceResult = await persistDiscordGuildEvent(event, {
     persistEvent: options.persistEvent ?? convexBotClient.recordGuildEvent,
     logError,
     reportRuntimeError,
   })
-  const delivery = await deliverDiscordGuildEventLog(event, context, {
-    fetchConfig: options.fetchConfig ?? fetchDiscordGuildRuntimeConfig,
-    formatLogMessage: options.formatLogMessage ?? formatGuildEventLogMessage,
-    logError,
-    reportRuntimeError,
-  })
+  const delivery = persistenceResult.deduplicated
+    ? "deduplicated"
+    : await deliverDiscordGuildEventLog(event, context, {
+        fetchConfig: options.fetchConfig ?? fetchDiscordGuildRuntimeConfig,
+        formatLogMessage:
+          options.formatLogMessage ?? formatGuildEventLogMessage,
+        logError,
+        reportRuntimeError,
+      })
 
   return {
-    persistence,
+    persistence: persistenceResult.status,
     delivery,
   }
 }
@@ -110,12 +138,18 @@ async function persistDiscordGuildEvent(
     logError: typeof botLogError
     reportRuntimeError: DiscordRuntimeErrorReporter
   }
-): Promise<"recorded" | "failed"> {
+): Promise<{
+  status: "recorded" | "failed"
+  deduplicated: boolean
+}> {
   try {
     const result = await options.persistEvent(event)
 
     if (result !== null) {
-      return "recorded"
+      return {
+        status: "recorded",
+        deduplicated: result.deduplicated,
+      }
     }
 
     options.logError("Discord guild event persistence failed.", undefined, {
@@ -132,7 +166,10 @@ async function persistDiscordGuildEvent(
       reportRuntimeError: options.reportRuntimeError,
     })
 
-    return "failed"
+    return {
+      status: "failed",
+      deduplicated: false,
+    }
   } catch (error) {
     options.logError("Discord guild event persistence failed.", error, {
       discordGuildId: event.discordGuildId,
@@ -148,7 +185,10 @@ async function persistDiscordGuildEvent(
       reportRuntimeError: options.reportRuntimeError,
     })
 
-    return "failed"
+    return {
+      status: "failed",
+      deduplicated: false,
+    }
   }
 }
 
@@ -172,10 +212,14 @@ async function deliverDiscordGuildEventLog(
     return "configUnavailable"
   }
 
-  const { loggingEnabled, logChannelId } = configResult.config
+  const { loggingEnabled, logChannelId, logLevel } = configResult.config
 
   if (!loggingEnabled) {
     return "loggingDisabled"
+  }
+
+  if (!shouldMirrorDiscordGuildEvent(event.eventType, logLevel)) {
+    return "filteredByLogLevel"
   }
 
   if (!logChannelId) {
@@ -258,6 +302,18 @@ async function deliverDiscordGuildEventLog(
   }
 }
 
+export function shouldMirrorDiscordGuildEvent(
+  eventType: DiscordGuildEventRecord["eventType"],
+  configuredLevel: DiscordGuildRuntimeConfigLogLevel | undefined
+): boolean {
+  const effectiveLevel = configuredLevel ?? "maximum"
+
+  return (
+    logLevelRank[effectiveLevel] >=
+    logLevelRank[eventMinimumLogLevel[eventType]]
+  )
+}
+
 export function normalizeGuildMemberAdd(
   member: GuildMember,
   occurredAt = member.joinedTimestamp ?? Date.now()
@@ -272,7 +328,12 @@ export function normalizeGuildMemberAdd(
       bot: member.user.bot,
     },
     occurredAt,
-    dedupeKey: buildDedupeKey("guildMemberAdd", member.guild.id, member.id, occurredAt),
+    dedupeKey: buildDedupeKey(
+      "guildMemberAdd",
+      member.guild.id,
+      member.id,
+      occurredAt
+    ),
   }
 }
 
@@ -311,7 +372,12 @@ export function normalizeGuildBanAdd(
     targetDisplayName: getUserDisplayName(ban.user),
     reason: ban.reason ?? undefined,
     occurredAt,
-    dedupeKey: buildDedupeKey("guildBanAdd", ban.guild.id, ban.user.id, occurredAt),
+    dedupeKey: buildDedupeKey(
+      "guildBanAdd",
+      ban.guild.id,
+      ban.user.id,
+      occurredAt
+    ),
   }
 }
 
@@ -351,7 +417,12 @@ export function normalizeChannelCreate(
       channelType: String(channel.type),
     },
     occurredAt,
-    dedupeKey: buildDedupeKey("channelCreate", channel.guild.id, channel.id, occurredAt),
+    dedupeKey: buildDedupeKey(
+      "channelCreate",
+      channel.guild.id,
+      channel.id,
+      occurredAt
+    ),
   }
 }
 
@@ -370,7 +441,12 @@ export function normalizeChannelDelete(
       channelType: String(channel.type),
     },
     occurredAt,
-    dedupeKey: buildDedupeKey("channelDelete", channel.guild.id, channel.id, occurredAt),
+    dedupeKey: buildDedupeKey(
+      "channelDelete",
+      channel.guild.id,
+      channel.id,
+      occurredAt
+    ),
   }
 }
 
@@ -515,7 +591,9 @@ function buildDedupeKey(
   return `${eventType}:${discordGuildId}:${subjectId}:${occurredAt}`
 }
 
-function formatEventType(eventType: DiscordGuildEventRecord["eventType"]): string {
+function formatEventType(
+  eventType: DiscordGuildEventRecord["eventType"]
+): string {
   switch (eventType) {
     case "guildMemberAdd":
       return "Member Joined"
@@ -549,10 +627,7 @@ function formatTarget(event: DiscordGuildEventRecord): string {
 async function reportGuildEventRuntimeError(args: {
   error: unknown
   event: DiscordGuildEventRecord
-  operation:
-    | "persistGuildEvent"
-    | "formatGuildEventLog"
-    | "sendGuildEventLog"
+  operation: "persistGuildEvent" | "formatGuildEventLog" | "sendGuildEventLog"
   message: string
   channelId?: string
   logError: typeof botLogError
@@ -579,11 +654,15 @@ async function reportGuildEventRuntimeError(args: {
       },
     })
   } catch (reportError) {
-    args.logError("Discord guild event runtime error report failed.", reportError, {
-      discordGuildId: args.event.discordGuildId,
-      eventName: args.event.eventType,
-      operation: args.operation,
-      discordChannelId: args.channelId,
-    })
+    args.logError(
+      "Discord guild event runtime error report failed.",
+      reportError,
+      {
+        discordGuildId: args.event.discordGuildId,
+        eventName: args.event.eventType,
+        operation: args.operation,
+        discordChannelId: args.channelId,
+      }
+    )
   }
 }

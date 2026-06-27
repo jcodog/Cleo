@@ -30,10 +30,16 @@ export const get = internalQuery({
       }
     }
 
-    const config = await ctx.db
-      .query("guildConfigs")
-      .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
-      .unique()
+    const [config, supportConfig] = await Promise.all([
+      ctx.db
+        .query("guildConfigs")
+        .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
+        .unique(),
+      ctx.db
+        .query("guildSupportConfigs")
+        .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
+        .unique(),
+    ])
 
     if (!config) {
       return {
@@ -49,6 +55,7 @@ export const get = internalQuery({
         moderationEnabled: config.moderationEnabled,
         welcomeEnabled: config.welcomeEnabled,
         loggingEnabled: config.loggingEnabled,
+        supportEnabled: supportConfig?.enabled ?? false,
         ...(config.logLevel !== undefined ? { logLevel: config.logLevel } : {}),
         ...(config.logChannelId !== undefined
           ? { logChannelId: config.logChannelId }
@@ -67,6 +74,19 @@ export const get = internalQuery({
           : {}),
         ...(config.announcementChannelId !== undefined
           ? { announcementChannelId: config.announcementChannelId }
+          : {}),
+        ...(supportConfig?.staffRoleIds.length
+          ? { supportStaffRoleIds: supportConfig.staffRoleIds }
+          : {}),
+        ...(supportConfig?.targetId !== undefined
+          ? { supportTargetId: supportConfig.targetId }
+          : {}),
+        ...(supportConfig !== null
+          ? {
+              supportTargetType: supportConfig.targetType,
+              supportTranscriptPolicy: supportConfig.transcriptPolicy,
+              supportEscalationPolicy: supportConfig.escalationPolicy,
+            }
           : {}),
       },
     }

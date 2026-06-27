@@ -15,12 +15,18 @@ const validConfig: DiscordGuildRuntimeConfig = {
   moderationEnabled: false,
   welcomeEnabled: true,
   loggingEnabled: true,
+  supportEnabled: true,
   logLevel: "medium",
   logChannelId: "345678901234567890",
   modLogChannelId: "456789012345678901",
   welcomeChannelId: "567890123456789012",
   updatesChannelId: "678901234567890123",
   announcementChannelId: "789012345678901234",
+  supportStaffRoleIds: ["890123456789012345"],
+  supportTargetId: "901234567890123456",
+  supportTargetType: "channel",
+  supportTranscriptPolicy: "explicit-messages",
+  supportEscalationPolicy: "jcn-product-only",
 }
 
 test("runtime config validation rejects invalid guild IDs", () => {
@@ -128,9 +134,7 @@ test("runtime config validation rejects mismatched backend guild IDs", () => {
     }
   )
 
-  assert.deepEqual(errors, [
-    "Invalid Convex guild runtime config response.",
-  ])
+  assert.deepEqual(errors, ["Invalid Convex guild runtime config response."])
 })
 
 test("runtime config validation accepts valid backend results", () => {
@@ -463,10 +467,7 @@ test("runtime config cache dispose clears cleanup timer", () => {
   let clearedTimer: unknown
   const cache = createTestCache({
     cleanupIntervalMs: 5,
-    setInterval: ((
-      callback: (...args: unknown[]) => void,
-      delay?: number
-    ) => {
+    setInterval: ((callback: (...args: unknown[]) => void, delay?: number) => {
       assert.equal(typeof callback, "function")
       assert.equal(delay, 5)
 
@@ -499,7 +500,9 @@ function readyBackendResult(config: DiscordGuildRuntimeConfig): unknown {
   }
 }
 
-function disabledBackendResult(reason: "unknownGuild" | "botLeft" | "missingConfig") {
+function disabledBackendResult(
+  reason: "unknownGuild" | "botLeft" | "missingConfig"
+) {
   return {
     status: "disabled",
     reason,

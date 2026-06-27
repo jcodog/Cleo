@@ -100,6 +100,14 @@ export declare const api: {
                     loggingEnabled: boolean;
                     modLogChannelId?: string;
                     moderationEnabled: boolean;
+                    supportEnabled: boolean;
+                    supportEscalationPolicy?: "none" | "jcn-product-only";
+                    supportStaffRoleIds?: Array<string>;
+                    supportTargetId?: string;
+                    supportTargetType?: "channel" | "thread" | "forum";
+                    supportTranscriptPolicy?:
+                      | "metadata-only"
+                      | "explicit-messages";
                     updatesChannelId?: string;
                     welcomeChannelId?: string;
                     welcomeEnabled: boolean;
@@ -1073,6 +1081,38 @@ export declare const api: {
             >;
           };
         };
+        supportTickets: {
+          openOrResume: {
+            openOrResume: FunctionReference<
+              "action",
+              "public",
+              {
+                input: {
+                  discordGuildId?: string;
+                  message?: string;
+                  requesterDiscordUserId: string;
+                };
+                secret: string;
+              },
+              | {
+                  reason: "notConfigured" | "disabled";
+                  status: "guildSupportUnavailable";
+                }
+              | {
+                  messageStored: boolean;
+                  route?: {
+                    staffRoleIds: Array<string>;
+                    targetId: string;
+                    targetType: "channel" | "thread" | "forum";
+                  };
+                  scope: "jcn" | "guild";
+                  status: "opened" | "resumed";
+                  submittedMessage?: string;
+                  ticketId: Id<"supportTickets">;
+                }
+            >;
+          };
+        };
       };
     };
     dashboard: {
@@ -1642,6 +1682,33 @@ export declare const api: {
             >;
           };
         };
+        guildSupportConfigs: {
+          update: {
+            update: FunctionReference<
+              "mutation",
+              "public",
+              {
+                discordGuildId: string;
+                enabled: boolean;
+                escalationPolicy: "none" | "jcn-product-only";
+                staffRoleIds: Array<string>;
+                targetId?: string | null;
+                targetType: "channel" | "thread" | "forum";
+                transcriptPolicy: "metadata-only" | "explicit-messages";
+              },
+              {
+                enabled: boolean;
+                escalationPolicy: "none" | "jcn-product-only";
+                staffRoleIds: Array<string>;
+                supportConfigId: Id<"guildSupportConfigs">;
+                targetId?: string;
+                targetType: "channel" | "thread" | "forum";
+                transcriptPolicy: "metadata-only" | "explicit-messages";
+                updatedAt: number;
+              }
+            >;
+          };
+        };
       };
     };
   };
@@ -1967,6 +2034,44 @@ export declare const api: {
                     presenceCount?: number;
                   };
                   status: "ready";
+                }
+            >;
+          };
+          support: {
+            get: FunctionReference<
+              "query",
+              "public",
+              { discordGuildId: string },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  config: null | {
+                    enabled: boolean;
+                    escalationPolicy: "none" | "jcn-product-only";
+                    staffRoleIds: Array<string>;
+                    supportConfigId: Id<"guildSupportConfigs">;
+                    targetId?: string;
+                    targetType: "channel" | "thread" | "forum";
+                    transcriptPolicy: "metadata-only" | "explicit-messages";
+                    updatedAt: number;
+                  };
+                  status: "ready";
+                  tickets: Array<{
+                    createdAt: number;
+                    escalationPolicy: "none" | "jcn-product-only";
+                    lastActivityAt: number;
+                    latestMessage?: string;
+                    openCount: number;
+                    requesterDiscordUserId: string;
+                    status:
+                      | "open"
+                      | "waiting-on-requester"
+                      | "waiting-on-staff"
+                      | "resolved"
+                      | "closed";
+                    ticketId: Id<"supportTickets">;
+                    transcriptPolicy: "metadata-only" | "explicit-messages";
+                  }>;
                 }
             >;
           };
@@ -2343,6 +2448,44 @@ export declare const api: {
                 }
             >;
           };
+        };
+      };
+      staff: {
+        access: {
+          get: FunctionReference<
+            "query",
+            "public",
+            {},
+            { status: "forbidden" | "ready" }
+          >;
+        };
+      };
+      supportTickets: {
+        listJcn: {
+          list: FunctionReference<
+            "query",
+            "public",
+            {},
+            | { status: "forbidden" }
+            | {
+                status: "ready";
+                tickets: Array<{
+                  createdAt: number;
+                  escalationPolicy: "none" | "jcn-product-only";
+                  lastActivityAt: number;
+                  latestMessage?: string;
+                  openCount: number;
+                  requesterDiscordUserId: string;
+                  status:
+                    | "open"
+                    | "waiting-on-requester"
+                    | "waiting-on-staff"
+                    | "resolved"
+                    | "closed";
+                  ticketId: Id<"supportTickets">;
+                }>;
+              }
+          >;
         };
       };
     };
@@ -3419,6 +3562,35 @@ export declare const internal: {
                 id: Id<"discordBotRuntimeErrors">;
                 occurrenceCount: number;
               }
+            >;
+          };
+        };
+        supportTickets: {
+          openOrResume: {
+            openOrResume: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                discordGuildId?: string;
+                message?: string;
+                requesterDiscordUserId: string;
+              },
+              | {
+                  reason: "notConfigured" | "disabled";
+                  status: "guildSupportUnavailable";
+                }
+              | {
+                  messageStored: boolean;
+                  route?: {
+                    staffRoleIds: Array<string>;
+                    targetId: string;
+                    targetType: "channel" | "thread" | "forum";
+                  };
+                  scope: "jcn" | "guild";
+                  status: "opened" | "resumed";
+                  submittedMessage?: string;
+                  ticketId: Id<"supportTickets">;
+                }
             >;
           };
         };
@@ -4864,6 +5036,14 @@ export declare const internal: {
                     loggingEnabled: boolean;
                     modLogChannelId?: string;
                     moderationEnabled: boolean;
+                    supportEnabled: boolean;
+                    supportEscalationPolicy?: "none" | "jcn-product-only";
+                    supportStaffRoleIds?: Array<string>;
+                    supportTargetId?: string;
+                    supportTargetType?: "channel" | "thread" | "forum";
+                    supportTranscriptPolicy?:
+                      | "metadata-only"
+                      | "explicit-messages";
                     updatesChannelId?: string;
                     welcomeChannelId?: string;
                     welcomeEnabled: boolean;

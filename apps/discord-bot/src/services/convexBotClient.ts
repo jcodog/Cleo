@@ -157,8 +157,8 @@ type RecordGuildEventArgs = FunctionArgs<
 type RecordModerationActionArgs = FunctionArgs<
   typeof api.actions.bot.discord.moderationActions.record.record
 >
-type FetchDiscordProfileArgs = FunctionArgs<
-  typeof api.actions.bot.discord.profiles.getByDiscordUserId.get
+type OpenSupportTicketArgs = FunctionArgs<
+  typeof api.actions.bot.discord.supportTickets.openOrResume.openOrResume
 >
 
 export type DiscordBotRuntimeErrorReportMetadata =
@@ -171,13 +171,13 @@ export type DiscordGuildEventRecord = RecordGuildEventArgs["event"]
 export type DiscordGuildEventRecordResult = FunctionReturnType<
   typeof api.actions.bot.discord.guildEvents.record.record
 >
-export type DiscordModerationActionRecord =
-  RecordModerationActionArgs["action"]
+export type DiscordModerationActionRecord = RecordModerationActionArgs["action"]
 export type DiscordModerationActionRecordResult = FunctionReturnType<
   typeof api.actions.bot.discord.moderationActions.record.record
 >
-export type DiscordProfileLookupResult = FunctionReturnType<
-  typeof api.actions.bot.discord.profiles.getByDiscordUserId.get
+export type DiscordSupportTicketOpenInput = OpenSupportTicketArgs["input"]
+export type DiscordSupportTicketOpenResult = FunctionReturnType<
+  typeof api.actions.bot.discord.supportTickets.openOrResume.openOrResume
 >
 
 export type DiscordBotRuntimeErrorReport = {
@@ -520,17 +520,31 @@ export const convexBotClient = {
     )
   },
 
-  async fetchDiscordProfileByUserId(
-    discordUserId: FetchDiscordProfileArgs["discordUserId"]
-  ): Promise<DiscordProfileLookupResult | null> {
+  async openOrResumeSupportTicket(
+    input: DiscordSupportTicketOpenInput
+  ): Promise<DiscordSupportTicketOpenResult | null> {
     return await callWithConvex(
-      "Discord profile lookup",
+      "support ticket open",
       async ({ client, secret }) =>
         await client.action(
-          api.actions.bot.discord.profiles.getByDiscordUserId.get,
+          api.actions.bot.discord.supportTickets.openOrResume.openOrResume,
           {
             secret,
-            discordUserId: discordSnowflakeSchema.parse(discordUserId),
+            input: {
+              requesterDiscordUserId: discordSnowflakeSchema.parse(
+                input.requesterDiscordUserId
+              ),
+              ...(input.discordGuildId !== undefined
+                ? {
+                    discordGuildId: discordSnowflakeSchema.parse(
+                      input.discordGuildId
+                    ),
+                  }
+                : {}),
+              ...(input.message !== undefined
+                ? { message: input.message }
+                : {}),
+            },
           }
         )
     )

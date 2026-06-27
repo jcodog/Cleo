@@ -27,6 +27,7 @@ import { ModerationSection } from "./sections/ModerationSection"
 import { ModulesSection } from "./sections/ModulesSection"
 import { OverviewSection } from "./sections/OverviewSection"
 import { SettingsSection } from "./sections/SettingsSection"
+import { SupportSection } from "./sections/SupportSection"
 import {
   DISCORD_GUILD_SECTION_TITLES,
   type DiscordGuildSection,
@@ -223,6 +224,14 @@ function WorkspaceSection({
     case "commands":
       return (
         <CommandsSection
+          key={sectionKey}
+          isBotLeft={isBotLeft}
+          overview={overview}
+        />
+      )
+    case "support":
+      return (
+        <SupportSection
           key={sectionKey}
           isBotLeft={isBotLeft}
           overview={overview}

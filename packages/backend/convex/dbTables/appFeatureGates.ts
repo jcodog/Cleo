@@ -1,11 +1,17 @@
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
-export const appFeatureKeys = ["discordRuntimeIncidents"] as const
+export const appFeatureKeys = [
+  "discordRuntimeIncidents",
+  "cleoDiscordProfileWidgetPublishing",
+] as const
 
 export type AppFeatureKey = (typeof appFeatureKeys)[number]
 
-export const appFeatureKey = v.union(v.literal("discordRuntimeIncidents"))
+export const appFeatureKey = v.union(
+  v.literal("discordRuntimeIncidents"),
+  v.literal("cleoDiscordProfileWidgetPublishing")
+)
 
 export const appFeatureGates = defineTable({
   key: appFeatureKey,
