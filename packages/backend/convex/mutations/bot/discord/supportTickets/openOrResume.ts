@@ -37,7 +37,7 @@ export const openOrResume = internalMutation({
     if (input.discordGuildId) {
       const unavailableReason = getGuildSupportUnavailableReason(supportConfig)
 
-      if (!guild || unavailableReason) {
+      if (!guild || guild.botLeftAt !== undefined || unavailableReason) {
         return {
           status: "guildSupportUnavailable" as const,
           reason: unavailableReason ?? ("notConfigured" as const),

@@ -26,12 +26,13 @@ the enforced include sets:
 - `apps/discord-bot/src/services/guildEventLogging.ts`
 - `apps/discord-bot/src/services/supportTickets.ts`
 - `packages/backend/convex/lib/supportTickets.ts`
+- `packages/backend/convex/actions/bot/discord/supportTickets/openOrResume.ts`
+- `packages/backend/convex/mutations/bot/discord/supportTickets/openOrResume.ts`
+- `packages/backend/convex/mutations/dashboard/discord/guildSupportConfigs/update.ts`
 
-The Convex support-ticket action/mutation and dashboard guild-support-config
-mutation are not included yet. Their current tests exercise pure helpers or the
-Discord service boundary, not the registered Convex handlers and database
-effects. Add them when a mutation test harness provides meaningful branch and
-persistence coverage; declaring them 100% covered through registration-time
-imports would not enforce their release behavior.
+The Convex handlers run through `convex-test` against its in-memory database.
+The enforced tests cover authorization, insert/replace behavior, audit writes,
+ticket persistence and resume behavior, linked requester resolution, transcript
+policy, bot-left handling, unavailable guild routing, and the bot action secret.
 
 GitHub Code Quality upload requires GitHub Team or GitHub Enterprise Cloud, Code Quality enabled for the repository, and `actions/upload-code-coverage@v1` running with `code-quality: write`. If upload fails because Code Quality is unavailable or disabled, the external blocker is repository-side GitHub Code Quality availability/configuration rather than this workflow. Local GitHub Actions schema extensions may flag `code-quality` until they update for the public preview permission, but GitHub's workflow syntax docs list it as valid.
