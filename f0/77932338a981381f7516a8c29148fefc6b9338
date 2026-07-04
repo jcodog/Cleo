@@ -1,0 +1,40 @@
+apps/discord-bot/src/services/guildEventLogging.test.ts
+  s_e4bca2b46194c6::t_b6006dbfb99a77 506
+  s_e4bca2b46194c6::t_3432ece9bc2865 795-802,804-811,813-816
+  s_e4bca2b46194c6::t_8a85dab4abf324 817-822
+  s_e4bca2b46194c6::t_fe71bb0319058e 21,366-399,823,842-851
+  s_e4bca2b46194c6::t_aad100757cc43e 295-303,497-505,507-588,765-794,803,812,824-841,852
+  s_e4bca2b46194c6::t_1c33f222d161d1 17-20
+  s_e4bca2b46194c6::t_b366d8b4f4c975 853
+apps/discord-bot/src/services/supportTickets.test.ts
+  s_e4bca2b46194c6::t_e6a9a5ace3e4f9 584-588,590-591
+  s_e4bca2b46194c6::t_453d50b0a28673 86-91,110-116,425,485,518,547-554,556-557
+  s_e4bca2b46194c6::t_fe71bb0319058e 382-408,541-546,555,558-578
+  s_e4bca2b46194c6::t_aad100757cc43e 4-9,11,16,120-135,259-322,363-381,409-424,426-484,486-517,519-540,579-583,589,592-609
+  s_e4bca2b46194c6::t_3432ece9bc2865 117-119
+  s_e4bca2b46194c6::t_a1a4626965fc13 610
+apps/discord-bot/package.json
+  s_e4bca2b46194c6::t_f956a0ee44beb9 13
+packages/backend/convex/lib/supportTickets.test.ts
+  s_e4bca2b46194c6::t_daa6c78852e7c4 38-51
+packages/backend/package.json
+  s_e4bca2b46194c6::t_f956a0ee44beb9 13
+.github/coverage-baseline.md
+  s_e4bca2b46194c6::t_f956a0ee44beb9 23-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f077932338a981381f7516a8c29148fefc6b9338",
+  "prompts": {},
+  "sessions": {
+    "s_e4bca2b46194c6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0b3a-4c75-7782-9f08-77c13e525357",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
