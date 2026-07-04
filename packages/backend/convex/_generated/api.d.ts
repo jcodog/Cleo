@@ -744,25 +744,6 @@ export declare const api: {
             >;
           };
         };
-        profiles: {
-          getByDiscordUserId: {
-            get: FunctionReference<
-              "action",
-              "public",
-              { discordUserId: string; secret: string },
-              | { status: "unlinked" }
-              | {
-                  account: {
-                    displayName?: string | null;
-                    role: "user" | "staff" | "admin" | "superadmin";
-                    status: "active" | "disabled";
-                  };
-                  discordIdentity: { displayName?: string; username?: string };
-                  status: "linked";
-                }
-            >;
-          };
-        };
         runtimeErrors: {
           report: {
             report: FunctionReference<
@@ -5054,25 +5035,6 @@ export declare const internal: {
               | {
                   reason: "unknownGuild" | "botLeft" | "missingConfig";
                   status: "disabled";
-                }
-            >;
-          };
-        };
-        profiles: {
-          byDiscordUserId: {
-            get: FunctionReference<
-              "query",
-              "internal",
-              { discordUserId: string },
-              | { status: "unlinked" }
-              | {
-                  account: {
-                    displayName?: string | null;
-                    role: "user" | "staff" | "admin" | "superadmin";
-                    status: "active" | "disabled";
-                  };
-                  discordIdentity: { displayName?: string; username?: string };
-                  status: "linked";
                 }
             >;
           };

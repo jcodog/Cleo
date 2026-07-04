@@ -35,6 +35,20 @@ test("support ticket inputs are bounded and redact secrets", () => {
       requesterDiscordUserId: "invalid",
     })
   )
+  assert.throws(() =>
+    normalizeSupportTicketInput({
+      requesterDiscordUserId: userId,
+      discordGuildId: "invalid",
+    })
+  )
+  assert.deepEqual(
+    normalizeSupportTicketInput({
+      requesterDiscordUserId: userId,
+    }),
+    {
+      requesterDiscordUserId: userId,
+    }
+  )
 })
 
 test("active support ticket keys isolate JCN and guild routes", () => {

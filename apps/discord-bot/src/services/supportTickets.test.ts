@@ -1,12 +1,19 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { MessageFlags, type ChatInputCommandInteraction } from "discord.js"
+import {
+  ChannelType,
+  MessageFlags,
+  type ChatInputCommandInteraction,
+  type Guild,
+} from "discord.js"
 
+import { convexBotClient } from "./convexBotClient"
 import type {
   DiscordSupportTicketOpenInput,
   DiscordSupportTicketOpenResult,
 } from "./convexBotClient"
+import { clearDiscordGuildRuntimeConfigCache } from "./guildRuntimeConfig"
 import {
   formatSupportStaffMessage,
   handleHelpCommand,
@@ -76,7 +83,12 @@ function readyConfig(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function openedResult(scope: "jcn" | "guild"): DiscordSupportTicketOpenResult {
+function openedResult(
+  scope: "jcn" | "guild"
+): Exclude<
+  DiscordSupportTicketOpenResult,
+  { status: "guildSupportUnavailable" }
+> {
   return {
     status: "opened",
     ticketId: "ticket-id" as never,
@@ -93,6 +105,32 @@ function openedResult(scope: "jcn" | "guild"): DiscordSupportTicketOpenResult {
     submittedMessage: "I need help",
     messageStored: true,
   }
+}
+
+function setInteractionGuild(
+  interaction: ChatInputCommandInteraction,
+  guild: Guild | null
+): void {
+  ;(interaction as unknown as { guild: Guild | null }).guild = guild
+}
+
+function createGuildWithChannel(
+  channel: Record<string, unknown> | null
+): Guild {
+  const channels = new Map<string, Record<string, unknown>>()
+
+  if (channel) {
+    channels.set(targetId, channel)
+  }
+
+  return {
+    channels: {
+      cache: channels,
+      async fetch() {
+        return channel
+      },
+    },
+  } as unknown as Guild
 }
 
 test("DM /help opens a private JCN support ticket", async () => {
@@ -218,6 +256,70 @@ test("backend support failure replies safely and reports an incident", async () 
   )
 })
 
+test("thrown backend support failure is reported without leaking the error", async () => {
+  const { interaction, replies } = createInteraction({})
+  const loggedErrors: unknown[] = []
+
+  await handleHelpCommand(interaction, {
+    async openTicket() {
+      throw new Error("backend secret")
+    },
+    logError(message, error, metadata) {
+      loggedErrors.push({ message, error, metadata })
+    },
+    async reportRuntimeError() {
+      throw new Error("reporting unavailable")
+    },
+  })
+
+  assert.equal(loggedErrors.length, 2)
+  assert.match(
+    (replies[0] as { content: string }).content,
+    /temporarily unavailable/
+  )
+})
+
+test("backend guild-support rejection uses the configured-unavailable reply", async () => {
+  const { interaction, replies } = createInteraction({ guildId })
+
+  await handleHelpCommand(interaction, {
+    async fetchConfig() {
+      return readyConfig()
+    },
+    async openTicket() {
+      return {
+        status: "guildSupportUnavailable",
+        reason: "disabled",
+      }
+    },
+  })
+
+  assert.match(
+    (replies[0] as { content: string }).content,
+    /has not configured Cleo support/
+  )
+})
+
+test("runtime config lookup failure keeps guild support closed", async () => {
+  const { interaction, replies } = createInteraction({ guildId })
+  const loggedErrors: unknown[] = []
+
+  await handleHelpCommand(interaction, {
+    async fetchConfig() {
+      throw new Error("config unavailable")
+    },
+    logError(message, error, metadata) {
+      loggedErrors.push({ message, error, metadata })
+    },
+  })
+
+  assert.equal(loggedErrors.length, 1)
+  assert.match(
+    (replies[0] as { content: string }).content,
+    /has not configured Cleo support/
+  )
+})
+
 test("guild notification failure keeps the persisted ticket usable", async () => {
   const { interaction, replies } = createInteraction({ guildId })
   const reports: unknown[] = []
@@ -256,6 +358,254 @@ test("staff notification allows only configured role mentions", () => {
     roles: [roleId],
     users: [],
   })
+})
+
+test("resumed staff notification avoids repeat pings and handles no message", () => {
+  const result = {
+    ...openedResult("guild"),
+    status: "resumed" as const,
+    route: undefined,
+    submittedMessage: undefined,
+  }
+  const message = formatSupportStaffMessage(result as never, userId)
+
+  assert.doesNotMatch(message.content ?? "", /<@&/)
+  assert.match(message.content ?? "", /Updated Cleo support request/)
+  assert.match(message.content ?? "", /No message was submitted/)
+  assert.deepEqual(message.allowedMentions, {
+    parse: [],
+    roles: [],
+    users: [],
+  })
+})
+
+test("opened staff notification without a route has no allowed role mentions", () => {
+  const message = formatSupportStaffMessage(
+    {
+      ...openedResult("guild"),
+      route: undefined,
+    } as never,
+    userId
+  )
+
+  assert.deepEqual(message.allowedMentions?.roles, [])
+})
+
+test("resumed JCN tickets use resumed confirmation copy", async () => {
+  const { interaction, replies } = createInteraction({})
+
+  await handleHelpCommand(interaction, {
+    async openTicket() {
+      return {
+        ...openedResult("jcn"),
+        status: "resumed",
+      }
+    },
+  })
+
+  assert.match((replies[0] as { content: string }).content, /been resumed/)
+})
+
+test("default support dependencies route to a cached guild channel", async () => {
+  const originalFetch = convexBotClient.fetchGuildRuntimeConfig
+  const originalOpen = convexBotClient.openOrResumeSupportTicket
+  const sentMessages: unknown[] = []
+  const channel = {
+    type: ChannelType.GuildText,
+    isTextBased: () => true,
+    isSendable: () => true,
+    async send(message: unknown) {
+      sentMessages.push(message)
+    },
+  }
+  const { interaction, replies } = createInteraction({
+    guildId,
+    message: "Default route",
+  })
+  setInteractionGuild(interaction, createGuildWithChannel(channel))
+
+  convexBotClient.fetchGuildRuntimeConfig = async () => readyConfig()
+  convexBotClient.openOrResumeSupportTicket = async () => ({
+    ...openedResult("guild"),
+    submittedMessage: "Default route",
+  })
+  clearDiscordGuildRuntimeConfigCache()
+
+  try {
+    await handleHelpCommand(interaction)
+  } finally {
+    convexBotClient.fetchGuildRuntimeConfig = originalFetch
+    convexBotClient.openOrResumeSupportTicket = originalOpen
+    clearDiscordGuildRuntimeConfigCache()
+  }
+
+  assert.equal(sentMessages.length, 1)
+  assert.match((replies[0] as { content: string }).content, /routed privately/)
+})
+
+test("default guild notifier handles unavailable destinations", async () => {
+  const cases = [
+    {
+      name: "missing route",
+      result: { ...openedResult("guild"), route: undefined },
+      guild: createGuildWithChannel(null),
+    },
+    {
+      name: "missing guild",
+      result: openedResult("guild"),
+      guild: null,
+    },
+    {
+      name: "unsupported channel",
+      result: openedResult("guild"),
+      guild: createGuildWithChannel({
+        type: ChannelType.GuildText,
+        isTextBased: () => false,
+        isSendable: () => false,
+      }),
+    },
+    {
+      name: "forum route points at a text channel",
+      result: {
+        ...openedResult("guild"),
+        route: {
+          targetId,
+          targetType: "forum" as const,
+          staffRoleIds: [roleId],
+        },
+      },
+      guild: createGuildWithChannel({
+        type: ChannelType.GuildText,
+      }),
+    },
+  ]
+
+  for (const item of cases) {
+    const { interaction, replies } = createInteraction({ guildId })
+    setInteractionGuild(interaction, item.guild)
+
+    await handleHelpCommand(interaction, {
+      async fetchConfig() {
+        return readyConfig()
+      },
+      async openTicket() {
+        return item.result
+      },
+      async reportRuntimeError() {
+        return null
+      },
+    })
+
+    assert.match(
+      (replies[0] as { content: string }).content,
+      /notification could not be delivered/,
+      item.name
+    )
+  }
+})
+
+test("default guild notifier creates forum threads with safe names", async () => {
+  const createdThreads: unknown[] = []
+  const forum = {
+    type: ChannelType.GuildForum,
+    threads: {
+      async create(input: unknown) {
+        createdThreads.push(input)
+      },
+    },
+  }
+  const { interaction } = createInteraction({ guildId })
+  setInteractionGuild(interaction, createGuildWithChannel(forum))
+  interaction.user.username = ` \r\n${"x".repeat(100)} `
+
+  await handleHelpCommand(interaction, {
+    async fetchConfig() {
+      return readyConfig({ supportTargetType: "forum" })
+    },
+    async openTicket() {
+      return {
+        ...openedResult("guild"),
+        route: {
+          targetId,
+          targetType: "forum",
+          staffRoleIds: [roleId],
+        },
+      }
+    },
+  })
+
+  assert.equal(createdThreads.length, 1)
+  assert.equal(
+    (createdThreads[0] as { name: string }).name,
+    `Support · ${"x".repeat(80)}`
+  )
+})
+
+test("forum thread names fall back when the Discord username is blank", async () => {
+  const createdThreads: unknown[] = []
+  const { interaction } = createInteraction({ guildId })
+  setInteractionGuild(
+    interaction,
+    createGuildWithChannel({
+      type: ChannelType.GuildForum,
+      threads: {
+        async create(input: unknown) {
+          createdThreads.push(input)
+        },
+      },
+    })
+  )
+  interaction.user.username = "\r\n"
+
+  await handleHelpCommand(interaction, {
+    async fetchConfig() {
+      return readyConfig({ supportTargetType: "forum" })
+    },
+    async openTicket() {
+      return {
+        ...openedResult("guild"),
+        route: {
+          targetId,
+          targetType: "forum",
+          staffRoleIds: [roleId],
+        },
+      }
+    },
+  })
+
+  assert.equal(
+    (createdThreads[0] as { name: string }).name,
+    "Support · Discord user"
+  )
+})
+
+test("uncached guild destination fetch failures are non-fatal", async () => {
+  const { interaction, replies } = createInteraction({ guildId })
+  setInteractionGuild(interaction, {
+    channels: {
+      cache: new Map(),
+      async fetch() {
+        throw new Error("Discord unavailable")
+      },
+    },
+  } as unknown as Guild)
+
+  await handleHelpCommand(interaction, {
+    async fetchConfig() {
+      return readyConfig()
+    },
+    async openTicket() {
+      return openedResult("guild")
+    },
+    async reportRuntimeError() {
+      return null
+    },
+  })
+
+  assert.match(
+    (replies[0] as { content: string }).content,
+    /notification could not be delivered/
+  )
 })
 
 test("runtime config readiness requires enabled complete routing", () => {

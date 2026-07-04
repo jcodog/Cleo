@@ -14,7 +14,11 @@ import {
   type Role,
 } from "discord.js"
 
-import type { DiscordGuildEventRecord } from "./convexBotClient"
+import {
+  convexBotClient,
+  type DiscordGuildEventRecord,
+} from "./convexBotClient"
+import { clearDiscordGuildRuntimeConfigCache } from "./guildRuntimeConfig"
 import {
   formatGuildEventLogMessage,
   handleDiscordGuildEvent,
@@ -288,6 +292,15 @@ test("messageDelete normalization does not include raw message content", () => {
   )
 })
 
+test("messageDelete ignores direct messages", () => {
+  const message = {
+    ...createMessage(),
+    guildId: null,
+  } as unknown as Message
+
+  assert.equal(normalizeMessageDelete(message, now), null)
+})
+
 test("disabled logging still persists and sends nothing", async () => {
   const channel = createChannel()
   const guild = createGuild(channel)
@@ -348,6 +361,40 @@ test("enabled logging sends configured log message", async () => {
     users: [],
   })
   assert.equal(reporter.reports.length, 0)
+})
+
+test("default event dependencies persist and deliver through runtime config", async () => {
+  const originalFetch = convexBotClient.fetchGuildRuntimeConfig
+  const originalPersist = convexBotClient.recordGuildEvent
+  const persistedEvents: DiscordGuildEventRecord[] = []
+  const channel = createChannel()
+  const guild = createGuild(channel)
+  const event = normalizeGuildMemberAdd(createMember(guild), now)
+
+  convexBotClient.fetchGuildRuntimeConfig = async () => readyConfig()
+  convexBotClient.recordGuildEvent = async (record) => {
+    persistedEvents.push(record)
+    return {
+      id: "event-id",
+      deduplicated: false,
+    } as never
+  }
+  clearDiscordGuildRuntimeConfigCache()
+
+  try {
+    const result = await handleDiscordGuildEvent(event, { guild })
+    assert.deepEqual(result, {
+      persistence: "recorded",
+      delivery: "sent",
+    })
+  } finally {
+    convexBotClient.fetchGuildRuntimeConfig = originalFetch
+    convexBotClient.recordGuildEvent = originalPersist
+    clearDiscordGuildRuntimeConfigCache()
+  }
+
+  assert.equal(persistedEvents.length, 1)
+  assert.equal(channel.sentMessages.length, 1)
 })
 
 test("guild logging levels apply a stable event policy", () => {
@@ -445,6 +492,98 @@ test("missing or unsupported log channel sends nothing quietly", async () => {
   }
 
   assert.equal(reporter.reports.length, 0)
+})
+
+test("delivery prerequisites fail closed without incidents", async () => {
+  const event = normalizeGuildMemberAdd(createMember(), now)
+  const cases = [
+    {
+      expected: "configUnavailable",
+      context: { guild: createGuild() },
+      fetchConfig: async () =>
+        ({
+          status: "disabled",
+          reason: "missingConfig",
+        }) as DiscordGuildRuntimeConfigResult,
+    },
+    {
+      expected: "missingLogChannel",
+      context: { guild: createGuild() },
+      fetchConfig: async () => readyConfig({ logChannelId: undefined }),
+    },
+    {
+      expected: "guildUnavailable",
+      context: {},
+      fetchConfig: async () => readyConfig(),
+    },
+    {
+      expected: "botMemberUnavailable",
+      context: {
+        guild: {
+          ...createGuild(),
+          members: { me: null },
+        } as unknown as Guild,
+      },
+      fetchConfig: async () => readyConfig(),
+    },
+    {
+      expected: "missingBasePermissions",
+      context: {
+        guild: createGuild(
+          createChannel({
+            permissionsFor: () => null,
+          })
+        ),
+      },
+      fetchConfig: async () => readyConfig(),
+    },
+  ]
+
+  for (const item of cases) {
+    const result = await handleDiscordGuildEvent(event, item.context, {
+      fetchConfig: item.fetchConfig,
+      persistEvent: createPersistRecorder().persistEvent,
+    })
+
+    assert.equal(result.delivery, item.expected)
+  }
+})
+
+test("runtime config and channel fetch failures are non-fatal", async () => {
+  const event = normalizeGuildMemberAdd(createMember(), now)
+  const loggedErrors: unknown[] = []
+  const configResult = await handleDiscordGuildEvent(
+    event,
+    { guild: createGuild() },
+    {
+      async fetchConfig() {
+        throw new Error("config fetch failed")
+      },
+      persistEvent: createPersistRecorder().persistEvent,
+      logError(message, error, metadata) {
+        loggedErrors.push({ message, error, metadata })
+      },
+    }
+  )
+
+  const guild = createGuild(null)
+  guild.channels.fetch = async () => {
+    throw new Error("channel fetch failed")
+  }
+  const channelResult = await handleDiscordGuildEvent(
+    event,
+    { guild },
+    {
+      async fetchConfig() {
+        return readyConfig()
+      },
+      persistEvent: createPersistRecorder().persistEvent,
+    }
+  )
+
+  assert.equal(configResult.delivery, "configUnavailable")
+  assert.equal(channelResult.delivery, "channelUnavailable")
+  assert.equal(loggedErrors.length, 1)
 })
 
 test("missing expected permissions sends nothing and does not report incident", async () => {
@@ -621,6 +760,95 @@ test("guild event formatter is simple and readable", () => {
   assert.match(message.content ?? "", /Message Deleted/)
   assert.match(message.content ?? "", new RegExp(messageId))
   assert.doesNotMatch(message.content ?? "", /raw/i)
+})
+
+test("normalizers cover Discord fallback fields and timestamps", () => {
+  const guild = createGuild()
+  const fallbackBan = {
+    ...createBan(guild),
+    reason: null,
+    user: {
+      id: userId,
+      username: "fallback-user",
+      displayName: null,
+      globalName: null,
+    },
+  } as unknown as GuildBan
+  const globalBan = {
+    ...fallbackBan,
+    user: {
+      ...fallbackBan.user,
+      globalName: "Global Name",
+    },
+  } as unknown as GuildBan
+  const unnamedChannel = {
+    id: channelId,
+    type: 0,
+    guild,
+    createdTimestamp: null,
+  } as unknown as GuildBasedChannel
+  const invalidTimestampRole = {
+    ...createRole(guild),
+    createdTimestamp: 0,
+  } as unknown as Role
+
+  assert.equal(
+    normalizeGuildBanAdd(fallbackBan, now).targetDisplayName,
+    "fallback-user"
+  )
+  assert.equal(
+    normalizeGuildBanRemove(globalBan, now).targetDisplayName,
+    "Global Name"
+  )
+  assert.equal(normalizeGuildBanAdd(fallbackBan, now).reason, undefined)
+  assert.equal(
+    normalizeChannelCreate(unnamedChannel).targetDisplayName,
+    undefined
+  )
+  assert.equal(
+    normalizeChannelDelete(unnamedChannel, now).targetDisplayName,
+    undefined
+  )
+  assert.ok(normalizeChannelCreate(unnamedChannel).occurredAt > 0)
+  assert.equal(
+    normalizeGuildMemberAdd(createMember(guild)).occurredAt,
+    now - 1_000
+  )
+  assert.ok(
+    normalizeGuildMemberAdd({
+      ...createMember(guild),
+      joinedTimestamp: null,
+    } as unknown as GuildMember).occurredAt > 0
+  )
+  assert.equal(normalizeRoleCreate(createRole(guild)).occurredAt, now - 500)
+  assert.ok(normalizeRoleCreate(invalidTimestampRole).occurredAt > 0)
+})
+
+test("formatter includes actor and reason and falls back to channel targets", () => {
+  const message = formatGuildEventLogMessage({
+    discordGuildId: guildId,
+    eventType: "channelDelete",
+    targetType: "channel",
+    channelId,
+    actorDiscordUserId: userId,
+    reason: "cleanup",
+    occurredAt: now,
+    dedupeKey: `channelDelete:${guildId}:${channelId}:${now}`,
+  })
+
+  assert.match(message.content ?? "", new RegExp(`Actor: ${userId}`))
+  assert.match(message.content ?? "", /Reason: cleanup/)
+  assert.match(message.content ?? "", new RegExp(channelId))
+
+  const unknownTarget = formatGuildEventLogMessage({
+    discordGuildId: guildId,
+    eventType: "messageDelete",
+    targetType: "message",
+    occurredAt: now,
+    dedupeKey: `messageDelete:${guildId}:${now}`,
+  })
+
+  assert.match(unknownTarget.content ?? "", /unknown target/)
 })
 
 test("guild event formatter labels all supported event types", () => {
