@@ -1,0 +1,123 @@
+name: Deploy Discord Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/discord-bot/**"
+      - "packages/backend/**"
+      - "packages/env/**"
+      - "packages/logger/**"
+      - "packages/shared/**"
+      - "packages/eslint-config/**"
+      - "packages/typescript-config/**"
+      - ".nvmrc"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/discord-production.yml"
+      - ".github/scripts/deploy-discord.sh"
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy the selected commit or roll back to the previous release
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - rollback
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-production
+  cancel-in-progress: false
+
+jobs:
+  classify:
+    name: Classify Discord changes
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.changes.outputs.deploy }}
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Classify changed paths
+        id: changes
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            deploy="$(node apps/discord-bot/src/deployment/classifyChanges.ts deploy \
+              "${{ github.event.before }}" "${{ github.sha }}")"
+            echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Validate and deploy Discord bot
+    needs: classify
+    if: needs.classify.outputs.deploy == 'true'
+    environment: discord-production
+    runs-on: [self-hosted, linux, x64, cleo-discord-prod]
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Set up pnpm
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Set up Node.js
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install exact dependencies
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm install --frozen-lockfile
+
+      - name: Test Discord bot
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/discord-bot run test
+
+      - name: Typecheck Discord bot
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/discord-bot run typecheck
+
+      - name: Lint Discord bot
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/discord-bot run lint
+
+      - name: Build Discord bot
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/discord-bot run build
+
+      - name: Deploy or roll back
+        env:
+          CLEO_DISCORD_DEPLOY_ROOT: /opt/cleo/discord
+          CLEO_DISCORD_SERVICE: cleo-discord.service
+        run: >-
+          bash .github/scripts/deploy-discord.sh
+          "${{ github.event_name == 'workflow_dispatch' && inputs.operation || 'deploy' }}"

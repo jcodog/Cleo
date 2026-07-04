@@ -25,6 +25,7 @@
     "@workspace/shared": "workspace:*",
     "convex": "^1.42.0",
     "discord.js": "^14.26.4",
+    "tsx": "^4.22.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -33,7 +34,6 @@
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
     "prettier": "catalog:",
-    "tsx": "^4.22.4",
     "typescript": "catalog:"
   }
 }
