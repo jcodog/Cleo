@@ -28,7 +28,6 @@ import {
   FieldLabel,
   FieldTitle,
 } from "@workspace/ui/components/field"
-import { Input } from "@workspace/ui/components/input"
 import {
   NativeSelect,
   NativeSelectOption,
@@ -45,6 +44,11 @@ import {
 } from "@workspace/ui/components/table"
 import { useMutation, useQuery } from "convex/react"
 
+import {
+  DiscordChannelSelect,
+  DiscordRoleMultiSelect,
+  useDiscordConfigOptions,
+} from "../components/ConfigSelectors"
 import { getErrorMessage, toTitleCase } from "../lib/format"
 import {
   IconAlertTriangle,
@@ -145,14 +149,13 @@ function SupportWorkspace({
   const updateSupport = useMutation(
     api.mutations.dashboard.discord.guildSupportConfigs.update.update
   )
+  const optionsState = useDiscordConfigOptions(discordGuildId)
   const [enabled, setEnabled] = useState(config?.enabled ?? false)
   const [targetId, setTargetId] = useState(config?.targetId ?? "")
   const [targetType, setTargetType] = useState<SupportTargetType>(
     config?.targetType ?? "channel"
   )
-  const [staffRoleIds, setStaffRoleIds] = useState(
-    config?.staffRoleIds.join(", ") ?? ""
-  )
+  const [staffRoleIds, setStaffRoleIds] = useState(config?.staffRoleIds ?? [])
   const [transcriptPolicy, setTranscriptPolicy] = useState<TranscriptPolicy>(
     config?.transcriptPolicy ?? "explicit-messages"
   )
@@ -179,10 +182,7 @@ function SupportWorkspace({
         enabled,
         targetId: targetId.trim() || null,
         targetType,
-        staffRoleIds: staffRoleIds
-          .split(",")
-          .map((value) => value.trim())
-          .filter(Boolean),
+        staffRoleIds,
         transcriptPolicy,
         escalationPolicy,
       })
@@ -230,23 +230,27 @@ function SupportWorkspace({
                 />
               </Field>
 
-              <Field data-disabled={disabled}>
-                <FieldLabel htmlFor="support-target">Destination ID</FieldLabel>
-                <Input
-                  disabled={disabled}
-                  id="support-target"
-                  inputMode="numeric"
-                  onChange={(event) => {
-                    setTargetId(event.target.value)
-                    markDirty()
-                  }}
-                  placeholder="Discord channel, thread, or forum ID"
-                  value={targetId}
-                />
-                <FieldDescription>
-                  Cleo posts new and resumed requests only to this destination.
-                </FieldDescription>
-              </Field>
+              <DiscordChannelSelect
+                description="Cleo posts new and resumed requests only to this destination."
+                disabled={disabled}
+                label="Destination"
+                onChange={(value) => {
+                  setTargetId(value)
+                  const option = optionsState.options?.channels.find(
+                    (channel) => channel.id === value
+                  )
+                  if (option) {
+                    setTargetType(
+                      option.type === "forum" || option.type === "thread"
+                        ? option.type
+                        : "channel"
+                    )
+                  }
+                  markDirty()
+                }}
+                optionsState={optionsState}
+                value={targetId}
+              />
 
               <Field data-disabled={disabled}>
                 <FieldLabel htmlFor="support-target-type">
@@ -270,24 +274,15 @@ function SupportWorkspace({
                 </NativeSelect>
               </Field>
 
-              <Field data-disabled={disabled}>
-                <FieldLabel htmlFor="support-roles">
-                  Support staff role IDs
-                </FieldLabel>
-                <Input
-                  disabled={disabled}
-                  id="support-roles"
-                  onChange={(event) => {
-                    setStaffRoleIds(event.target.value)
-                    markDirty()
-                  }}
-                  placeholder="Comma-separated Discord role IDs"
-                  value={staffRoleIds}
-                />
-                <FieldDescription>
-                  New requests mention only these configured roles.
-                </FieldDescription>
-              </Field>
+              <DiscordRoleMultiSelect
+                disabled={disabled}
+                onChange={(value) => {
+                  setStaffRoleIds(value)
+                  markDirty()
+                }}
+                optionsState={optionsState}
+                value={staffRoleIds}
+              />
 
               <Field data-disabled={disabled}>
                 <FieldLabel htmlFor="support-transcript">

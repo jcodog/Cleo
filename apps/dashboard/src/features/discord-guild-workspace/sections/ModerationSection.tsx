@@ -1,13 +1,8 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { IconInfoCircle, IconShield } from "@tabler/icons-react"
+import { IconShield } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@workspace/ui/components/alert"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -35,13 +30,13 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Switch } from "@workspace/ui/components/switch"
 import { useMutation, useQuery } from "convex/react"
 
-import {
-  MODERATION_CHANNEL_FIELDS,
-  toOptionalChannelValue,
-  type ChannelValues,
-} from "../lib/config"
+import { toOptionalChannelValue } from "../lib/config"
 import { formatDateTime, getErrorMessage, toTitleCase } from "../lib/format"
-import { ChannelFieldGroup, SaveStatus } from "../components/workspace-ui"
+import {
+  DiscordChannelSelect,
+  useDiscordConfigOptions,
+} from "../components/ConfigSelectors"
+import { SaveStatus } from "../components/workspace-ui"
 import type { GuildModerationAction, GuildOverview, SaveState } from "../types"
 
 export function ModerationSection({
@@ -58,15 +53,13 @@ export function ModerationSection({
     api.queries.dashboard.discord.guilds.moderationActions.list,
     { discordGuildId: overview.discordGuildId }
   )
+  const optionsState = useDiscordConfigOptions(overview.discordGuildId)
   const [moderationEnabled, setModerationEnabled] = useState(
     overview.guildConfig?.moderationEnabled ?? false
   )
-  const [channels, setChannels] = useState<
-    Pick<ChannelValues, "modLogChannelId" | "logChannelId">
-  >(() => ({
-    modLogChannelId: overview.guildConfig?.modLogChannelId ?? "",
-    logChannelId: overview.guildConfig?.logChannelId ?? "",
-  }))
+  const [modLogChannelId, setModLogChannelId] = useState(
+    overview.guildConfig?.modLogChannelId ?? ""
+  )
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -85,8 +78,7 @@ export function ModerationSection({
         discordGuildId: overview.discordGuildId,
         modules: { moderationEnabled },
         channels: {
-          modLogChannelId: toOptionalChannelValue(channels.modLogChannelId),
-          logChannelId: toOptionalChannelValue(channels.logChannelId),
+          modLogChannelId: toOptionalChannelValue(modLogChannelId),
         },
       })
       setSaveState("success")
@@ -107,15 +99,6 @@ export function ModerationSection({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
-            <Alert>
-              <IconInfoCircle aria-hidden />
-              <AlertTitle>Runtime Enforcement</AlertTitle>
-              <AlertDescription>
-                Ban and kick commands follow these settings when the bot is
-                present in this server.
-              </AlertDescription>
-            </Alert>
-
             <FieldGroup>
               <Field orientation="horizontal">
                 <Switch
@@ -137,18 +120,17 @@ export function ModerationSection({
               </Field>
             </FieldGroup>
 
-            <ChannelFieldGroup
+            <DiscordChannelSelect
+              description="Ban and kick outcomes are sent to this channel."
               disabled={isBotLeft || saveState === "saving"}
-              fields={MODERATION_CHANNEL_FIELDS}
-              onChange={(key, value) => {
-                setChannels((currentChannels) => ({
-                  ...currentChannels,
-                  [key]: value,
-                }))
+              label="Moderation log destination"
+              onChange={(value) => {
+                setModLogChannelId(value)
                 setSaveState("idle")
                 setErrorMessage(null)
               }}
-              values={channels}
+              optionsState={optionsState}
+              value={modLogChannelId}
             />
 
             <SaveStatus state={saveState} errorMessage={errorMessage} />

@@ -1145,6 +1145,26 @@ export declare const api: {
       };
       discord: {
         guilds: {
+          configOptions: {
+            get: FunctionReference<
+              "action",
+              "public",
+              { discordGuildId: string },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | { status: "botLeft" }
+              | { status: "unavailable" }
+              | {
+                  channels: Array<{
+                    id: string;
+                    name: string;
+                    type: "text" | "announcement" | "thread" | "forum";
+                  }>;
+                  roles: Array<{ id: string; name: string }>;
+                  status: "ready";
+                }
+            >;
+          };
           syncAuditLogs: {
             sync: FunctionReference<
               "action",
@@ -1625,7 +1645,9 @@ export declare const api: {
                   welcomeChannelId?: string | null;
                 };
                 discordGuildId: string;
+                logging?: { level: "none" | "minimal" | "medium" | "maximum" };
                 modules: {
+                  loggingEnabled?: boolean;
                   moderationEnabled?: boolean;
                   welcomeEnabled?: boolean;
                 };

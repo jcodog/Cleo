@@ -1,6 +1,7 @@
 import type { AppShellPlatform } from "@/components/stores/app-shell-store"
 
 const DASHBOARD_RESERVED_SEGMENTS = new Set(["add-server", "staff"])
+export const RELEASE_PLATFORMS = ["discord"] as const
 
 export type AppShellArea = AppShellPlatform | "staff"
 

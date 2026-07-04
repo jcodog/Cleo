@@ -13,6 +13,12 @@ const optionalChannelId = v.optional(v.union(v.string(), v.null()))
 const optionalText = v.optional(v.union(v.string(), v.null()))
 const DISCORD_SNOWFLAKE_PATTERN = /^\d{17,20}$/
 const WELCOME_SUBTEXT_MAX_LENGTH = 120
+const logLevel = v.union(
+  v.literal("none"),
+  v.literal("minimal"),
+  v.literal("medium"),
+  v.literal("maximum")
+)
 
 export const update = mutation({
   args: {
@@ -20,6 +26,7 @@ export const update = mutation({
     modules: v.object({
       moderationEnabled: v.optional(v.boolean()),
       welcomeEnabled: v.optional(v.boolean()),
+      loggingEnabled: v.optional(v.boolean()),
     }),
     channels: v.object({
       logChannelId: optionalChannelId,
@@ -31,6 +38,11 @@ export const update = mutation({
     welcome: v.optional(
       v.object({
         subtext: optionalText,
+      })
+    ),
+    logging: v.optional(
+      v.object({
+        level: logLevel,
       })
     ),
   },
@@ -46,6 +58,7 @@ export const update = mutation({
       modules: args.modules,
       now,
       welcome: args.welcome,
+      logging: args.logging,
     })
 
     if (existingConfig) {
@@ -87,6 +100,7 @@ function buildNextConfig({
   modules,
   now,
   welcome,
+  logging,
 }: {
   channels: ChannelPatch
   config: Doc<"guildConfigs"> | null
@@ -94,6 +108,7 @@ function buildNextConfig({
   modules: ModulePatch
   now: number
   welcome: WelcomePatch | undefined
+  logging: LoggingPatch | undefined
 }): Omit<Doc<"guildConfigs">, "_id" | "_creationTime"> {
   return {
     guildId,
@@ -101,11 +116,15 @@ function buildNextConfig({
     moderationEnabled:
       modules.moderationEnabled ?? config?.moderationEnabled ?? false,
     welcomeEnabled: modules.welcomeEnabled ?? config?.welcomeEnabled ?? false,
-    loggingEnabled: config?.loggingEnabled ?? false,
+    loggingEnabled: modules.loggingEnabled ?? config?.loggingEnabled ?? false,
     ...(config?.commandPrefix !== undefined
       ? { commandPrefix: config.commandPrefix }
       : {}),
-    ...(config?.logLevel !== undefined ? { logLevel: config.logLevel } : {}),
+    ...(logging?.level !== undefined
+      ? { logLevel: logging.level }
+      : config?.logLevel !== undefined
+        ? { logLevel: config.logLevel }
+        : {}),
     ...buildWelcomeFields({
       subtext:
         welcome?.subtext !== undefined
@@ -253,6 +272,8 @@ function getConfigAuditFields(config: Doc<"guildConfigs">) {
   return {
     moderationEnabled: config.moderationEnabled,
     welcomeEnabled: config.welcomeEnabled,
+    loggingEnabled: config.loggingEnabled,
+    logLevel: config.logLevel ?? null,
     logChannelId: config.logChannelId ?? null,
     modLogChannelId: config.modLogChannelId ?? null,
     welcomeChannelId: config.welcomeChannelId ?? null,
@@ -305,6 +326,7 @@ async function getGuildConfig(
 type ModulePatch = {
   moderationEnabled?: boolean
   welcomeEnabled?: boolean
+  loggingEnabled?: boolean
 }
 
 type ChannelPatch = {
@@ -317,4 +339,8 @@ type ChannelPatch = {
 
 type WelcomePatch = {
   subtext?: string | null
+}
+
+type LoggingPatch = {
+  level: "none" | "minimal" | "medium" | "maximum"
 }

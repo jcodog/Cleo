@@ -15,19 +15,15 @@ import {
   GuildIcon,
   IconAlertTriangle,
   IconInfoCircle,
-  RuntimeNotice,
   WorkspaceSkeleton,
   WorkspaceState,
 } from "./components/workspace-ui"
-import { AutomationSection } from "./sections/AutomationSection"
-import { ChannelsSection } from "./sections/ChannelsSection"
-import { CommandsSection } from "./sections/CommandsSection"
 import { LogsSection } from "./sections/LogsSection"
 import { ModerationSection } from "./sections/ModerationSection"
-import { ModulesSection } from "./sections/ModulesSection"
 import { OverviewSection } from "./sections/OverviewSection"
 import { SettingsSection } from "./sections/SettingsSection"
 import { SupportSection } from "./sections/SupportSection"
+import { WelcomeSection } from "./sections/WelcomeSection"
 import {
   DISCORD_GUILD_SECTION_TITLES,
   type DiscordGuildSection,
@@ -127,16 +123,10 @@ function WorkspaceReadyView({
           <IconAlertTriangle aria-hidden />
           <AlertTitle>Bot Not Present</AlertTitle>
           <AlertDescription>
-            Cleo is no longer in this Discord server. Reconnect controls belong
-            to a later install flow.
+            Cleo is no longer in this Discord server. Add Cleo again before
+            changing configuration.
           </AlertDescription>
         </Alert>
-      ) : null}
-
-      {overview.botJoinedAt === undefined &&
-      overview.botInstallationVerifiedAt === undefined &&
-      !isBotLeft ? (
-        <RuntimeNotice />
       ) : null}
 
       <WorkspaceSection
@@ -189,17 +179,9 @@ function WorkspaceSection({
   switch (section) {
     case "overview":
       return <OverviewSection isBotLeft={isBotLeft} overview={overview} />
-    case "modules":
+    case "welcome":
       return (
-        <ModulesSection
-          key={sectionKey}
-          isBotLeft={isBotLeft}
-          overview={overview}
-        />
-      )
-    case "channels":
-      return (
-        <ChannelsSection
+        <WelcomeSection
           key={sectionKey}
           isBotLeft={isBotLeft}
           overview={overview}
@@ -208,22 +190,6 @@ function WorkspaceSection({
     case "moderation":
       return (
         <ModerationSection
-          key={sectionKey}
-          isBotLeft={isBotLeft}
-          overview={overview}
-        />
-      )
-    case "automation":
-      return (
-        <AutomationSection
-          key={sectionKey}
-          isBotLeft={isBotLeft}
-          overview={overview}
-        />
-      )
-    case "commands":
-      return (
-        <CommandsSection
           key={sectionKey}
           isBotLeft={isBotLeft}
           overview={overview}
@@ -238,7 +204,13 @@ function WorkspaceSection({
         />
       )
     case "logs":
-      return <LogsSection discordGuildId={overview.discordGuildId} />
+      return (
+        <LogsSection
+          discordGuildId={overview.discordGuildId}
+          isBotLeft={isBotLeft}
+          overview={overview}
+        />
+      )
     case "settings":
       return <SettingsSection isBotLeft={isBotLeft} overview={overview} />
   }

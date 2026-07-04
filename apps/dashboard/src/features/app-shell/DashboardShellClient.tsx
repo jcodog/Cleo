@@ -2,21 +2,13 @@
 
 import { usePathname } from "next/navigation"
 import {
-  IconActivity,
-  IconBolt,
-  IconCommand,
-  IconDeviceDesktop,
-  IconHash,
   IconHome,
-  IconListDetails,
   IconLogs,
   IconLifebuoy,
-  IconMessageChatbot,
-  IconRobot,
   IconSettings,
   IconShield,
   IconShieldLock,
-  IconWebhook,
+  IconSparkles,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { useQuery } from "convex/react"
@@ -71,21 +63,12 @@ export function DashboardShellClient({
               pathname === `/dashboard/${activeDiscordGuildId}/overview`),
         },
         {
-          title: "Modules",
-          href: discordGuildSectionHref("modules"),
-          icon: IconListDetails,
+          title: "Welcome",
+          href: discordGuildSectionHref("welcome"),
+          icon: IconSparkles,
           isActive:
             activeDiscordGuildId !== undefined &&
-            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/modules`),
-          disabled: !hasSelectedDiscordGuild,
-        },
-        {
-          title: "Channels",
-          href: discordGuildSectionHref("channels"),
-          icon: IconHash,
-          isActive:
-            activeDiscordGuildId !== undefined &&
-            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/channels`),
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/welcome`),
           disabled: !hasSelectedDiscordGuild,
         },
         {
@@ -97,26 +80,6 @@ export function DashboardShellClient({
             pathname.startsWith(
               `/dashboard/${activeDiscordGuildId}/moderation`
             ),
-          disabled: !hasSelectedDiscordGuild,
-        },
-        {
-          title: "Automation",
-          href: discordGuildSectionHref("automation"),
-          icon: IconBolt,
-          isActive:
-            activeDiscordGuildId !== undefined &&
-            pathname.startsWith(
-              `/dashboard/${activeDiscordGuildId}/automation`
-            ),
-          disabled: !hasSelectedDiscordGuild,
-        },
-        {
-          title: "Commands",
-          href: discordGuildSectionHref("commands"),
-          icon: IconCommand,
-          isActive:
-            activeDiscordGuildId !== undefined &&
-            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/commands`),
           disabled: !hasSelectedDiscordGuild,
         },
         {
@@ -173,115 +136,16 @@ export function DashboardShellClient({
   const platformNavSections: Record<AppShellArea, AppShellNavSection[]> = {
     discord: discordNavSections,
     staff: staffNavSections,
-    kick: [
-      {
-        items: [
-          {
-            title: "Overview",
-            href: "/kick",
-            icon: IconHome,
-            isActive: pathname === "/kick",
-          },
-          {
-            title: "Chat Bot",
-            href: "/kick/chat-bot",
-            icon: IconMessageChatbot,
-            isActive: pathname.startsWith("/kick/chat-bot"),
-            disabled: true,
-          },
-          {
-            title: "Commands",
-            href: "/kick/commands",
-            icon: IconCommand,
-            isActive: pathname.startsWith("/kick/commands"),
-            disabled: true,
-          },
-          {
-            title: "Moderation",
-            href: "/kick/moderation",
-            icon: IconShield,
-            isActive: pathname.startsWith("/kick/moderation"),
-            disabled: true,
-          },
-          {
-            title: "Overlays",
-            href: "/kick/overlays",
-            icon: IconDeviceDesktop,
-            isActive: pathname.startsWith("/kick/overlays"),
-            disabled: true,
-          },
-          {
-            title: "Live Tools",
-            href: "/kick/live-tools",
-            icon: IconActivity,
-            isActive: pathname.startsWith("/kick/live-tools"),
-            disabled: true,
-          },
-          {
-            title: "Settings",
-            href: "/kick/settings",
-            icon: IconSettings,
-            isActive: pathname.startsWith("/kick/settings"),
-            disabled: true,
-          },
-        ],
-      },
-    ],
-    twitch: [
-      {
-        items: [
-          {
-            title: "Overview",
-            href: "/twitch",
-            icon: IconHome,
-            isActive: pathname === "/twitch",
-          },
-          {
-            title: "Chat Bot",
-            href: "/twitch/chat-bot",
-            icon: IconRobot,
-            isActive: pathname.startsWith("/twitch/chat-bot"),
-            disabled: true,
-          },
-          {
-            title: "EventSub",
-            href: "/twitch/eventsub",
-            icon: IconWebhook,
-            isActive: pathname.startsWith("/twitch/eventsub"),
-            disabled: true,
-          },
-          {
-            title: "Overlays",
-            href: "/twitch/overlays",
-            icon: IconDeviceDesktop,
-            isActive: pathname.startsWith("/twitch/overlays"),
-            disabled: true,
-          },
-          {
-            title: "Live Tools",
-            href: "/twitch/live-tools",
-            icon: IconActivity,
-            isActive: pathname.startsWith("/twitch/live-tools"),
-            disabled: true,
-          },
-          {
-            title: "Settings",
-            href: "/twitch/settings",
-            icon: IconSettings,
-            isActive: pathname.startsWith("/twitch/settings"),
-            disabled: true,
-          },
-        ],
-      },
-    ],
+    kick: [],
+    twitch: [],
   }
 
   return (
     <AppShell
       footerNavSections={[]}
       navSections={platformNavSections[currentArea]}
-      showDiscordGuildSelect={currentArea !== "staff"}
-      showPlatformSelector={currentArea !== "staff"}
+      showDiscordGuildSelect={currentArea === "discord"}
+      showPlatformSelector={currentArea === "kick" || currentArea === "twitch"}
       staffEntry={staffEntry}
     >
       {children}

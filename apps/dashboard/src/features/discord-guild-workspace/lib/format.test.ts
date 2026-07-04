@@ -32,10 +32,7 @@ test("bot status labels prefer strongest installation state", () => {
     "Gateway Synced"
   )
   assert.equal(
-    getBotStatusLabel(
-      false,
-      { botInstallationVerifiedAt: 1 } as GuildOverview
-    ),
+    getBotStatusLabel(false, { botInstallationVerifiedAt: 1 } as GuildOverview),
     "REST Verified"
   )
   assert.equal(

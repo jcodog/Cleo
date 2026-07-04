@@ -8,12 +8,11 @@ import {
   ToggleGroupItem,
 } from "@workspace/ui/components/toggle-group"
 import { Discord } from "@workspace/ui/components/ui/svgs/discord"
-import { KickDark } from "@workspace/ui/components/ui/svgs/kickDark"
-import { Twitch } from "@workspace/ui/components/ui/svgs/twitch"
 
 import type { AppShellPlatform } from "@/components/stores/app-shell-store"
+import { RELEASE_PLATFORMS } from "@/features/app-shell/routes"
 
-const PLATFORM_OPTIONS: {
+type PlatformOption = {
   label: string
   value: AppShellPlatform
   icon: ComponentType<{
@@ -23,7 +22,9 @@ const PLATFORM_OPTIONS: {
   iconClassName: string
   enabled: boolean
   href: string
-}[] = [
+}
+
+const ALL_PLATFORM_OPTIONS: PlatformOption[] = [
   {
     label: "Discord",
     value: "discord",
@@ -32,23 +33,11 @@ const PLATFORM_OPTIONS: {
     enabled: true,
     href: "/dashboard",
   },
-  {
-    label: "Kick",
-    value: "kick",
-    icon: KickDark,
-    iconClassName: "size-auto h-4 w-11 brightness-0 dark:brightness-100",
-    enabled: true,
-    href: "/kick",
-  },
-  {
-    label: "Twitch",
-    value: "twitch",
-    icon: Twitch,
-    iconClassName: "size-5",
-    enabled: true,
-    href: "/twitch",
-  },
 ]
+
+const PLATFORM_OPTIONS = ALL_PLATFORM_OPTIONS.filter((option) =>
+  RELEASE_PLATFORMS.includes(option.value as (typeof RELEASE_PLATFORMS)[number])
+)
 
 function getPlatformFromPathname(pathname: string): AppShellPlatform {
   if (pathname === "/kick" || pathname.startsWith("/kick/")) {
@@ -72,7 +61,7 @@ export function AppPlatformSelector() {
       <p className="text-xs font-medium text-sidebar-foreground/70">Platform</p>
       <ToggleGroup
         aria-label="Select platform"
-        className="grid w-full grid-cols-3 rounded-md border border-sidebar-border bg-sidebar-accent/30 p-0.5"
+        className="grid w-full grid-cols-1 rounded-md border border-sidebar-border bg-sidebar-accent/30 p-0.5"
         size="default"
         value={[currentPlatform]}
         onValueChange={(value) => {
