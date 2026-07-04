@@ -1,0 +1,36 @@
+.github/coverage-baseline.md
+  s_3190e50d27aa63::t_07c2515016c7c4 29-31,33-36
+turbo.json
+  s_3190e50d27aa63::t_422130dc3dbb6c 16-17
+packages/backend/convex/mutations/bot/discord/supportTickets/openOrResume.ts
+  s_3190e50d27aa63::t_6d6ec347dcd4c5 40
+packages/backend/package.json
+  s_3190e50d27aa63::t_f6f5ad80f18fcd 28
+  s_3190e50d27aa63::t_62fce3683f812e 13
+.github/workflows/regression.yml
+  s_3190e50d27aa63::t_07c2515016c7c4 29
+packages/backend/convex/supportHandlers.test.ts
+  s_3190e50d27aa63::t_e9c8dcf0a68632 278
+  s_3190e50d27aa63::t_092b3e1f23cc8e 61-71,83,95-109,119-132
+  s_3190e50d27aa63::t_86210b9e74762d 281
+  s_3190e50d27aa63::t_f18652149d1afd 3,313
+  s_3190e50d27aa63::t_6d6ec347dcd4c5 1-2,4-60,72-82,84-94,110-118,133-277,279-280,282-312,314-334
+pnpm-lock.yaml
+  s_3190e50d27aa63::t_0be005f90145e7 244,251-253,2062-2063,2068-2069,2074-2075,2080-2081,2086-2087,2092-2093,2098-2099,2104-2105,2364-2368,5879,5882,5885,5888,5891,5894,5897,5900,5902-5908,6185-6188
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2366efae0ae8dc87c2190c0e18c7fc736498a0e3",
+  "prompts": {},
+  "sessions": {
+    "s_3190e50d27aa63": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2ee6-07f4-7f32-bafb-985592338360",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
