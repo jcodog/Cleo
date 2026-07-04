@@ -1,0 +1,41 @@
+.github/scripts/deploy-discord.sh
+  s_3190e50d27aa63::t_22fb0403262892 120
+  s_3190e50d27aa63::t_657c0bcc5f8d6d 121
+  s_3190e50d27aa63::t_3ec4539257fecc 128
+  s_3190e50d27aa63::t_386d1054315639 1-119,122-127,129-155
+apps/discord-bot/package.json
+  s_3190e50d27aa63::t_6affd812e8ade0 28
+docs/discord-production-deployment.md
+  s_3190e50d27aa63::t_386d1054315639 1-40,42-75
+  s_3190e50d27aa63::t_25e1a84917aadc 41
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_3190e50d27aa63::t_6affd812e8ade0 1-11,13,15-34,45-49
+  s_3190e50d27aa63::t_6ba6ff7029691b 12,14
+  s_3190e50d27aa63::t_20f42552e86819 35-44
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_3190e50d27aa63::t_206054f73d93a3 14,23
+  s_3190e50d27aa63::t_6affd812e8ade0 1-13,15-20,22,24-49,54,56-62,64-65,69-81,91
+  s_3190e50d27aa63::t_b8bf6d503d52ad 21,50-53,66-68
+  s_3190e50d27aa63::t_6ba6ff7029691b 55,63,82-90
+.github/workflows/discord-production.yml
+  s_3190e50d27aa63::t_386d1054315639 1-39,70-71,74-123
+  s_3190e50d27aa63::t_3ec4539257fecc 40-69,72-73
+pnpm-lock.yaml
+  s_3190e50d27aa63::t_93bf784637aa10 195-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "920dcd0f63759670bdd1f944a89e4772df42c6ea",
+  "prompts": {},
+  "sessions": {
+    "s_3190e50d27aa63": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2ee6-07f4-7f32-bafb-985592338360",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
