@@ -1,0 +1,58 @@
+packages/backend/convex/mutations/bot/discord/runtimeErrors/record.ts
+  s_a2d9b13320447b::t_41f796511cb241 15,54-68,152,233
+  s_a2d9b13320447b::t_777744ef0322ec 42-44,75
+  s_a2d9b13320447b::t_f5a7d6a36aafff 70-74,196
+  s_a2d9b13320447b::t_3718f94739774e 69
+apps/discord-bot/src/services/guildEventLogging.ts
+  s_a2d9b13320447b::t_799578e230a34c 29,521
+pnpm-workspace.yaml
+  s_a2d9b13320447b::t_f3ccbe4d04f0c9 14
+apps/discord-bot/src/services/guildEventLogging.test.ts
+  s_a2d9b13320447b::t_799578e230a34c 834,840-843
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  s_a2d9b13320447b::t_0efcbe1f7fb23d 287,316-349
+  s_a2d9b13320447b::t_2b76a2c44ca294 350
+.github/scripts/deploy-discord.sh
+  s_a2d9b13320447b::t_59ba3a427fc3aa 79-80,85,88-104,155,161
+packages/backend/convex/mutations/bot/discord/runtimeErrors/record.test.ts
+  s_a2d9b13320447b::t_777744ef0322ec 26
+  s_a2d9b13320447b::t_f5a7d6a36aafff 7,109,121-126
+  s_a2d9b13320447b::t_41f796511cb241 8,111-120
+  s_a2d9b13320447b::t_0f64680abb963d 110
+packages/logger/src/index.test.ts
+  s_a2d9b13320447b::t_a8dcebda9b99a1 78-84
+apps/discord-bot/src/services/runtimeErrorReporter.ts
+  s_a2d9b13320447b::t_6dec6c11cb1c77 53,57-60
+packages/logger/src/index.ts
+  s_a2d9b13320447b::t_a8dcebda9b99a1 34,36
+apps/discord-bot/src/scripts/registerCommands.ts
+  s_a2d9b13320447b::t_777744ef0322ec 213,239,261-266
+  s_a2d9b13320447b::t_0efcbe1f7fb23d 257
+.github/workflows/discord-production.yml
+  s_a2d9b13320447b::t_0efcbe1f7fb23d 42,74-76
+apps/discord-bot/src/runtime/shutdown.ts
+  s_a2d9b13320447b::t_8b906e57df0564 58,72-78,106,131-141,153,163,168-176,179-186
+apps/discord-bot/src/runtime/shutdown.test.ts
+  s_a2d9b13320447b::t_8b906e57df0564 92-93,96-98,104-105,121,131,144,148,150,163
+apps/discord-bot/src/services/runtimeErrorReporter.test.ts
+  s_a2d9b13320447b::t_6dec6c11cb1c77 151-181
+  s_a2d9b13320447b::t_36b44e488b377b 150,182
+pnpm-lock.yaml
+  s_a2d9b13320447b::t_77f0b738765d60 22-23,79,149,201,238,269,417,420,1968-1970,3913-3915,4783,4786,4788,4791,4793,4795-4796,4798,4800,4804,4811,4813,4815-4817,4819,4821,4823-4824,4827,4829,4834,4838,4840-4841,4843,4845,4847-4848,4850,4852,4855-4856,4858-4871,4873,4875,4877-4878,4881,4883,4885,4887,4890,4892,4895,4897,4900,4902,4904,5305,5307,5356-5359,7240-7241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "2c77e33f4b60ff8b11da9f104c68a85fcf6ea44c",
+  "prompts": {},
+  "sessions": {
+    "s_a2d9b13320447b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4dda-d2b8-7650-9cbb-ce9e5f2f9afe",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
