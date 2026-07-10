@@ -17,6 +17,8 @@ jobs:
     environment: discord-production
     runs-on: [self-hosted, linux, x64, cleo-prod]
     timeout-minutes: 5
+    env:
+      COREPACK_HOME: /opt/corepack
 
     steps:
       - name: Verify host identity and release toolchain
