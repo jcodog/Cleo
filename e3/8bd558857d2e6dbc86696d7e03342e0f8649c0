@@ -1,0 +1,21 @@
+.github/workflows/discord-runner-smoke.yml
+  s_a2d9b13320447b::t_59cadba53fa18c 16,22
+actionlint.yaml
+  s_a2d9b13320447b::t_59cadba53fa18c 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "e38bd558857d2e6dbc86696d7e03342e0f8649c0",
+  "prompts": {},
+  "sessions": {
+    "s_a2d9b13320447b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4dda-d2b8-7650-9cbb-ce9e5f2f9afe",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
