@@ -1,0 +1,23 @@
+packages/backend/convex/_generated/api.d.ts
+  s_a2d9b13320447b::t_15b23a5c8efe87 109,431,1174,1202,1243,1290,1372,1448,1489,1958,2006,2803,2822,4522,5016,5159
+packages/backend/convex/_generated/dataModel.d.ts
+  s_a2d9b13320447b::t_15b23a5c8efe87 184
+docs/discord-production-deployment.md
+  s_a2d9b13320447b::t_e373883b0e6243 11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "4f7542196f071a5b125039640708fd7d6f96936b",
+  "prompts": {},
+  "sessions": {
+    "s_a2d9b13320447b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4dda-d2b8-7650-9cbb-ce9e5f2f9afe",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
