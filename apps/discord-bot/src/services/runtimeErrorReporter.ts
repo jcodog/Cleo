@@ -48,16 +48,16 @@ export async function reportDiscordRuntimeError(
 ): Promise<DiscordBotRuntimeErrorReportResult | null> {
   const sendReport = options.sendReport ?? convexBotClient.reportRuntimeError
   const logError = options.logError ?? botLogError
-  const report = buildDiscordRuntimeErrorReport(input)
 
   try {
+    const report = buildDiscordRuntimeErrorReport(input)
     return await sendReport(report)
   } catch (error) {
     logError("Discord runtime error reporting failed.", error, {
-      originalServiceArea: report.serviceArea,
-      originalSeverity: report.severity,
-      originalOperation: report.operation,
-      originalDiscordGuildId: report.discordGuildId,
+      originalServiceArea: input.serviceArea,
+      originalSeverity: input.severity,
+      originalOperation: input.operation,
+      originalDiscordGuildId: input.discordGuildId,
     })
     return null
   }

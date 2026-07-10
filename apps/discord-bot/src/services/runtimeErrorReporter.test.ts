@@ -147,3 +147,36 @@ test("reportDiscordRuntimeError swallows reporting failure and logs locally", as
     originalDiscordGuildId: "111111111111111111",
   })
 })
+
+test("reportDiscordRuntimeError swallows report construction failures", async () => {
+  let sendCalled = false
+  let loggedError: unknown
+  const metadata = Object.defineProperty({}, "broken", {
+    enumerable: true,
+    get() {
+      throw new Error("metadata unavailable")
+    },
+  })
+
+  const response = await reportDiscordRuntimeError(
+    {
+      severity: "critical",
+      serviceArea: "startup",
+      metadata,
+    },
+    {
+      sendReport: async () => {
+        sendCalled = true
+        return null
+      },
+      logError: (_message, error) => {
+        loggedError = error
+      },
+    }
+  )
+
+  assert.equal(response, null)
+  assert.equal(sendCalled, false)
+  assert.ok(loggedError instanceof Error)
+  assert.match(loggedError.message, /metadata unavailable/)
+})

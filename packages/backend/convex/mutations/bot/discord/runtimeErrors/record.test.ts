@@ -4,6 +4,8 @@ import { test } from "node:test"
 import {
   assertValidDiscordGuildId,
   buildFingerprint,
+  getRuntimeErrorLastSeenAt,
+  normaliseRuntimeErrorOccurredAt,
   normaliseOptionalString,
   sanitiseMetadata,
 } from "./record"
@@ -21,9 +23,7 @@ test("runtime error strings are trimmed, redacted, and truncated", () => {
 })
 
 test("runtime error Discord guild IDs must be snowflakes", () => {
-  assert.doesNotThrow(() =>
-    assertValidDiscordGuildId("111111111111111111")
-  )
+  assert.doesNotThrow(() => assertValidDiscordGuildId("111111111111111111"))
 
   assert.doesNotThrow(() => assertValidDiscordGuildId(undefined))
 
@@ -106,4 +106,21 @@ test("runtime error fingerprint is bounded", () => {
 
   assert.equal(fingerprint.length, 512)
   assert.equal(fingerprint.endsWith("…"), true)
+})
+
+test("runtime error timestamps are bounded and default to now", () => {
+  const now = 1_000_000
+
+  assert.equal(normaliseRuntimeErrorOccurredAt(undefined, now), now)
+  assert.equal(normaliseRuntimeErrorOccurredAt(now - 1, now), now - 1)
+  assert.throws(() => normaliseRuntimeErrorOccurredAt(-1, now))
+  assert.throws(() =>
+    normaliseRuntimeErrorOccurredAt(now + 5 * 60 * 1_000 + 1, now)
+  )
+  assert.throws(() => normaliseRuntimeErrorOccurredAt(1.5, now))
+})
+
+test("deduplicated runtime errors never move last-seen time backwards", () => {
+  assert.equal(getRuntimeErrorLastSeenAt(200, 100), 200)
+  assert.equal(getRuntimeErrorLastSeenAt(200, 300), 300)
 })

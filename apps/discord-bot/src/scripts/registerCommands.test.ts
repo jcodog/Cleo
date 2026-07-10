@@ -284,7 +284,7 @@ test("failed global replacement is not preceded by a destructive clear", async (
   ])
 })
 
-test("guild registration installs guild payload before global cleanup", async (t) => {
+test("guild registration preserves global commands by default", async (t) => {
   t.mock.method(console, "log", () => undefined)
 
   const guildCommand = commandData({
@@ -311,6 +311,41 @@ test("guild registration installs guild payload before global cleanup", async (t
     applicationId,
     rest,
     commandData: [guildCommand, userOnlyCommand],
+  })
+
+  assert.deepEqual(calls, [
+    {
+      route: Routes.applicationGuildCommands(applicationId, guildId),
+      body: [
+        {
+          name: "help",
+          description: "Check whether Cleo is responding",
+        },
+      ],
+    },
+  ])
+})
+
+test("guild registration performs explicit global cleanup after install", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+
+  const guildCommand = commandData({
+    name: "help",
+    contexts: [InteractionContextType.Guild, InteractionContextType.BotDM],
+    integration_types: [
+      ApplicationIntegrationType.GuildInstall,
+      ApplicationIntegrationType.UserInstall,
+    ],
+  })
+  const { calls, rest } = createRecordingRest()
+
+  await registerCommands({
+    args: ["node", "register", "--guild", guildId],
+    token: "token",
+    applicationId,
+    rest,
+    commandData: [guildCommand],
+    cleanupGlobalCommandsAfterGuildRegistration: true,
   })
 
   assert.deepEqual(calls, [

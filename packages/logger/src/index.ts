@@ -31,9 +31,9 @@ const AUTHORIZATION_PATTERN =
 const COOKIE_PATTERN =
   /\b(cookie|set-cookie)\s*[:=]\s*[^,\n\r]+?(?=\s+[a-z][a-z0-9+.-]*:\/\/|\s+\w+\s*[:=]|$|,)/gi
 const SENSITIVE_QUERY_PARAM_PATTERN =
-  /([?&](?:api[_-]?key|authorization|auth|cookie|jwt|password|refresh[_-]?token|secret|session|token)=)[^&#\s)]+/gi
+  /([?&](?:api[_-]?key|authorization|auth|cookie|credential|jwt|password|refresh[_-]?token|secret|session|(?:[a-z0-9]+[_-])+token|token)=)[^&#\s)]+/gi
 const SENSITIVE_ASSIGNMENT_PATTERN =
-  /\b(api[_-]?key|authorization|auth|cookie|jwt|password|refresh[_-]?token|secret|session|token)\s*=\s*[^\s,;)]+/gi
+  /\b(api[_-]?key|authorization|auth|cookie|credential|jwt|password|refresh[_-]?token|secret|session|(?:[a-z0-9]+[_-])+token|token)\s*=\s*[^\s,;)]+/gi
 const URL_CREDENTIAL_PATTERN =
   /\b([a-z][a-z0-9+.-]*:\/\/)([^/@\s:]+):([^/@\s]+)@/gi
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi

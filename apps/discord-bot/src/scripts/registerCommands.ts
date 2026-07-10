@@ -210,9 +210,7 @@ export function validateCommandData(commandData: CommandData[]) {
   }
 }
 
-export async function registerCommands(
-  options: RegisterCommandsOptions = {}
-) {
+export async function registerCommands(options: RegisterCommandsOptions = {}) {
   const token = options.token ?? discordEnv.DISCORD_BOT_TOKEN
   const applicationId =
     options.applicationId ?? discordEnv.DISCORD_APPLICATION_ID
@@ -238,8 +236,7 @@ export async function registerCommands(
     )
   }
 
-  const rest =
-    options.rest ?? new REST({ version: "10" }).setToken(token)
+  const rest = options.rest ?? new REST({ version: "10" }).setToken(token)
 
   const globalRoute = Routes.applicationCommands(applicationId)
 
@@ -257,11 +254,16 @@ export async function registerCommands(
 
   if (
     target.type === "guild" &&
-    (options.cleanupGlobalCommandsAfterGuildRegistration ?? true)
+    options.cleanupGlobalCommandsAfterGuildRegistration === true
   ) {
     // Guild commands are installed first. If cleanup fails, stale global commands
     // remain temporarily instead of deleting the working command surface first.
-    await overwriteCommandScope(rest, globalRoute, "global application commands", [])
+    await overwriteCommandScope(
+      rest,
+      globalRoute,
+      "global application commands",
+      []
+    )
   }
 }
 

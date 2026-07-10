@@ -76,16 +76,32 @@ rollback_to() {
     return 1
   fi
 
-  switch_release "$target_sha"
-  check_health
+  switch_release "$target_sha" || return 1
+  check_health || return 1
 
   local target_command_sha
   target_command_sha="$(<"$releases_dir/$target_sha/.cleo-command-sha")"
   if [[ "$target_command_sha" != "$command_sha" ]]; then
-    register_commands "$target_sha"
+    register_commands "$target_sha" || return 1
   fi
 
-  write_state "$target_sha" "$failed_sha" "$target_command_sha"
+  write_state "$target_sha" "$failed_sha" "$target_command_sha" || return 1
+}
+
+restore_after_failed_deploy() {
+  local failure_message="$1"
+  local failed_sha="$2"
+
+  if ! is_sha "$application_sha" || [[ ! -d "$releases_dir/$application_sha" ]]; then
+    echo "$failure_message; no previous release is available." >&2
+    return
+  fi
+
+  if rollback_to "$application_sha" "$failed_sha"; then
+    echo "$failure_message; restored $application_sha" >&2
+  else
+    echo "$failure_message; rollback to $application_sha also failed." >&2
+  fi
 }
 
 mkdir -p "$releases_dir" "$shared_dir"
@@ -136,15 +152,13 @@ printf '%s\n' "$next_command_sha" > "$release_dir/.cleo-command-sha"
 switch_release "$sha"
 if ! check_health; then
   systemctl --user status "$service_name" --no-pager || true
-  rollback_to "$application_sha" "$sha"
-  echo "Discord health verification failed; restored $application_sha" >&2
+  restore_after_failed_deploy "Discord health verification failed" "$sha"
   exit 1
 fi
 
 if [[ "$register_commands_for_release" == "true" ]]; then
   if ! register_commands "$sha"; then
-    rollback_to "$application_sha" "$sha"
-    echo "Command registration failed; restored $application_sha" >&2
+    restore_after_failed_deploy "Command registration failed" "$sha"
     exit 1
   fi
 else

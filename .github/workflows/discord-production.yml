@@ -39,6 +39,7 @@ concurrency:
 jobs:
   classify:
     name: Classify Discord changes
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       deploy: ${{ steps.changes.outputs.deploy }}
@@ -70,7 +71,9 @@ jobs:
   deploy:
     name: Validate and deploy Discord bot
     needs: classify
-    if: needs.classify.outputs.deploy == 'true'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      needs.classify.outputs.deploy == 'true'
     environment: discord-production
     runs-on: [self-hosted, linux, x64, cleo-prod]
 

@@ -831,13 +831,16 @@ test("formatter includes actor and reason and falls back to channel targets", ()
     targetType: "channel",
     channelId,
     actorDiscordUserId: userId,
-    reason: "cleanup",
+    reason: "cleanup token=secret user@example.com",
     occurredAt: now,
     dedupeKey: `channelDelete:${guildId}:${channelId}:${now}`,
   })
 
   assert.match(message.content ?? "", new RegExp(`Actor: ${userId}`))
-  assert.match(message.content ?? "", /Reason: cleanup/)
+  assert.match(
+    message.content ?? "",
+    /Reason: cleanup token=\[redacted\] \[redacted\]/
+  )
   assert.match(message.content ?? "", new RegExp(channelId))
 
   const unknownTarget = formatGuildEventLogMessage({

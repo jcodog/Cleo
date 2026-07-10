@@ -26,6 +26,7 @@ import {
   type DiscordRuntimeErrorReporter,
 } from "@/services/runtimeErrorReporter"
 import { botLogError } from "@/utils/botLog"
+import { redactLogText } from "@workspace/logger"
 import type { DiscordGuildRuntimeConfigLogLevel } from "@workspace/shared/discordRuntimeConfig"
 
 type RuntimeConfigFetcher = (
@@ -517,7 +518,7 @@ export function formatGuildEventLogMessage(
     `Target: ${formatTarget(event)}`,
     `Time: <t:${Math.floor(event.occurredAt / 1000)}:F>`,
     ...(event.actorDiscordUserId ? [`Actor: ${event.actorDiscordUserId}`] : []),
-    ...(event.reason ? [`Reason: ${event.reason}`] : []),
+    ...(event.reason ? [`Reason: ${redactLogText(event.reason)}`] : []),
   ]
 
   return {

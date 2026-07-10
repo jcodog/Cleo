@@ -89,15 +89,20 @@ test("shutdown logs cleanup failures and still exits", async (t) => {
   const client = createClient()
   const logLines: string[] = []
   const exitCodes: number[] = []
-  const unregisterCleanup = registerCleanupHook(() => {
+  const cleanupCalls: string[] = []
+  const unregisterFailingCleanup = registerCleanupHook(() => {
     throw new Error("cleanup failed token=secret")
+  })
+  const unregisterSuccessfulCleanup = registerCleanupHook(() => {
+    cleanupCalls.push("cleanup")
   })
 
   t.mock.method(console, "log", (line: string) => {
     logLines.push(line)
   })
   t.after(() => {
-    unregisterCleanup()
+    unregisterFailingCleanup()
+    unregisterSuccessfulCleanup()
     process.exitCode = previousExitCode
   })
 
@@ -113,6 +118,7 @@ test("shutdown logs cleanup failures and still exits", async (t) => {
 
   assert.equal(client.destroyedForTest, true)
   assert.deepEqual(exitCodes, [0])
+  assert.deepEqual(cleanupCalls, ["cleanup"])
   assert.equal(logLines.length, 2)
   assert.match(logLines[1] ?? "", /cleanup failed token=\[redacted\]/)
   assert.match(logLines[1] ?? "", /"reason":"SIGINT"/)
@@ -122,6 +128,7 @@ test("fatal shutdown reports one startup runtime incident", async (t) => {
   const previousExitCode = process.exitCode
   const client = createClient()
   const reports: DiscordRuntimeErrorReportInput[] = []
+  const sequence: string[] = []
 
   t.mock.method(console, "log", () => undefined)
   t.after(() => {
@@ -134,10 +141,13 @@ test("fatal shutdown reports one startup runtime incident", async (t) => {
     exitCode: 1,
     error: new Error("startup failed"),
     exit() {
+      sequence.push("exit")
       return undefined
     },
     async reportRuntimeError(input) {
+      await new Promise((resolve) => setImmediate(resolve))
       reports.push(input)
+      sequence.push("report")
       return null
     },
   })
@@ -150,6 +160,7 @@ test("fatal shutdown reports one startup runtime incident", async (t) => {
     reports[0]?.fingerprint,
     "startup:startupOrFatalShutdown:startupFailure:bot"
   )
+  assert.deepEqual(sequence, ["report", "exit"])
 })
 
 test("startup runtime reporter failure is swallowed locally", async (t) => {
@@ -178,8 +189,6 @@ test("startup runtime reporter failure is swallowed locally", async (t) => {
       },
     })
   })
-  await new Promise((resolve) => setImmediate(resolve))
-
   assert.equal(logLines.length, 2)
   assert.match(
     logLines[1] ?? "",

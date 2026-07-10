@@ -12,6 +12,7 @@ const MAX_MESSAGE_LENGTH = 2_000
 const MAX_STACK_LENGTH = 8_000
 const MAX_METADATA_JSON_LENGTH = 10_000
 const MAX_FINGERPRINT_LENGTH = 512
+const MAX_EVENT_CLOCK_SKEW_MS = 5 * 60 * 1000
 
 const DISCORD_SNOWFLAKE_REGEX = /^\d{17,20}$/
 
@@ -38,7 +39,9 @@ export const normaliseOptionalString = (
   return truncate(redactLogText(normalised), maxLength)
 }
 
-export const assertValidDiscordGuildId = (discordGuildId: string | undefined) => {
+export const assertValidDiscordGuildId = (
+  discordGuildId: string | undefined
+) => {
   if (!discordGuildId) {
     return
   }
@@ -47,6 +50,28 @@ export const assertValidDiscordGuildId = (discordGuildId: string | undefined) =>
     throw new ConvexError("Invalid Discord guild ID.")
   }
 }
+
+export const normaliseRuntimeErrorOccurredAt = (
+  occurredAt: number | undefined,
+  now: number
+): number => {
+  const value = occurredAt ?? now
+
+  if (
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > now + MAX_EVENT_CLOCK_SKEW_MS
+  ) {
+    throw new ConvexError("Invalid runtime error timestamp.")
+  }
+
+  return value
+}
+
+export const getRuntimeErrorLastSeenAt = (
+  existingLastSeenAt: number,
+  occurredAt: number
+): number => Math.max(existingLastSeenAt, occurredAt)
 
 export const sanitiseMetadata = (
   metadata: RuntimeErrorMetadata | undefined
@@ -124,7 +149,7 @@ export const record = internalMutation({
     assertValidDiscordGuildId(args.discordGuildId)
 
     const now = Date.now()
-    const occurredAt = args.occurredAt ?? now
+    const occurredAt = normaliseRuntimeErrorOccurredAt(args.occurredAt, now)
 
     const message = normaliseOptionalString(args.message, MAX_MESSAGE_LENGTH)
 
@@ -168,7 +193,7 @@ export const record = internalMutation({
         eventName,
         operation,
         metadata,
-        lastSeenAt: occurredAt,
+        lastSeenAt: getRuntimeErrorLastSeenAt(existing.lastSeenAt, occurredAt),
         occurrenceCount,
         updatedAt: now,
       })

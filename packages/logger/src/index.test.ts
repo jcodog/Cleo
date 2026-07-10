@@ -75,6 +75,13 @@ test("redactLogText redacts common secret-bearing text", () => {
     redactLogText("user email is person@example.com"),
     "user email is [redacted]"
   )
+
+  assert.equal(
+    redactLogText(
+      "Set-Cookie: oauth_state=foo; access_token=bar temp_token=secret2 credential=hidden https://example.com?credential=query"
+    ),
+    "Set-Cookie=[redacted] access_token=[redacted] temp_token=[redacted] credential=[redacted] https://example.com?credential=[redacted]"
+  )
 })
 
 test("serializeLogError preserves useful error details after redaction", () => {
