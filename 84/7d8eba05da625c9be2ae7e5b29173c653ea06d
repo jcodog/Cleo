@@ -1,0 +1,22 @@
+.github/workflows/discord-production.yml
+  s_a2d9b13320447b::t_48170384c90a65 75,99-102,107-110,115-118,123-126,131-135
+  s_a2d9b13320447b::t_5d5cf0276c75f9 136
+docs/discord-production-deployment.md
+  s_a2d9b13320447b::t_48170384c90a65 9-12,30,53,64-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "847d8eba05da625c9be2ae7e5b29173c653ea06d",
+  "prompts": {},
+  "sessions": {
+    "s_a2d9b13320447b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4dda-d2b8-7650-9cbb-ce9e5f2f9afe",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
