@@ -181,13 +181,7 @@ export type DataModel = {
         vitality: number;
       };
       element:
-        | "neutral"
-        | "ember"
-        | "tide"
-        | "bloom"
-        | "spark"
-        | "frost"
-        | "shadow";
+        "neutral" | "ember" | "tide" | "bloom" | "spark" | "frost" | "shadow";
       equippedCosmeticKeys: Array<string>;
       evolutionStage: "base" | "evolved" | "ascended";
       growthStats: {

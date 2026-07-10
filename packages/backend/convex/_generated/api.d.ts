@@ -106,8 +106,7 @@ export declare const api: {
                     supportTargetId?: string;
                     supportTargetType?: "channel" | "thread" | "forum";
                     supportTranscriptPolicy?:
-                      | "metadata-only"
-                      | "explicit-messages";
+                      "metadata-only" | "explicit-messages";
                     updatesChannelId?: string;
                     welcomeChannelId?: string;
                     welcomeEnabled: boolean;
@@ -429,11 +428,7 @@ export declare const api: {
                   targetDiscordId?: string;
                   targetDisplayName?: string;
                   targetType:
-                    | "member"
-                    | "user"
-                    | "channel"
-                    | "role"
-                    | "message";
+                    "member" | "user" | "channel" | "role" | "message";
                 };
                 secret: string;
               },
@@ -1176,8 +1171,7 @@ export declare const api: {
               | {
                   discordGuildId: string;
                   reason:
-                    | "discordBotTokenUnavailable"
-                    | "discordApiUnavailable";
+                    "discordBotTokenUnavailable" | "discordApiUnavailable";
                   status: "auditLogSyncUnavailable";
                 }
               | {
@@ -1205,10 +1199,7 @@ export declare const api: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;
@@ -1249,10 +1240,7 @@ export declare const api: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;
@@ -1299,8 +1287,7 @@ export declare const api: {
               | {
                   discordGuildId: string;
                   reason:
-                    | "guildNotFoundForUser"
-                    | "missingManageGuildPermission";
+                    "guildNotFoundForUser" | "missingManageGuildPermission";
                   status: "forbidden";
                 }
               | {
@@ -1382,8 +1369,7 @@ export declare const api: {
                 }
               | {
                   reason:
-                    | "guildNotFoundForUser"
-                    | "missingManageGuildPermission";
+                    "guildNotFoundForUser" | "missingManageGuildPermission";
                   status: "forbidden";
                 }
               | {
@@ -1459,10 +1445,7 @@ export declare const api: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;
@@ -1503,10 +1486,7 @@ export declare const api: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;
@@ -1975,9 +1955,7 @@ export declare const api: {
                       isOwner?: boolean;
                       lastSyncedAt?: number;
                       managementVerificationSource?:
-                        | "discord-bot"
-                        | "discord-oauth"
-                        | "manual";
+                        "discord-bot" | "discord-oauth" | "manual";
                       managementVerifiedAt?: number;
                       membershipId: Id<"discordGuildMemberships">;
                       permissions?: string;
@@ -2025,9 +2003,7 @@ export declare const api: {
                       isOwner?: boolean;
                       lastSyncedAt?: number;
                       managementVerificationSource?:
-                        | "discord-bot"
-                        | "discord-oauth"
-                        | "manual";
+                        "discord-bot" | "discord-oauth" | "manual";
                       managementVerifiedAt?: number;
                       membershipId: Id<"discordGuildMemberships">;
                       permissions?: string;
@@ -2824,11 +2800,7 @@ export declare const internal: {
                   targetDiscordId?: string;
                   targetDisplayName?: string;
                   targetType:
-                    | "member"
-                    | "user"
-                    | "channel"
-                    | "role"
-                    | "message";
+                    "member" | "user" | "channel" | "role" | "message";
                 };
               },
               { deduplicated: boolean; id: Id<"discordGuildEvents"> }
@@ -2847,9 +2819,7 @@ export declare const internal: {
                 isOwner?: boolean;
                 lastSyncedAt?: number;
                 managementVerificationSource:
-                  | "discord-bot"
-                  | "discord-oauth"
-                  | "manual";
+                  "discord-bot" | "discord-oauth" | "manual";
                 managementVerifiedAt: number;
                 permissions?: string;
                 userId?: Id<"users">;
@@ -4549,9 +4519,7 @@ export declare const internal: {
                 isOwner?: boolean;
                 lastSyncedAt: number;
                 managementVerificationSource:
-                  | "discord-bot"
-                  | "discord-oauth"
-                  | "manual";
+                  "discord-bot" | "discord-oauth" | "manual";
                 managementVerifiedAt: number;
                 memberCount?: number;
                 name: string;
@@ -5045,8 +5013,7 @@ export declare const internal: {
                     supportTargetId?: string;
                     supportTargetType?: "channel" | "thread" | "forum";
                     supportTranscriptPolicy?:
-                      | "metadata-only"
-                      | "explicit-messages";
+                      "metadata-only" | "explicit-messages";
                     updatesChannelId?: string;
                     welcomeChannelId?: string;
                     welcomeEnabled: boolean;
@@ -5189,10 +5156,7 @@ export declare const internal: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;

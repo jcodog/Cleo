@@ -8,7 +8,8 @@ integration remains responsible for dashboard deployment.
 
 The dedicated runner must use the labels `self-hosted`, `linux`, `x64`, and
 `cleo-discord-prod`. Run it under a least-privileged `cleo-discord` account with
-Node `24.15.0`, pnpm latest, and user systemd available.
+Node `24.15.0`, the pnpm version pinned in `package.json`, and user systemd
+available.
 
 Create these account-owned paths:
 
