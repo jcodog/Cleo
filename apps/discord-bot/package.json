@@ -18,14 +18,14 @@
     "commands:register:global": "tsx --env-file=.env.local src/scripts/registerCommands.ts --global"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.1",
+    "@napi-rs/canvas": "^1.0.2",
     "@workspace/backend": "workspace:*",
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
-    "convex": "^1.42.0",
+    "convex": "^1.42.1",
     "discord.js": "^14.26.4",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

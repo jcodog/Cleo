@@ -11,13 +11,14 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "tsx --test \"src/**/*.test.ts\" \"convex/**/*.test.ts\"",
     "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=. --include=\"src/lib/errors.ts\" --include=\"src/lib/ids.ts\" --include=\"src/lib/time.ts\" --include=\"convex/lib/discordGuildEvents.ts\" --include=\"convex/lib/discordModerationActions.ts\" --include=\"convex/lib/supportTickets.ts\" --include=\"convex/lib/validators.ts\" --include=\"convex/actions/bot/discord/supportTickets/openOrResume.ts\" --include=\"convex/mutations/bot/discord/supportTickets/openOrResume.ts\" --include=\"convex/mutations/dashboard/discord/guildSupportConfigs/update.ts\" --exclude=\"**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/packages/backend\" --temp-directory=\"../../.coverage-tmp/packages/backend\" tsx --test \"src/**/*.test.ts\" \"convex/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:native-preview": "tsgo --noEmit"
   },
   "dependencies": {
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
-    "convex": "^1.42.0",
+    "convex": "^1.42.1",
     "svix": "^1.96.1"
   },
   "devDependencies": {

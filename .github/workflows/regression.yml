@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check peer dependency compatibility
+        run: pnpm check:peers
+
       - name: Typecheck workspace
         run: pnpm typecheck
 
