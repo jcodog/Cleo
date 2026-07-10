@@ -9,9 +9,14 @@ import {
 
 test("Discord deploy paths include runtime and direct dependencies", () => {
   assert.equal(isDiscordDeployPath("apps/discord-bot/src/index.ts"), true)
-  assert.equal(isDiscordDeployPath("packages/backend/convex/schema.ts"), false)
+  assert.equal(isDiscordDeployPath("packages/backend/convex/schema.ts"), true)
   assert.equal(isDiscordDeployPath("packages/shared/src/index.ts"), true)
-  assert.equal(isDiscordDeployPath("pnpm-lock.yaml"), false)
+  assert.equal(isDiscordDeployPath("pnpm-lock.yaml"), true)
+  assert.equal(
+    isDiscordDeployPath(".github/workflows/discord-production.yml"),
+    true
+  )
+  assert.equal(isDiscordDeployPath(".github/scripts/deploy-discord.sh"), true)
   assert.equal(isDiscordDeployPath("apps/dashboard/src/app/page.tsx"), false)
 })
 
@@ -33,10 +38,7 @@ test("command registration paths exclude runtime-only changes", () => {
     false
   )
   assert.deepEqual(
-    classifyChangedPaths([
-      "apps/dashboard/src/app/page.tsx",
-      "pnpm-lock.yaml",
-    ]),
+    classifyChangedPaths(["apps/dashboard/src/app/page.tsx"]),
     {
       deploy: false,
       registerCommands: false,
@@ -45,5 +47,11 @@ test("command registration paths exclude runtime-only changes", () => {
   assert.deepEqual(
     classifyChangedPaths(["apps/discord-bot/src/runtime/startup.ts"]),
     { deploy: true, registerCommands: false }
+  )
+  assert.deepEqual(
+    classifyChangedPaths([
+      "apps/discord-bot/src/handlers/commands/utility/ping.ts",
+    ]),
+    { deploy: true, registerCommands: true }
   )
 })

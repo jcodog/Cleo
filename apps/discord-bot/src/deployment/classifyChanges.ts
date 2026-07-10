@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url"
 
 const DEPLOY_PREFIXES = [
   "apps/discord-bot/",
+  "packages/backend/",
   "packages/env/",
   "packages/logger/",
   "packages/shared/",
@@ -12,8 +13,11 @@ const DEPLOY_PREFIXES = [
 ] as const
 
 const DEPLOY_FILES = new Set<string>([
+  ".github/scripts/deploy-discord.sh",
+  ".github/workflows/discord-production.yml",
   ".nvmrc",
   "package.json",
+  "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "turbo.json",
 ])
