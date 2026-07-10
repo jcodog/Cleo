@@ -13,17 +13,13 @@ concurrency:
 jobs:
   smoke:
     name: Verify production runner contract
+    if: github.ref == 'refs/heads/main'
     environment: discord-production
     runs-on: [self-hosted, linux, x64, cleo-prod]
     timeout-minutes: 5
 
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.sha }}
-
-      - name: Verify host identity and toolchain
+      - name: Verify host identity and release toolchain
         shell: bash
         run: |
           set -euo pipefail
