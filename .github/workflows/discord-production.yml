@@ -72,7 +72,7 @@ jobs:
     needs: classify
     if: needs.classify.outputs.deploy == 'true'
     environment: discord-production
-    runs-on: [self-hosted, linux, x64, cleo-discord-prod]
+    runs-on: [self-hosted, linux, x64, cleo-prod]
 
     steps:
       - name: Checkout exact commit
@@ -96,21 +96,43 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
         run: pnpm install --frozen-lockfile
 
+      - name: Check peer dependency compatibility
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm check:peers
+
       - name: Test Discord bot
         if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
         run: pnpm --filter @workspace/discord-bot run test
+
+      - name: Test Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/backend run test
 
       - name: Typecheck Discord bot
         if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
         run: pnpm --filter @workspace/discord-bot run typecheck
 
+      - name: Typecheck Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/backend run typecheck
+
       - name: Lint Discord bot
         if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
         run: pnpm --filter @workspace/discord-bot run lint
 
+      - name: Lint Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/backend run lint
+
       - name: Build Discord bot
         if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
         run: pnpm --filter @workspace/discord-bot run build
+
+      - name: Deploy Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: pnpm --filter @workspace/backend run deploy
 
       - name: Deploy or roll back
         env:

@@ -6,10 +6,10 @@ integration remains responsible for dashboard deployment.
 
 ## Required VPS state
 
-The dedicated runner must use the labels `self-hosted`, `linux`, `x64`, and
-`cleo-discord-prod`. Run it under a least-privileged `cleo-discord` account with
-Node `24.15.0`, the pnpm version pinned in `package.json`, and user systemd
-available.
+The dedicated runner is `cleo-prod-london-01` with the labels `self-hosted`,
+`linux`, `x64`, and `cleo-prod`. Run it under the existing least-privileged
+`github-runner` account with Node `24.15.0`, the pnpm version pinned in
+`package.json`, and user systemd available.
 
 Create these account-owned paths:
 
@@ -27,7 +27,7 @@ runtime values used by `apps/discord-bot`. Do not put production secrets in the
 runner checkout or GitHub repository.
 
 Install this user service as
-`~/.config/systemd/user/cleo-discord.service`:
+`/home/github-runner/.config/systemd/user/cleo-discord.service`:
 
 ```ini
 [Unit]
@@ -50,7 +50,7 @@ WantedBy=default.target
 Enable lingering and the service once during VPS setup:
 
 ```bash
-loginctl enable-linger cleo-discord
+loginctl enable-linger github-runner
 systemctl --user daemon-reload
 systemctl --user enable cleo-discord.service
 ```
@@ -61,11 +61,14 @@ checkout, Node, pnpm, filesystem ownership, and `systemctl --user` access.
 
 ## Release and rollback
 
-The workflow validates the exact commit before touching the active release,
-deploys a standalone pnpm package into `releases/<sha>`, atomically switches the
-`current` symlink, restarts the user service, and requires it to remain active
-for 30 seconds. Deployment state records the application SHA, previous SHA, and
-command-registration SHA.
+The `discord-production` GitHub environment stores the production
+`CONVEX_DEPLOY_KEY` and permits deployments only from `main`. The workflow
+validates the exact commit before touching production, deploys the Convex
+backend, stages a standalone pnpm package into `releases/<sha>`, atomically
+switches the `current` symlink, restarts the user service, and requires it to
+remain active for 30 seconds. Deployment state records the application SHA,
+previous SHA, and command-registration SHA. Manual rollback does not redeploy
+the Convex backend.
 
 Command registration runs only when command definitions, the registry, command
 metadata, or registration tooling changed since the recorded command SHA.
