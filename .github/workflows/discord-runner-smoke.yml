@@ -1,0 +1,73 @@
+name: Discord Production Runner Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-production-runner-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Verify production runner contract
+    if: github.ref == 'refs/heads/main'
+    environment: discord-production
+    runs-on: [self-hosted, linux, x64, cleo-prod]
+    timeout-minutes: 5
+    env:
+      COREPACK_HOME: /opt/corepack
+
+    steps:
+      - name: Verify host identity and release toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = "github-runner"
+          test "$(uname -s)" = "Linux"
+          test "$(uname -m)" = "x86_64"
+          test "$(node --version)" = "v24.15.0"
+          test "$(cd /opt/cleo/discord && pnpm --version)" = "11.10.0"
+
+      - name: Verify deployment access without reading secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          deploy_root=/opt/cleo/discord
+          env_file="$deploy_root/shared/.env.production"
+
+          test -d "$deploy_root/releases"
+          test -w "$deploy_root/releases"
+          test -f "$env_file"
+          test -r "$env_file"
+          test "$(stat -c %a "$env_file")" = "600"
+          test "$(stat -c %U:%G "$env_file")" = "github-runner:github-runner"
+
+          for key in \
+            NODE_ENV \
+            DISCORD_BOT_TOKEN \
+            DISCORD_APPLICATION_ID \
+            DISCORD_CLIENT_ID \
+            CONVEX_URL \
+            DISCORD_BOT_CONVEX_SECRET \
+            DISCORD_BOT_RUNTIME_MODE \
+            DISCORD_BOT_SHARD_COUNT; do
+            grep -q "^${key}=" "$env_file"
+          done
+
+      - name: Verify user service and harmless release write
+        shell: bash
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          test "$(systemctl --user is-enabled cleo-discord.service)" = "enabled"
+          test "$(systemctl --user show cleo-discord.service -p LoadState --value)" = "loaded"
+
+          marker="/opt/cleo/discord/releases/.runner-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          trap 'rm -f "$marker"' EXIT
+          umask 077
+          : > "$marker"
+          test -O "$marker"
+          rm -f "$marker"
