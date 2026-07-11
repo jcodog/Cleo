@@ -1,0 +1,20 @@
+[Unit]
+Description=Register Cleo Discord global commands
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cleo
+Group=cleo
+SupplementaryGroups=cleo-deploy
+WorkingDirectory=/srv/cleo/discord-bot/current
+EnvironmentFile=/etc/cleo/discord-bot.env
+Environment=HOME=/home/cleo
+Environment=NVM_DIR=/home/cleo/.nvm
+ExecStart=/home/cleo/.nvm/nvm-exec node node_modules/tsx/dist/cli.mjs src/scripts/registerCommands.ts --global
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only

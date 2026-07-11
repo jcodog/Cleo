@@ -17,6 +17,14 @@ test("Discord deploy paths include runtime and direct dependencies", () => {
     true
   )
   assert.equal(isDiscordDeployPath(".github/scripts/deploy-discord.sh"), true)
+  assert.equal(
+    isDiscordDeployPath(".github/scripts/check-discord-runner.sh"),
+    true
+  )
+  assert.equal(
+    isDiscordDeployPath(".github/workflows/discord-runner-smoke.yml"),
+    false
+  )
   assert.equal(isDiscordDeployPath("apps/dashboard/src/app/page.tsx"), false)
 })
 
@@ -39,6 +47,13 @@ test("command registration paths exclude runtime-only changes", () => {
   )
   assert.deepEqual(
     classifyChangedPaths(["apps/dashboard/src/app/page.tsx"]),
+    {
+      deploy: false,
+      registerCommands: false,
+    }
+  )
+  assert.deepEqual(
+    classifyChangedPaths([".github/workflows/discord-runner-smoke.yml"]),
     {
       deploy: false,
       registerCommands: false,
