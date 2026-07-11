@@ -1,0 +1,21 @@
+packages/backend/convex/supportHandlers.test.ts
+  s_a2d9b13320447b::t_f114b4d42f06b4 217-226
+  s_a2d9b13320447b::t_6ef2fc0cb09b55 199,214,262-271
+  s_a2d9b13320447b::t_20ccfc479b9442 272-273
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "17cc00b26a7ecb990b8d3445bf12413ffb760416",
+  "prompts": {},
+  "sessions": {
+    "s_a2d9b13320447b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4dda-d2b8-7650-9cbb-ce9e5f2f9afe",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
