@@ -68,7 +68,7 @@ test("redactLogText redacts common secret-bearing text", () => {
     redactLogText(
       "authorization: Bearer token123 cookie=session=abc token=secret https://u:p@example.com/path?secret=value"
     ),
-    "authorization: Bearer [redacted] cookie=[redacted] token=[redacted] https://[redacted]@example.com/path?secret=[redacted]"
+    "authorization: [redacted] cookie=[redacted] token=[redacted] https://[redacted]@example.com/path?secret=[redacted]"
   )
 
   assert.equal(
@@ -81,6 +81,13 @@ test("redactLogText redacts common secret-bearing text", () => {
       "Set-Cookie: oauth_state=foo; access_token=bar temp_token=secret2 credential=hidden https://example.com?credential=query"
     ),
     "Set-Cookie=[redacted] access_token=[redacted] temp_token=[redacted] credential=[redacted] https://example.com?credential=[redacted]"
+  )
+
+  assert.equal(
+    redactLogText(
+      'token: secret password: "hidden" {"access_token":"json-secret"} Authorization: "Bearer quoted-secret"'
+    ),
+    'token: [redacted] password: "[redacted]" {"access_token":"[redacted]"} Authorization: "[redacted]"'
   )
 })
 

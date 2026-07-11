@@ -156,7 +156,11 @@ export function LogsSection({
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
-      <LoggingConfig isBotLeft={isBotLeft} overview={overview} />
+      <LoggingConfig
+        key={overview.discordGuildId}
+        isBotLeft={isBotLeft}
+        overview={overview}
+      />
 
       <Card>
         <CardHeader>
@@ -366,10 +370,7 @@ function LoggingConfig({
                 onChange={(event) => {
                   setLevel(
                     event.target.value as
-                      | "none"
-                      | "minimal"
-                      | "medium"
-                      | "maximum"
+                      "none" | "minimal" | "medium" | "maximum"
                   )
                   markDirty()
                 }}

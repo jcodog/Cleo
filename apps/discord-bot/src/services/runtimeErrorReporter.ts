@@ -53,12 +53,16 @@ export async function reportDiscordRuntimeError(
     const report = buildDiscordRuntimeErrorReport(input)
     return await sendReport(report)
   } catch (error) {
-    logError("Discord runtime error reporting failed.", error, {
-      originalServiceArea: input.serviceArea,
-      originalSeverity: input.severity,
-      originalOperation: input.operation,
-      originalDiscordGuildId: input.discordGuildId,
-    })
+    try {
+      logError("Discord runtime error reporting failed.", error, {
+        originalServiceArea: input.serviceArea,
+        originalSeverity: input.severity,
+        originalOperation: input.operation,
+        originalDiscordGuildId: input.discordGuildId,
+      })
+    } catch {
+      // Reporting and its local fallback are both best-effort by contract.
+    }
     return null
   }
 }

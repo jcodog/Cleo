@@ -15,6 +15,13 @@ application_sha=""
 previous_application_sha=""
 command_sha=""
 
+mkdir -p "$releases_dir" "$shared_dir"
+exec 9>"$shared_dir/deployment.lock"
+if ! flock -n 9; then
+  echo "Another Discord deployment or rollback is already running." >&2
+  exit 1
+fi
+
 if [[ -f "$state_file" ]]; then
   # The state file is written only by this script and contains validated SHAs.
   # shellcheck disable=SC1090
@@ -41,8 +48,14 @@ check_health() {
 switch_release() {
   local sha="$1"
   local next_link="$deploy_root/.current-$sha"
+  rm -f -- "$next_link"
   ln -s "$releases_dir/$sha" "$next_link"
   mv -Tf "$next_link" "$current_link"
+}
+
+activate_release() {
+  local sha="$1"
+  switch_release "$sha" || return 1
   systemctl --user restart "$service_name"
 }
 
@@ -76,7 +89,7 @@ rollback_to() {
     return 1
   fi
 
-  switch_release "$target_sha" || return 1
+  activate_release "$target_sha" || return 1
   check_health || return 1
 
   local target_command_sha
@@ -93,6 +106,8 @@ restore_after_failed_deploy() {
   local failed_sha="$2"
 
   if ! is_sha "$application_sha" || [[ ! -d "$releases_dir/$application_sha" ]]; then
+    systemctl --user stop "$service_name" || true
+    rm -f -- "$current_link"
     echo "$failure_message; no previous release is available." >&2
     return
   fi
@@ -103,8 +118,6 @@ restore_after_failed_deploy() {
     echo "$failure_message; rollback to $application_sha also failed." >&2
   fi
 }
-
-mkdir -p "$releases_dir" "$shared_dir"
 
 if [[ "$operation" == "rollback" ]]; then
   rollback_to "$previous_application_sha" "$application_sha"
@@ -149,7 +162,11 @@ if [[ "$register_commands_for_release" == "true" ]]; then
 fi
 printf '%s\n' "$next_command_sha" > "$release_dir/.cleo-command-sha"
 
-switch_release "$sha"
+if ! activate_release "$sha"; then
+  systemctl --user status "$service_name" --no-pager || true
+  restore_after_failed_deploy "Discord service restart failed" "$sha"
+  exit 1
+fi
 if ! check_health; then
   systemctl --user status "$service_name" --no-pager || true
   restore_after_failed_deploy "Discord health verification failed" "$sha"

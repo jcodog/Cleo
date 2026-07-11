@@ -44,10 +44,13 @@ export function useDiscordConfigOptions(discordGuildId: string): OptionsState {
   const loadOptions = useAction(
     api.actions.dashboard.discord.guilds.configOptions.get
   )
-  const [state, setState] = useState<OptionsState>({
-    status: "loading",
-    options: null,
-  })
+  const [state, setState] = useState<OptionsState & { discordGuildId: string }>(
+    {
+      discordGuildId,
+      status: "loading",
+      options: null,
+    }
+  )
 
   useEffect(() => {
     let active = true
@@ -61,18 +64,19 @@ export function useDiscordConfigOptions(discordGuildId: string): OptionsState {
         setState(
           result.status === "ready"
             ? {
+                discordGuildId,
                 status: "ready",
                 options: {
                   channels: result.channels,
                   roles: result.roles,
                 },
               }
-            : { status: "unavailable", options: null }
+            : { discordGuildId, status: "unavailable", options: null }
         )
       })
       .catch(() => {
         if (active) {
-          setState({ status: "unavailable", options: null })
+          setState({ discordGuildId, status: "unavailable", options: null })
         }
       })
 
@@ -81,7 +85,9 @@ export function useDiscordConfigOptions(discordGuildId: string): OptionsState {
     }
   }, [discordGuildId, loadOptions])
 
-  return state
+  return state.discordGuildId === discordGuildId
+    ? state
+    : { status: "loading", options: null }
 }
 
 export function DiscordChannelSelect({

@@ -49,7 +49,7 @@ test("botLogError writes concise sanitized error metadata", (t) => {
   assert.doesNotMatch(logLines[0] ?? "", /Bearer secret/)
 
   assert.match(logLines[0] ?? "", /Operation failed\./)
-  assert.match(logLines[0] ?? "", /Authorization: Bearer \[redacted\]/)
+  assert.match(logLines[0] ?? "", /Authorization: \[redacted\]/)
   assert.match(logLines[0] ?? "", /"token":"\[redacted\]"/)
   assert.match(logLines[0] ?? "", /"authorization":"\[redacted\]"/)
   assert.match(logLines[0] ?? "", /"cookie":"\[redacted\]"/)

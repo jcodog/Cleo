@@ -824,12 +824,29 @@ test("normalizers cover Discord fallback fields and timestamps", () => {
   assert.ok(normalizeRoleCreate(invalidTimestampRole).occurredAt > 0)
 })
 
+test("delete and repeatable lifecycle events use stable bounded dedupe keys", () => {
+  const message = createMessage()
+  const firstMessageDelete = normalizeMessageDelete(message, now)
+  const retriedMessageDelete = normalizeMessageDelete(message, now + 1_000)
+
+  assert.equal(firstMessageDelete?.dedupeKey, retriedMessageDelete?.dedupeKey)
+
+  const member = createMember()
+  const firstMemberRemove = normalizeGuildMemberRemove(member, now)
+  const retriedMemberRemove = normalizeGuildMemberRemove(member, now + 1_000)
+  const laterMemberRemove = normalizeGuildMemberRemove(member, now + 6_000)
+
+  assert.equal(firstMemberRemove.dedupeKey, retriedMemberRemove.dedupeKey)
+  assert.notEqual(firstMemberRemove.dedupeKey, laterMemberRemove.dedupeKey)
+})
+
 test("formatter includes actor and reason and falls back to channel targets", () => {
   const message = formatGuildEventLogMessage({
     discordGuildId: guildId,
     eventType: "channelDelete",
     targetType: "channel",
     channelId,
+    targetDisplayName: "**injected**",
     actorDiscordUserId: userId,
     reason: "cleanup token=secret user@example.com",
     occurredAt: now,
@@ -842,6 +859,8 @@ test("formatter includes actor and reason and falls back to channel targets", ()
     /Reason: cleanup token=\[redacted\] \[redacted\]/
   )
   assert.match(message.content ?? "", new RegExp(channelId))
+  assert.doesNotMatch(message.content ?? "", /Target: \*\*injected\*\*/)
+  assert.match(message.content ?? "", /Target: \\?\*\\?\*injected/)
 
   const unknownTarget = formatGuildEventLogMessage({
     discordGuildId: guildId,

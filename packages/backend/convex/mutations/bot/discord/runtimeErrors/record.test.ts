@@ -77,22 +77,24 @@ test("runtime error fingerprint uses explicit fingerprint when provided", () => 
 })
 
 test("runtime error fingerprint falls back to stable incident fields", () => {
-  assert.equal(
-    buildFingerprint({
-      fingerprint: undefined,
-      serviceArea: "welcome",
-      severity: "error",
-      discordGuildId: "111111111111111111",
-      commandName: undefined,
-      eventName: "guildMemberAdd",
-      operation: "sendWelcome",
-      message: "Missing permission",
-    }),
-    "welcome:error:111111111111111111::guildMemberAdd:sendWelcome:Missing permission"
-  )
+  const args = {
+    fingerprint: undefined,
+    serviceArea: "welcome",
+    severity: "error",
+    discordGuildId: "111111111111111111",
+    commandName: undefined,
+    eventName: "guildMemberAdd",
+    operation: "sendWelcome",
+    message: "Missing permission",
+  }
+
+  const fingerprint = buildFingerprint(args)
+
+  assert.match(fingerprint, /^auto:[0-9a-f]{32}$/)
+  assert.equal(buildFingerprint(args), fingerprint)
 })
 
-test("runtime error fingerprint is bounded", () => {
+test("runtime error fingerprint hashes oversized explicit values", () => {
   const fingerprint = buildFingerprint({
     fingerprint: "x".repeat(1_000),
     serviceArea: "backend",
@@ -104,8 +106,36 @@ test("runtime error fingerprint is bounded", () => {
     message: "ignored",
   })
 
-  assert.equal(fingerprint.length, 512)
-  assert.equal(fingerprint.endsWith("…"), true)
+  assert.match(fingerprint, /^explicit:[0-9a-f]{32}$/)
+  assert.notEqual(
+    fingerprint,
+    buildFingerprint({
+      fingerprint: `${"x".repeat(999)}y`,
+      serviceArea: "backend",
+      severity: "critical",
+      discordGuildId: undefined,
+      commandName: undefined,
+      eventName: undefined,
+      operation: undefined,
+      message: "ignored",
+    })
+  )
+})
+
+test("runtime error fingerprint keeps structured fields unambiguous", () => {
+  const base = {
+    fingerprint: undefined,
+    serviceArea: "command",
+    severity: "error",
+    discordGuildId: undefined,
+    operation: undefined,
+    message: "failed",
+  }
+
+  assert.notEqual(
+    buildFingerprint({ ...base, commandName: "a:b", eventName: "c" }),
+    buildFingerprint({ ...base, commandName: "a", eventName: "b:c" })
+  )
 })
 
 test("runtime error timestamps are bounded and default to now", () => {

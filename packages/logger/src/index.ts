@@ -27,13 +27,13 @@ const SENSITIVE_KEY_PARTS = [
 
 const REDACTED = "[redacted]"
 const AUTHORIZATION_PATTERN =
-  /\b(authorization\s*[:=]\s*)(bearer\s+)?[^\s,;)]+/gi
+  /\b(authorization\s*[:=]\s*)(["']?)(bearer\s+)?[^"'\s,;)]+\2/gi
 const COOKIE_PATTERN =
   /\b(cookie|set-cookie)\s*[:=]\s*[^,\n\r]+?(?=\s+[a-z][a-z0-9+.-]*:\/\/|\s+\w+\s*[:=]|$|,)/gi
 const SENSITIVE_QUERY_PARAM_PATTERN =
   /([?&](?:api[_-]?key|authorization|auth|cookie|credential|jwt|password|refresh[_-]?token|secret|session|(?:[a-z0-9]+[_-])+token|token)=)[^&#\s)]+/gi
 const SENSITIVE_ASSIGNMENT_PATTERN =
-  /\b(api[_-]?key|authorization|auth|cookie|credential|jwt|password|refresh[_-]?token|secret|session|(?:[a-z0-9]+[_-])+token|token)\s*=\s*[^\s,;)]+/gi
+  /(["']?)(api[_-]?key|authorization|auth|cookie|credential|jwt|password|refresh[_-]?token|secret|session|(?:[a-z0-9]+[_-])+token|token)\1(\s*[:=]\s*)(["']?)(?:bearer\s+)?[^"'\s,;)}[\]]+\4/gi
 const URL_CREDENTIAL_PATTERN =
   /\b([a-z][a-z0-9+.-]*:\/\/)([^/@\s:]+):([^/@\s]+)@/gi
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi
@@ -53,10 +53,10 @@ export function redactLogMetadata<T>(value: T): T {
 export function redactLogText(value: string): string {
   return value
     .replaceAll(URL_CREDENTIAL_PATTERN, "$1[redacted]@")
-    .replaceAll(AUTHORIZATION_PATTERN, "$1$2[redacted]")
+    .replaceAll(SENSITIVE_ASSIGNMENT_PATTERN, "$1$2$1$3$4[redacted]$4")
+    .replaceAll(AUTHORIZATION_PATTERN, "$1$2$3[redacted]$2")
     .replaceAll(COOKIE_PATTERN, "$1=[redacted]")
     .replaceAll(SENSITIVE_QUERY_PARAM_PATTERN, "$1[redacted]")
-    .replaceAll(SENSITIVE_ASSIGNMENT_PATTERN, "$1=[redacted]")
     .replaceAll(EMAIL_PATTERN, REDACTED)
 }
 

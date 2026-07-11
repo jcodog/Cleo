@@ -80,7 +80,7 @@ test("fatal shutdown logs through botLogError and exits non-zero", async (t) => 
   assert.equal(client.destroyedForTest, true)
   assert.deepEqual(exitCodes, [1])
   assert.equal(logLines.length, 1)
-  assert.match(logLines[0] ?? "", /Authorization: Bearer \[redacted\]/)
+  assert.match(logLines[0] ?? "", /Authorization: \[redacted\]/)
   assert.match(logLines[0] ?? "", /"reason":"unhandledRejection"/)
 })
 
@@ -167,6 +167,7 @@ test("startup runtime reporter failure is swallowed locally", async (t) => {
   const previousExitCode = process.exitCode
   const client = createClient()
   const logLines: string[] = []
+  const exitCodes: number[] = []
 
   t.mock.method(console, "log", (line: string) => {
     logLines.push(line)
@@ -181,17 +182,74 @@ test("startup runtime reporter failure is swallowed locally", async (t) => {
       reason: "uncaughtException",
       exitCode: 1,
       error: new Error("fatal failed"),
-      exit() {
-        return undefined
+      exit(code) {
+        exitCodes.push(code ?? 0)
       },
       async reportRuntimeError() {
         throw new Error("report failed")
       },
     })
   })
+  assert.equal(client.destroyedForTest, true)
+  assert.deepEqual(exitCodes, [1])
   assert.equal(logLines.length, 2)
   assert.match(
     logLines[1] ?? "",
     /Discord startup runtime error report failed\./
   )
+})
+
+test("fatal shutdown reports even when the rejection value is missing", async (t) => {
+  const previousExitCode = process.exitCode
+  const client = createClient()
+  const reports: DiscordRuntimeErrorReportInput[] = []
+
+  t.mock.method(console, "log", () => undefined)
+  t.after(() => {
+    process.exitCode = previousExitCode
+  })
+
+  await shutdownDiscordBot({
+    client,
+    reason: "unhandledRejection",
+    exitCode: 1,
+    exit() {
+      return undefined
+    },
+    async reportRuntimeError(input) {
+      reports.push(input)
+      return null
+    },
+  })
+
+  assert.equal(reports.length, 1)
+  assert.ok(reports[0]?.error instanceof Error)
+})
+
+test("fatal shutdown bounds a stalled runtime reporter", async (t) => {
+  const previousExitCode = process.exitCode
+  const client = createClient()
+  const exitCodes: number[] = []
+
+  t.mock.method(console, "log", () => undefined)
+  t.after(() => {
+    process.exitCode = previousExitCode
+  })
+
+  await shutdownDiscordBot({
+    client,
+    reason: "startupFailure",
+    exitCode: 1,
+    error: new Error("startup failed"),
+    stepTimeoutMs: 5,
+    exit(code) {
+      exitCodes.push(code ?? 0)
+    },
+    async reportRuntimeError() {
+      return await new Promise(() => undefined)
+    },
+  })
+
+  assert.equal(client.destroyedForTest, true)
+  assert.deepEqual(exitCodes, [1])
 })

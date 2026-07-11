@@ -15,6 +15,9 @@ const MAX_FINGERPRINT_LENGTH = 512
 const MAX_EVENT_CLOCK_SKEW_MS = 5 * 60 * 1000
 
 const DISCORD_SNOWFLAKE_REGEX = /^\d{17,20}$/
+const FINGERPRINT_HASH_SEEDS = [
+  0x811c9dc5, 0x9e3779b1, 0x85ebca77, 0xc2b2ae3d,
+] as const
 
 type RuntimeErrorMetadata = Infer<typeof jsonValue>
 
@@ -25,6 +28,18 @@ const truncate = (value: string, maxLength: number) => {
 
   return `${value.slice(0, maxLength - 1)}…`
 }
+
+const hashFingerprintInput = (value: string): string =>
+  FINGERPRINT_HASH_SEEDS.map((seed) => {
+    let hash: number = seed
+
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index)
+      hash = Math.imul(hash, 0x01000193)
+    }
+
+    return (hash >>> 0).toString(16).padStart(8, "0")
+  }).join("")
 
 export const normaliseOptionalString = (
   value: string | undefined,
@@ -103,11 +118,15 @@ export const buildFingerprint = (args: {
   const explicitFingerprint = args.fingerprint?.trim()
 
   if (explicitFingerprint) {
-    return truncate(redactLogText(explicitFingerprint), MAX_FINGERPRINT_LENGTH)
+    const redactedFingerprint = redactLogText(explicitFingerprint)
+
+    return redactedFingerprint.length <= MAX_FINGERPRINT_LENGTH
+      ? redactedFingerprint
+      : `explicit:${hashFingerprintInput(redactedFingerprint)}`
   }
 
-  return truncate(
-    [
+  return `auto:${hashFingerprintInput(
+    JSON.stringify([
       args.serviceArea,
       args.severity,
       args.discordGuildId ?? "global",
@@ -115,9 +134,8 @@ export const buildFingerprint = (args: {
       args.eventName ?? "",
       args.operation ?? "",
       args.message,
-    ].join(":"),
-    MAX_FINGERPRINT_LENGTH
-  )
+    ])
+  )}`
 }
 
 export const record = internalMutation({

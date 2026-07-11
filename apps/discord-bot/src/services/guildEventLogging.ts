@@ -1,4 +1,5 @@
 import {
+  escapeMarkdown,
   PermissionFlagsBits,
   type Guild,
   type GuildBasedChannel,
@@ -356,7 +357,7 @@ export function normalizeGuildMemberRemove(
       "guildMemberRemove",
       member.guild.id,
       member.id,
-      occurredAt
+      getDedupeWindow(occurredAt)
     ),
   }
 }
@@ -377,7 +378,7 @@ export function normalizeGuildBanAdd(
       "guildBanAdd",
       ban.guild.id,
       ban.user.id,
-      occurredAt
+      getDedupeWindow(occurredAt)
     ),
   }
 }
@@ -398,7 +399,7 @@ export function normalizeGuildBanRemove(
       "guildBanRemove",
       ban.guild.id,
       ban.user.id,
-      occurredAt
+      getDedupeWindow(occurredAt)
     ),
   }
 }
@@ -442,12 +443,7 @@ export function normalizeChannelDelete(
       channelType: String(channel.type),
     },
     occurredAt,
-    dedupeKey: buildDedupeKey(
-      "channelDelete",
-      channel.guild.id,
-      channel.id,
-      occurredAt
-    ),
+    dedupeKey: buildDedupeKey("channelDelete", channel.guild.id, channel.id),
   }
 }
 
@@ -479,7 +475,7 @@ export function normalizeRoleDelete(
     targetDisplayName: role.name,
     roleId: role.id,
     occurredAt,
-    dedupeKey: buildDedupeKey("roleDelete", role.guild.id, role.id, occurredAt),
+    dedupeKey: buildDedupeKey("roleDelete", role.guild.id, role.id),
   }
 }
 
@@ -501,12 +497,7 @@ export function normalizeMessageDelete(
       partial: message.partial,
     },
     occurredAt,
-    dedupeKey: buildDedupeKey(
-      "messageDelete",
-      message.guildId,
-      message.id,
-      occurredAt
-    ),
+    dedupeKey: buildDedupeKey("messageDelete", message.guildId, message.id),
   }
 }
 
@@ -518,7 +509,9 @@ export function formatGuildEventLogMessage(
     `Target: ${formatTarget(event)}`,
     `Time: <t:${Math.floor(event.occurredAt / 1000)}:F>`,
     ...(event.actorDiscordUserId ? [`Actor: ${event.actorDiscordUserId}`] : []),
-    ...(event.reason ? [`Reason: ${redactLogText(event.reason)}`] : []),
+    ...(event.reason
+      ? [`Reason: ${escapeMarkdown(redactLogText(event.reason))}`]
+      : []),
   ]
 
   return {
@@ -587,9 +580,15 @@ function buildDedupeKey(
   eventType: DiscordGuildEventRecord["eventType"],
   discordGuildId: string,
   subjectId: string,
-  occurredAt: number
+  discriminator?: number
 ): string {
-  return `${eventType}:${discordGuildId}:${subjectId}:${occurredAt}`
+  return [eventType, discordGuildId, subjectId, discriminator]
+    .filter((value) => value !== undefined)
+    .join(":")
+}
+
+function getDedupeWindow(occurredAt: number): number {
+  return Math.floor(occurredAt / 5_000)
 }
 
 function formatEventType(
@@ -622,7 +621,7 @@ function formatTarget(event: DiscordGuildEventRecord): string {
   const id =
     event.targetDiscordId ?? event.channelId ?? event.roleId ?? "unknown target"
 
-  return label ? `${label} (${id})` : id
+  return label ? `${escapeMarkdown(label)} (${id})` : id
 }
 
 async function reportGuildEventRuntimeError(args: {

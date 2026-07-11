@@ -55,20 +55,25 @@ systemctl --user daemon-reload
 systemctl --user enable cleo-discord.service
 ```
 
-Before the first production merge, run the workflow manually with `deploy` on a
-non-production test commit or add a harmless runner smoke workflow to verify
-checkout, Node, pnpm, filesystem ownership, and `systemctl --user` access.
+Before the first production merge, dispatch **Discord Production Runner Smoke**
+from `main`. It verifies the runner identity, release toolchain, filesystem and
+environment-file metadata, user-systemd access, and a harmless temporary
+write-delete without deploying or reading secret values.
 
 ## Release and rollback
 
 The `discord-production` GitHub environment stores the production
 `CONVEX_DEPLOY_KEY` and permits deployments only from `main`. The workflow
-validates the exact commit before touching production, deploys the Convex
-backend, stages a standalone pnpm package into `releases/<sha>`, atomically
-switches the `current` symlink, restarts the user service, and requires it to
-remain active for 30 seconds. Deployment state records the application SHA,
-previous SHA, and command-registration SHA. Manual rollback does not redeploy
-the Convex backend.
+uses immutable action SHAs. A GitHub-hosted classifier runs for every `main`
+push, while only relevant Discord dependency changes schedule the production
+runner. The workflow validates the exact commit before touching production,
+deploys the Convex backend, stages a standalone pnpm package into
+`releases/<sha>`, atomically switches the `current` symlink, restarts the user
+service, and requires it to remain active for 30 seconds. The deployment script
+holds an exclusive lock, cleans retry symlinks, and restores the previous
+release if restart or health verification fails. Deployment state records the
+application SHA, previous SHA, and command-registration SHA. Manual rollback
+does not redeploy the Convex backend.
 
 Command registration runs only when command definitions, the registry, command
 metadata, or registration tooling changed since the recorded command SHA.

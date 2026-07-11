@@ -180,3 +180,25 @@ test("reportDiscordRuntimeError swallows report construction failures", async ()
   assert.ok(loggedError instanceof Error)
   assert.match(loggedError.message, /metadata unavailable/)
 })
+
+test("reportDiscordRuntimeError swallows local fallback logger failures", async () => {
+  await assert.doesNotReject(async () => {
+    const response = await reportDiscordRuntimeError(
+      {
+        severity: "error",
+        serviceArea: "transport",
+        message: "Transport failed",
+      },
+      {
+        sendReport: async () => {
+          throw new Error("backend unavailable")
+        },
+        logError: () => {
+          throw new Error("logger unavailable")
+        },
+      }
+    )
+
+    assert.equal(response, null)
+  })
+})
