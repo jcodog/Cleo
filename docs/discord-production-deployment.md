@@ -121,6 +121,7 @@ Enter these through the Convex production deployment settings. The reference fil
 
 | Variable | Requirement |
 | --- | --- |
+| `NODE_ENV=production` | Enables production URL validation and runtime defaults. |
 | `CLERK_JWT_ISSUER_DOMAIN` | Required by Convex auth configuration. |
 | `CLERK_SECRET_KEY` | Required for Clerk user and Discord OAuth token resolution. |
 | `CLERK_WEBHOOK_SECRET` | Required by `/clerk-users-webhook`. |
