@@ -24,54 +24,50 @@ as non-deploying is expected to skip the production job.
 | Runtime environment | `/etc/cleo/discord-bot.env` |
 | Runtime service | `cleo-discord.service` |
 | Command registration service | `cleo-discord-register-commands.service` |
+| Host checks | `/usr/local/libexec/cleo/check-discord-*` |
 
 The runtime environment is never copied or linked into a release checkout. The
-systemd services load `/etc/cleo/discord-bot.env` directly.
+systemd services load `/etc/cleo/discord-bot.env` directly, and the application
+reads the resulting `process.env` values.
 
 ## One-time VPS setup
 
-The `github-runner` and `cleo` users must already exist.
+The `github-runner` and `cleo` users and the `cleo` user's NVM installation must
+already exist. After this repository revision reaches `main`, run from a clean
+checkout on the VPS:
 
 ```bash
-sudo groupadd --force cleo-deploy
-sudo usermod -aG cleo-deploy github-runner
-sudo usermod -aG cleo-deploy cleo
-
-sudo install -d -o root -g cleo-deploy -m 2775 /srv/cleo/discord-bot
-sudo install -d -o root -g cleo-deploy -m 2775 /srv/cleo/discord-bot/releases
-sudo install -d -o root -g cleo-deploy -m 2775 /srv/cleo/discord-bot/shared
-
-sudo install -d -o root -g cleo -m 0750 /etc/cleo
-sudo touch /etc/cleo/discord-bot.env
-sudo chown root:cleo /etc/cleo/discord-bot.env
-sudo chmod 0640 /etc/cleo/discord-bot.env
+sudo bash ops/discord/bootstrap-host.sh
 ```
 
-Install the reviewed unit and sudo policy templates from the repository:
+The idempotent bootstrap installs or verifies:
+
+- `cleo-deploy` membership for `github-runner` and `cleo`;
+- `/srv/cleo/discord-bot/{releases,shared}`;
+- `/etc/cleo/discord-bot.env` with `root:cleo` and mode `0640`;
+- root-owned environment and runtime check helpers;
+- system-level runtime and command-registration units;
+- the narrow deployment sudo policy;
+- systemd reload and runtime-service enablement.
+
+It preserves an existing environment file. If the file does not exist, it copies
+the non-secret template and intentionally leaves validation failing until every
+placeholder is replaced.
+
+Do not start the runtime service manually before the first release creates the
+`current` symlink. Restart the GitHub runner service after changing group
+membership so new jobs receive `cleo-deploy`.
+
+The Actions workflow installs the Node and pnpm versions pinned in `package.json`.
+The bot runtime independently uses the `cleo` user's NVM installation through
+`/home/cleo/.nvm/nvm-exec`. Install the exact version from `.nvmrc` for that user:
 
 ```bash
-sudo install -o root -g root -m 0644 \
-  ops/discord/systemd/cleo-discord.service \
-  /etc/systemd/system/cleo-discord.service
-sudo install -o root -g root -m 0644 \
-  ops/discord/systemd/cleo-discord-register-commands.service \
-  /etc/systemd/system/cleo-discord-register-commands.service
-sudo install -o root -g root -m 0440 \
-  ops/discord/sudoers/cleo-discord-deploy \
-  /etc/sudoers.d/cleo-discord-deploy
-
-sudo visudo -cf /etc/sudoers.d/cleo-discord-deploy
-sudo systemctl daemon-reload
-sudo systemctl enable cleo-discord.service
+sudo -iu cleo bash -lc 'source "$HOME/.nvm/nvm.sh" && nvm install 24.15.0 && nvm alias default 24.15.0'
 ```
 
-Do not start the runtime service until the first release has created the `current`
-symlink. Restart the GitHub runner service after changing its group membership so
-new jobs receive `cleo-deploy`.
-
-The production workflow uses the Node and pnpm versions pinned in `package.json`.
-The runtime service uses the `cleo` user's NVM installation through
-`/home/cleo/.nvm/nvm-exec`.
+The runner smoke validates both the Actions toolchain and the separate `cleo`
+runtime Node installation.
 
 ## Environment placement
 
@@ -83,7 +79,7 @@ Start from `ops/discord/discord-bot.env.example` and edit the real file with
 | Variable | Purpose |
 | --- | --- |
 | `NODE_ENV=production` | Enables production runtime validation. |
-| `CONVEX_URL` | HTTPS URL of the production Convex deployment. |
+| `CONVEX_URL` | HTTPS origin of the production Convex deployment. |
 | `DISCORD_BOT_CONVEX_SECRET` | Shared bot-to-Convex secret; must exactly match Convex production. |
 | `DISCORD_BOT_TOKEN` | Production Discord bot token. |
 | `DISCORD_APPLICATION_ID` | Discord application ID used for global command registration. |
@@ -100,6 +96,10 @@ Convex production:
 openssl rand -hex 32
 ```
 
+The root-owned host validator rejects missing, duplicate, placeholder, malformed,
+or unsafe production values without printing them. The runner cannot read the file
+directly; it may only execute the validator as `cleo` and receive pass/fail output.
+
 Never paste the completed environment file into GitHub, Linear, workflow logs, or
 chat.
 
@@ -115,9 +115,9 @@ Restrict the environment deployment branch to `main`. Runtime Discord and Clerk
 secrets remain on their owning platforms instead of GitHub Actions secrets.
 
 Set the repository Actions variable `CLEO_DISCORD_DEPLOY_ENABLED` to `false` or
-leave it unset during bootstrap. The deployment job remains skipped until this
-variable is exactly `true`; manual rollback remains available regardless of the
-gate.
+leave it unset during bootstrap. Automatic and manual deployment remain disabled
+until this variable is exactly `true`. Manual `validate` and `rollback` operations
+remain available while the gate is off.
 
 ### Convex production environment
 
@@ -173,26 +173,30 @@ for explicit loopback development URLs.
 ## Safe first-production activation
 
 1. Leave `CLEO_DISCORD_DEPLOY_ENABLED` unset or set to `false`.
-2. Merge the reviewed workflow changes to `main`; deployment remains disabled.
-3. Install the VPS directories, units, sudo policy, and runtime environment.
-4. Configure Convex production, Vercel Production, and `discord-production`.
-5. Dispatch **Discord Production Runner Smoke** from `main` and require it to pass.
-6. Set repository Actions variable `CLEO_DISCORD_DEPLOY_ENABLED=true`.
-7. Dispatch **Deploy Discord Production** with `operation=deploy`.
-8. Keep the variable enabled for automatic relevant `main` deployments, or switch
-   it back to `false` as a production kill switch.
+2. Merge the reviewed workflow and operations revision to `main`.
+3. Run `sudo bash ops/discord/bootstrap-host.sh` from the new `main` checkout.
+4. Populate the VPS, Convex production, Vercel Production, and GitHub environment.
+5. Restart the GitHub runner service after group or helper changes.
+6. Dispatch **Discord Production Runner Smoke** from `main` and require it to pass.
+7. Dispatch **Deploy Discord Production** with `operation=validate`. This runs the
+   frozen install, peer check, tests, typecheck, lint, and build on `cleo-prod`
+   without deploying Convex or changing the running bot.
+8. Set repository Actions variable `CLEO_DISCORD_DEPLOY_ENABLED=true`.
+9. Dispatch **Deploy Discord Production** with `operation=deploy`.
+10. Keep the variable enabled for automatic relevant `main` deployments, or switch
+    it back to `false` as a production kill switch.
 
 ## Smoke, deploy, and rollback
 
-After the host, services, sudo policy, and environment values are installed,
-dispatch **Discord Production Runner Smoke** from `main`. It verifies:
+The runner smoke verifies:
 
 - the `cleo-prod` runner and `github-runner` identity;
-- pinned Node and pnpm versions;
+- pinned Actions Node and pnpm versions;
+- the exact Node version available to the `cleo` runtime user;
 - `cleo-deploy` membership and release-directory access;
-- system-level services running as `cleo`;
-- external environment-file wiring without reading its contents;
-- the narrow systemd sudo policy;
+- system-level services running as `cleo` with release paths read-only;
+- external environment-file wiring and required production values without exposing them;
+- root ownership of the host checks and the narrow systemd sudo policy;
 - a harmless release-directory write and cleanup.
 
 A relevant trusted `main` push then validates the exact commit, deploys Convex,
