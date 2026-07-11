@@ -188,8 +188,6 @@ jobs:
       CLEO_DISCORD_RUNTIME_USER: cleo
       CLEO_DISCORD_RUNTIME_GROUP: cleo
       CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
-      CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz
-      CLEO_DISCORD_RELEASE_CHECKSUM: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz.sha256
 
     steps:
       - name: Checkout exact commit
@@ -217,6 +215,9 @@ jobs:
           path: ${{ runner.temp }}/cleo-discord-release
 
       - name: Activate release
+        env:
+          CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz
+          CLEO_DISCORD_RELEASE_CHECKSUM: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz.sha256
         run: bash .github/scripts/deploy-discord.sh deploy
 
   rollback:
