@@ -1,0 +1,62 @@
+packages/logger/src/index.ts
+  s_a2d9b13320447b::t_45c46df6465906 30,56-57
+  s_a2d9b13320447b::t_46a75fbebac4fc 36
+apps/discord-bot/src/services/guildEventLogging.test.ts
+  s_a2d9b13320447b::t_8922aaacfb0153 827-831,833-842,849,862-863
+  s_a2d9b13320447b::t_6cd536ff33804d 832
+apps/discord-bot/src/utils/botLog.test.ts
+  s_a2d9b13320447b::t_6b31e8d5984a73 52
+apps/discord-bot/src/services/guildEventLogging.ts
+  s_a2d9b13320447b::t_9e9341b5d20816 2,360,381,402,478,512-514,583,585-591,624
+  s_a2d9b13320447b::t_6cd536ff33804d 446,500
+packages/logger/src/index.test.ts
+  s_a2d9b13320447b::t_45c46df6465906 71,85-90
+  s_a2d9b13320447b::t_c3ea987c3fab0f 91
+apps/dashboard/src/features/discord-guild-workspace/components/ConfigSelectors.tsx
+  s_a2d9b13320447b::t_46a75fbebac4fc 67,74,79,88-90
+  s_a2d9b13320447b::t_b917c667ce259b 47-53
+.github/workflows/discord-production.yml
+  s_a2d9b13320447b::t_60e40328f79cb2 37,71
+  s_a2d9b13320447b::t_2efa5468362446 34,41,68,76,80
+apps/discord-bot/src/runtime/shutdown.ts
+  s_a2d9b13320447b::t_6cd536ff33804d 196-202,216-218
+  s_a2d9b13320447b::t_e3cc74b7f62d14 25,35,39,56,58-61,65,69,82-86,96,98-100,103,109,113,137-141,149,155,162-178,187-195,203-215,219-246
+  s_a2d9b13320447b::t_2a6be139884a01 247
+docs/discord-production-deployment.md
+  s_a2d9b13320447b::t_a4b3bf02beea2f 58-61,67-76
+packages/backend/convex/mutations/bot/discord/runtimeErrors/record.test.ts
+  s_a2d9b13320447b::t_73e16c0e65bd64 80-94,97,109-138
+apps/discord-bot/src/services/runtimeErrorReporter.ts
+  s_a2d9b13320447b::t_db7b8b75be5fa6 56-65
+apps/dashboard/src/features/discord-guild-workspace/sections/LogsSection.tsx
+  s_a2d9b13320447b::t_4e7096e760a480 159-163
+  s_a2d9b13320447b::t_b917c667ce259b 373
+apps/discord-bot/src/runtime/shutdown.test.ts
+  s_a2d9b13320447b::t_655d4d69af938b 185-186,193-194,201-255
+  s_a2d9b13320447b::t_6b31e8d5984a73 83
+  s_a2d9b13320447b::t_e999cf7a6732a8 170
+apps/discord-bot/src/services/runtimeErrorReporter.test.ts
+  s_a2d9b13320447b::t_db7b8b75be5fa6 183-204
+.github/scripts/deploy-discord.sh
+  s_a2d9b13320447b::t_bb82af5cbaa0a1 18-24
+  s_a2d9b13320447b::t_2efa5468362446 51,54-58,92,109-110,165-169
+packages/backend/convex/mutations/bot/discord/runtimeErrors/record.ts
+  s_a2d9b13320447b::t_73e16c0e65bd64 18-20,32-33,35-43,121-125,128-129,137-138
+  s_a2d9b13320447b::t_575864e5e6c19e 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "dc7e8cce8be284357b99d98d7cde5a0adbb5c05e",
+  "prompts": {},
+  "sessions": {
+    "s_a2d9b13320447b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4dda-d2b8-7650-9cbb-ce9e5f2f9afe",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
