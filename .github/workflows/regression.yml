@@ -37,6 +37,7 @@ jobs:
         run: |
           bash -n .github/scripts/check-discord-runner.sh
           bash -n .github/scripts/deploy-discord.sh
+          bash -n .github/scripts/package-discord-release.sh
           bash -n ops/discord/bootstrap-host.sh
           bash -n ops/discord/bin/check-discord-env
           bash -n ops/discord/bin/check-discord-runtime
