@@ -114,6 +114,11 @@ Set this Actions environment secret:
 Restrict the environment deployment branch to `main`. Runtime Discord and Clerk
 secrets remain on their owning platforms instead of GitHub Actions secrets.
 
+Set the repository Actions variable `CLEO_DISCORD_DEPLOY_ENABLED` to `false` or
+leave it unset during bootstrap. The deployment job remains skipped until this
+variable is exactly `true`; manual rollback remains available regardless of the
+gate.
+
 ### Convex production environment
 
 Enter these through the Convex production deployment settings. The reference file
@@ -164,6 +169,18 @@ for explicit loopback development URLs.
 | Discord bot token | VPS and Convex `DISCORD_BOT_TOKEN` |
 | Discord application ID | VPS and Convex `DISCORD_APPLICATION_ID` |
 | Clerk secret key | Vercel and Convex `CLERK_SECRET_KEY` |
+
+## Safe first-production activation
+
+1. Leave `CLEO_DISCORD_DEPLOY_ENABLED` unset or set to `false`.
+2. Merge the reviewed workflow changes to `main`; deployment remains disabled.
+3. Install the VPS directories, units, sudo policy, and runtime environment.
+4. Configure Convex production, Vercel Production, and `discord-production`.
+5. Dispatch **Discord Production Runner Smoke** from `main` and require it to pass.
+6. Set repository Actions variable `CLEO_DISCORD_DEPLOY_ENABLED=true`.
+7. Dispatch **Deploy Discord Production** with `operation=deploy`.
+8. Keep the variable enabled for automatic relevant `main` deployments, or switch
+   it back to `false` as a production kill switch.
 
 ## Smoke, deploy, and rollback
 
