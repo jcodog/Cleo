@@ -40,7 +40,6 @@ jobs:
         uses: actions/setup-node@v4.4.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
 
       - name: Verify host, services, permissions, and toolchain
         run: bash .github/scripts/check-discord-runner.sh
