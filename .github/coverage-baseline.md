@@ -35,4 +35,13 @@ The enforced tests cover authorization, insert/replace behavior, audit writes,
 ticket persistence and resume behavior, linked requester resolution, transcript
 policy, bot-left handling, unavailable guild routing, and the bot action secret.
 
-GitHub Code Quality upload requires GitHub Team or GitHub Enterprise Cloud, Code Quality enabled for the repository, and `actions/upload-code-coverage@v1` running with `code-quality: write`. If upload fails because Code Quality is unavailable or disabled, the external blocker is repository-side GitHub Code Quality availability/configuration rather than this workflow. Local GitHub Actions schema extensions may flag `code-quality` until they update for the public preview permission, but GitHub's workflow syntax docs list it as valid.
+Every regression run retains Cobertura XML and a complete browsable HTML artifact.
+Trusted successful runs from `main` also publish the HTML reports to GitHub Pages
+through JCN-196. Enable **Settings → Pages → Source: GitHub Actions** once for the
+repository. The latest report is then available at:
+
+`https://jcodog.github.io/Cleo/`
+
+GitHub Code Quality coverage ingestion requires a plan and repository feature that
+are not assumed by this public repository. Cobertura remains available for machine
+consumers, while GitHub Pages provides the maintainer-facing report.
