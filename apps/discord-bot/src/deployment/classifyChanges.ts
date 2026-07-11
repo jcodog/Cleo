@@ -15,6 +15,7 @@ const DEPLOY_PREFIXES = [
 const DEPLOY_FILES = new Set<string>([
   ".github/scripts/check-discord-runner.sh",
   ".github/scripts/deploy-discord.sh",
+  ".github/scripts/package-discord-release.sh",
   ".github/workflows/discord-production.yml",
   ".nvmrc",
   "package.json",
