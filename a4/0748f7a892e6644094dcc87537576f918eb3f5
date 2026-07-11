@@ -1,0 +1,155 @@
+apps/discord-bot/src/services/guildRuntimeConfig.ts
+  s_a2d9b13320447b::t_79e4226143849f 60-61
+  s_a2d9b13320447b::t_c4c4d328279e74 279-280
+packages/backend/convex/_generated/dataModel.d.ts
+  s_a2d9b13320447b::t_1b65c3319b4695 2159
+  s_a2d9b13320447b::t_63ab830dd998fe 2190
+packages/backend/convex/actions/dashboard/discord/guilds/configOptions.ts
+  s_a2d9b13320447b::t_79e4226143849f 3,66,83,86
+apps/dashboard/src/features/discord-guild-workspace/sections/OverviewSection.tsx
+  s_a2d9b13320447b::t_6df552c489b449 107-110,115-116
+  s_a2d9b13320447b::t_9758bf48243f18 64-67,70-73,76-79,82-85,88-91,94-97,102-103,111-114,190-198
+  s_a2d9b13320447b::t_051f60e14abcff 199-200
+.coderabbit.yaml
+  s_a2d9b13320447b::t_b9431f0ef0c76a 4-5
+packages/backend/convex/mutations/bot/discord/guilds/markBotLeftBatch.test.ts
+  s_a2d9b13320447b::t_3f0997e42f2190 4-7,68-75
+  s_a2d9b13320447b::t_45db286707d0a1 76
+apps/discord-bot/src/scripts/sendWelcomePreview.test.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 101-118
+  s_a2d9b13320447b::t_c4c4d328279e74 123-128
+apps/discord-bot/src/services/welcomeMessages.test.ts
+  s_a2d9b13320447b::t_bffdeba43eb511 490-498,515,528-539,556
+packages/backend/convex/mutations/bot/discord/runtimeErrors/record.ts
+  s_a2d9b13320447b::t_79e4226143849f 207-215
+packages/backend/convex/mutations/bot/discord/runtimeErrors/record.test.ts
+  s_a2d9b13320447b::t_bffdeba43eb511 146-149
+packages/backend/convex/mutations/bot/discord/supportTickets/setRoutingThread.ts
+  s_a2d9b13320447b::t_3ec163a2ded240 1-24
+packages/backend/convex/mutations/bot/discord/guilds/upsertFromGateway.ts
+  s_a2d9b13320447b::t_79e4226143849f 42-55
+apps/discord-bot/src/services/welcomeCardRenderer.ts
+  s_a2d9b13320447b::t_6df552c489b449 11-26,126-132,134,140-145
+  s_a2d9b13320447b::t_c4c4d328279e74 146-167,188,255-260
+apps/discord-bot/src/runtime/startup.test.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 126-131,133-151
+  s_a2d9b13320447b::t_373d469899cab8 132
+packages/backend/convex/actions/bot/discord/gateway/syncReady.ts
+  s_a2d9b13320447b::t_3f0997e42f2190 86-100,102,104-105,107-108
+  s_a2d9b13320447b::t_450dd4dd50c59d 143-146
+packages/backend/convex/mutations/bot/discord/guildEvents/record.test.ts
+  s_a2d9b13320447b::t_645ae5843f6a62 269-275
+  s_a2d9b13320447b::t_bffdeba43eb511 168-178
+apps/discord-bot/src/utils/botLog.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 54-61
+packages/backend/convex/lib/validators.test.ts
+  s_a2d9b13320447b::t_c4c4d328279e74 19-22
+  s_a2d9b13320447b::t_450dd4dd50c59d 28-31
+packages/backend/convex/lib/botDiscordGuildRuntimeConfig.ts
+  s_a2d9b13320447b::t_bffdeba43eb511 11-13,17
+apps/discord-bot/src/services/supportTickets.ts
+  s_a2d9b13320447b::t_806ced241dfd36 3,47-48,51-55,60,150-161,237-238,260-272,276
+apps/discord-bot/src/services/supportTickets.test.ts
+  s_a2d9b13320447b::t_9cb148553aac19 509,515,537-539,547-552,565,586,595-667
+  s_a2d9b13320447b::t_4d16e39d447513 668
+apps/discord-bot/src/runtime/shutdown.ts
+  s_a2d9b13320447b::t_f7cabf9fee724d 1,150-165
+  s_a2d9b13320447b::t_c4c4d328279e74 122-137
+  s_a2d9b13320447b::t_ddba7d5c599e57 166-167
+packages/backend/convex/queries/dashboard/discord/runtimeIncidents/list.ts
+  s_a2d9b13320447b::t_838aa7f721d8f6 156-164,166-168,173,185-193,195-197,200-202,204,214-222,224-226,229-231,233,243-251,253-255,258-260,262,271-278,280,283
+  s_a2d9b13320447b::t_c4c4d328279e74 171
+  s_a2d9b13320447b::t_6df552c489b449 155,165,169-170,172,174,184,194,198-199,203,205,213,223,227-228,232,234,242,252,256-257,261,263,270,279,281-282,284-286
+apps/discord-bot/src/runtime/startup.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 55,215-219
+apps/discord-bot/src/services/welcomeCardRenderer.test.ts
+  s_a2d9b13320447b::t_6df552c489b449 6-9,24-32
+  s_a2d9b13320447b::t_c4c4d328279e74 15
+  s_a2d9b13320447b::t_2486f39aa814c7 33-34
+apps/discord-bot/src/scripts/sendWelcomePreview.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 410-412
+packages/backend/convex/mutations/bot/discord/guildEvents/record.ts
+  s_a2d9b13320447b::t_bffdeba43eb511 138,398,400,407-415,450-468
+  s_a2d9b13320447b::t_f538a70c84ff40 469-470
+packages/backend/convex/lib/supportTickets.ts
+  s_a2d9b13320447b::t_3ec163a2ded240 23,29-34
+packages/backend/convex/actions/bot/discord/supportTickets/setRoutingThread.ts
+  s_a2d9b13320447b::t_3ec163a2ded240 1-29
+apps/discord-bot/src/utils/botLog.test.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 47-55,59,65-66,71-72,74,77,81,86-87,95-98
+packages/backend/convex/mutations/bot/discord/supportTickets/openOrResume.ts
+  s_a2d9b13320447b::t_3ec163a2ded240 38-51,54,57,112-114,169-170,172-173,176-180
+  s_a2d9b13320447b::t_c4c4d328279e74 72-77
+apps/discord-bot/src/runtime/shutdown.test.ts
+  s_a2d9b13320447b::t_45959b65b82634 85,88-89,108-110,117,130-132,152-155,200,203-204,226,228
+  s_a2d9b13320447b::t_582089539feee7 6-10,30-50
+  s_a2d9b13320447b::t_866da9516346b0 51
+packages/backend/convex/mutations/bot/discord/guilds/upsertFromGateway.test.ts
+  s_a2d9b13320447b::t_75ebb249d807a5 1-72
+apps/discord-bot/src/classes/Client.test.ts
+  s_a2d9b13320447b::t_45959b65b82634 146,151-152,173-175,191,193-194,218-225,243,248-249,270-271
+  s_a2d9b13320447b::t_c4c4d328279e74 132-135,272-275,283-287
+packages/backend/convex/mutations/bot/discord/guilds/syncReadyBatch.ts
+  s_a2d9b13320447b::t_c4c4d328279e74 3-6
+  s_a2d9b13320447b::t_79e4226143849f 202-219
+apps/discord-bot/src/handlers/events/interactionCreate.test.ts
+  s_a2d9b13320447b::t_c4c4d328279e74 62
+  s_a2d9b13320447b::t_45959b65b82634 263,266-267,279-285,296,304-305,325-326,328
+packages/backend/convex/_generated/api.d.ts
+  s_a2d9b13320447b::t_1b65c3319b4695 1075,1084,1093-1104,2861-2884,3590-3591,3600,3608-3615
+  s_a2d9b13320447b::t_fae2a119e21ba3 1074
+packages/backend/convex/mutations/dashboard/discord/guildConfigs/updateWorkspaceSection.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 128-132
+packages/backend/convex/dbTables/supportTickets.ts
+  s_a2d9b13320447b::t_3ec163a2ded240 26
+packages/backend/convex/actions/bot/discord/lib/auth.ts
+  s_a2d9b13320447b::t_79e4226143849f 4,19-20
+apps/dashboard/src/features/discord-guild-workspace/sections/ModerationSection.tsx
+  s_a2d9b13320447b::t_fd17c8e29171cd 177-187,218-234
+  s_a2d9b13320447b::t_f39471ff521a3a 235-237
+packages/backend/convex/supportHandlers.test.ts
+  s_a2d9b13320447b::t_555587697e230d 188-193
+  s_a2d9b13320447b::t_f91871e487eabb 14-15,18-19,194-200,227-228,270
+apps/discord-bot/src/handlers/events/guildDelete.test.ts
+  s_a2d9b13320447b::t_74db08a279d831 54
+  s_a2d9b13320447b::t_e259026f178898 1-29,39-53,55-56
+  s_a2d9b13320447b::t_8857780189e430 30-38
+packages/backend/convex/lib/validators.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 55
+apps/discord-bot/src/handlers/events/guildCreate.test.ts
+  s_a2d9b13320447b::t_e259026f178898 1-60,62-63
+  s_a2d9b13320447b::t_74db08a279d831 61
+packages/backend/convex/actions/bot/discord/gateway/syncReady.test.ts
+  s_a2d9b13320447b::t_450dd4dd50c59d 31-36
+  s_a2d9b13320447b::t_d16b90d50568e4 104-105,114-115
+apps/discord-bot/src/services/convexBotClient.ts
+  s_a2d9b13320447b::t_c4c4d328279e74 133
+  s_a2d9b13320447b::t_806ced241dfd36 179-182,560-575
+  s_a2d9b13320447b::t_6df552c489b449 447-453
+  s_a2d9b13320447b::t_f280a59fac3fe8 576-578
+packages/backend/convex/mutations/bot/discord/guilds/markBotLeftBatch.ts
+  s_a2d9b13320447b::t_3f0997e42f2190 122-173,191-203
+  s_a2d9b13320447b::t_5957d9ccc37350 204-205
+.github/scripts/deploy-discord.sh
+  s_a2d9b13320447b::t_bffdeba43eb511 51-53,59,65-66,79-80,96-100
+packages/backend/convex/mutations/bot/discord/guilds/syncReadyBatch.test.ts
+  s_a2d9b13320447b::t_3f0997e42f2190 120
+packages/backend/convex/actions/bot/discord/gateway/guildJoined.test.ts
+  s_a2d9b13320447b::t_878b1dc768a389 1-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "a40748f7a892e6644094dcc87537576f918eb3f5",
+  "prompts": {},
+  "sessions": {
+    "s_a2d9b13320447b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4dda-d2b8-7650-9cbb-ce9e5f2f9afe",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
