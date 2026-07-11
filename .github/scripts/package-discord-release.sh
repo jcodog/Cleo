@@ -33,10 +33,31 @@ pnpm --dir "$repository_root" --filter @workspace/discord-bot --prod deploy \
 install -m 0644 "$repository_root/.nvmrc" "$bundle_dir/.nvmrc"
 printf '%s\n' "$sha" > "$bundle_dir/.cleo-release-sha"
 printf '%s\n' "$release_platform" > "$bundle_dir/.cleo-release-platform"
+
+# The development tsconfig extends a workspace-only dev dependency. Production
+# runs TypeScript through tsx, so the portable bundle needs a self-contained
+# config for the @/* runtime path alias.
+cat > "$bundle_dir/tsconfig.json" <<'JSON'
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "target": "ES2022"
+  },
+  "include": ["src"]
+}
+JSON
+chmod 0644 "$bundle_dir/tsconfig.json"
+
 find "$bundle_dir" -type f -name '.env*' -delete
 
 for required_path in \
   package.json \
+  tsconfig.json \
   .nvmrc \
   .cleo-release-sha \
   .cleo-release-platform \
@@ -48,6 +69,11 @@ for required_path in \
     exit 1
   fi
 done
+
+(
+  cd "$bundle_dir"
+  node node_modules/tsx/dist/cli.mjs -e 'import("@/classes/Event")'
+)
 
 archive_name="cleo-discord-${sha}.tar.gz"
 archive_path="$output_dir/$archive_name"
