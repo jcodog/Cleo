@@ -213,6 +213,7 @@ if [[ ! -d "$release_dir" ]]; then
   rm -rf -- "$staging_dir"
   pnpm --dir "$repository_root" --filter @workspace/discord-bot deploy \
     --legacy --prod "$staging_dir"
+  install -m 0644 "$repository_root/.nvmrc" "$staging_dir/.nvmrc"
   find "$staging_dir" -maxdepth 1 -type f -name '.env*' -delete
   printf '%s\n' "$sha" > "$staging_dir/.cleo-release-sha"
   mv "$staging_dir" "$release_dir"
