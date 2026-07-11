@@ -48,8 +48,10 @@ jobs:
         run: |
           output_dir="${RUNNER_TEMP}/cleo-discord-package-test"
           extract_dir="${RUNNER_TEMP}/cleo-discord-package-extract"
-          bash .github/scripts/package-discord-release.sh "$output_dir"
-          archive="$output_dir/cleo-discord-${GITHUB_SHA}.tar.gz"
+          release_sha="$(git rev-parse HEAD)"
+          CLEO_DISCORD_RELEASE_SHA="$release_sha" \
+            bash .github/scripts/package-discord-release.sh "$output_dir"
+          archive="$output_dir/cleo-discord-${release_sha}.tar.gz"
           checksum="$archive.sha256"
           test -f "$archive"
           test -f "$checksum"
@@ -60,7 +62,7 @@ jobs:
           test -f "$extract_dir/src/index.ts"
           test -f "$extract_dir/node_modules/tsx/dist/cli.mjs"
           test -f "$extract_dir/.cleo-release-sha"
-          test "$(cat "$extract_dir/.cleo-release-sha")" = "$GITHUB_SHA"
+          test "$(cat "$extract_dir/.cleo-release-sha")" = "$release_sha"
 
       - name: Check peer dependency compatibility
         run: pnpm check:peers
