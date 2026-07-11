@@ -11,6 +11,9 @@ deploy_root="/srv/cleo/discord-bot"
 env_dir="/etc/cleo"
 env_file="$env_dir/discord-bot.env"
 libexec_dir="/usr/local/libexec/cleo"
+sudoers_target="/etc/sudoers.d/cleo-discord-deploy"
+sudoers_candidate="$(mktemp)"
+trap 'rm -f -- "$sudoers_candidate"' EXIT
 
 require_file() {
   [[ -f "$repository_root/$1" ]] || {
@@ -53,10 +56,13 @@ if [[ ! -e "$env_file" ]]; then
     "$repository_root/ops/discord/discord-bot.env.example" \
     "$env_file"
   echo "Created $env_file from the non-secret template. Replace every placeholder before smoke validation."
-else
+elif [[ -f "$env_file" ]]; then
   chown root:cleo "$env_file"
   chmod 0640 "$env_file"
   echo "Preserved existing $env_file and enforced root:cleo 0640 permissions."
+else
+  echo "$env_file exists but is not a regular file" >&2
+  exit 1
 fi
 
 install -d -o root -g root -m 0755 "$libexec_dir"
@@ -73,11 +79,14 @@ install -o root -g root -m 0644 \
 install -o root -g root -m 0644 \
   "$repository_root/ops/discord/systemd/cleo-discord-register-commands.service" \
   /etc/systemd/system/cleo-discord-register-commands.service
+
 install -o root -g root -m 0440 \
   "$repository_root/ops/discord/sudoers/cleo-discord-deploy" \
-  /etc/sudoers.d/cleo-discord-deploy
+  "$sudoers_candidate"
+visudo -cf "$sudoers_candidate"
+install -o root -g root -m 0440 "$sudoers_candidate" "$sudoers_target"
+visudo -cf "$sudoers_target"
 
-visudo -cf /etc/sudoers.d/cleo-discord-deploy
 systemctl daemon-reload
 systemctl enable cleo-discord.service
 
