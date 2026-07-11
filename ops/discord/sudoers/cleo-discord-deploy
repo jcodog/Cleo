@@ -5,6 +5,7 @@ Cmnd_Alias CLEO_DISCORD_SYSTEMD = \
   /usr/bin/systemctl reset-failed cleo-discord-register-commands.service
 
 Cmnd_Alias CLEO_DISCORD_CHECKS = \
+  /usr/bin/test -r /etc/cleo/discord-bot.env, \
   /usr/local/libexec/cleo/check-discord-env /etc/cleo/discord-bot.env, \
   /usr/local/libexec/cleo/check-discord-runtime *
 
