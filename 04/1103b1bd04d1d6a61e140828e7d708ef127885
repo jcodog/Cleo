@@ -1,0 +1,21 @@
+.coderabbit.yaml
+  s_a2d9b13320447b::t_5448f8ddb7a5cc 1-44
+cubic.yaml
+  s_a2d9b13320447b::t_67aefc714edf32 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "041103b1bd04d1d6a61e140828e7d708ef127885",
+  "prompts": {},
+  "sessions": {
+    "s_a2d9b13320447b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4dda-d2b8-7650-9cbb-ce9e5f2f9afe",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
