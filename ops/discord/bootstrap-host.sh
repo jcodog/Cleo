@@ -33,6 +33,8 @@ require_user github-runner
 require_user cleo
 
 for file in \
+  .nvmrc \
+  package.json \
   ops/discord/bin/check-discord-env \
   ops/discord/bin/check-discord-runtime \
   ops/discord/discord-bot.env.example \
