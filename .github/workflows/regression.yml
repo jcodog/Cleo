@@ -106,7 +106,9 @@ jobs:
           test -f "$extract_dir/src/index.ts"
           test -f "$extract_dir/node_modules/tsx/dist/cli.mjs"
           test -f "$extract_dir/.cleo-release-sha"
+          test -f "$extract_dir/.cleo-release-platform"
           test "$(cat "$extract_dir/.cleo-release-sha")" = "$release_sha"
+          test "$(cat "$extract_dir/.cleo-release-platform")" = "linux-x64"
 
       - name: Upload Cobertura artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
