@@ -12,6 +12,7 @@ on:
       - "packages/eslint-config/**"
       - "packages/typescript-config/**"
       - ".github/scripts/deploy-discord.sh"
+      - ".github/scripts/package-discord-release.sh"
       - ".github/scripts/check-discord-runner.sh"
       - ".github/workflows/discord-production.yml"
       - ".nvmrc"
@@ -22,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Validate on the production runner, deploy, or roll back
+        description: Validate and package, deploy, or roll back
         required: true
         default: validate
         type: choice
@@ -71,22 +72,163 @@ jobs:
             echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
           fi
 
-  deploy:
-    name: Validate or deploy Discord bot
+  validate-package:
+    name: Validate and package Discord bot
     needs: classify
     if: >-
       github.ref == 'refs/heads/main' &&
       needs.classify.outputs.deploy == 'true' &&
       (
-        vars.CLEO_DISCORD_DEPLOY_ENABLED == 'true' ||
+        (github.event_name == 'workflow_dispatch' && inputs.operation == 'validate') ||
         (
-          github.event_name == 'workflow_dispatch' &&
-          (inputs.operation == 'validate' || inputs.operation == 'rollback')
+          vars.CLEO_DISCORD_DEPLOY_ENABLED == 'true' &&
+          (
+            github.event_name != 'workflow_dispatch' ||
+            inputs.operation == 'deploy'
+          )
         )
       )
     environment: discord-production
-    runs-on: cleo-prod
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
+    outputs:
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check peer dependency compatibility
+        run: pnpm check:peers
+
+      - name: Test Discord bot
+        run: pnpm --filter @workspace/discord-bot run test
+
+      - name: Test Convex backend
+        run: pnpm --filter @workspace/backend run test
+
+      - name: Typecheck Discord bot
+        run: pnpm --filter @workspace/discord-bot run typecheck
+
+      - name: Typecheck Convex backend
+        run: pnpm --filter @workspace/backend run typecheck
+
+      - name: Lint Discord bot
+        run: pnpm --filter @workspace/discord-bot run lint
+
+      - name: Lint Convex backend
+        run: pnpm --filter @workspace/backend run lint
+
+      - name: Build Discord bot
+        run: pnpm --filter @workspace/discord-bot run build
+
+      - name: Package portable ARM64 release
+        id: package
+        run: >-
+          bash .github/scripts/package-discord-release.sh
+          "${{ runner.temp }}/cleo-discord-artifact"
+
+      - name: Upload validated release artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          path: |
+            ${{ runner.temp }}/cleo-discord-artifact/*.tar.gz
+            ${{ runner.temp }}/cleo-discord-artifact/*.sha256
+
+      - name: Deploy Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: pnpm --filter @workspace/backend run deploy
+
+      - name: Record validation-only success
+        if: github.event_name == 'workflow_dispatch' && inputs.operation == 'validate'
+        run: echo "Discord v3 validation and ARM64 packaging passed on GitHub-hosted infrastructure."
+
+  activate:
+    name: Activate Discord release on production VPS
+    needs:
+      - classify
+      - validate-package
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      needs.validate-package.result == 'success' &&
+      (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.operation == 'deploy'
+      )
+    environment: discord-production
+    runs-on: cleo-prod
+    timeout-minutes: 10
+    env:
+      CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
+      CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
+      CLEO_DISCORD_SERVICE: cleo-discord.service
+      CLEO_DISCORD_COMMAND_SERVICE: cleo-discord-register-commands.service
+      CLEO_DISCORD_RUNTIME_USER: cleo
+      CLEO_DISCORD_RUNTIME_GROUP: cleo
+      CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
+      CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz
+      CLEO_DISCORD_RELEASE_CHECKSUM: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz.sha256
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Verify production runner contract
+        run: bash .github/scripts/check-discord-runner.sh
+
+      - name: Download validated release artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.validate-package.outputs.artifact_name }}
+          path: ${{ runner.temp }}/cleo-discord-release
+
+      - name: Activate release
+        run: bash .github/scripts/deploy-discord.sh deploy
+
+  rollback:
+    name: Roll back Discord production
+    needs: classify
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.operation == 'rollback'
+    environment: discord-production
+    runs-on: cleo-prod
+    timeout-minutes: 10
     env:
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
@@ -111,59 +253,9 @@ jobs:
         uses: actions/setup-node@v4.4.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
 
       - name: Verify production runner contract
         run: bash .github/scripts/check-discord-runner.sh
 
-      - name: Install exact dependencies
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm install --frozen-lockfile
-
-      - name: Check peer dependency compatibility
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm check:peers
-
-      - name: Test Discord bot
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm --filter @workspace/discord-bot run test
-
-      - name: Test Convex backend
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm --filter @workspace/backend run test
-
-      - name: Typecheck Discord bot
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm --filter @workspace/discord-bot run typecheck
-
-      - name: Typecheck Convex backend
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm --filter @workspace/backend run typecheck
-
-      - name: Lint Discord bot
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm --filter @workspace/discord-bot run lint
-
-      - name: Lint Convex backend
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm --filter @workspace/backend run lint
-
-      - name: Build Discord bot
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
-        run: pnpm --filter @workspace/discord-bot run build
-
-      - name: Record validation-only success
-        if: github.event_name == 'workflow_dispatch' && inputs.operation == 'validate'
-        run: echo "Discord v3 release validation passed on the cleo-prod runner."
-
-      - name: Deploy Convex backend
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-        run: pnpm --filter @workspace/backend run deploy
-
-      - name: Deploy or roll back
-        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'validate'
-        run: >-
-          bash .github/scripts/deploy-discord.sh
-          "${{ github.event_name == 'workflow_dispatch' && inputs.operation || 'deploy' }}"
+      - name: Roll back to previous release
+        run: bash .github/scripts/deploy-discord.sh rollback
