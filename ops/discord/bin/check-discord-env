@@ -62,6 +62,9 @@ reject_placeholder() {
 
 [[ -f "$env_file" ]] || fail "missing file $env_file"
 [[ -r "$env_file" ]] || fail "runtime user cannot read $env_file"
+file_mode="$(stat -c %a "$env_file")"
+[[ "${file_mode: -1}" == "0" ]] ||
+  fail "$env_file must not be accessible by other users"
 
 node_env="$(read_value NODE_ENV)"
 convex_url="$(read_value CONVEX_URL)"
