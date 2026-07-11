@@ -18,6 +18,7 @@ DISCORD_BOT_RUNTIME_MODE=single
 DISCORD_BOT_SHARD_COUNT=auto
 DISCORD_CLIENT_ID=123456789012345678
 ENV
+  chmod 0640 "$target"
 }
 
 expect_failure() {
@@ -46,6 +47,11 @@ valid_env="$temporary_dir/valid.env"
 write_valid_env "$valid_env"
 valid_output="$(bash "$validator" "$valid_env")"
 [[ "$valid_output" == "Discord production environment is valid." ]]
+
+world_readable_env="$temporary_dir/world-readable.env"
+write_valid_env "$world_readable_env"
+chmod 0644 "$world_readable_env"
+expect_failure "must not be accessible by other users" "$world_readable_env"
 
 missing_env="$temporary_dir/missing.env"
 write_valid_env "$missing_env"
