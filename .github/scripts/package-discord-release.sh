@@ -4,7 +4,7 @@ umask 0027
 
 repository_root="${GITHUB_WORKSPACE:-$(pwd)}"
 output_dir="${1:-${RUNNER_TEMP:-/tmp}/cleo-discord-artifact}"
-sha="${GITHUB_SHA:-$(git -C "$repository_root" rev-parse HEAD)}"
+sha="${CLEO_DISCORD_RELEASE_SHA:-$(git -C "$repository_root" rev-parse HEAD)}"
 
 is_sha() {
   [[ "$1" =~ ^[0-9a-f]{40}$ ]]
@@ -36,7 +36,7 @@ for required_path in \
   node_modules/tsx/dist/cli.mjs; do
   if [[ ! -e "$bundle_dir/$required_path" ]]; then
     echo "Packaged Discord release is missing $required_path" >&2
-    find "$bundle_dir" -maxdepth 4 -type f -o -type l | sort | head -200 >&2
+    find "$bundle_dir" -maxdepth 4 \( -type f -o -type l \) | sort | head -200 >&2
     exit 1
   fi
 done
