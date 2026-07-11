@@ -1,4 +1,4 @@
-import type { Client, ShardingManager } from "discord.js"
+import type { Client, Shard, ShardingManager } from "discord.js"
 
 import {
   reportDiscordRuntimeError,
@@ -119,16 +119,22 @@ export async function shutdownDiscordShardingManager({
   try {
     manager.respawn = false
 
-    for (const shard of manager.shards.values()) {
-      try {
-        shard.kill()
-      } catch (cleanupError) {
-        botLogError("Discord shard shutdown cleanup failed.", cleanupError, {
-          reason,
-          shardId: shard.id,
-        })
-      }
-    }
+    await Promise.all(
+      Array.from(manager.shards.values()).map(async (shard) => {
+        try {
+          await runShutdownStep(
+            () => terminateShard(shard),
+            `shard ${shard.id} termination`,
+            stepTimeoutMs
+          )
+        } catch (cleanupError) {
+          botLogError("Discord shard shutdown cleanup failed.", cleanupError, {
+            reason,
+            shardId: shard.id,
+          })
+        }
+      })
+    )
   } catch (cleanupError) {
     botLogError("Discord sharding manager cleanup failed.", cleanupError, {
       reason,
@@ -139,6 +145,24 @@ export async function shutdownDiscordShardingManager({
 
   process.exitCode = exitCode
   exit(exitCode)
+}
+
+export async function terminateShard(
+  shard: Pick<Shard, "kill" | "once" | "process" | "worker">
+): Promise<void> {
+  if (shard.process === null && shard.worker === null) {
+    return
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    shard.once("death", () => resolve())
+
+    try {
+      shard.kill()
+    } catch (error) {
+      reject(error)
+    }
+  })
 }
 
 async function reportStartupOrFatalError({

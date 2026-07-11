@@ -39,12 +39,20 @@ export const upsert = internalMutation({
 
       await ctx.db.patch(existing._id, {
         name: args.name,
-        description: args.description,
-        iconUrl: args.iconUrl,
-        iconHash: args.iconHash,
-        ownerDiscordId: args.ownerDiscordId,
-        memberCount: args.memberCount,
-        presenceCount: args.presenceCount,
+        ...(args.description !== undefined
+          ? { description: args.description }
+          : {}),
+        ...(args.iconUrl !== undefined ? { iconUrl: args.iconUrl } : {}),
+        ...(args.iconHash !== undefined ? { iconHash: args.iconHash } : {}),
+        ...(args.ownerDiscordId !== undefined
+          ? { ownerDiscordId: args.ownerDiscordId }
+          : {}),
+        ...(args.memberCount !== undefined
+          ? { memberCount: args.memberCount }
+          : {}),
+        ...(args.presenceCount !== undefined
+          ? { presenceCount: args.presenceCount }
+          : {}),
         ...(args.botJoinedAt !== undefined
           ? { botJoinedAt: args.botJoinedAt }
           : {}),

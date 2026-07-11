@@ -135,7 +135,7 @@ export function normaliseDiscordGuildEventForStorage(
   const metadata = sanitiseDiscordGuildEventMetadata(input.metadata)
   const dedupeKey = normaliseDedupeKey(input)
 
-  assertRequiredEventFields(input.eventType, {
+  assertEventShape(input.eventType, input.targetType, {
     targetDiscordId,
     channelId,
     roleId,
@@ -395,14 +395,24 @@ function normaliseDedupeKey(input: DiscordGuildEventRecordInput): string {
   return dedupeKey
 }
 
-function assertRequiredEventFields(
+function assertEventShape(
   eventType: DiscordGuildEventRecordInput["eventType"],
+  targetType: DiscordGuildEventRecordInput["targetType"],
   fields: {
     targetDiscordId?: string
     channelId?: string
     roleId?: string
   }
 ): void {
+  const expectedTargetType = getExpectedTargetType(eventType)
+
+  if (targetType !== expectedTargetType) {
+    throw new ConvexError({
+      code: "INVALID_DISCORD_GUILD_EVENT",
+      message: `targetType must be ${expectedTargetType} for ${eventType}.`,
+    })
+  }
+
   if (
     [
       "guildMemberAdd",
@@ -434,6 +444,27 @@ function assertRequiredEventFields(
     (fields.targetDiscordId === undefined || fields.channelId === undefined)
   ) {
     throwMissingField("targetDiscordId and channelId", eventType)
+  }
+}
+
+function getExpectedTargetType(
+  eventType: DiscordGuildEventRecordInput["eventType"]
+): DiscordGuildEventRecordInput["targetType"] {
+  switch (eventType) {
+    case "guildMemberAdd":
+    case "guildMemberRemove":
+      return "member"
+    case "guildBanAdd":
+    case "guildBanRemove":
+      return "user"
+    case "channelCreate":
+    case "channelDelete":
+      return "channel"
+    case "roleCreate":
+    case "roleDelete":
+      return "role"
+    case "messageDelete":
+      return "message"
   }
 }
 

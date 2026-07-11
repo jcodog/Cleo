@@ -7,23 +7,14 @@ import {
 } from "@workspace/shared/discordRuntimeConfig"
 import { v } from "convex/values"
 
-const [disabledUnknownGuild, disabledBotLeft, disabledMissingConfig] =
-  BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS
-
-const [logLevelNone, logLevelMinimal, logLevelMedium, logLevelMaximum] =
-  DISCORD_GUILD_RUNTIME_CONFIG_LOG_LEVELS
-
 const botDiscordGuildRuntimeConfigDisabledReason = v.union(
-  v.literal(disabledUnknownGuild),
-  v.literal(disabledBotLeft),
-  v.literal(disabledMissingConfig)
+  ...BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS.map((value) =>
+    v.literal(value)
+  )
 )
 
 const botDiscordGuildRuntimeConfigLogLevel = v.union(
-  v.literal(logLevelNone),
-  v.literal(logLevelMinimal),
-  v.literal(logLevelMedium),
-  v.literal(logLevelMaximum)
+  ...DISCORD_GUILD_RUNTIME_CONFIG_LOG_LEVELS.map((value) => v.literal(value))
 )
 
 const botDiscordGuildSupportTargetType = v.union(

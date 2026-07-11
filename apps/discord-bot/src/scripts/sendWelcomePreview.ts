@@ -407,7 +407,9 @@ function readArgValue(
     return undefined
   }
 
-  return args[flagIndex + 1]
+  const value = args[flagIndex + 1]
+
+  return value?.startsWith("--") ? undefined : value
 }
 
 function isDirectEntrypoint(): boolean {

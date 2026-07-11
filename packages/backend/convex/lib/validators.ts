@@ -52,7 +52,7 @@ export function isConvexJsonObject(value: unknown): value is ConvexJsonObject {
 export function isConvexJsonShallowValue(
   value: unknown
 ): value is ConvexJsonShallowValue {
-  return isConvexJsonValueWithDepth(value, 2)
+  return isConvexJsonValueWithDepth(value, 4)
 }
 
 export function isConvexJsonShallowObject(

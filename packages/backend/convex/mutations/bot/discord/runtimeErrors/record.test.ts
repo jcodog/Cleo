@@ -143,6 +143,10 @@ test("runtime error timestamps are bounded and default to now", () => {
 
   assert.equal(normaliseRuntimeErrorOccurredAt(undefined, now), now)
   assert.equal(normaliseRuntimeErrorOccurredAt(now - 1, now), now - 1)
+  assert.equal(
+    normaliseRuntimeErrorOccurredAt(now + 5 * 60 * 1_000, now),
+    now + 5 * 60 * 1_000
+  )
   assert.throws(() => normaliseRuntimeErrorOccurredAt(-1, now))
   assert.throws(() =>
     normaliseRuntimeErrorOccurredAt(now + 5 * 60 * 1_000 + 1, now)

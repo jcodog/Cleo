@@ -61,27 +61,59 @@ export function OverviewSection({
         <CardContent>
           <div className="flex flex-col gap-3">
             <FeatureState
-              enabled={overview.guildConfig?.welcomeEnabled ?? false}
+              enabled={
+                overview.guildConfig?.welcomeEnabled === true &&
+                overview.guildConfig.welcomeChannelId !== undefined
+              }
               href={`/dashboard/${overview.discordGuildId}/welcome`}
               label="Welcome"
+              stateLabel={getConfiguredFeatureState(
+                overview.guildConfig?.welcomeEnabled ?? false,
+                overview.guildConfig?.welcomeChannelId
+              )}
             />
             <FeatureState
-              enabled={overview.guildConfig?.moderationEnabled ?? false}
+              enabled={
+                overview.guildConfig?.moderationEnabled === true &&
+                overview.guildConfig.modLogChannelId !== undefined
+              }
               href={`/dashboard/${overview.discordGuildId}/moderation`}
               label="Moderation"
+              stateLabel={getConfiguredFeatureState(
+                overview.guildConfig?.moderationEnabled ?? false,
+                overview.guildConfig?.modLogChannelId
+              )}
             />
             <FeatureState
-              enabled={overview.guildConfig?.loggingEnabled ?? false}
+              enabled={
+                overview.guildConfig?.loggingEnabled === true &&
+                overview.guildConfig.logChannelId !== undefined
+              }
               href={`/dashboard/${overview.discordGuildId}/logs`}
               label="Logging"
+              stateLabel={getConfiguredFeatureState(
+                overview.guildConfig?.loggingEnabled ?? false,
+                overview.guildConfig?.logChannelId
+              )}
             />
             <FeatureState
               enabled={
                 supportResult?.status === "ready" &&
-                supportResult.config?.enabled === true
+                supportResult.config?.enabled === true &&
+                supportResult.config.targetId !== undefined
               }
               href={`/dashboard/${overview.discordGuildId}/support`}
               label="Support"
+              stateLabel={
+                supportResult === undefined
+                  ? "Loading"
+                  : supportResult.status === "ready"
+                    ? getConfiguredFeatureState(
+                        supportResult.config?.enabled ?? false,
+                        supportResult.config?.targetId
+                      )
+                    : "Unavailable"
+              }
             />
           </div>
         </CardContent>
@@ -153,6 +185,17 @@ export function OverviewSection({
       </Card>
     </div>
   )
+}
+
+function getConfiguredFeatureState(
+  enabled: boolean,
+  requiredTarget: string | undefined
+): string {
+  if (!enabled) {
+    return "Disabled"
+  }
+
+  return requiredTarget ? "Ready" : "Needs Channel"
 }
 
 function FeatureState({

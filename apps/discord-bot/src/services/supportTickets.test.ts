@@ -506,11 +506,13 @@ test("default guild notifier handles unavailable destinations", async () => {
 
 test("default guild notifier creates forum threads with safe names", async () => {
   const createdThreads: unknown[] = []
+  const savedThreads: unknown[] = []
   const forum = {
     type: ChannelType.GuildForum,
     threads: {
       async create(input: unknown) {
         createdThreads.push(input)
+        return { id: "567890123456789012" }
       },
     },
   }
@@ -532,6 +534,9 @@ test("default guild notifier creates forum threads with safe names", async () =>
         },
       }
     },
+    async saveRoutingThread(ticketId, threadId) {
+      savedThreads.push({ ticketId, threadId })
+    },
   })
 
   assert.equal(createdThreads.length, 1)
@@ -539,6 +544,12 @@ test("default guild notifier creates forum threads with safe names", async () =>
     (createdThreads[0] as { name: string }).name,
     `Support · ${"x".repeat(80)}`
   )
+  assert.deepEqual(savedThreads, [
+    {
+      ticketId: "ticket-id",
+      threadId: "567890123456789012",
+    },
+  ])
 })
 
 test("forum thread names fall back when the Discord username is blank", async () => {
@@ -551,6 +562,7 @@ test("forum thread names fall back when the Discord username is blank", async ()
       threads: {
         async create(input: unknown) {
           createdThreads.push(input)
+          return { id: "567890123456789012" }
         },
       },
     })
@@ -571,12 +583,87 @@ test("forum thread names fall back when the Discord username is blank", async ()
         },
       }
     },
+    async saveRoutingThread() {},
   })
 
   assert.equal(
     (createdThreads[0] as { name: string }).name,
     "Support · Discord user"
   )
+})
+
+test("resumed forum tickets post into their persisted thread", async () => {
+  const sentMessages: unknown[] = []
+  const threadId = "567890123456789012"
+  const forum = { type: ChannelType.GuildForum }
+  const thread = {
+    type: ChannelType.PublicThread,
+    isTextBased: () => true,
+    isSendable: () => true,
+    async send(message: unknown) {
+      sentMessages.push(message)
+    },
+  }
+  const { interaction } = createInteraction({ guildId, message: "Follow up" })
+  setInteractionGuild(interaction, {
+    channels: {
+      cache: new Map([
+        [targetId, forum],
+        [threadId, thread],
+      ]),
+      async fetch(id: string) {
+        return id === threadId ? thread : forum
+      },
+    },
+  } as never)
+
+  await handleHelpCommand(interaction, {
+    async fetchConfig() {
+      return readyConfig({ supportTargetType: "forum" })
+    },
+    async openTicket() {
+      return {
+        ...openedResult("guild"),
+        status: "resumed",
+        submittedMessage: "Follow up",
+        route: {
+          targetId,
+          targetType: "forum",
+          staffRoleIds: [roleId],
+          threadId,
+        },
+      }
+    },
+    async saveRoutingThread() {
+      throw new Error("existing thread should be reused")
+    },
+  })
+
+  assert.equal(sentMessages.length, 1)
+})
+
+test("resumed tickets without a message do not repeat staff notifications", async () => {
+  const { interaction } = createInteraction({ guildId })
+  let notifications = 0
+
+  await handleHelpCommand(interaction, {
+    async fetchConfig() {
+      return readyConfig()
+    },
+    async openTicket() {
+      return {
+        ...openedResult("guild"),
+        status: "resumed",
+        submittedMessage: undefined,
+      }
+    },
+    async notifyGuildSupport() {
+      notifications += 1
+      return true
+    },
+  })
+
+  assert.equal(notifications, 0)
 })
 
 test("uncached guild destination fetch failures are non-fatal", async () => {

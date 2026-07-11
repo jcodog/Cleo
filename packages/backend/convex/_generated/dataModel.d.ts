@@ -2156,6 +2156,7 @@ export type DataModel = {
       resolvedAt?: number;
       routingTargetId?: string;
       routingTargetType?: "channel" | "thread" | "forum";
+      routingThreadId?: string;
       scope: "jcn" | "guild";
       source: "discord-help";
       status:
@@ -2186,6 +2187,7 @@ export type DataModel = {
       | "resolvedAt"
       | "routingTargetId"
       | "routingTargetType"
+      | "routingThreadId"
       | "scope"
       | "source"
       | "status"

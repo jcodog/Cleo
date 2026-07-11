@@ -125,12 +125,11 @@ function buildNextConfig({
       : config?.logLevel !== undefined
         ? { logLevel: config.logLevel }
         : {}),
-    ...buildWelcomeFields({
-      subtext:
-        welcome?.subtext !== undefined
-          ? welcome.subtext
-          : config?.welcomeSubtext,
-    }),
+    ...(welcome?.subtext !== undefined
+      ? buildWelcomeFields({ subtext: welcome.subtext })
+      : config?.welcomeSubtext !== undefined
+        ? { welcomeSubtext: config.welcomeSubtext }
+        : {}),
     ...buildChannelFields({
       logChannelId:
         channels.logChannelId !== undefined

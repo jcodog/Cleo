@@ -35,12 +35,26 @@ export const openOrResume = internalMutation({
       : null
 
     if (input.discordGuildId) {
-      const unavailableReason = getGuildSupportUnavailableReason(supportConfig)
-
-      if (!guild || guild.botLeftAt !== undefined || unavailableReason) {
+      if (!guild) {
         return {
           status: "guildSupportUnavailable" as const,
-          reason: unavailableReason ?? ("notConfigured" as const),
+          reason: "unknownGuild" as const,
+        }
+      }
+
+      if (guild.botLeftAt !== undefined) {
+        return {
+          status: "guildSupportUnavailable" as const,
+          reason: "botLeft" as const,
+        }
+      }
+
+      const unavailableReason = getGuildSupportUnavailableReason(supportConfig)
+
+      if (unavailableReason) {
+        return {
+          status: "guildSupportUnavailable" as const,
+          reason: unavailableReason,
         }
       }
     }
@@ -55,7 +69,12 @@ export const openOrResume = internalMutation({
       input.requesterDiscordUserId
     )
     const ticketId = existingTicket
-      ? await resumeTicket(ctx, existingTicket, now)
+      ? await resumeTicket(
+          ctx,
+          existingTicket,
+          now,
+          input.message !== undefined
+        )
       : await createTicket({
           activeKey,
           ctx,
@@ -90,6 +109,9 @@ export const openOrResume = internalMutation({
               targetId: supportConfig.targetId,
               targetType: supportConfig.targetType,
               staffRoleIds: supportConfig.staffRoleIds,
+              ...(existingTicket?.routingThreadId !== undefined
+                ? { threadId: existingTicket.routingThreadId }
+                : {}),
             },
           }
         : {}),
@@ -144,13 +166,18 @@ async function createTicket(args: {
 async function resumeTicket(
   ctx: MutationCtx,
   ticket: Doc<"supportTickets">,
-  now: number
+  now: number,
+  hasMessage: boolean
 ): Promise<Id<"supportTickets">> {
+  const reopening = ticket.status === "resolved" || ticket.status === "closed"
+
   await ctx.db.patch(ticket._id, {
     status: "open",
-    openCount: ticket.openCount + 1,
-    lastOpenedAt: now,
-    lastActivityAt: now,
+    openCount: reopening ? ticket.openCount + 1 : ticket.openCount,
+    lastOpenedAt: reopening ? now : ticket.lastOpenedAt,
+    lastActivityAt: reopening || hasMessage ? now : ticket.lastActivityAt,
+    resolvedAt: undefined,
+    closedAt: undefined,
     updatedAt: now,
   })
 

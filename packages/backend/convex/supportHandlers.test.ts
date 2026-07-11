@@ -11,8 +11,12 @@ const modules = {
   "./_generated/server.js": () => import("./_generated/server.js"),
   "./actions/bot/discord/supportTickets/openOrResume.ts": () =>
     import("./actions/bot/discord/supportTickets/openOrResume"),
+  "./actions/bot/discord/supportTickets/setRoutingThread.ts": () =>
+    import("./actions/bot/discord/supportTickets/setRoutingThread"),
   "./mutations/bot/discord/supportTickets/openOrResume.ts": () =>
     import("./mutations/bot/discord/supportTickets/openOrResume"),
+  "./mutations/bot/discord/supportTickets/setRoutingThread.ts": () =>
+    import("./mutations/bot/discord/supportTickets/setRoutingThread"),
   "./mutations/dashboard/discord/guildSupportConfigs/update.ts": () =>
     import("./mutations/dashboard/discord/guildSupportConfigs/update"),
 }
@@ -181,12 +185,24 @@ test("ticket mutation opens, persists, links the requester, and resumes", async 
     internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
     input
   )
+  assert.equal(opened.status, "opened")
+
+  if (opened.status !== "opened") {
+    throw new Error("Expected support ticket to open")
+  }
+
+  await t.run(async (ctx) => {
+    await ctx.db.patch(opened.ticketId, {
+      status: "closed",
+      resolvedAt: 2,
+      closedAt: 3,
+    })
+  })
   const resumed = await t.mutation(
     internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
     input
   )
 
-  assert.equal(opened.status, "opened")
   assert.equal(resumed.status, "resumed")
   assert.equal(resumed.ticketId, opened.ticketId)
   assert.equal(resumed.messageStored, true)
@@ -208,6 +224,8 @@ test("ticket mutation opens, persists, links the requester, and resumes", async 
 
   assert.equal(stored.ticket?.requesterUserId, userId)
   assert.equal(stored.ticket?.openCount, 2)
+  assert.equal(stored.ticket?.resolvedAt, undefined)
+  assert.equal(stored.ticket?.closedAt, undefined)
   assert.equal(stored.messages.length, 2)
 })
 
@@ -249,7 +267,7 @@ test("ticket mutation enforces transcript policy and unavailable guild paths", a
   )
   assert.deepEqual(botLeft, {
     status: "guildSupportUnavailable",
-    reason: "notConfigured",
+    reason: "botLeft",
   })
 })
 

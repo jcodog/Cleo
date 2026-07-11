@@ -1071,7 +1071,8 @@ export declare const api: {
                 secret: string;
               },
               | {
-                  reason: "notConfigured" | "disabled";
+                  reason:
+                    "notConfigured" | "disabled" | "unknownGuild" | "botLeft";
                   status: "guildSupportUnavailable";
                 }
               | {
@@ -1080,12 +1081,25 @@ export declare const api: {
                     staffRoleIds: Array<string>;
                     targetId: string;
                     targetType: "channel" | "thread" | "forum";
+                    threadId?: string;
                   };
                   scope: "jcn" | "guild";
                   status: "opened" | "resumed";
                   submittedMessage?: string;
                   ticketId: Id<"supportTickets">;
                 }
+            >;
+          };
+          setRoutingThread: {
+            set: FunctionReference<
+              "action",
+              "public",
+              {
+                secret: string;
+                threadId: string;
+                ticketId: Id<"supportTickets">;
+              },
+              null
             >;
           };
         };
@@ -2844,6 +2858,30 @@ export declare const internal: {
               { discordGuildIds: Array<string>; leftAt: number },
               { markedLeft: number; requested: number; skipped: number }
             >;
+            markAbsentForReadyScopePage: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                leftAt: number;
+                paginationOpts: {
+                  cursor: string | null;
+                  endCursor?: string | null;
+                  id?: number;
+                  maximumBytesRead?: number;
+                  maximumRowsRead?: number;
+                  numItems: number;
+                };
+                shardCount: number;
+                shardIds: Array<number>;
+              },
+              {
+                continueCursor: string;
+                isDone: boolean;
+                markedLeft: number;
+                scanned: number;
+                skipped: number;
+              }
+            >;
             markAbsentForReadyShardPage: FunctionReference<
               "mutation",
               "internal",
@@ -3549,7 +3587,8 @@ export declare const internal: {
                 requesterDiscordUserId: string;
               },
               | {
-                  reason: "notConfigured" | "disabled";
+                  reason:
+                    "notConfigured" | "disabled" | "unknownGuild" | "botLeft";
                   status: "guildSupportUnavailable";
                 }
               | {
@@ -3558,12 +3597,21 @@ export declare const internal: {
                     staffRoleIds: Array<string>;
                     targetId: string;
                     targetType: "channel" | "thread" | "forum";
+                    threadId?: string;
                   };
                   scope: "jcn" | "guild";
                   status: "opened" | "resumed";
                   submittedMessage?: string;
                   ticketId: Id<"supportTickets">;
                 }
+            >;
+          };
+          setRoutingThread: {
+            set: FunctionReference<
+              "mutation",
+              "internal",
+              { threadId: string; ticketId: Id<"supportTickets"> },
+              null
             >;
           };
         };

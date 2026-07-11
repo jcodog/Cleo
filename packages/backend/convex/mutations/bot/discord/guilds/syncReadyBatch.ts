@@ -1,6 +1,9 @@
 import { v } from "convex/values"
 import type { Doc, Id } from "../../../../_generated/dataModel"
-import { internalMutation, type MutationCtx } from "../../../../_generated/server"
+import {
+  internalMutation,
+  type MutationCtx,
+} from "../../../../_generated/server"
 
 const readyGuild = v.object({
   discordGuildId: v.string(),
@@ -196,12 +199,24 @@ export function getReadyGuildPatch(
   const patch: ReadyGuildPatch = {}
 
   assignIfChanged(patch, existing, "name", incoming.name)
-  assignIfChanged(patch, existing, "description", incoming.description)
-  assignIfChanged(patch, existing, "iconUrl", incoming.iconUrl)
-  assignIfChanged(patch, existing, "iconHash", incoming.iconHash)
-  assignIfChanged(patch, existing, "ownerDiscordId", incoming.ownerDiscordId)
-  assignIfChanged(patch, existing, "memberCount", incoming.memberCount)
-  assignIfChanged(patch, existing, "presenceCount", incoming.presenceCount)
+  if (incoming.description !== undefined) {
+    assignIfChanged(patch, existing, "description", incoming.description)
+  }
+  if (incoming.iconUrl !== undefined) {
+    assignIfChanged(patch, existing, "iconUrl", incoming.iconUrl)
+  }
+  if (incoming.iconHash !== undefined) {
+    assignIfChanged(patch, existing, "iconHash", incoming.iconHash)
+  }
+  if (incoming.ownerDiscordId !== undefined) {
+    assignIfChanged(patch, existing, "ownerDiscordId", incoming.ownerDiscordId)
+  }
+  if (incoming.memberCount !== undefined) {
+    assignIfChanged(patch, existing, "memberCount", incoming.memberCount)
+  }
+  if (incoming.presenceCount !== undefined) {
+    assignIfChanged(patch, existing, "presenceCount", incoming.presenceCount)
+  }
 
   if (incoming.botJoinedAt !== undefined) {
     assignIfChanged(patch, existing, "botJoinedAt", incoming.botJoinedAt)

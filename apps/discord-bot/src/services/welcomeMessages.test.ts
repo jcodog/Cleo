@@ -487,11 +487,15 @@ test("rich renderer falls back to text when rich permissions are missing", async
   })
   const member = createMember({ channel })
   const reporter = createRuntimeErrorCollector()
-  const renderWelcomeMessage: WelcomeMessageRenderer = () => ({
-    content: "rich welcome",
-    embeds: [],
-    files: [{ attachment: Buffer.from("welcome") }],
-  })
+  let renderCalls = 0
+  const renderWelcomeMessage: WelcomeMessageRenderer = () => {
+    renderCalls += 1
+    return {
+      content: "rich welcome",
+      embeds: [],
+      files: [{ attachment: Buffer.from("welcome") }],
+    }
+  }
 
   await handleGuildMemberWelcome(member, {
     async fetchConfig() {
@@ -508,6 +512,7 @@ test("rich renderer falls back to text when rich permissions are missing", async
     "Welcome <@345678901234567890> to Cleo HQ"
   )
   assert.equal(channel.sentMessages[0]?.files, undefined)
+  assert.equal(renderCalls, 1)
   assert.equal(reporter.reports.length, 0)
 })
 
@@ -520,14 +525,18 @@ test("embed renderer falls back to text when embed permission is missing", async
   })
   const member = createMember({ channel })
   const reporter = createRuntimeErrorCollector()
-  const renderWelcomeMessage: WelcomeMessageRenderer = () => ({
-    content: "embed welcome",
-    embeds: [
-      {
-        description: "Welcome from Cleo",
-      },
-    ],
-  })
+  let renderCalls = 0
+  const renderWelcomeMessage: WelcomeMessageRenderer = () => {
+    renderCalls += 1
+    return {
+      content: "embed welcome",
+      embeds: [
+        {
+          description: "Welcome from Cleo",
+        },
+      ],
+    }
+  }
 
   await handleGuildMemberWelcome(member, {
     async fetchConfig() {
@@ -544,6 +553,7 @@ test("embed renderer falls back to text when embed permission is missing", async
     "Welcome <@345678901234567890> to Cleo HQ"
   )
   assert.equal(channel.sentMessages[0]?.embeds, undefined)
+  assert.equal(renderCalls, 1)
   assert.equal(reporter.reports.length, 0)
 })
 

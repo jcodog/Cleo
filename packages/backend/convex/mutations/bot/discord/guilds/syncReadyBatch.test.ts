@@ -108,14 +108,6 @@ test("READY patch records shard-count changes without touching old shard scopes"
 })
 
 test("READY patch preserves absent optional fields when Discord omits them", () => {
-  const withoutOptionalFields = {
-    name: "Cleo HQ",
-    lastSyncedAt: 2_000,
-    readyShardId: 1,
-    readyShardCount: 16,
-    readyShardKey: "16:1",
-  } satisfies ExistingGuild
-
   const incomingWithoutOptionalFields = {
     discordGuildId: "123456789012345678",
     name: "Cleo HQ",
@@ -125,7 +117,7 @@ test("READY patch preserves absent optional fields when Discord omits them", () 
   } satisfies ReadyGuildInput
 
   assert.equal(
-    getReadyGuildPatch(withoutOptionalFields, incomingWithoutOptionalFields, {
+    getReadyGuildPatch(existingGuild, incomingWithoutOptionalFields, {
       lastSyncedAt: 2_000,
       now: 3_000,
     }),

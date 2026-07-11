@@ -1,5 +1,6 @@
 import {
   convexBotClient,
+  type DiscordSupportTicketId,
   type DiscordSupportTicketOpenInput,
   type DiscordSupportTicketOpenResult,
 } from "@/services/convexBotClient"
@@ -43,13 +44,20 @@ type GuildSupportTicketResult = SupportTicketReadyResult & {
 
 type GuildSupportNotifier = (
   interaction: ChatInputCommandInteraction,
-  result: GuildSupportTicketResult
+  result: GuildSupportTicketResult,
+  saveRoutingThread: SupportRoutingThreadSaver
 ) => Promise<boolean>
+
+type SupportRoutingThreadSaver = (
+  ticketId: DiscordSupportTicketId,
+  threadId: string
+) => Promise<void>
 
 type SupportTicketOptions = {
   fetchConfig?: RuntimeConfigFetcher
   openTicket?: SupportTicketOpener
   notifyGuildSupport?: GuildSupportNotifier
+  saveRoutingThread?: SupportRoutingThreadSaver
   logError?: typeof botLogError
   reportRuntimeError?: DiscordRuntimeErrorReporter
 }
@@ -139,9 +147,18 @@ export async function handleHelpCommand(
   let notified = false
 
   try {
-    notified = await (
-      options.notifyGuildSupport ?? notifyConfiguredGuildSupport
-    )(interaction, guildResult)
+    if (guildResult.status === "resumed" && !guildResult.submittedMessage) {
+      notified = true
+    } else {
+      notified = await (
+        options.notifyGuildSupport ?? notifyConfiguredGuildSupport
+      )(
+        interaction,
+        guildResult,
+        options.saveRoutingThread ??
+          convexBotClient.setSupportTicketRoutingThread
+      )
+    }
   } catch (error) {
     logError("Discord guild support notification failed.", error, {
       commandName: interaction.commandName,
@@ -217,7 +234,8 @@ export function formatSupportStaffMessage(
 
 async function notifyConfiguredGuildSupport(
   interaction: ChatInputCommandInteraction,
-  result: GuildSupportTicketResult
+  result: GuildSupportTicketResult,
+  saveRoutingThread: SupportRoutingThreadSaver
 ): Promise<boolean> {
   if (!result.route || !interaction.guild) {
     return false
@@ -239,10 +257,23 @@ async function notifyConfiguredGuildSupport(
       return false
     }
 
-    await (channel as ForumChannel).threads.create({
+    if (result.route.threadId) {
+      const existingThread = await resolveGuildChannel(
+        interaction.guild,
+        result.route.threadId
+      )
+
+      if (existingThread && isSendableGuildChannel(existingThread)) {
+        await existingThread.send(message)
+        return true
+      }
+    }
+
+    const thread = await (channel as ForumChannel).threads.create({
       name: `Support · ${sanitizeThreadName(interaction.user.username)}`,
       message,
     })
+    await saveRoutingThread(result.ticketId, thread.id)
     return true
   }
 

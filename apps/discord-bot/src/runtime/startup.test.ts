@@ -123,3 +123,29 @@ test("sharded worker detection requires shard-specific environment", () => {
     false
   )
 })
+
+test("startup installs shutdown handlers once per process", async (t) => {
+  const processLike = new FakeProcess()
+  const createClient = () =>
+    ({
+      async start() {},
+    }) as unknown as BotClient
+
+  t.mock.method(console, "log", () => undefined)
+
+  for (let index = 0; index < 2; index += 1) {
+    await startBotClientRuntime({
+      mode: "single",
+      token: "bot-token",
+      createClient,
+      assertRuntimeConfig: () => undefined,
+      processLike: processLike as NodeJS.Process,
+      exit: () => undefined,
+    })
+  }
+
+  assert.equal(processLike.listenerCount("SIGINT"), 1)
+  assert.equal(processLike.listenerCount("SIGTERM"), 1)
+  assert.equal(processLike.listenerCount("unhandledRejection"), 1)
+  assert.equal(processLike.listenerCount("uncaughtException"), 1)
+})

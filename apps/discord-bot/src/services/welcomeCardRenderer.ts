@@ -8,6 +8,22 @@ const attachmentName = "cleo-welcome.png"
 export const DEFAULT_WELCOME_SUBTEXT =
   "Settle in, say hello, and enjoy the server."
 
+type WelcomeAvatarLoader = (
+  source: string,
+  options: { maxRedirects: number }
+) => ReturnType<typeof loadImage>
+
+export async function loadWelcomeAvatar(
+  avatarUrl: string,
+  loader: WelcomeAvatarLoader = loadImage
+): Promise<Awaited<ReturnType<typeof loadImage>> | null> {
+  try {
+    return await loader(avatarUrl, { maxRedirects: 3 })
+  } catch {
+    return null
+  }
+}
+
 export async function renderWelcomeCardMessage(
   member: GuildMember,
   options: {
@@ -107,32 +123,46 @@ async function drawAvatar(
   context.clip()
 
   if (avatarUrl) {
-    const avatar = await loadImage(avatarUrl, { maxRedirects: 3 })
-    context.drawImage(avatar, x, y, avatarSize, avatarSize)
-  } else {
-    const fallback = context.createLinearGradient(
-      x,
-      y,
-      x + avatarSize,
-      y + avatarSize
-    )
-    fallback.addColorStop(0, "#0891b2")
-    fallback.addColorStop(1, "#7c3aed")
-    context.fillStyle = fallback
-    context.fillRect(x, y, avatarSize, avatarSize)
+    const avatar = await loadWelcomeAvatar(avatarUrl)
 
-    context.fillStyle = "#ecfeff"
-    context.font = "700 58px sans-serif"
-    context.textAlign = "center"
-    context.textBaseline = "middle"
-    context.fillText(
-      getAvatarInitial(member),
-      x + avatarSize / 2,
-      y + avatarSize / 2 + 2
-    )
+    if (avatar) {
+      context.drawImage(avatar, x, y, avatarSize, avatarSize)
+    } else {
+      drawFallbackAvatar(context, member, x, y)
+    }
+  } else {
+    drawFallbackAvatar(context, member, x, y)
   }
 
   context.restore()
+}
+
+function drawFallbackAvatar(
+  context: SKRSContext2D,
+  member: GuildMember,
+  x: number,
+  y: number
+): void {
+  const fallback = context.createLinearGradient(
+    x,
+    y,
+    x + avatarSize,
+    y + avatarSize
+  )
+  fallback.addColorStop(0, "#0891b2")
+  fallback.addColorStop(1, "#7c3aed")
+  context.fillStyle = fallback
+  context.fillRect(x, y, avatarSize, avatarSize)
+
+  context.fillStyle = "#ecfeff"
+  context.font = "700 58px sans-serif"
+  context.textAlign = "center"
+  context.textBaseline = "middle"
+  context.fillText(
+    getAvatarInitial(member),
+    x + avatarSize / 2,
+    y + avatarSize / 2 + 2
+  )
 }
 
 function drawCopy(
@@ -155,14 +185,7 @@ function drawCopy(
 
   context.fillStyle = "rgba(226, 232, 240, 0.86)"
   context.font = "600 32px sans-serif"
-  fillFittedText(
-    context,
-    sanitizeDisplayText(subtext),
-    292,
-    258,
-    560,
-    32
-  )
+  fillFittedText(context, sanitizeDisplayText(subtext), 292, 258, 560, 32)
 }
 
 function fillFittedText(
@@ -229,7 +252,12 @@ function roundRect(
   context.lineTo(x + width - radius, y)
   context.quadraticCurveTo(x + width, y, x + width, y + radius)
   context.lineTo(x + width, y + height - radius)
-  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
+  context.quadraticCurveTo(
+    x + width,
+    y + height,
+    x + width - radius,
+    y + height
+  )
   context.lineTo(x + radius, y + height)
   context.quadraticCurveTo(x, y + height, x, y + height - radius)
   context.lineTo(x, y + radius)

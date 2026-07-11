@@ -20,12 +20,18 @@ const supportTicketRoute = v.object({
   targetId: v.string(),
   targetType: guildSupportTargetType,
   staffRoleIds: v.array(v.string()),
+  threadId: v.optional(v.string()),
 })
 
 export const openSupportTicketResult = v.union(
   v.object({
     status: v.literal("guildSupportUnavailable"),
-    reason: v.union(v.literal("notConfigured"), v.literal("disabled")),
+    reason: v.union(
+      v.literal("notConfigured"),
+      v.literal("disabled"),
+      v.literal("unknownGuild"),
+      v.literal("botLeft")
+    ),
   }),
   v.object({
     status: v.union(v.literal("opened"), v.literal("resumed")),

@@ -3,7 +3,11 @@ import { test } from "node:test"
 
 import type { Client } from "discord.js"
 
-import { registerCleanupHook, shutdownDiscordBot } from "./shutdown"
+import {
+  registerCleanupHook,
+  shutdownDiscordBot,
+  terminateShard,
+} from "./shutdown"
 import type { DiscordRuntimeErrorReportInput } from "@/services/runtimeErrorReporter"
 
 type TestClient = Client & {
@@ -22,6 +26,28 @@ function createClient(): TestClient {
 async function noopRuntimeErrorReporter() {
   return null
 }
+
+test("shard termination waits for the Discord.js death event", async () => {
+  let deathListener: (() => void) | undefined
+  let killCalls = 0
+  const shard = {
+    process: {} as never,
+    worker: null,
+    once(event: string, listener: () => void) {
+      assert.equal(event, "death")
+      deathListener = listener
+      return this
+    },
+    kill() {
+      killCalls += 1
+      queueMicrotask(() => deathListener?.())
+    },
+  } as unknown as Parameters<typeof terminateShard>[0]
+
+  await terminateShard(shard)
+
+  assert.equal(killCalls, 1)
+})
 
 test("shutdown destroys the Discord client and runs cleanup hooks", async (t) => {
   const previousExitCode = process.exitCode
@@ -56,11 +82,11 @@ test("shutdown destroys the Discord client and runs cleanup hooks", async (t) =>
 test("fatal shutdown logs through botLogError and exits non-zero", async (t) => {
   const previousExitCode = process.exitCode
   const client = createClient()
-  const logLines: string[] = []
+  const errorLines: string[] = []
   const exitCodes: number[] = []
 
-  t.mock.method(console, "log", (line: string) => {
-    logLines.push(line)
+  t.mock.method(console, "error", (line: string) => {
+    errorLines.push(line)
   })
   t.after(() => {
     process.exitCode = previousExitCode
@@ -79,15 +105,16 @@ test("fatal shutdown logs through botLogError and exits non-zero", async (t) => 
 
   assert.equal(client.destroyedForTest, true)
   assert.deepEqual(exitCodes, [1])
-  assert.equal(logLines.length, 1)
-  assert.match(logLines[0] ?? "", /Authorization: \[redacted\]/)
-  assert.match(logLines[0] ?? "", /"reason":"unhandledRejection"/)
+  assert.equal(errorLines.length, 1)
+  assert.match(errorLines[0] ?? "", /Authorization: \[redacted\]/)
+  assert.match(errorLines[0] ?? "", /"reason":"unhandledRejection"/)
 })
 
 test("shutdown logs cleanup failures and still exits", async (t) => {
   const previousExitCode = process.exitCode
   const client = createClient()
   const logLines: string[] = []
+  const errorLines: string[] = []
   const exitCodes: number[] = []
   const cleanupCalls: string[] = []
   const unregisterFailingCleanup = registerCleanupHook(() => {
@@ -99,6 +126,9 @@ test("shutdown logs cleanup failures and still exits", async (t) => {
 
   t.mock.method(console, "log", (line: string) => {
     logLines.push(line)
+  })
+  t.mock.method(console, "error", (line: string) => {
+    errorLines.push(line)
   })
   t.after(() => {
     unregisterFailingCleanup()
@@ -119,9 +149,10 @@ test("shutdown logs cleanup failures and still exits", async (t) => {
   assert.equal(client.destroyedForTest, true)
   assert.deepEqual(exitCodes, [0])
   assert.deepEqual(cleanupCalls, ["cleanup"])
-  assert.equal(logLines.length, 2)
-  assert.match(logLines[1] ?? "", /cleanup failed token=\[redacted\]/)
-  assert.match(logLines[1] ?? "", /"reason":"SIGINT"/)
+  assert.equal(logLines.length, 1)
+  assert.equal(errorLines.length, 1)
+  assert.match(errorLines[0] ?? "", /cleanup failed token=\[redacted\]/)
+  assert.match(errorLines[0] ?? "", /"reason":"SIGINT"/)
 })
 
 test("fatal shutdown reports one startup runtime incident", async (t) => {
@@ -166,11 +197,11 @@ test("fatal shutdown reports one startup runtime incident", async (t) => {
 test("startup runtime reporter failure is swallowed locally", async (t) => {
   const previousExitCode = process.exitCode
   const client = createClient()
-  const logLines: string[] = []
+  const errorLines: string[] = []
   const exitCodes: number[] = []
 
-  t.mock.method(console, "log", (line: string) => {
-    logLines.push(line)
+  t.mock.method(console, "error", (line: string) => {
+    errorLines.push(line)
   })
   t.after(() => {
     process.exitCode = previousExitCode
@@ -192,9 +223,9 @@ test("startup runtime reporter failure is swallowed locally", async (t) => {
   })
   assert.equal(client.destroyedForTest, true)
   assert.deepEqual(exitCodes, [1])
-  assert.equal(logLines.length, 2)
+  assert.equal(errorLines.length, 2)
   assert.match(
-    logLines[1] ?? "",
+    errorLines[1] ?? "",
     /Discord startup runtime error report failed\./
   )
 })

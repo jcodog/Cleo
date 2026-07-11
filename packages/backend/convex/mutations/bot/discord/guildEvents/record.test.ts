@@ -165,6 +165,17 @@ test("messageDelete requires message and channel IDs", () => {
   )
 })
 
+test("guild event storage rejects contradictory event target types", () => {
+  assert.throws(
+    () =>
+      normaliseDiscordGuildEventForStorage(
+        event({ eventType: "guildBanAdd", targetType: "channel" }),
+        now
+      ),
+    /targetType must be user/
+  )
+})
+
 test("empty metadata is omitted after raw content stripping", () => {
   assert.equal(
     sanitiseDiscordGuildEventMetadata({
@@ -252,6 +263,13 @@ function eventForType(
       targetType: "message",
       targetDiscordId: "567890123456789012",
       channelId,
+    }
+  }
+
+  if (eventType === "guildBanAdd" || eventType === "guildBanRemove") {
+    return {
+      ...base,
+      targetType: "user",
     }
   }
 

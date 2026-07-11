@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { shouldMarkReadyShardGuildAbsent } from "./markBotLeftBatch"
+import {
+  getGuildShardId,
+  shouldMarkReadyShardGuildAbsent,
+} from "./markBotLeftBatch"
 
 test("READY shard reconciliation marks only absent active guilds", () => {
   assert.equal(
@@ -61,4 +64,13 @@ test("READY shard reconciliation preserves newer presence timestamps", () => {
     ),
     false
   )
+})
+
+test("READY scope reconciliation derives current topology from Discord IDs", () => {
+  assert.equal(
+    getGuildShardId("123456789012345678", 16),
+    Number((123456789012345678n >> 22n) % 16n)
+  )
+  assert.equal(getGuildShardId("invalid", 16), null)
+  assert.equal(getGuildShardId("123456789012345678", 0), null)
 })

@@ -28,6 +28,12 @@ test("READY guilds are split into bounded batches", () => {
   )
 })
 
+test("READY guild batching rejects non-positive and fractional sizes", () => {
+  assert.throws(() => chunkReadyGuilds([1], 0), /positive integer/)
+  assert.throws(() => chunkReadyGuilds([1], -1), /positive integer/)
+  assert.throws(() => chunkReadyGuilds([1], 1.5), /positive integer/)
+})
+
 test("READY guild inputs include shard membership metadata", () => {
   const shardCount = 16
   const shardId = getDiscordGuildShardId(guild.discordGuildId, shardCount)
@@ -95,7 +101,8 @@ test("READY reconciliation pages do not receive the full READY guild snapshot", 
 
   assert.deepEqual(calls, [
     {
-      readyShardKey: "16:3",
+      shardIds: [3],
+      shardCount: 16,
       leftAt: 5_000,
       paginationOpts: {
         cursor: null,
@@ -104,7 +111,8 @@ test("READY reconciliation pages do not receive the full READY guild snapshot", 
       },
     },
     {
-      readyShardKey: "16:3",
+      shardIds: [3],
+      shardCount: 16,
       leftAt: 5_000,
       paginationOpts: {
         cursor: "next",

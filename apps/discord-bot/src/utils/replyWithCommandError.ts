@@ -22,7 +22,6 @@ export async function replyWithCommandError({
     interactionId: interaction.id,
     discordGuildId: interaction.guildId,
     discordChannelId: interaction.channelId,
-    discordUserId: interaction.user.id,
   }
 
   botLogError(`Command failed: /${interaction.commandName}`, error, context)

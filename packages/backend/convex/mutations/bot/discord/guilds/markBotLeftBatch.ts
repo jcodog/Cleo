@@ -119,6 +119,58 @@ export const markAbsentForReadyShardPage = internalMutation({
   },
 })
 
+export const markAbsentForReadyScopePage = internalMutation({
+  args: {
+    shardIds: v.array(v.number()),
+    shardCount: v.number(),
+    leftAt: v.number(),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+    scanned: v.number(),
+    markedLeft: v.number(),
+    skipped: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const now = Date.now()
+    const leftAt = normalizeLeftAt(args.leftAt, now)
+    const handledShardIds = new Set(args.shardIds)
+    let markedLeft = 0
+    let skipped = 0
+    const page = await ctx.db.query("guilds").paginate(args.paginationOpts)
+
+    for (const guild of page.page) {
+      const shardId = getGuildShardId(guild.discordGuildId, args.shardCount)
+
+      if (
+        shardId === null ||
+        !handledShardIds.has(shardId) ||
+        !shouldMarkReadyShardGuildAbsent(guild, leftAt)
+      ) {
+        skipped += 1
+        continue
+      }
+
+      await ctx.db.patch(guild._id, {
+        botLeftAt: leftAt,
+        lastSyncedAt: leftAt,
+        updatedAt: now,
+      })
+      markedLeft += 1
+    }
+
+    return {
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+      scanned: page.page.length,
+      markedLeft,
+      skipped,
+    }
+  },
+})
+
 export function shouldMarkReadyShardGuildAbsent(
   guild: ReadyShardGuild,
   leftAt: number
@@ -134,6 +186,21 @@ export function shouldMarkReadyShardGuildAbsent(
   )
 
   return leftAt > latestPresenceAt
+}
+
+export function getGuildShardId(
+  discordGuildId: string,
+  shardCount: number
+): number | null {
+  if (
+    !/^\d{17,20}$/.test(discordGuildId) ||
+    !Number.isSafeInteger(shardCount) ||
+    shardCount <= 0
+  ) {
+    return null
+  }
+
+  return Number((BigInt(discordGuildId) >> 22n) % BigInt(shardCount))
 }
 
 function normalizeLeftAt(leftAt: number, now: number): number {

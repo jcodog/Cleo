@@ -1,6 +1,6 @@
 "use node"
 
-import { discordEnv } from "@workspace/env/discord"
+import { backendEnv } from "@workspace/env/backend"
 import { v } from "convex/values"
 
 import { internal } from "../../../../_generated/api"
@@ -63,7 +63,7 @@ export const get = action({
       return { status: "botLeft" as const }
     }
 
-    if (!discordEnv.DISCORD_BOT_TOKEN) {
+    if (!backendEnv.DISCORD_BOT_TOKEN) {
       return { status: "unavailable" as const }
     }
 
@@ -80,10 +80,10 @@ export const get = action({
     const [channelResult, roles] = await Promise.all([
       fetchDiscordGuildChannels(
         args.discordGuildId,
-        discordEnv.DISCORD_BOT_TOKEN,
+        backendEnv.DISCORD_BOT_TOKEN,
         { includeSupportTargets: true }
       ),
-      fetchDiscordGuildRoles(args.discordGuildId, discordEnv.DISCORD_BOT_TOKEN),
+      fetchDiscordGuildRoles(args.discordGuildId, backendEnv.DISCORD_BOT_TOKEN),
     ])
 
     if (channelResult.status !== "ready" || roles === null) {

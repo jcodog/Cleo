@@ -57,8 +57,8 @@ type RefreshToken = {
 }
 
 export const DISCORD_GUILD_RUNTIME_CONFIG_CACHE_DEFAULTS = {
-  // Dashboard edits become visible to each bot process after at most 5 minutes.
-  readyTtlMs: 5 * 60 * 1000,
+  // Keep manager changes responsive without polling Convex on every event.
+  readyTtlMs: 60 * 1000,
   // Missing or disabled guild config is safe-disabled but rechecked quickly.
   disabledTtlMs: 30 * 1000,
   // A temporary refresh failure can reuse the last valid ready config briefly.
@@ -276,7 +276,8 @@ export class DiscordGuildRuntimeConfigCache {
     }
 
     const now = this.now()
-    const ttlMs = result.status === "ready" ? this.readyTtlMs : this.disabledTtlMs
+    const ttlMs =
+      result.status === "ready" ? this.readyTtlMs : this.disabledTtlMs
     const expiresAt = now + ttlMs
     const staleUntil =
       result.status === "ready"

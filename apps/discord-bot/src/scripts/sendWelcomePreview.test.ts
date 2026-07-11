@@ -98,11 +98,34 @@ test("welcome preview target rejects missing user", () => {
   )
 })
 
+test("welcome preview target does not consume the next flag as a value", () => {
+  assert.throws(
+    () =>
+      resolveWelcomePreviewTarget(
+        [
+          "node",
+          "sendWelcomePreview.ts",
+          "--guild=123456789012345678",
+          "--user",
+          "--mode=fallback",
+        ],
+        undefined,
+        {}
+      ),
+    /Missing preview user/
+  )
+})
+
 test("welcome preview target rejects invalid guild IDs", () => {
   assert.throws(
     () =>
       resolveWelcomePreviewTarget(
-        ["node", "sendWelcomePreview.ts", "--guild=not-a-guild", "--user=jason"],
+        [
+          "node",
+          "sendWelcomePreview.ts",
+          "--guild=not-a-guild",
+          "--user=jason",
+        ],
         undefined,
         {}
       ),

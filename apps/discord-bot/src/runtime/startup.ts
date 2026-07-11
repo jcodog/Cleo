@@ -52,6 +52,7 @@ type StartShardingManagerRuntimeOptions = {
 const defaultShardEntrypoint = fileURLToPath(
   new URL("../index.ts", import.meta.url)
 )
+const shutdownHandlerTargets = new WeakSet<ProcessLike>()
 
 export async function startDiscordBotRuntimeFromEnv(): Promise<void> {
   if (isDiscordShardingWorker()) {
@@ -211,6 +212,11 @@ function installShutdownHandlers({
     error?: unknown
   ) => void
 }): void {
+  if (shutdownHandlerTargets.has(processLike)) {
+    return
+  }
+
+  shutdownHandlerTargets.add(processLike)
   let shutdownStarted = false
 
   function shutdownOnce(

@@ -48,22 +48,22 @@ check_health() {
 switch_release() {
   local sha="$1"
   local next_link="$deploy_root/.current-$sha"
-  rm -f -- "$next_link"
-  ln -s "$releases_dir/$sha" "$next_link"
-  mv -Tf "$next_link" "$current_link"
+  rm -f -- "$next_link" || return 1
+  ln -s "$releases_dir/$sha" "$next_link" || return 1
+  mv -Tf "$next_link" "$current_link" || return 1
 }
 
 activate_release() {
   local sha="$1"
   switch_release "$sha" || return 1
-  systemctl --user restart "$service_name"
+  systemctl --user restart "$service_name" || return 1
 }
 
 register_commands() {
   local sha="$1"
   (
-    cd "$releases_dir/$sha"
-    pnpm commands:register:global
+    cd "$releases_dir/$sha" || exit 1
+    pnpm commands:register:global || exit 1
   )
 }
 
@@ -76,8 +76,8 @@ write_state() {
   umask 077
   printf 'APPLICATION_SHA=%s\nPREVIOUS_APPLICATION_SHA=%s\nCOMMAND_SHA=%s\n' \
     "$next_application_sha" "$next_previous_sha" "$next_command_sha" \
-    > "$temporary_state"
-  mv -f "$temporary_state" "$state_file"
+    > "$temporary_state" || return 1
+  mv -f "$temporary_state" "$state_file" || return 1
 }
 
 rollback_to() {
@@ -93,7 +93,11 @@ rollback_to() {
   check_health || return 1
 
   local target_command_sha
-  target_command_sha="$(<"$releases_dir/$target_sha/.cleo-command-sha")"
+  if [[ ! -f "$releases_dir/$target_sha/.cleo-command-sha" ]]; then
+    echo "Rollback command state is unavailable for $target_sha" >&2
+    return 1
+  fi
+  target_command_sha="$(<"$releases_dir/$target_sha/.cleo-command-sha")" || return 1
   if [[ "$target_command_sha" != "$command_sha" ]]; then
     register_commands "$target_sha" || return 1
   fi

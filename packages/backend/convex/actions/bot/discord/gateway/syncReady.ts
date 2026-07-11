@@ -83,31 +83,29 @@ export async function reconcileAbsentReadyGuilds({
   shardScope: GatewayShardScope
   syncedAt: number
 }) {
-  for (const shardId of shardScope.shardIds) {
-    const readyShardKey = createReadyShardKey(shardScope.shardCount, shardId)
-    let cursor: string | null = null
+  let cursor: string | null = null
 
-    while (true) {
-      const page: ReadyShardReconciliationPage = await ctx.runMutation(
-        internal.mutations.bot.discord.guilds.markBotLeftBatch
-          .markAbsentForReadyShardPage,
-        {
-          readyShardKey,
-          leftAt: syncedAt,
-          paginationOpts: {
-            cursor,
-            numItems: RECONCILIATION_PAGE_SIZE,
-            maximumRowsRead: RECONCILIATION_PAGE_SIZE,
-          },
-        }
-      )
-
-      if (page.isDone) {
-        break
+  while (true) {
+    const page: ReadyShardReconciliationPage = await ctx.runMutation(
+      internal.mutations.bot.discord.guilds.markBotLeftBatch
+        .markAbsentForReadyScopePage,
+      {
+        shardIds: shardScope.shardIds,
+        shardCount: shardScope.shardCount,
+        leftAt: syncedAt,
+        paginationOpts: {
+          cursor,
+          numItems: RECONCILIATION_PAGE_SIZE,
+          maximumRowsRead: RECONCILIATION_PAGE_SIZE,
+        },
       }
+    )
 
-      cursor = page.continueCursor
+    if (page.isDone) {
+      break
     }
+
+    cursor = page.continueCursor
   }
 }
 
@@ -142,6 +140,10 @@ export function chunkReadyGuilds<T>(
   values: T[],
   batchSize = READY_GUILD_BATCH_SIZE
 ): T[][] {
+  if (!Number.isInteger(batchSize) || batchSize <= 0) {
+    throw new RangeError("Ready guild batch size must be a positive integer.")
+  }
+
   const batches: T[][] = []
 
   for (let index = 0; index < values.length; index += batchSize) {

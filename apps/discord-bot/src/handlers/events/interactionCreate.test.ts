@@ -59,9 +59,7 @@ function createInteraction(
   }
 }
 
-function command(
-  execute: Command["execute"] = () => undefined
-): Command {
+function command(execute: Command["execute"] = () => undefined): Command {
   return new Command({
     data: {
       name: "ping",
@@ -262,13 +260,12 @@ test("interaction command failure logging uses safe context", async (t) => {
   const client = new BotClient(undefined, {
     reportRuntimeError: reporter.reportRuntimeError,
   })
-  const logLines: string[] = []
+  const errorLines: string[] = []
   const interaction = createInteraction({ client })
 
-  t.mock.method(console, "log", (line: string) => {
-    logLines.push(line)
+  t.mock.method(console, "error", (line: string) => {
+    errorLines.push(line)
   })
-  t.mock.method(console, "error", () => undefined)
 
   client.commands.set(
     "ping",
@@ -279,13 +276,13 @@ test("interaction command failure logging uses safe context", async (t) => {
 
   await interactionCreate.execute(interaction as never)
 
-  assert.equal(logLines.length, 1)
-  assert.match(logLines[0] ?? "", /failed with token=\[redacted\]/)
-  assert.match(logLines[0] ?? "", /"commandName":"ping"/)
-  assert.match(logLines[0] ?? "", /"interactionId":"111111111111111111"/)
-  assert.match(logLines[0] ?? "", /"discordGuildId":"222222222222222222"/)
-  assert.match(logLines[0] ?? "", /"discordChannelId":"333333333333333333"/)
-  assert.match(logLines[0] ?? "", /"discordUserId":"444444444444444444"/)
+  assert.equal(errorLines.length, 1)
+  assert.match(errorLines[0] ?? "", /failed with token=\[redacted\]/)
+  assert.match(errorLines[0] ?? "", /"commandName":"ping"/)
+  assert.match(errorLines[0] ?? "", /"interactionId":"111111111111111111"/)
+  assert.match(errorLines[0] ?? "", /"discordGuildId":"222222222222222222"/)
+  assert.match(errorLines[0] ?? "", /"discordChannelId":"333333333333333333"/)
+  assert.doesNotMatch(errorLines[0] ?? "", /"discordUserId"/)
   assert.equal(reporter.reports.length, 1)
 })
 
@@ -296,7 +293,7 @@ test("command reporter failures are logged and swallowed", async (t) => {
     },
   })
   const replies: InteractionReply[] = []
-  const logLines: string[] = []
+  const errorLines: string[] = []
   const interaction = createInteraction({
     client,
     async reply(message) {
@@ -304,10 +301,9 @@ test("command reporter failures are logged and swallowed", async (t) => {
     },
   })
 
-  t.mock.method(console, "log", (line: string) => {
-    logLines.push(line)
+  t.mock.method(console, "error", (line: string) => {
+    errorLines.push(line)
   })
-  t.mock.method(console, "error", () => undefined)
 
   client.commands.set(
     "ping",
@@ -326,10 +322,10 @@ test("command reporter failures are logged and swallowed", async (t) => {
       flags: MessageFlags.Ephemeral,
     },
   ])
-  assert.equal(logLines.length, 2)
-  assert.match(logLines[0] ?? "", /Command failed: \/ping/)
+  assert.equal(errorLines.length, 2)
+  assert.match(errorLines[0] ?? "", /Command failed: \/ping/)
   assert.match(
-    logLines[1] ?? "",
+    errorLines[1] ?? "",
     /Discord command runtime error report failed\./
   )
 })

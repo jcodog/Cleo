@@ -51,7 +51,14 @@ export function botLog(message: string, level: BotLogLevel = "info"): void {
   const coloredLevel = `${levelColors[level]}${levelLabel}${colors.reset}`
   const redactedMessage = redactLogText(message)
 
-  console.log(`${timestamp} ${coloredLevel} | ${redactedMessage}`)
+  const line = `${timestamp} ${coloredLevel} | ${redactedMessage}`
+
+  if (level === "error") {
+    console.error(line)
+    return
+  }
+
+  console.log(line)
 }
 
 export function botLogError(

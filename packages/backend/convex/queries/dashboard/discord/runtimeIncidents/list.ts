@@ -152,9 +152,26 @@ async function loadRuntimeIncidentDocs(
 
     return await ctx.db
       .query("discordBotRuntimeErrors")
-      .withIndex("by_severity_and_last_seen_at", (q) =>
-        q.eq("severity", severity)
-      )
+      .withIndex("by_severity_and_last_seen_at", (q) => {
+        if (
+          args.lastSeenAtFrom !== undefined &&
+          args.lastSeenAtTo !== undefined
+        ) {
+          return q
+            .eq("severity", severity)
+            .gte("lastSeenAt", args.lastSeenAtFrom)
+            .lte("lastSeenAt", args.lastSeenAtTo)
+        }
+        if (args.lastSeenAtFrom !== undefined) {
+          return q
+            .eq("severity", severity)
+            .gte("lastSeenAt", args.lastSeenAtFrom)
+        }
+        if (args.lastSeenAtTo !== undefined) {
+          return q.eq("severity", severity).lte("lastSeenAt", args.lastSeenAtTo)
+        }
+        return q.eq("severity", severity)
+      })
       .order("desc")
       .take(FILTER_SCAN_LIMIT)
   }
@@ -164,9 +181,28 @@ async function loadRuntimeIncidentDocs(
 
     return await ctx.db
       .query("discordBotRuntimeErrors")
-      .withIndex("by_service_area_and_last_seen_at", (q) =>
-        q.eq("serviceArea", serviceArea)
-      )
+      .withIndex("by_service_area_and_last_seen_at", (q) => {
+        if (
+          args.lastSeenAtFrom !== undefined &&
+          args.lastSeenAtTo !== undefined
+        ) {
+          return q
+            .eq("serviceArea", serviceArea)
+            .gte("lastSeenAt", args.lastSeenAtFrom)
+            .lte("lastSeenAt", args.lastSeenAtTo)
+        }
+        if (args.lastSeenAtFrom !== undefined) {
+          return q
+            .eq("serviceArea", serviceArea)
+            .gte("lastSeenAt", args.lastSeenAtFrom)
+        }
+        if (args.lastSeenAtTo !== undefined) {
+          return q
+            .eq("serviceArea", serviceArea)
+            .lte("lastSeenAt", args.lastSeenAtTo)
+        }
+        return q.eq("serviceArea", serviceArea)
+      })
       .order("desc")
       .take(FILTER_SCAN_LIMIT)
   }
@@ -174,9 +210,28 @@ async function loadRuntimeIncidentDocs(
   if (args.guildId !== undefined) {
     return await ctx.db
       .query("discordBotRuntimeErrors")
-      .withIndex("by_guild_id_and_last_seen_at", (q) =>
-        q.eq("guildId", args.guildId)
-      )
+      .withIndex("by_guild_id_and_last_seen_at", (q) => {
+        if (
+          args.lastSeenAtFrom !== undefined &&
+          args.lastSeenAtTo !== undefined
+        ) {
+          return q
+            .eq("guildId", args.guildId)
+            .gte("lastSeenAt", args.lastSeenAtFrom)
+            .lte("lastSeenAt", args.lastSeenAtTo)
+        }
+        if (args.lastSeenAtFrom !== undefined) {
+          return q
+            .eq("guildId", args.guildId)
+            .gte("lastSeenAt", args.lastSeenAtFrom)
+        }
+        if (args.lastSeenAtTo !== undefined) {
+          return q
+            .eq("guildId", args.guildId)
+            .lte("lastSeenAt", args.lastSeenAtTo)
+        }
+        return q.eq("guildId", args.guildId)
+      })
       .order("desc")
       .take(FILTER_SCAN_LIMIT)
   }
@@ -184,16 +239,51 @@ async function loadRuntimeIncidentDocs(
   if (args.discordGuildId !== undefined) {
     return await ctx.db
       .query("discordBotRuntimeErrors")
-      .withIndex("by_discord_guild_id_and_last_seen_at", (q) =>
-        q.eq("discordGuildId", args.discordGuildId)
-      )
+      .withIndex("by_discord_guild_id_and_last_seen_at", (q) => {
+        if (
+          args.lastSeenAtFrom !== undefined &&
+          args.lastSeenAtTo !== undefined
+        ) {
+          return q
+            .eq("discordGuildId", args.discordGuildId)
+            .gte("lastSeenAt", args.lastSeenAtFrom)
+            .lte("lastSeenAt", args.lastSeenAtTo)
+        }
+        if (args.lastSeenAtFrom !== undefined) {
+          return q
+            .eq("discordGuildId", args.discordGuildId)
+            .gte("lastSeenAt", args.lastSeenAtFrom)
+        }
+        if (args.lastSeenAtTo !== undefined) {
+          return q
+            .eq("discordGuildId", args.discordGuildId)
+            .lte("lastSeenAt", args.lastSeenAtTo)
+        }
+        return q.eq("discordGuildId", args.discordGuildId)
+      })
       .order("desc")
       .take(FILTER_SCAN_LIMIT)
   }
 
   return await ctx.db
     .query("discordBotRuntimeErrors")
-    .withIndex("by_last_seen_at")
+    .withIndex("by_last_seen_at", (q) => {
+      if (
+        args.lastSeenAtFrom !== undefined &&
+        args.lastSeenAtTo !== undefined
+      ) {
+        return q
+          .gte("lastSeenAt", args.lastSeenAtFrom)
+          .lte("lastSeenAt", args.lastSeenAtTo)
+      }
+      if (args.lastSeenAtFrom !== undefined) {
+        return q.gte("lastSeenAt", args.lastSeenAtFrom)
+      }
+      if (args.lastSeenAtTo !== undefined) {
+        return q.lte("lastSeenAt", args.lastSeenAtTo)
+      }
+      return q
+    })
     .order("desc")
     .take(FILTER_SCAN_LIMIT)
 }

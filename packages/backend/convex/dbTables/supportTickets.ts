@@ -23,6 +23,7 @@ export const supportTickets = defineTable({
   routingTargetType: v.optional(
     v.union(v.literal("channel"), v.literal("thread"), v.literal("forum"))
   ),
+  routingThreadId: v.optional(v.string()),
   transcriptPolicy: v.union(
     v.literal("metadata-only"),
     v.literal("explicit-messages")

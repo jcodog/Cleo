@@ -129,13 +129,10 @@ test("malformed loaded event definitions fail loudly", () => {
 
   assert.throws(
     () =>
-      registerLoadedEvent(
-        client,
-        {
-          name: Events.Debug,
-          once: false,
-        } as unknown as Event<Events.Debug>
-      ),
+      registerLoadedEvent(client, {
+        name: Events.Debug,
+        once: false,
+      } as unknown as Event<Events.Debug>),
     /Malformed loaded event definition: debug/
   )
 })
@@ -146,15 +143,14 @@ test("rejected event handlers are logged without unhandled rejections", async (t
     reportRuntimeError: reporter.reportRuntimeError,
   })
   const unhandledRejections: unknown[] = []
-  const logLines: string[] = []
+  const errorLines: string[] = []
   const unhandledRejectionHandler = (reason: unknown) => {
     unhandledRejections.push(reason)
   }
 
-  t.mock.method(console, "log", (line: string) => {
-    logLines.push(line)
+  t.mock.method(console, "error", (line: string) => {
+    errorLines.push(line)
   })
-  t.mock.method(console, "error", () => undefined)
   process.on("unhandledRejection", unhandledRejectionHandler)
   t.after(() => {
     process.off("unhandledRejection", unhandledRejectionHandler)
@@ -174,9 +170,9 @@ test("rejected event handlers are logged without unhandled rejections", async (t
   await new Promise((resolve) => setImmediate(resolve))
 
   assert.deepEqual(unhandledRejections, [])
-  assert.equal(logLines.length, 1)
-  assert.match(logLines[0] ?? "", /failed with token=\[redacted\]/)
-  assert.match(logLines[0] ?? "", /"eventName":"debug"/)
+  assert.equal(errorLines.length, 1)
+  assert.match(errorLines[0] ?? "", /failed with token=\[redacted\]/)
+  assert.match(errorLines[0] ?? "", /"eventName":"debug"/)
   assert.equal(reporter.reports.length, 1)
   assert.equal(reporter.reports[0]?.serviceArea, "gateway")
   assert.equal(reporter.reports[0]?.eventName, "debug")
@@ -192,10 +188,10 @@ test("rejected event handlers include safe event context", async (t) => {
   const client = new BotClient(undefined, {
     reportRuntimeError: reporter.reportRuntimeError,
   })
-  const logLines: string[] = []
+  const errorLines: string[] = []
 
-  t.mock.method(console, "log", (line: string) => {
-    logLines.push(line)
+  t.mock.method(console, "error", (line: string) => {
+    errorLines.push(line)
   })
 
   registerLoadedEvent(
@@ -219,14 +215,14 @@ test("rejected event handlers include safe event context", async (t) => {
   } as never)
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(logLines.length, 1)
-  assert.match(logLines[0] ?? "", /"eventName":"interactionCreate"/)
-  assert.match(logLines[0] ?? "", /"discordGuildId":"111111111111111111"/)
-  assert.match(logLines[0] ?? "", /"discordChannelId":"222222222222222222"/)
-  assert.match(logLines[0] ?? "", /"commandName":"ping"/)
-  assert.match(logLines[0] ?? "", /"subjectId":"999999999999999999"/)
-  assert.match(logLines[0] ?? "", /"interactionId":"999999999999999999"/)
-  assert.match(logLines[0] ?? "", /"discordUserId":"333333333333333333"/)
+  assert.equal(errorLines.length, 1)
+  assert.match(errorLines[0] ?? "", /"eventName":"interactionCreate"/)
+  assert.match(errorLines[0] ?? "", /"discordGuildId":"111111111111111111"/)
+  assert.match(errorLines[0] ?? "", /"discordChannelId":"222222222222222222"/)
+  assert.match(errorLines[0] ?? "", /"commandName":"ping"/)
+  assert.match(errorLines[0] ?? "", /"subjectId":"999999999999999999"/)
+  assert.match(errorLines[0] ?? "", /"interactionId":"999999999999999999"/)
+  assert.match(errorLines[0] ?? "", /"discordUserId":"333333333333333333"/)
   assert.equal(reporter.reports.length, 1)
   assert.equal(reporter.reports[0]?.discordGuildId, "111111111111111111")
   assert.deepEqual(reporter.reports[0]?.metadata, {
@@ -244,13 +240,13 @@ test("event reporter failures are logged and swallowed", async (t) => {
     },
   })
   const unhandledRejections: unknown[] = []
-  const logLines: string[] = []
+  const errorLines: string[] = []
   const unhandledRejectionHandler = (reason: unknown) => {
     unhandledRejections.push(reason)
   }
 
-  t.mock.method(console, "log", (line: string) => {
-    logLines.push(line)
+  t.mock.method(console, "error", (line: string) => {
+    errorLines.push(line)
   })
   process.on("unhandledRejection", unhandledRejectionHandler)
   t.after(() => {
@@ -271,9 +267,12 @@ test("event reporter failures are logged and swallowed", async (t) => {
   await new Promise((resolve) => setImmediate(resolve))
 
   assert.deepEqual(unhandledRejections, [])
-  assert.equal(logLines.length, 2)
-  assert.match(logLines[0] ?? "", /Discord event handler failed: debug/)
-  assert.match(logLines[1] ?? "", /Discord event runtime error report failed\./)
+  assert.equal(errorLines.length, 2)
+  assert.match(errorLines[0] ?? "", /Discord event handler failed: debug/)
+  assert.match(
+    errorLines[1] ?? "",
+    /Discord event runtime error report failed\./
+  )
 })
 
 test("malformed loaded event definitions without names fail clearly", () => {
@@ -281,14 +280,11 @@ test("malformed loaded event definitions without names fail clearly", () => {
 
   assert.throws(
     () =>
-      registerLoadedEvent(
-        client,
-        {
-          execute() {
-            return undefined
-          },
-        } as unknown as Event<Events.Debug>
-      ),
+      registerLoadedEvent(client, {
+        execute() {
+          return undefined
+        },
+      } as unknown as Event<Events.Debug>),
     /Malformed loaded event definition: unknown/
   )
 })

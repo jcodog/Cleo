@@ -130,10 +130,7 @@ type ConvexBotRuntimeConfig =
     }
 
 export type DiscordBotRuntimeErrorSeverity =
-  | "info"
-  | "warn"
-  | "error"
-  | "critical"
+  "info" | "warn" | "error" | "critical"
 
 export type DiscordBotRuntimeErrorServiceArea =
   | "startup"
@@ -179,6 +176,10 @@ export type DiscordSupportTicketOpenInput = OpenSupportTicketArgs["input"]
 export type DiscordSupportTicketOpenResult = FunctionReturnType<
   typeof api.actions.bot.discord.supportTickets.openOrResume.openOrResume
 >
+export type DiscordSupportTicketId = Extract<
+  DiscordSupportTicketOpenResult,
+  { status: "opened" | "resumed" }
+>["ticketId"]
 
 export type DiscordBotRuntimeErrorReport = {
   severity: DiscordBotRuntimeErrorSeverity
@@ -443,7 +444,13 @@ async function syncWithConvex(
     secret: string
   }) => Promise<void>
 ): Promise<void> {
-  await callWithConvex(operation, callback)
+  const config = getConvexSyncConfig(operation)
+
+  if (!config) {
+    return
+  }
+
+  await callback(config)
 }
 
 export const convexBotClient = {
@@ -547,6 +554,25 @@ export const convexBotClient = {
             },
           }
         )
+    )
+  },
+
+  async setSupportTicketRoutingThread(
+    ticketId: DiscordSupportTicketId,
+    threadId: string
+  ): Promise<void> {
+    await syncWithConvex(
+      "support ticket routing thread sync",
+      async ({ client, secret }) => {
+        await client.action(
+          api.actions.bot.discord.supportTickets.setRoutingThread.set,
+          {
+            secret,
+            ticketId,
+            threadId: discordSnowflakeSchema.parse(threadId),
+          }
+        )
+      }
     )
   },
 

@@ -174,7 +174,17 @@ function RecentModerationActions({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {result === undefined ? (
+        {result?.status === "notFound" ? (
+          <ModerationActionsEmpty
+            description="This Discord server has not been synced to Cleo yet."
+            title="Server Not Found"
+          />
+        ) : result?.status === "forbidden" ? (
+          <ModerationActionsEmpty
+            description="Your signed-in Discord identity does not have verified management access for these moderation records."
+            title="Access Not Available"
+          />
+        ) : result === undefined ? (
           <ModerationActionsSkeleton />
         ) : result.status === "ready" && result.actions.length > 0 ? (
           <div className="flex flex-col gap-0 overflow-hidden rounded-lg border">
@@ -202,6 +212,26 @@ function RecentModerationActions({
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function ModerationActionsEmpty({
+  description,
+  title,
+}: {
+  description: string
+  title: string
+}) {
+  return (
+    <Empty className="min-h-64 border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <IconShield aria-hidden />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   )
 }
 

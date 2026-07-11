@@ -1,7 +1,7 @@
 "use node"
 
 import { backendEnv } from "@workspace/env/backend"
-import { timingSafeEqual } from "node:crypto"
+import { createHash, timingSafeEqual } from "node:crypto"
 import { ConvexError } from "convex/values"
 
 export function assertValidBotSecret(secret: string): void {
@@ -16,16 +16,8 @@ export function assertValidBotSecret(secret: string): void {
 }
 
 function timingSafeSecretEqual(value: string, expected: string): boolean {
-  if (value.length !== expected.length) {
-    return false
-  }
-
-  const valueBytes = Buffer.from(value)
-  const expectedBytes = Buffer.from(expected)
-
-  if (valueBytes.length !== expectedBytes.length) {
-    return false
-  }
+  const valueBytes = createHash("sha256").update(value).digest()
+  const expectedBytes = createHash("sha256").update(expected).digest()
 
   return timingSafeEqual(valueBytes, expectedBytes)
 }
