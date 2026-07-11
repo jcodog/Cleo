@@ -22,11 +22,12 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Deploy the selected commit or roll back to the previous release
+        description: Validate on the production runner, deploy, or roll back
         required: true
-        default: deploy
+        default: validate
         type: choice
         options:
+          - validate
           - deploy
           - rollback
 
@@ -71,14 +72,17 @@ jobs:
           fi
 
   deploy:
-    name: Validate and deploy Discord bot
+    name: Validate or deploy Discord bot
     needs: classify
     if: >-
       github.ref == 'refs/heads/main' &&
       needs.classify.outputs.deploy == 'true' &&
       (
         vars.CLEO_DISCORD_DEPLOY_ENABLED == 'true' ||
-        (github.event_name == 'workflow_dispatch' && inputs.operation == 'rollback')
+        (
+          github.event_name == 'workflow_dispatch' &&
+          (inputs.operation == 'validate' || inputs.operation == 'rollback')
+        )
       )
     environment: discord-production
     runs-on: cleo-prod
@@ -113,40 +117,44 @@ jobs:
         run: bash .github/scripts/check-discord-runner.sh
 
       - name: Install exact dependencies
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm install --frozen-lockfile
 
       - name: Check peer dependency compatibility
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm check:peers
 
       - name: Test Discord bot
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm --filter @workspace/discord-bot run test
 
       - name: Test Convex backend
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm --filter @workspace/backend run test
 
       - name: Typecheck Discord bot
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm --filter @workspace/discord-bot run typecheck
 
       - name: Typecheck Convex backend
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm --filter @workspace/backend run typecheck
 
       - name: Lint Discord bot
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm --filter @workspace/discord-bot run lint
 
       - name: Lint Convex backend
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm --filter @workspace/backend run lint
 
       - name: Build Discord bot
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'rollback'
         run: pnpm --filter @workspace/discord-bot run build
+
+      - name: Record validation-only success
+        if: github.event_name == 'workflow_dispatch' && inputs.operation == 'validate'
+        run: echo "Discord v3 release validation passed on the cleo-prod runner."
 
       - name: Deploy Convex backend
         if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
@@ -155,6 +163,7 @@ jobs:
         run: pnpm --filter @workspace/backend run deploy
 
       - name: Deploy or roll back
+        if: github.event_name != 'workflow_dispatch' || inputs.operation != 'validate'
         run: >-
           bash .github/scripts/deploy-discord.sh
           "${{ github.event_name == 'workflow_dispatch' && inputs.operation || 'deploy' }}"
