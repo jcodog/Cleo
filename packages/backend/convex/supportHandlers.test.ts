@@ -196,6 +196,7 @@ test("ticket mutation opens, persists, links the requester, and resumes", async 
       status: "closed",
       resolvedAt: 2,
       closedAt: 3,
+      routingThreadId: "678901234567890123",
     })
   })
   const resumed = await t.mutation(
@@ -210,7 +211,18 @@ test("ticket mutation opens, persists, links the requester, and resumes", async 
     targetId: TARGET_ID,
     targetType: "channel",
     staffRoleIds: [ROLE_ID],
+    threadId: "678901234567890123",
   })
+
+  const alreadyOpen = await t.mutation(
+    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
+    {
+      discordGuildId: GUILD_ID,
+      requesterDiscordUserId: REQUESTER_ID,
+    }
+  )
+  assert.equal(alreadyOpen.status, "resumed")
+  assert.equal(alreadyOpen.messageStored, false)
 
   const stored = await t.run(async (ctx) => ({
     ticket: await ctx.db.get(opened.ticketId),
@@ -245,6 +257,18 @@ test("ticket mutation enforces transcript policy and unavailable guild paths", a
   assert.deepEqual(missingConfig, {
     status: "guildSupportUnavailable",
     reason: "notConfigured",
+  })
+
+  const unknownGuild = await t.mutation(
+    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
+    {
+      ...input,
+      discordGuildId: "999999999999999999",
+    }
+  )
+  assert.deepEqual(unknownGuild, {
+    status: "guildSupportUnavailable",
+    reason: "unknownGuild",
   })
 
   await seedSupportConfig(t, "metadata-only")
