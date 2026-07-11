@@ -47,16 +47,20 @@ jobs:
       - name: Test Discord release packaging
         run: |
           output_dir="${RUNNER_TEMP}/cleo-discord-package-test"
+          extract_dir="${RUNNER_TEMP}/cleo-discord-package-extract"
           bash .github/scripts/package-discord-release.sh "$output_dir"
           archive="$output_dir/cleo-discord-${GITHUB_SHA}.tar.gz"
           checksum="$archive.sha256"
           test -f "$archive"
           test -f "$checksum"
           (cd "$output_dir" && sha256sum -c "$(basename "$checksum")")
-          tar -tzf "$archive" > "$output_dir/archive-contents.txt"
-          grep -Fx './src/index.ts' "$output_dir/archive-contents.txt"
-          grep -Fx './node_modules/tsx/dist/cli.mjs' "$output_dir/archive-contents.txt"
-          grep -Fx './.cleo-release-sha' "$output_dir/archive-contents.txt"
+          rm -rf "$extract_dir"
+          mkdir -p "$extract_dir"
+          tar -xzf "$archive" -C "$extract_dir"
+          test -f "$extract_dir/src/index.ts"
+          test -f "$extract_dir/node_modules/tsx/dist/cli.mjs"
+          test -f "$extract_dir/.cleo-release-sha"
+          test "$(cat "$extract_dir/.cleo-release-sha")" = "$GITHUB_SHA"
 
       - name: Check peer dependency compatibility
         run: pnpm check:peers
