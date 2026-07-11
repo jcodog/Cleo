@@ -15,7 +15,7 @@ import {
 import type { DiscordManageableGuild } from "../../../../lib/discordRest"
 
 const DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
-const DEFAULT_BOT_PERMISSIONS = "0"
+export const DEFAULT_DISCORD_BOT_PERMISSIONS = "309237894150"
 const GUILD_INSTALL_INTEGRATION_TYPE = "0"
 const INSTALL_SESSION_TTL_MS = 30 * 60 * 1000
 
@@ -109,6 +109,9 @@ export const create = action({
       }
     }
 
+    const discordBotPermissions = resolveDiscordBotPermissions(
+      discordEnv.DISCORD_BOT_PERMISSIONS
+    )
     const oauthState = createOauthState()
     const expiresAt = Date.now() + INSTALL_SESSION_TTL_MS
     const session = await ctx.runMutation(
@@ -129,6 +132,7 @@ export const create = action({
       expiresAt: session.expiresAt,
       installUrl: buildDiscordInstallUrl({
         discordApplicationId,
+        discordBotPermissions,
         discordGuildId: installContextResult.discordGuildId,
         oauthState,
       }),
@@ -196,10 +200,12 @@ async function getRestVerifiedInstallContext(
 
 function buildDiscordInstallUrl({
   discordApplicationId,
+  discordBotPermissions,
   discordGuildId,
   oauthState,
 }: {
   discordApplicationId: string
+  discordBotPermissions: string
   discordGuildId: string
   oauthState: string
 }) {
@@ -207,10 +213,7 @@ function buildDiscordInstallUrl({
 
   installUrl.searchParams.set("client_id", discordApplicationId)
   installUrl.searchParams.set("scope", "bot applications.commands")
-  installUrl.searchParams.set(
-    "permissions",
-    discordEnv.DISCORD_BOT_PERMISSIONS ?? DEFAULT_BOT_PERMISSIONS
-  )
+  installUrl.searchParams.set("permissions", discordBotPermissions)
   installUrl.searchParams.set("guild_id", discordGuildId)
   installUrl.searchParams.set("disable_guild_select", "true")
   installUrl.searchParams.set(
@@ -227,6 +230,20 @@ function buildDiscordInstallUrl({
   }
 
   return installUrl.toString()
+}
+
+export function resolveDiscordBotPermissions(value: string | undefined): string {
+  const normalizedValue = value?.trim()
+
+  if (!normalizedValue || !/^\d+$/.test(normalizedValue)) {
+    return DEFAULT_DISCORD_BOT_PERMISSIONS
+  }
+
+  try {
+    return BigInt(normalizedValue).toString()
+  } catch {
+    return DEFAULT_DISCORD_BOT_PERMISSIONS
+  }
 }
 
 function createOauthState() {
