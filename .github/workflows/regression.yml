@@ -9,8 +9,6 @@ on:
 
 permissions:
   contents: read
-  # Required by actions/upload-code-coverage@v1 for GitHub Code Quality coverage ingestion.
-  code-quality: write
 
 jobs:
   regression:
@@ -82,66 +80,3 @@ jobs:
             coverage/packages/logger/cobertura-coverage.xml
             coverage/packages/shared/cobertura-coverage.xml
             coverage/packages/ui/cobertura-coverage.xml
-
-      - name: Upload dashboard coverage
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@v1
-        with:
-          file: coverage/apps/dashboard/cobertura-coverage.xml
-          language: JavaScript
-          label: code-coverage/dashboard
-          fail-on-error: false
-
-      - name: Upload Discord bot coverage
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@v1
-        with:
-          file: coverage/apps/discord-bot/cobertura-coverage.xml
-          language: JavaScript
-          label: code-coverage/discord-bot
-          fail-on-error: false
-
-      - name: Upload backend coverage
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@v1
-        with:
-          file: coverage/packages/backend/cobertura-coverage.xml
-          language: JavaScript
-          label: code-coverage/backend
-          fail-on-error: false
-
-      - name: Upload env coverage
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@v1
-        with:
-          file: coverage/packages/env/cobertura-coverage.xml
-          language: JavaScript
-          label: code-coverage/env
-          fail-on-error: false
-
-      - name: Upload logger coverage
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@v1
-        with:
-          file: coverage/packages/logger/cobertura-coverage.xml
-          language: JavaScript
-          label: code-coverage/logger
-          fail-on-error: false
-
-      - name: Upload shared coverage
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@v1
-        with:
-          file: coverage/packages/shared/cobertura-coverage.xml
-          language: JavaScript
-          label: code-coverage/shared
-          fail-on-error: false
-
-      - name: Upload UI coverage
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@v1
-        with:
-          file: coverage/packages/ui/cobertura-coverage.xml
-          language: JavaScript
-          label: code-coverage/ui
-          fail-on-error: false
