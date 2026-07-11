@@ -10,6 +10,8 @@ command_service_name="${CLEO_DISCORD_COMMAND_SERVICE:-cleo-discord-register-comm
 runtime_user="${CLEO_DISCORD_RUNTIME_USER:-cleo}"
 runtime_group="${CLEO_DISCORD_RUNTIME_GROUP:-cleo}"
 deploy_group="${CLEO_DISCORD_DEPLOY_GROUP:-cleo-deploy}"
+release_archive="${CLEO_DISCORD_RELEASE_ARCHIVE:-}"
+release_checksum="${CLEO_DISCORD_RELEASE_CHECKSUM:-}"
 releases_dir="$deploy_root/releases"
 shared_dir="$deploy_root/shared"
 current_link="$deploy_root/current"
@@ -19,6 +21,14 @@ repository_root="${GITHUB_WORKSPACE:-$(pwd)}"
 application_sha=""
 previous_application_sha=""
 command_sha=""
+staging_dir=""
+
+cleanup() {
+  if [[ -n "$staging_dir" && -d "$staging_dir" ]]; then
+    rm -rf -- "$staging_dir"
+  fi
+}
+trap cleanup EXIT
 
 systemctl_write() {
   sudo -n systemctl "$@"
@@ -190,6 +200,80 @@ restore_after_failed_deploy() {
   fi
 }
 
+verify_release_artifact() {
+  [[ -f "$release_archive" ]] || {
+    echo "Discord release archive is missing: $release_archive" >&2
+    return 1
+  }
+  [[ -f "$release_checksum" ]] || {
+    echo "Discord release checksum is missing: $release_checksum" >&2
+    return 1
+  }
+
+  local checksum_dir checksum_name
+  checksum_dir="$(dirname "$release_checksum")"
+  checksum_name="$(basename "$release_checksum")"
+  (
+    cd "$checksum_dir"
+    sha256sum -c "$checksum_name"
+  ) || return 1
+
+  if tar -tzf "$release_archive" | grep -Eq '(^|/)\.\.(/|$)|^/'; then
+    echo "Discord release archive contains an unsafe path." >&2
+    return 1
+  fi
+}
+
+stage_release() {
+  local sha="$1"
+  local release_dir="$releases_dir/$sha"
+
+  verify_release_artifact || return 1
+
+  if [[ -d "$release_dir" ]]; then
+    [[ -f "$release_dir/.cleo-release-sha" ]] || {
+      echo "Existing release is missing its SHA marker: $release_dir" >&2
+      return 1
+    }
+    [[ "$(<"$release_dir/.cleo-release-sha")" == "$sha" ]] || {
+      echo "Existing release SHA marker does not match $sha" >&2
+      return 1
+    }
+    find "$release_dir" -type f -name '.env*' -delete
+    return 0
+  fi
+
+  staging_dir="$releases_dir/.staging-$sha"
+  rm -rf -- "$staging_dir"
+  mkdir -p "$staging_dir"
+  tar --no-same-owner -xzf "$release_archive" -C "$staging_dir"
+
+  for required_path in \
+    package.json \
+    .nvmrc \
+    .cleo-release-sha \
+    src/index.ts \
+    node_modules/tsx/dist/cli.mjs; do
+    [[ -e "$staging_dir/$required_path" ]] || {
+      echo "Discord release is missing $required_path" >&2
+      return 1
+    }
+  done
+
+  [[ "$(<"$staging_dir/.cleo-release-sha")" == "$sha" ]] || {
+    echo "Discord release artifact SHA does not match $sha" >&2
+    return 1
+  }
+  cmp -s "$repository_root/.nvmrc" "$staging_dir/.nvmrc" || {
+    echo "Discord release Node version does not match the checked-out revision." >&2
+    return 1
+  }
+
+  find "$staging_dir" -type f -name '.env*' -delete
+  mv "$staging_dir" "$release_dir"
+  staging_dir=""
+}
+
 if [[ "$operation" == "rollback" ]]; then
   rollback_to "$previous_application_sha" "$application_sha"
   echo "Rolled back Discord production to $previous_application_sha"
@@ -207,23 +291,12 @@ if ! is_sha "$sha"; then
   exit 1
 fi
 
+stage_release "$sha"
 release_dir="$releases_dir/$sha"
-if [[ ! -d "$release_dir" ]]; then
-  staging_dir="$releases_dir/.staging-$sha"
-  rm -rf -- "$staging_dir"
-  pnpm --dir "$repository_root" --filter @workspace/discord-bot deploy \
-    --legacy --prod "$staging_dir"
-  install -m 0644 "$repository_root/.nvmrc" "$staging_dir/.nvmrc"
-  find "$staging_dir" -maxdepth 1 -type f -name '.env*' -delete
-  printf '%s\n' "$sha" > "$staging_dir/.cleo-release-sha"
-  mv "$staging_dir" "$release_dir"
-else
-  rm -f -- "$release_dir/.env" "$release_dir/.env.local" "$release_dir/.env.production"
-fi
 
 register_commands_for_release="$(
-  pnpm --dir "$repository_root" --filter @workspace/discord-bot exec tsx \
-    src/deployment/classifyChanges.ts commands "$command_sha" "$sha"
+  node "$repository_root/apps/discord-bot/src/deployment/classifyChanges.ts" \
+    commands "$command_sha" "$sha"
 )"
 next_command_sha="$command_sha"
 if [[ "$register_commands_for_release" == "true" ]]; then
