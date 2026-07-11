@@ -21,8 +21,8 @@ trap 'rm -rf -- "$bundle_dir"' EXIT
 rm -rf -- "$output_dir"
 mkdir -p "$output_dir"
 
-pnpm --dir "$repository_root" --filter @workspace/discord-bot deploy \
-  --legacy --prod "$bundle_dir"
+pnpm --dir "$repository_root" --filter @workspace/discord-bot --prod deploy \
+  --legacy "$bundle_dir"
 
 install -m 0644 "$repository_root/.nvmrc" "$bundle_dir/.nvmrc"
 printf '%s\n' "$sha" > "$bundle_dir/.cleo-release-sha"
@@ -36,6 +36,7 @@ for required_path in \
   node_modules/tsx/dist/cli.mjs; do
   if [[ ! -e "$bundle_dir/$required_path" ]]; then
     echo "Packaged Discord release is missing $required_path" >&2
+    find "$bundle_dir" -maxdepth 4 -type f -o -type l | sort | head -200 >&2
     exit 1
   fi
 done
