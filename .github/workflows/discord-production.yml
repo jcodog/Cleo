@@ -3,6 +3,22 @@ name: Deploy Discord Production
 on:
   push:
     branches: [main]
+    paths:
+      - "apps/discord-bot/**"
+      - "packages/backend/**"
+      - "packages/env/**"
+      - "packages/logger/**"
+      - "packages/shared/**"
+      - "packages/eslint-config/**"
+      - "packages/typescript-config/**"
+      - ".github/scripts/deploy-discord.sh"
+      - ".github/scripts/check-discord-runner.sh"
+      - ".github/workflows/discord-production.yml"
+      - ".nvmrc"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
   workflow_dispatch:
     inputs:
       operation:
@@ -61,7 +77,16 @@ jobs:
       github.ref == 'refs/heads/main' &&
       needs.classify.outputs.deploy == 'true'
     environment: discord-production
-    runs-on: [self-hosted, Linux, X64, cleo-prod]
+    runs-on: cleo-prod
+    timeout-minutes: 45
+    env:
+      CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
+      CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
+      CLEO_DISCORD_SERVICE: cleo-discord.service
+      CLEO_DISCORD_COMMAND_SERVICE: cleo-discord-register-commands.service
+      CLEO_DISCORD_RUNTIME_USER: cleo
+      CLEO_DISCORD_RUNTIME_GROUP: cleo
+      CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
 
     steps:
       - name: Checkout exact commit
@@ -72,15 +97,16 @@ jobs:
           ref: ${{ github.sha }}
 
       - name: Set up pnpm
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Set up Node.js
-        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
+
+      - name: Verify production runner contract
+        run: bash .github/scripts/check-discord-runner.sh
 
       - name: Install exact dependencies
         if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
@@ -125,9 +151,6 @@ jobs:
         run: pnpm --filter @workspace/backend run deploy
 
       - name: Deploy or roll back
-        env:
-          CLEO_DISCORD_DEPLOY_ROOT: /opt/cleo/discord
-          CLEO_DISCORD_SERVICE: cleo-discord.service
         run: >-
           bash .github/scripts/deploy-discord.sh
           "${{ github.event_name == 'workflow_dispatch' && inputs.operation || 'deploy' }}"
