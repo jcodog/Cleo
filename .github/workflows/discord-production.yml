@@ -75,7 +75,11 @@ jobs:
     needs: classify
     if: >-
       github.ref == 'refs/heads/main' &&
-      needs.classify.outputs.deploy == 'true'
+      needs.classify.outputs.deploy == 'true' &&
+      (
+        vars.CLEO_DISCORD_DEPLOY_ENABLED == 'true' ||
+        (github.event_name == 'workflow_dispatch' && inputs.operation == 'rollback')
+      )
     environment: discord-production
     runs-on: cleo-prod
     timeout-minutes: 45
