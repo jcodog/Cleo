@@ -69,6 +69,84 @@ sudo -iu cleo bash -lc 'source "$HOME/.nvm/nvm.sh" && nvm install 24.15.0 && nvm
 The runner smoke validates both the Actions toolchain and the separate `cleo`
 runtime Node installation.
 
+## Production credentials and service setup
+
+### Discord Developer Portal
+
+Use the production Cleo application.
+
+- **General Information → Application ID** supplies `DISCORD_APPLICATION_ID` and
+  normally `DISCORD_CLIENT_ID`.
+- **Bot → Token** supplies `DISCORD_BOT_TOKEN`. Resetting the token invalidates the
+  previous value, so update both VPS and Convex production together.
+- **Bot → Privileged Gateway Intents** must have **Server Members Intent** enabled,
+  because v3 uses guild-member events for reconciliation and welcomes. Message
+  Content Intent is not required by the current v3 runtime.
+- Guild installation must include scopes `bot` and `applications.commands`.
+- User installation must permit `applications.commands` for supported user/DM
+  commands.
+
+The reviewed Cleo v3 bot permission set is:
+
+- View Channels
+- Send Messages
+- Embed Links
+- Attach Files
+- Read Message History
+- Mention Everyone, used for configured support-role notifications
+- Create Public Threads
+- Send Messages in Threads
+- Kick Members
+- Ban Members
+
+Its decimal permission bitfield is:
+
+```text
+309237894150
+```
+
+The backend uses this as its safe built-in default. A valid
+`DISCORD_BOT_PERMISSIONS` value in Convex production can deliberately override it.
+Missing or malformed overrides no longer create a zero-permission install URL.
+
+### Clerk production instance
+
+Use the production Clerk instance rather than development keys.
+
+- **API Keys** supplies `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and
+  `CLERK_SECRET_KEY`.
+- **Convex integration** supplies the production Clerk Frontend API URL. Store that
+  URL in Convex as `CLERK_JWT_ISSUER_DOMAIN`.
+- The Discord social connection must be enabled and request the `guilds` OAuth
+  scope in addition to identity access, because Cleo reads the signed-in user's
+  Discord guilds to verify install/manage permission.
+- Create a Clerk webhook endpoint for:
+  - `user.created`
+  - `user.updated`
+  - `user.deleted`
+
+The endpoint URL is the production Convex HTTP Actions site URL followed by the
+route implemented by Cleo:
+
+```text
+https://<production-deployment>.convex.site/clerk-users-webhook
+```
+
+Copy the endpoint signing secret into Convex production as
+`CLERK_WEBHOOK_SECRET`.
+
+### Convex production deployment
+
+Use the existing production deployment in the Convex dashboard.
+
+- The deployment client URL ending in `.convex.cloud` supplies VPS `CONVEX_URL`
+  and Vercel `NEXT_PUBLIC_CONVEX_URL`.
+- The HTTP Actions site URL ending in `.convex.site` is used for the Clerk webhook.
+- **Deployment Settings → General → Generate Production Deploy Key** supplies the
+  GitHub `CONVEX_DEPLOY_KEY`; grant `deployment:deploy`.
+- **Deployment Settings → Environment Variables** stores the Convex variables
+  listed below.
+
 ## Environment placement
 
 ### VPS: `/etc/cleo/discord-bot.env`
@@ -79,7 +157,7 @@ Start from `ops/discord/discord-bot.env.example` and edit the real file with
 | Variable | Purpose |
 | --- | --- |
 | `NODE_ENV=production` | Enables production runtime validation. |
-| `CONVEX_URL` | HTTPS origin of the production Convex deployment. |
+| `CONVEX_URL` | HTTPS `.convex.cloud` origin of the production deployment. |
 | `DISCORD_BOT_CONVEX_SECRET` | Shared bot-to-Convex secret; must exactly match Convex production. |
 | `DISCORD_BOT_TOKEN` | Production Discord bot token. |
 | `DISCORD_APPLICATION_ID` | Discord application ID used for global command registration. |
@@ -109,7 +187,7 @@ Set this Actions environment secret:
 
 | Secret | Purpose |
 | --- | --- |
-| `CONVEX_DEPLOY_KEY` | Authorizes `convex deploy` against the production deployment. |
+| `CONVEX_DEPLOY_KEY` | Production Convex key with `deployment:deploy`. |
 
 Restrict the environment deployment branch to `main`. Runtime Discord and Clerk
 secrets remain on their owning platforms instead of GitHub Actions secrets.
@@ -121,20 +199,20 @@ remain available while the gate is off.
 
 ### Convex production environment
 
-Enter these through the Convex production deployment settings. The reference file
-`ops/convex/production.env.example` is not loaded automatically.
+Enter these through the production deployment's Environment Variables page. The
+reference file `ops/convex/production.env.example` is not loaded automatically.
 
-| Variable | Requirement |
+| Variable | Source / requirement |
 | --- | --- |
-| `NODE_ENV=production` | Enables production URL validation and runtime defaults. |
-| `CLERK_JWT_ISSUER_DOMAIN` | Required by Convex auth configuration. |
-| `CLERK_SECRET_KEY` | Required for Clerk user and Discord OAuth token resolution. |
-| `CLERK_WEBHOOK_SECRET` | Required by `/clerk-users-webhook`. |
-| `DISCORD_BOT_CONVEX_SECRET` | Required; same random value as the VPS. |
-| `DISCORD_BOT_TOKEN` | Required for server-install and Discord REST verification. |
-| `DISCORD_APPLICATION_ID` | Required for the Discord server-install URL and command identity. |
-| `DISCORD_CLIENT_ID` | Recommended compatibility alias, normally the same ID. |
-| `DISCORD_BOT_PERMISSIONS` | Recommended decimal permission value for Cleo server installs. |
+| `NODE_ENV=production` | Literal production runtime mode. |
+| `CLERK_JWT_ISSUER_DOMAIN` | Clerk production Convex integration Frontend API URL. |
+| `CLERK_SECRET_KEY` | Clerk production API secret key. |
+| `CLERK_WEBHOOK_SECRET` | Signing secret for the production Convex Clerk webhook endpoint. |
+| `DISCORD_BOT_CONVEX_SECRET` | Same generated random value as the VPS. |
+| `DISCORD_BOT_TOKEN` | Same production Discord bot token as the VPS. |
+| `DISCORD_APPLICATION_ID` | Discord General Information application ID. |
+| `DISCORD_CLIENT_ID` | Normally the same Discord application ID. |
+| `DISCORD_BOT_PERMISSIONS` | `309237894150`, unless an intentional reviewed override is needed. |
 | `DISCORD_INSTALL_REDIRECT_URI` | Optional only when the approved Discord flow needs an explicit redirect. |
 
 `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are not Discord v3.0.0 release
@@ -145,10 +223,10 @@ requirements unless production billing is deliberately enabled.
 Set these in the Vercel **Production** environment. Public values are embedded at
 build time, so changing them requires a new dashboard deployment.
 
-| Variable | Purpose |
+| Variable | Source / value |
 | --- | --- |
-| `NEXT_PUBLIC_CONVEX_URL` | Same production Convex URL used by the VPS. |
-| `NEXT_PUBLIC_APP_URL` | Canonical HTTPS dashboard URL, currently `https://cleoai.cloud`. |
+| `NEXT_PUBLIC_CONVEX_URL` | Production Convex `.convex.cloud` URL. |
+| `NEXT_PUBLIC_APP_URL` | `https://cleoai.cloud` |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk production publishable key. |
 | `CLERK_SECRET_KEY` | Clerk production secret key. |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` |
@@ -158,7 +236,8 @@ build time, so changing them requires a new dashboard deployment.
 
 Use `apps/dashboard/.env.example` as the non-secret reference. Do not set a local
 HTTP URL in a production build; the shared environment validator permits HTTP only
-for explicit loopback development URLs.
+for explicit loopback development URLs. Trigger a new Production deployment after
+saving these values; existing deployments do not inherit later environment changes.
 
 ## Values shared across platforms
 
@@ -167,7 +246,7 @@ for explicit loopback development URLs.
 | Production Convex URL | VPS `CONVEX_URL`; Vercel `NEXT_PUBLIC_CONVEX_URL` |
 | Bot-to-Convex secret | VPS and Convex `DISCORD_BOT_CONVEX_SECRET` |
 | Discord bot token | VPS and Convex `DISCORD_BOT_TOKEN` |
-| Discord application ID | VPS and Convex `DISCORD_APPLICATION_ID` |
+| Discord application ID | VPS and Convex `DISCORD_APPLICATION_ID` / `DISCORD_CLIENT_ID` |
 | Clerk secret key | Vercel and Convex `CLERK_SECRET_KEY` |
 
 ## Safe first-production activation
@@ -175,7 +254,8 @@ for explicit loopback development URLs.
 1. Leave `CLEO_DISCORD_DEPLOY_ENABLED` unset or set to `false`.
 2. Merge the reviewed workflow and operations revision to `main`.
 3. Run `sudo bash ops/discord/bootstrap-host.sh` from the new `main` checkout.
-4. Populate the VPS, Convex production, Vercel Production, and GitHub environment.
+4. Populate the VPS, Convex production, Vercel Production, Clerk, Discord, and
+   GitHub settings above.
 5. Restart the GitHub runner service after group or helper changes.
 6. Dispatch **Discord Production Runner Smoke** from `main` and require it to pass.
 7. Dispatch **Deploy Discord Production** with `operation=validate`. This runs the
@@ -183,8 +263,9 @@ for explicit loopback development URLs.
    without deploying Convex or changing the running bot.
 8. Set repository Actions variable `CLEO_DISCORD_DEPLOY_ENABLED=true`.
 9. Dispatch **Deploy Discord Production** with `operation=deploy`.
-10. Keep the variable enabled for automatic relevant `main` deployments, or switch
-    it back to `false` as a production kill switch.
+10. Redeploy the Vercel Production dashboard after its environment is updated.
+11. Keep the gate enabled for automatic relevant `main` deployments, or switch it
+    back to `false` as a production kill switch.
 
 ## Smoke, deploy, and rollback
 
