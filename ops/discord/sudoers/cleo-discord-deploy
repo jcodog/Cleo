@@ -4,5 +4,9 @@ Cmnd_Alias CLEO_DISCORD_SYSTEMD = \
   /usr/bin/systemctl start cleo-discord-register-commands.service, \
   /usr/bin/systemctl reset-failed cleo-discord-register-commands.service
 
+Cmnd_Alias CLEO_DISCORD_CHECKS = \
+  /usr/local/libexec/cleo/check-discord-env /etc/cleo/discord-bot.env, \
+  /usr/local/libexec/cleo/check-discord-runtime *
+
 github-runner ALL=(root) NOPASSWD: CLEO_DISCORD_SYSTEMD
-github-runner ALL=(cleo) NOPASSWD: /usr/bin/test -r /etc/cleo/discord-bot.env
+github-runner ALL=(cleo) NOPASSWD: CLEO_DISCORD_CHECKS

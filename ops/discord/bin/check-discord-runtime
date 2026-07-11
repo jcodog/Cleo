@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+expected_version="${1:-}"
+
+if [[ ! "$expected_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Discord runtime check failed: expected a version like v24.15.0" >&2
+  exit 1
+fi
+
+nvm_exec="/home/cleo/.nvm/nvm-exec"
+[[ -x "$nvm_exec" ]] || {
+  echo "Discord runtime check failed: $nvm_exec is missing or not executable" >&2
+  exit 1
+}
+
+export NODE_VERSION="${expected_version#v}"
+actual_version="$($nvm_exec node --version)"
+
+[[ "$actual_version" == "$expected_version" ]] || {
+  echo "Discord runtime check failed: cleo runtime Node is $actual_version, expected $expected_version" >&2
+  exit 1
+}
+
+echo "Cleo runtime Node $actual_version is available."

@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+env_file="${1:-/etc/cleo/discord-bot.env}"
+
+fail() {
+  echo "Discord production environment check failed: $*" >&2
+  exit 1
+}
+
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+read_value() {
+  local key="$1"
+  local count line value
+
+  count="$(grep -Ec "^[[:space:]]*${key}[[:space:]]*=" "$env_file" || true)"
+  [[ "$count" == "1" ]] || fail "$key must be declared exactly once"
+
+  line="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$env_file" | head -n 1)"
+  value="$(trim "${line#*=}")"
+
+  if [[ ${#value} -ge 2 ]]; then
+    if [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+
+  [[ -n "$value" ]] || fail "$key must not be empty"
+  printf '%s' "$value"
+}
+
+read_optional_value() {
+  local key="$1"
+  local count
+  count="$(grep -Ec "^[[:space:]]*${key}[[:space:]]*=" "$env_file" || true)"
+
+  if [[ "$count" == "0" ]]; then
+    return 1
+  fi
+
+  [[ "$count" == "1" ]] || fail "$key must not be declared more than once"
+  read_value "$key"
+}
+
+reject_placeholder() {
+  local key="$1"
+  local value="$2"
+  local normalized="${value,,}"
+
+  if [[ "$normalized" == *"replace"* || "$normalized" == *"your-"* || "$value" == *"<"* || "$value" == *">"* ]]; then
+    fail "$key still contains a placeholder value"
+  fi
+}
+
+[[ -f "$env_file" ]] || fail "missing file $env_file"
+[[ -r "$env_file" ]] || fail "runtime user cannot read $env_file"
+file_mode="$(stat -c %a "$env_file")"
+[[ "${file_mode: -1}" == "0" ]] ||
+  fail "$env_file must not be accessible by other users"
+
+node_env="$(read_value NODE_ENV)"
+convex_url="$(read_value CONVEX_URL)"
+convex_secret="$(read_value DISCORD_BOT_CONVEX_SECRET)"
+discord_token="$(read_value DISCORD_BOT_TOKEN)"
+application_id="$(read_value DISCORD_APPLICATION_ID)"
+runtime_mode="$(read_value DISCORD_BOT_RUNTIME_MODE)"
+shard_count="$(read_value DISCORD_BOT_SHARD_COUNT)"
+
+for entry in \
+  "CONVEX_URL:$convex_url" \
+  "DISCORD_BOT_CONVEX_SECRET:$convex_secret" \
+  "DISCORD_BOT_TOKEN:$discord_token" \
+  "DISCORD_APPLICATION_ID:$application_id"; do
+  reject_placeholder "${entry%%:*}" "${entry#*:}"
+done
+
+[[ "$node_env" == "production" ]] || fail "NODE_ENV must be production"
+[[ "$convex_url" =~ ^https://[^/?#[:space:]]+/?$ ]] ||
+  fail "CONVEX_URL must be an HTTPS origin without a path, query, or fragment"
+[[ ${#convex_secret} -ge 32 ]] ||
+  fail "DISCORD_BOT_CONVEX_SECRET must be at least 32 characters"
+[[ ${#discord_token} -ge 20 ]] || fail "DISCORD_BOT_TOKEN appears invalid"
+[[ "$application_id" =~ ^[0-9]{17,20}$ ]] ||
+  fail "DISCORD_APPLICATION_ID must be a Discord snowflake"
+[[ "$runtime_mode" == "single" || "$runtime_mode" == "sharded" ]] ||
+  fail "DISCORD_BOT_RUNTIME_MODE must be single or sharded"
+[[ "$shard_count" == "auto" || "$shard_count" =~ ^[1-9][0-9]*$ ]] ||
+  fail "DISCORD_BOT_SHARD_COUNT must be auto or a positive integer"
+
+if client_id="$(read_optional_value DISCORD_CLIENT_ID)"; then
+  reject_placeholder "DISCORD_CLIENT_ID" "$client_id"
+  [[ "$client_id" =~ ^[0-9]{17,20}$ ]] ||
+    fail "DISCORD_CLIENT_ID must be a Discord snowflake"
+fi
+
+echo "Discord production environment is valid."

@@ -22,6 +22,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=read-only
+ReadOnlyPaths=/srv/cleo/discord-bot
 
 [Install]
 WantedBy=multi-user.target
