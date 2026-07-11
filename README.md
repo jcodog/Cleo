@@ -115,6 +115,12 @@ pnpm --filter @workspace/discord-bot run commands:register:guild
 
 The regression workflow runs typecheck, lint, and tests under c8 coverage. Coverage floors are measured per participating workspace and documented in `.github/coverage-baseline.md`.
 
+The latest successful `main` report is published as a [browsable coverage site](https://jcodog.github.io/Cleo/). Pull-request runs also retain the complete HTML report and Cobertura XML as workflow artifacts.
+
+## Production operations
+
+Discord production deployment, server ownership, environment placement, Vercel values, and Convex values are documented in `docs/discord-production-deployment.md`.
+
 ## License
 
 Copyright (c) 2026 JCoNet LTD. All rights reserved.
