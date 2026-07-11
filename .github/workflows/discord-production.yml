@@ -61,7 +61,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       needs.classify.outputs.deploy == 'true'
     environment: discord-production
-    runs-on: [self-hosted, linux, x64, cleo-prod]
+    runs-on: [self-hosted, Linux, X64, cleo-prod]
 
     steps:
       - name: Checkout exact commit
