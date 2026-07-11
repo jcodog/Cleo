@@ -9,6 +9,9 @@ export function AppShell({
   children,
   navSections,
   footerNavSections,
+  showDiscordGuildSelect,
+  showPlatformSelector,
+  staffEntry,
 }: AppShellProps) {
   return (
     <SidebarProvider>
@@ -16,11 +19,13 @@ export function AppShell({
       <AppSidebar
         navSections={navSections}
         footerNavSections={footerNavSections}
+        showDiscordGuildSelect={showDiscordGuildSelect}
+        showPlatformSelector={showPlatformSelector}
       />
 
       <SidebarInset className="min-h-0 overflow-hidden">
         <main className="flex min-h-0 flex-1 flex-col">
-          <AppTopbar />
+          <AppTopbar staffEntry={staffEntry} />
           <section
             id="dashboard-page"
             className="flex min-h-0 flex-1 p-4 md:p-6"

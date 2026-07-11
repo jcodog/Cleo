@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 import { IconRefresh } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
@@ -18,6 +18,18 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@workspace/ui/components/field"
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@workspace/ui/components/native-select"
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -25,19 +37,34 @@ import {
   EmptyTitle,
 } from "@workspace/ui/components/empty"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { useAction, useQuery } from "convex/react"
+import { Switch } from "@workspace/ui/components/switch"
+import { useAction, useMutation, useQuery } from "convex/react"
 
+import {
+  DiscordChannelSelect,
+  useDiscordConfigOptions,
+} from "../components/ConfigSelectors"
 import { formatDateTime, getErrorMessage, toTitleCase } from "../lib/format"
+import { toOptionalChannelValue } from "../lib/config"
 import {
   IconAlertTriangle,
   IconInfoCircle,
   IconLogs,
+  SaveStatus,
   SystemLogRow,
   WorkspaceState,
 } from "../components/workspace-ui"
-import type { GuildAuditEvent, SaveState } from "../types"
+import type { GuildAuditEvent, GuildOverview, SaveState } from "../types"
 
-export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
+export function LogsSection({
+  discordGuildId,
+  isBotLeft,
+  overview,
+}: {
+  discordGuildId: string
+  isBotLeft: boolean
+  overview: GuildOverview
+}) {
   const logsResult = useQuery(
     api.queries.dashboard.discord.guilds.systemLogs.list,
     { discordGuildId }
@@ -50,6 +77,10 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
     api.queries.dashboard.discord.guilds.auditEvents.list,
     { discordGuildId, source: "discord-audit-log" }
   )
+  const liveEventResult = useQuery(
+    api.queries.dashboard.discord.guilds.auditEvents.list,
+    { discordGuildId, source: "bot-action" }
+  )
   const syncAuditLogs = useAction(
     api.actions.dashboard.discord.guilds.syncAuditLogs.sync
   )
@@ -59,7 +90,8 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
   if (
     logsResult === undefined ||
     dashboardAuditResult === undefined ||
-    serverAuditResult === undefined
+    serverAuditResult === undefined ||
+    liveEventResult === undefined
   ) {
     return (
       <div className="flex max-w-4xl flex-col gap-3">
@@ -72,7 +104,8 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
   if (
     logsResult.status === "notFound" ||
     dashboardAuditResult.status === "notFound" ||
-    serverAuditResult.status === "notFound"
+    serverAuditResult.status === "notFound" ||
+    liveEventResult.status === "notFound"
   ) {
     return (
       <WorkspaceState
@@ -86,7 +119,8 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
   if (
     logsResult.status === "forbidden" ||
     dashboardAuditResult.status === "forbidden" ||
-    serverAuditResult.status === "forbidden"
+    serverAuditResult.status === "forbidden" ||
+    liveEventResult.status === "forbidden"
   ) {
     return (
       <WorkspaceState
@@ -122,13 +156,35 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
+      <LoggingConfig
+        key={overview.discordGuildId}
+        isBotLeft={isBotLeft}
+        overview={overview}
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Live Cleo Events</CardTitle>
+          <CardDescription>
+            Guild activity captured live by Cleo&apos;s Discord gateway.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuditEventList
+            emptyDescription="Supported member, ban, channel, role, and message-delete events will appear here while Cleo is connected."
+            emptyTitle="No Live Cleo Events"
+            events={liveEventResult.events}
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <CardTitle>Discord Server Audit Log</CardTitle>
               <CardDescription>
-                Manual server-side Discord REST import of this server&apos;s audit
+                Recovery and backfill from Discord&apos;s server-side REST audit
                 log.
               </CardDescription>
             </div>
@@ -206,6 +262,136 @@ export function LogsSection({ discordGuildId }: { discordGuildId: string }) {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function LoggingConfig({
+  isBotLeft,
+  overview,
+}: {
+  isBotLeft: boolean
+  overview: GuildOverview
+}) {
+  const updateWorkspaceSection = useMutation(
+    api.mutations.dashboard.discord.guildConfigs.updateWorkspaceSection.update
+  )
+  const optionsState = useDiscordConfigOptions(overview.discordGuildId)
+  const [enabled, setEnabled] = useState(
+    overview.guildConfig?.loggingEnabled ?? false
+  )
+  const [channelId, setChannelId] = useState(
+    overview.guildConfig?.logChannelId ?? ""
+  )
+  const [level, setLevel] = useState<"none" | "minimal" | "medium" | "maximum">(
+    overview.guildConfig?.logLevel ?? "medium"
+  )
+  const [saveState, setSaveState] = useState<SaveState>("idle")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const disabled = isBotLeft || saveState === "saving"
+
+  function markDirty() {
+    setSaveState("idle")
+    setErrorMessage(null)
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (disabled) {
+      return
+    }
+
+    setSaveState("saving")
+    setErrorMessage(null)
+
+    try {
+      await updateWorkspaceSection({
+        discordGuildId: overview.discordGuildId,
+        modules: { loggingEnabled: enabled },
+        channels: {
+          logChannelId: toOptionalChannelValue(channelId),
+        },
+        logging: { level },
+      })
+      setSaveState("success")
+    } catch (error) {
+      setSaveState("error")
+      setErrorMessage(getErrorMessage(error))
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Logging</CardTitle>
+          <CardDescription>
+            Configure Discord delivery for Cleo operational events.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FieldGroup>
+            <Field data-disabled={disabled} orientation="horizontal">
+              <FieldContent>
+                <FieldTitle>Discord logging</FieldTitle>
+                <FieldDescription>
+                  Send configured guild events to Discord.
+                </FieldDescription>
+              </FieldContent>
+              <Switch
+                aria-label="Discord logging"
+                checked={enabled}
+                disabled={disabled}
+                onCheckedChange={(checked) => {
+                  setEnabled(checked)
+                  markDirty()
+                }}
+              />
+            </Field>
+
+            <DiscordChannelSelect
+              description="General Cleo events are sent to this channel."
+              disabled={disabled}
+              label="Log destination"
+              onChange={(value) => {
+                setChannelId(value)
+                markDirty()
+              }}
+              optionsState={optionsState}
+              value={channelId}
+            />
+
+            <Field data-disabled={disabled}>
+              <FieldLabel htmlFor="log-level">Minimum log level</FieldLabel>
+              <NativeSelect
+                className="w-full"
+                disabled={disabled}
+                id="log-level"
+                onChange={(event) => {
+                  setLevel(
+                    event.target.value as
+                      "none" | "minimal" | "medium" | "maximum"
+                  )
+                  markDirty()
+                }}
+                value={level}
+              >
+                <NativeSelectOption value="none">None</NativeSelectOption>
+                <NativeSelectOption value="minimal">Minimal</NativeSelectOption>
+                <NativeSelectOption value="medium">Medium</NativeSelectOption>
+                <NativeSelectOption value="maximum">Maximum</NativeSelectOption>
+              </NativeSelect>
+            </Field>
+
+            <SaveStatus errorMessage={errorMessage} state={saveState} />
+
+            <Button disabled={disabled} type="submit">
+              {saveState === "saving" ? "Saving…" : "Save Logging"}
+            </Button>
+          </FieldGroup>
+        </CardContent>
+      </Card>
+    </form>
   )
 }
 

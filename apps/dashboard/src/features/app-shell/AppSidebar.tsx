@@ -16,11 +16,15 @@ import Image from "next/image"
 type AppSidebarProps = {
   navSections: AppShellNavSection[]
   footerNavSections: AppShellNavSection[]
+  showDiscordGuildSelect?: boolean
+  showPlatformSelector?: boolean
 }
 
 export function AppSidebar({
   navSections,
   footerNavSections,
+  showDiscordGuildSelect = true,
+  showPlatformSelector = true,
 }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" variant="inset" className="select-none">
@@ -42,8 +46,8 @@ export function AppSidebar({
           </div>
         </div>
 
-        <AppPlatformSelector />
-        <DiscordGuildSelect />
+        {showPlatformSelector ? <AppPlatformSelector /> : null}
+        {showDiscordGuildSelect ? <DiscordGuildSelect /> : null}
       </SidebarHeader>
 
       <SidebarSeparator />

@@ -151,6 +151,9 @@ function toGuildOverview(
           ...(guildConfig.welcomeChannelId !== undefined
             ? { welcomeChannelId: guildConfig.welcomeChannelId }
             : {}),
+          ...(guildConfig.welcomeSubtext !== undefined
+            ? { welcomeSubtext: guildConfig.welcomeSubtext }
+            : {}),
           ...(guildConfig.updatesChannelId !== undefined
             ? { updatesChannelId: guildConfig.updatesChannelId }
             : {}),

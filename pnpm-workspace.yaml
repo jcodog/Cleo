@@ -8,24 +8,23 @@ allowBuilds:
   sharp: true
 catalog:
   '@eslint/js': ^10.0.1
-  '@next/eslint-plugin-next': ^16.2.6
-  '@tailwindcss/postcss': ^4.3.0
-  '@turbo/gen': ^2.9.16
-  '@types/node': ^25.9.1
-  '@types/react': ^19.2.15
+  '@next/eslint-plugin-next': ^16.2.10
+  '@tailwindcss/postcss': ^4.3.2
+  '@turbo/gen': ^2.10.4
+  '@types/node': ^24.13.3
+  '@types/react': ^19.2.17
   '@types/react-dom': ^19.2.3
-  '@typescript-eslint/eslint-plugin': ^8.60.0
-  '@typescript-eslint/parser': ^8.60.0
-  eslint: ^10.4.0
+  '@typescript-eslint/eslint-plugin': ^8.63.0
+  '@typescript-eslint/parser': ^8.63.0
+  eslint: ^10.6.0
   eslint-config-prettier: ^10.1.8
   eslint-plugin-only-warn: ^1.2.1
-  eslint-plugin-react: ^7.37.5
   eslint-plugin-react-hooks: ^7.1.1
-  eslint-plugin-turbo: ^2.9.16
-  globals: ^17.6.0
-  prettier: ^3.8.3
+  eslint-plugin-turbo: ^2.10.4
+  globals: ^17.7.0
+  prettier: ^3.9.5
   prettier-plugin-tailwindcss: ^0.8.0
-  tailwindcss: ^4.3.0
-  turbo: ^2.9.16
+  tailwindcss: ^4.3.2
+  turbo: ^2.10.4
   typescript: ^6.0.3
-  typescript-eslint: ^8.60.0
+  typescript-eslint: ^8.63.0

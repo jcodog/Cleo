@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "lint": "eslint .",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src --include=\"src/**/*.ts\" --exclude=\"src/**/*.test.ts\" --exclude=\"src/index.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/packages/shared\" --temp-directory=\"../../.coverage-tmp/packages/shared\" tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -16,6 +18,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",
+    "./cleoEntitlements": "./src/cleoEntitlements.ts",
+    "./cleoPets": "./src/cleoPets.ts",
+    "./discordRuntimeConfig": "./src/discordRuntimeConfig.ts",
     "./providers": "./src/providers.ts"
   }
 }

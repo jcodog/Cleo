@@ -1,7 +1,18 @@
+import {
+  isConvexJsonObject,
+  isConvexJsonShallowObject,
+  type ConvexJsonObject,
+  type ConvexJsonShallowObject,
+} from "./validators"
+
 const DISCORD_API_BASE_URL = "https://discord.com/api/v10"
 const DISCORD_CDN_BASE_URL = "https://cdn.discordapp.com"
 const DISCORD_GUILD_TEXT_CHANNEL = 0
 const DISCORD_GUILD_ANNOUNCEMENT_CHANNEL = 5
+const DISCORD_ANNOUNCEMENT_THREAD = 10
+const DISCORD_PUBLIC_THREAD = 11
+const DISCORD_PRIVATE_THREAD = 12
+const DISCORD_GUILD_FORUM_CHANNEL = 15
 const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
 const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
 const DISCORD_EPOCH = 1420070400000n
@@ -58,8 +69,8 @@ type DiscordAuditLogEntry = {
   target_id?: string | null
   user_id?: string | null
   reason?: string | null
-  changes?: unknown[]
-  options?: Record<string, unknown>
+  changes?: ConvexJsonObject[]
+  options?: ConvexJsonShallowObject
 }
 
 type DiscordAuditLogResponse = {
@@ -93,6 +104,13 @@ export type DiscordPendingChannel = {
   position?: number
 }
 
+export type DiscordConfigurationChannel = Omit<
+  DiscordPendingChannel,
+  "type"
+> & {
+  type: DiscordPendingChannel["type"] | "thread" | "forum"
+}
+
 export type DiscordBotGuildSummary = {
   discordGuildId: string
   name: string
@@ -124,8 +142,8 @@ export type DiscordGuildAuditLogEntry = {
   actorDisplayName?: string
   targetDiscordId?: string
   reason?: string
-  changes?: unknown[]
-  options?: Record<string, unknown>
+  changes?: ConvexJsonObject[]
+  options?: ConvexJsonShallowObject
   occurredAt: number
 }
 
@@ -310,13 +328,10 @@ export async function fetchDiscordBotGuilds(botToken: string): Promise<
   }
 }
 
-export async function fetchDiscordGuildChannels(
-  discordGuildId: string,
-  botToken: string
-): Promise<
+type DiscordGuildChannelsResult<TChannel> =
   | {
       status: "ready"
-      channels: DiscordPendingChannel[]
+      channels: TChannel[]
     }
   | {
       status: "notInstalled"
@@ -325,7 +340,21 @@ export async function fetchDiscordGuildChannels(
       status: "unavailable"
       reason: DiscordBotRestUnavailableReason
     }
-> {
+
+export function fetchDiscordGuildChannels(
+  discordGuildId: string,
+  botToken: string
+): Promise<DiscordGuildChannelsResult<DiscordPendingChannel>>
+export function fetchDiscordGuildChannels(
+  discordGuildId: string,
+  botToken: string,
+  options: { includeSupportTargets: true }
+): Promise<DiscordGuildChannelsResult<DiscordConfigurationChannel>>
+export async function fetchDiscordGuildChannels(
+  discordGuildId: string,
+  botToken: string,
+  options: { includeSupportTargets?: boolean } = {}
+): Promise<DiscordGuildChannelsResult<DiscordConfigurationChannel>> {
   const response = await fetchDiscordJson(
     `${DISCORD_API_BASE_URL}/guilds/${discordGuildId}/channels`,
     {
@@ -374,21 +403,45 @@ export async function fetchDiscordGuildChannels(
         (channel) =>
           channel.name &&
           (channel.type === DISCORD_GUILD_TEXT_CHANNEL ||
-            channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL)
+            channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL ||
+            (options.includeSupportTargets === true &&
+              (channel.type === DISCORD_ANNOUNCEMENT_THREAD ||
+                channel.type === DISCORD_PUBLIC_THREAD ||
+                channel.type === DISCORD_PRIVATE_THREAD ||
+                channel.type === DISCORD_GUILD_FORUM_CHANNEL)))
       )
       .map((channel) => ({
         discordChannelId: channel.id,
         name: channel.name ?? channel.id,
-        type:
-          channel.type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL
-            ? ("announcement" as const)
-            : ("text" as const),
+        type: getDiscordChannelType(channel.type),
         ...(channel.position !== undefined
           ? { position: channel.position }
           : {}),
       }))
       .sort((left, right) => (left.position ?? 0) - (right.position ?? 0)),
   }
+}
+
+function getDiscordChannelType(
+  type: number
+): DiscordConfigurationChannel["type"] {
+  if (type === DISCORD_GUILD_ANNOUNCEMENT_CHANNEL) {
+    return "announcement"
+  }
+
+  if (type === DISCORD_GUILD_FORUM_CHANNEL) {
+    return "forum"
+  }
+
+  if (
+    type === DISCORD_ANNOUNCEMENT_THREAD ||
+    type === DISCORD_PUBLIC_THREAD ||
+    type === DISCORD_PRIVATE_THREAD
+  ) {
+    return "thread"
+  }
+
+  return "text"
 }
 
 export async function fetchDiscordBotGuild(
@@ -783,8 +836,10 @@ function isDiscordAuditLogEntry(value: unknown): value is DiscordAuditLogEntry {
     (!("reason" in value) ||
       typeof value.reason === "string" ||
       value.reason === null) &&
-    (!("changes" in value) || Array.isArray(value.changes)) &&
-    (!("options" in value) || isObjectRecord(value.options))
+    (!("changes" in value) ||
+      (Array.isArray(value.changes) &&
+        value.changes.every(isConvexJsonObject))) &&
+    (!("options" in value) || isConvexJsonShallowObject(value.options))
   )
 }
 
@@ -799,10 +854,6 @@ function isDiscordAuditLogUser(value: unknown): value is DiscordAuditLogUser {
       typeof value.global_name === "string" ||
       value.global_name === null)
   )
-}
-
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function getDiscordUserDisplayName(user: DiscordAuditLogUser): string {

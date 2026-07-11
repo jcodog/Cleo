@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://cubic.dev/schema/cubic-repository-config.schema.json
+
+version: 1
+reviews:
+  # Keep cloud capacity for deliberate release reviews such as PR 172.
+  enabled: false
+  incremental_commits: false
+  check_drafts: false
+  ignore:
+    files:
+      - "**/*.test.*"
+      - "**/*.spec.*"
+      - "**/__tests__/**"
+      - "tests/**"
+      - "test/**"
+      - "fixtures/**"
+      - "**/fixtures/**"
+      - "coverage/**"
+      - ".coverage-tmp/**"
+      - "**/_generated/**"
+      - "dist/**"
+      - "pnpm-lock.yaml"
+    base_branches:
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "release/**"
+      - "develop"
+      - "development"
+      - "staging"
+    pr_labels:
+      - "WIP"
+      - "wip"
+      - "skip-review"
+      - "no-ai-*"

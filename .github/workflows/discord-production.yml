@@ -1,0 +1,133 @@
+name: Deploy Discord Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy the selected commit or roll back to the previous release
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - rollback
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-production
+  cancel-in-progress: false
+
+jobs:
+  classify:
+    name: Classify Discord changes
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.changes.outputs.deploy }}
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Classify changed paths
+        id: changes
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            deploy="$(node apps/discord-bot/src/deployment/classifyChanges.ts deploy \
+              "${{ github.event.before }}" "${{ github.sha }}")"
+            echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Validate and deploy Discord bot
+    needs: classify
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      needs.classify.outputs.deploy == 'true'
+    environment: discord-production
+    runs-on: [self-hosted, linux, x64, cleo-prod]
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up pnpm
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: Set up Node.js
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install exact dependencies
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm install --frozen-lockfile
+
+      - name: Check peer dependency compatibility
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm check:peers
+
+      - name: Test Discord bot
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/discord-bot run test
+
+      - name: Test Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/backend run test
+
+      - name: Typecheck Discord bot
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/discord-bot run typecheck
+
+      - name: Typecheck Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/backend run typecheck
+
+      - name: Lint Discord bot
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/discord-bot run lint
+
+      - name: Lint Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/backend run lint
+
+      - name: Build Discord bot
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        run: pnpm --filter @workspace/discord-bot run build
+
+      - name: Deploy Convex backend
+        if: github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: pnpm --filter @workspace/backend run deploy
+
+      - name: Deploy or roll back
+        env:
+          CLEO_DISCORD_DEPLOY_ROOT: /opt/cleo/discord
+          CLEO_DISCORD_SERVICE: cleo-discord.service
+        run: >-
+          bash .github/scripts/deploy-discord.sh
+          "${{ github.event_name == 'workflow_dispatch' && inputs.operation || 'deploy' }}"

@@ -2,6 +2,7 @@ import { redactLogMetadata } from "@workspace/logger"
 
 import type { Doc, Id } from "../_generated/dataModel"
 import type { MutationCtx } from "../_generated/server"
+import type { ConvexJsonValue } from "./validators"
 
 type AuditSource = "dashboard" | "discord-audit-log" | "bot-action"
 
@@ -16,7 +17,7 @@ type InsertGuildAuditEventArgs = {
   targetDiscordId?: string
   targetType?: string
   externalId?: string
-  metadata?: unknown
+  metadata?: ConvexJsonValue
   occurredAt?: number
 }
 
@@ -25,7 +26,7 @@ type InsertDashboardGuildAuditEventArgs = {
   user: Doc<"users"> | null
   eventType: string
   summary: string
-  metadata?: unknown
+  metadata?: ConvexJsonValue
   occurredAt?: number
 }
 

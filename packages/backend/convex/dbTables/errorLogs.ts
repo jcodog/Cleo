@@ -1,6 +1,7 @@
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 import { appSource, logLevel } from "./shared"
+import { jsonValue } from "../lib/validators"
 
 export const errorLogs = defineTable({
   source: appSource,
@@ -9,7 +10,7 @@ export const errorLogs = defineTable({
   stack: v.optional(v.string()),
   guildId: v.optional(v.string()),
   discordGuildId: v.optional(v.string()),
-  metadata: v.optional(v.any()),
+  metadata: v.optional(jsonValue),
 
   createdAt: v.number(),
 })

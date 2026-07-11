@@ -1,8 +1,82 @@
 import { z } from "zod"
 
-export const optionalString = z.string().min(1).optional()
-export const optionalUrl = z.url().optional()
+const emptyStringToUndefined = (value: unknown) =>
+  value === "" ? undefined : value
+const nodeEnvValues = ["development", "test", "production"] as const
 
-export const nodeEnv = z
-  .enum(["development", "test", "production"])
-  .default("development")
+type NodeEnv = (typeof nodeEnvValues)[number]
+
+type OptionalUrlOptions = {
+  nodeEnv?: NodeEnv | (() => string | undefined)
+}
+
+export const optionalString = z.preprocess(
+  emptyStringToUndefined,
+  z.string().min(1).optional()
+)
+export const optionalUrl = createOptionalUrl()
+
+export const nodeEnv = z.enum(nodeEnvValues).default("development")
+
+export function createOptionalUrl(options: OptionalUrlOptions = {}) {
+  return z.preprocess(
+    emptyStringToUndefined,
+    z
+      .url()
+      .optional()
+      .superRefine((value, ctx) => {
+        if (value === undefined) {
+          return
+        }
+
+        let url: URL
+
+        try {
+          url = new URL(value)
+        } catch {
+          return
+        }
+
+        if (url.protocol === "https:") {
+          return
+        }
+
+        const currentNodeEnv = resolveNodeEnv(options.nodeEnv)
+
+        if (
+          url.protocol === "http:" &&
+          currentNodeEnv !== "production" &&
+          isLoopbackHostname(url.hostname)
+        ) {
+          return
+        }
+
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "URL must use HTTPS unless it is explicit loopback HTTP outside production.",
+        })
+      })
+  )
+}
+
+function resolveNodeEnv(value: OptionalUrlOptions["nodeEnv"]): NodeEnv {
+  const defaultNodeEnv =
+    /* c8 ignore next -- defensive for non-Node runtimes; this package is tested under Node. */
+    typeof process === "undefined" ? undefined : process.env.NODE_ENV
+  const resolvedValue =
+    typeof value === "function" ? value() : (value ?? defaultNodeEnv)
+
+  return nodeEnvValues.includes(resolvedValue as NodeEnv)
+    ? (resolvedValue as NodeEnv)
+    : "development"
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  )
+}

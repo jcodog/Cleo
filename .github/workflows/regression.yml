@@ -1,0 +1,82 @@
+name: Regression Tests and Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    name: Tests, lint, typecheck, and coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check peer dependency compatibility
+        run: pnpm check:peers
+
+      - name: Typecheck workspace
+        run: pnpm typecheck
+
+      - name: Lint workspace
+        run: pnpm lint
+
+      - name: Run workspace tests with coverage
+        run: pnpm test:coverage
+
+      - name: Verify Cobertura reports
+        run: |
+          reports=(
+            "coverage/apps/dashboard/cobertura-coverage.xml"
+            "coverage/apps/discord-bot/cobertura-coverage.xml"
+            "coverage/packages/backend/cobertura-coverage.xml"
+            "coverage/packages/env/cobertura-coverage.xml"
+            "coverage/packages/logger/cobertura-coverage.xml"
+            "coverage/packages/shared/cobertura-coverage.xml"
+            "coverage/packages/ui/cobertura-coverage.xml"
+          )
+
+          missing=0
+          for report in "${reports[@]}"; do
+            if [[ ! -f "$report" ]]; then
+              echo "Missing coverage report: $report"
+              missing=1
+            fi
+          done
+
+          exit "$missing"
+
+      - name: Upload Cobertura artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-coverage-reports
+          if-no-files-found: error
+          path: |
+            coverage/apps/dashboard/cobertura-coverage.xml
+            coverage/apps/discord-bot/cobertura-coverage.xml
+            coverage/packages/backend/cobertura-coverage.xml
+            coverage/packages/env/cobertura-coverage.xml
+            coverage/packages/logger/cobertura-coverage.xml
+            coverage/packages/shared/cobertura-coverage.xml
+            coverage/packages/ui/cobertura-coverage.xml

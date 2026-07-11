@@ -3,6 +3,8 @@ import { Webhook } from "svix"
 
 import { internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
+import { backendEnv } from "@workspace/env/backend"
+import { normalizeClerkUserData } from "./lib/clerkUserData"
 
 type ClerkWebhookEvent =
   | {
@@ -33,10 +35,16 @@ http.route({
     }
 
     if (event.type === "user.created" || event.type === "user.updated") {
+      const userData = normalizeClerkUserData(event.data)
+
+      if (!userData) {
+        return new Response("Invalid Clerk user payload.", { status: 400 })
+      }
+
       await ctx.runMutation(
         internal.mutations.integrations.clerk.users.upsertFromWebhook,
         {
-          data: event.data,
+          data: userData,
         }
       )
       return new Response(null, { status: 200 })
@@ -61,7 +69,7 @@ http.route({
 async function validateClerkWebhook(
   request: Request
 ): Promise<ClerkWebhookEvent | null> {
-  const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
+  const webhookSecret = backendEnv.CLERK_WEBHOOK_SECRET
 
   if (!webhookSecret) {
     throw new Error("Missing CLERK_WEBHOOK_SECRET")
@@ -71,24 +79,38 @@ async function validateClerkWebhook(
   const webhook = new Webhook(webhookSecret)
 
   try {
-    return webhook.verify(payload, {
+    const event = webhook.verify(payload, {
       "svix-id": request.headers.get("svix-id") ?? "",
       "svix-timestamp": request.headers.get("svix-timestamp") ?? "",
       "svix-signature": request.headers.get("svix-signature") ?? "",
-    }) as ClerkWebhookEvent
+    })
+
+    return isClerkWebhookEvent(event) ? event : null
   } catch {
     return null
   }
 }
 
+function isClerkWebhookEvent(value: unknown): value is ClerkWebhookEvent {
+  return (
+    isObjectRecord(value) &&
+    typeof value.type === "string" &&
+    "data" in value
+  )
+}
+
 function getDeletedClerkUserId(data: unknown): string | null {
-  if (!data || typeof data !== "object" || !("id" in data)) {
+  if (!isObjectRecord(data) || !("id" in data)) {
     return null
   }
 
   const id = data.id
 
   return typeof id === "string" ? id : null
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 export default http

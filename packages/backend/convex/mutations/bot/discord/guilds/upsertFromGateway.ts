@@ -13,11 +13,12 @@ export const upsert = internalMutation({
     memberCount: v.optional(v.number()),
     presenceCount: v.optional(v.number()),
     botJoinedAt: v.optional(v.number()),
-    lastSyncedAt: v.optional(v.number()),
+    lastSyncedAt: v.number(),
   },
   returns: v.id("guilds"),
   handler: async (ctx, args): Promise<Id<"guilds">> => {
     const now = Date.now()
+    const incomingSyncedAt = args.lastSyncedAt
 
     const existing = await ctx.db
       .query("guilds")
@@ -27,18 +28,36 @@ export const upsert = internalMutation({
       .unique()
 
     if (existing) {
+      const latestSyncedAt = Math.max(
+        existing.lastSyncedAt ?? 0,
+        existing.botLeftAt ?? 0
+      )
+
+      if (incomingSyncedAt <= latestSyncedAt) {
+        return existing._id
+      }
+
       await ctx.db.patch(existing._id, {
         name: args.name,
-        description: args.description,
-        iconUrl: args.iconUrl,
-        iconHash: args.iconHash,
-        ownerDiscordId: args.ownerDiscordId,
-        memberCount: args.memberCount,
-        presenceCount: args.presenceCount,
+        ...(args.description !== undefined
+          ? { description: args.description }
+          : {}),
+        ...(args.iconUrl !== undefined ? { iconUrl: args.iconUrl } : {}),
+        ...(args.iconHash !== undefined ? { iconHash: args.iconHash } : {}),
+        ...(args.ownerDiscordId !== undefined
+          ? { ownerDiscordId: args.ownerDiscordId }
+          : {}),
+        ...(args.memberCount !== undefined
+          ? { memberCount: args.memberCount }
+          : {}),
+        ...(args.presenceCount !== undefined
+          ? { presenceCount: args.presenceCount }
+          : {}),
         ...(args.botJoinedAt !== undefined
           ? { botJoinedAt: args.botJoinedAt }
           : {}),
-        lastSyncedAt: args.lastSyncedAt ?? now,
+        botLeftAt: undefined,
+        lastSyncedAt: incomingSyncedAt,
         updatedAt: now,
       })
 
@@ -65,7 +84,7 @@ export const upsert = internalMutation({
       ...(args.botJoinedAt !== undefined
         ? { botJoinedAt: args.botJoinedAt }
         : {}),
-      lastSyncedAt: args.lastSyncedAt ?? now,
+      lastSyncedAt: incomingSyncedAt,
       createdAt: now,
       updatedAt: now,
     })

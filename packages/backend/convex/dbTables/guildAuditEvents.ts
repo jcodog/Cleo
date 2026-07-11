@@ -1,5 +1,6 @@
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
+import { jsonValue } from "../lib/validators"
 
 export const guildAuditEventSource = v.union(
   v.literal("dashboard"),
@@ -19,7 +20,7 @@ export const guildAuditEvents = defineTable({
   targetDiscordId: v.optional(v.string()),
   targetType: v.optional(v.string()),
   externalId: v.optional(v.string()),
-  metadata: v.optional(v.any()),
+  metadata: v.optional(jsonValue),
   occurredAt: v.number(),
   createdAt: v.number(),
 })

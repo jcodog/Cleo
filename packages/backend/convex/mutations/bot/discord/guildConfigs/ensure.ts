@@ -21,7 +21,7 @@ export const forGuild = internalMutation({
 
     return await ctx.db.insert("guildConfigs", {
       guildId: args.guildId,
-      aiEnabled: true,
+      aiEnabled: false,
       moderationEnabled: false,
       welcomeEnabled: false,
       loggingEnabled: false,

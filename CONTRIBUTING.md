@@ -8,7 +8,7 @@ Cleo does not contain stats tracking.
 
 Do not add ranked stats, stat sessions, game logging, stat cards, BO6/BO7 analytics, stats dashboards, stats commands, or stats AI tools.
 
-Stats are a separate product/project.
+Stats are a separate product/project called [CoD Stats](https://codstats.tech) with the following [repo](https://github.com/jcodog/CoD-Stats-Tracker).
 
 ## Architecture rules
 
@@ -72,3 +72,15 @@ pnpm --filter <workspace> run lint
 pnpm --filter <workspace> run typecheck
 pnpm --filter <workspace> run build
 ```
+
+## Friday dependency updates
+
+Keep routine dependency updates current without accepting unsupported release toolchains:
+
+1. Run `pnpm update --latest --recursive`.
+2. Run the repository supply-chain policy checks.
+3. Run `pnpm check:peers`.
+4. Correct unsupported toolchain majors or remove obsolete peer blockers. Do not suppress unsupported peers.
+5. Test ahead-of-ecosystem compiler majors through `pnpm typecheck:native-preview` without making them the release compiler.
+6. Run the affected workspace typecheck, lint, tests, coverage, and build commands.
+7. Accept the lockfile only after peer compatibility and validation pass.

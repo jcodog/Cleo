@@ -6,6 +6,12 @@ import {
   insertDashboardGuildAuditEvent,
   insertGuildAuditEvent,
 } from "../../../../lib/guildAudit"
+import {
+  isConvexJsonValue,
+  jsonShallowObject,
+  jsonObject,
+  jsonValue,
+} from "../../../../lib/validators"
 
 const discordAuditLogEntry = v.object({
   discordAuditLogId: v.string(),
@@ -15,8 +21,8 @@ const discordAuditLogEntry = v.object({
   actorDisplayName: v.optional(v.string()),
   targetDiscordId: v.optional(v.string()),
   reason: v.optional(v.string()),
-  changes: v.optional(v.array(v.any())),
-  options: v.optional(v.any()),
+  changes: v.optional(v.array(jsonObject)),
+  options: v.optional(jsonShallowObject),
   occurredAt: v.number(),
 })
 
@@ -55,6 +61,17 @@ export const upsertMany = internalMutation({
         continue
       }
 
+      const metadata = {
+        actionType: entry.actionType,
+        reason: entry.reason ?? null,
+        changes: entry.changes ?? null,
+        options: entry.options ?? null,
+      }
+
+      if (!isConvexJsonValue(metadata)) {
+        throw new Error("Discord audit log metadata must be Convex JSON.")
+      }
+
       await insertGuildAuditEvent(ctx, {
         guild,
         source: "discord-audit-log",
@@ -71,12 +88,7 @@ export const upsertMany = internalMutation({
           : {}),
         targetType: "discord",
         externalId: entry.discordAuditLogId,
-        metadata: {
-          actionType: entry.actionType,
-          reason: entry.reason ?? null,
-          changes: entry.changes ?? null,
-          options: entry.options ?? null,
-        },
+        metadata,
         occurredAt: entry.occurredAt,
       })
       inserted += 1
@@ -99,7 +111,7 @@ export const createBotAction = internalMutation({
     targetDiscordId: v.optional(v.string()),
     targetType: v.optional(v.string()),
     externalId: v.optional(v.string()),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(jsonValue),
     occurredAt: v.optional(v.number()),
   },
   returns: v.id("guildAuditEvents"),
@@ -138,7 +150,7 @@ export const createDashboardAction = internalMutation({
     userId: v.optional(v.id("users")),
     eventType: v.string(),
     summary: v.string(),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(jsonValue),
     occurredAt: v.optional(v.number()),
   },
   returns: v.id("guildAuditEvents"),

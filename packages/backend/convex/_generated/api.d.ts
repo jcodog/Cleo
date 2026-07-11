@@ -21,6 +21,1090 @@ import type { GenericId as Id } from "convex/values";
  */
 export declare const api: {
   actions: {
+    bot: {
+      discord: {
+        gateway: {
+          guildJoined: {
+            sync: FunctionReference<
+              "action",
+              "public",
+              {
+                guild: {
+                  botJoinedAt?: number;
+                  description?: string;
+                  discordGuildId: string;
+                  iconHash?: string;
+                  iconUrl?: string;
+                  memberCount?: number;
+                  name: string;
+                  ownerDiscordId?: string;
+                  presenceCount?: number;
+                };
+                secret: string;
+                syncedAt: number;
+              },
+              null
+            >;
+          };
+          guildLeft: {
+            sync: FunctionReference<
+              "action",
+              "public",
+              {
+                guild: {
+                  discordGuildId: string;
+                  leftAt?: number;
+                  name?: string;
+                };
+                secret: string;
+              },
+              null
+            >;
+          };
+          syncReady: {
+            sync: FunctionReference<
+              "action",
+              "public",
+              {
+                guilds: Array<{
+                  botJoinedAt?: number;
+                  description?: string;
+                  discordGuildId: string;
+                  iconHash?: string;
+                  iconUrl?: string;
+                  memberCount?: number;
+                  name: string;
+                  ownerDiscordId?: string;
+                  presenceCount?: number;
+                }>;
+                secret: string;
+                shardScope: { shardCount: number; shardIds: Array<number> };
+                syncedAt: number;
+              },
+              null
+            >;
+          };
+        };
+        guildConfigs: {
+          getRuntimeConfig: {
+            fetch: FunctionReference<
+              "action",
+              "public",
+              { discordGuildId: string; secret: string },
+              | {
+                  config: {
+                    announcementChannelId?: string;
+                    discordGuildId: string;
+                    logChannelId?: string;
+                    logLevel?: "none" | "minimal" | "medium" | "maximum";
+                    loggingEnabled: boolean;
+                    modLogChannelId?: string;
+                    moderationEnabled: boolean;
+                    supportEnabled: boolean;
+                    supportEscalationPolicy?: "none" | "jcn-product-only";
+                    supportStaffRoleIds?: Array<string>;
+                    supportTargetId?: string;
+                    supportTargetType?: "channel" | "thread" | "forum";
+                    supportTranscriptPolicy?:
+                      "metadata-only" | "explicit-messages";
+                    updatesChannelId?: string;
+                    welcomeChannelId?: string;
+                    welcomeEnabled: boolean;
+                    welcomeSubtext?: string;
+                  };
+                  status: "ready";
+                }
+              | {
+                  reason: "unknownGuild" | "botLeft" | "missingConfig";
+                  status: "disabled";
+                }
+            >;
+          };
+        };
+        guildEvents: {
+          record: {
+            record: FunctionReference<
+              "action",
+              "public",
+              {
+                event: {
+                  actorDiscordUserId?: string;
+                  channelId?: string;
+                  dedupeKey?: string;
+                  discordGuildId: string;
+                  eventType:
+                    | "guildMemberAdd"
+                    | "guildMemberRemove"
+                    | "guildBanAdd"
+                    | "guildBanRemove"
+                    | "channelCreate"
+                    | "channelDelete"
+                    | "roleCreate"
+                    | "roleDelete"
+                    | "messageDelete";
+                  metadata?:
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                      >;
+                  occurredAt: number;
+                  reason?: string;
+                  roleId?: string;
+                  targetDiscordId?: string;
+                  targetDisplayName?: string;
+                  targetType:
+                    "member" | "user" | "channel" | "role" | "message";
+                };
+                secret: string;
+              },
+              { deduplicated: boolean; id: Id<"discordGuildEvents"> }
+            >;
+          };
+        };
+        moderationActions: {
+          record: {
+            record: FunctionReference<
+              "action",
+              "public",
+              {
+                action: {
+                  actionType: "ban" | "kick";
+                  actorDiscordUserId: string;
+                  discordGuildId: string;
+                  failureCode?: string;
+                  metadata?:
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                      >;
+                  occurredAt: number;
+                  operationId: string;
+                  reason?: string;
+                  result: "success" | "failed" | "denied";
+                  targetDiscordUserId: string;
+                };
+                secret: string;
+              },
+              { deduplicated: boolean; id: Id<"discordModerationActions"> }
+            >;
+          };
+        };
+        runtimeErrors: {
+          report: {
+            report: FunctionReference<
+              "action",
+              "public",
+              {
+                commandName?: string;
+                discordGuildId?: string;
+                eventName?: string;
+                fingerprint?: string;
+                guildId?: Id<"guilds">;
+                message: string;
+                metadata?:
+                  | null
+                  | boolean
+                  | number
+                  | string
+                  | Array<
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                    >
+                  | Record<
+                      string,
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                    >;
+                occurredAt?: number;
+                operation?: string;
+                secret: string;
+                serviceArea:
+                  | "startup"
+                  | "gateway"
+                  | "command"
+                  | "configuration"
+                  | "permission"
+                  | "backend"
+                  | "transport"
+                  | "welcome"
+                  | "moderation"
+                  | "logging"
+                  | "unknown";
+                severity: "info" | "warn" | "error" | "critical";
+                stack?: string;
+              },
+              {
+                deduplicated: boolean;
+                id: Id<"discordBotRuntimeErrors">;
+                occurrenceCount: number;
+              }
+            >;
+          };
+        };
+        supportTickets: {
+          openOrResume: {
+            openOrResume: FunctionReference<
+              "action",
+              "public",
+              {
+                input: {
+                  discordGuildId?: string;
+                  message?: string;
+                  requesterDiscordUserId: string;
+                };
+                secret: string;
+              },
+              | {
+                  reason:
+                    "notConfigured" | "disabled" | "unknownGuild" | "botLeft";
+                  status: "guildSupportUnavailable";
+                }
+              | {
+                  messageStored: boolean;
+                  route?: {
+                    staffRoleIds: Array<string>;
+                    targetId: string;
+                    targetType: "channel" | "thread" | "forum";
+                    threadId?: string;
+                  };
+                  scope: "jcn" | "guild";
+                  status: "opened" | "resumed";
+                  submittedMessage?: string;
+                  ticketId: Id<"supportTickets">;
+                }
+            >;
+          };
+          setRoutingThread: {
+            set: FunctionReference<
+              "action",
+              "public",
+              {
+                secret: string;
+                threadId: string;
+                ticketId: Id<"supportTickets">;
+              },
+              null
+            >;
+          };
+        };
+      };
+    };
     dashboard: {
       account: {
         syncDiscordIdentity: {
@@ -70,6 +1154,26 @@ export declare const api: {
       };
       discord: {
         guilds: {
+          configOptions: {
+            get: FunctionReference<
+              "action",
+              "public",
+              { discordGuildId: string },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | { status: "botLeft" }
+              | { status: "unavailable" }
+              | {
+                  channels: Array<{
+                    id: string;
+                    name: string;
+                    type: "text" | "announcement" | "thread" | "forum";
+                  }>;
+                  roles: Array<{ id: string; name: string }>;
+                  status: "ready";
+                }
+            >;
+          };
           syncAuditLogs: {
             sync: FunctionReference<
               "action",
@@ -81,8 +1185,7 @@ export declare const api: {
               | {
                   discordGuildId: string;
                   reason:
-                    | "discordBotTokenUnavailable"
-                    | "discordApiUnavailable";
+                    "discordBotTokenUnavailable" | "discordApiUnavailable";
                   status: "auditLogSyncUnavailable";
                 }
               | {
@@ -110,10 +1213,7 @@ export declare const api: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;
@@ -154,10 +1254,7 @@ export declare const api: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;
@@ -204,8 +1301,7 @@ export declare const api: {
               | {
                   discordGuildId: string;
                   reason:
-                    | "guildNotFoundForUser"
-                    | "missingManageGuildPermission";
+                    "guildNotFoundForUser" | "missingManageGuildPermission";
                   status: "forbidden";
                 }
               | {
@@ -287,8 +1383,7 @@ export declare const api: {
                 }
               | {
                   reason:
-                    | "guildNotFoundForUser"
-                    | "missingManageGuildPermission";
+                    "guildNotFoundForUser" | "missingManageGuildPermission";
                   status: "forbidden";
                 }
               | {
@@ -364,10 +1459,7 @@ export declare const api: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;
@@ -408,10 +1500,7 @@ export declare const api: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;
@@ -499,6 +1588,7 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeSubtext?: string;
               }
             >;
           };
@@ -532,6 +1622,7 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeSubtext?: string;
               }
             >;
           };
@@ -548,10 +1639,13 @@ export declare const api: {
                   welcomeChannelId?: string | null;
                 };
                 discordGuildId: string;
+                logging?: { level: "none" | "minimal" | "medium" | "maximum" };
                 modules: {
+                  loggingEnabled?: boolean;
                   moderationEnabled?: boolean;
                   welcomeEnabled?: boolean;
                 };
+                welcome?: { subtext?: string | null };
               },
               {
                 _creationTime: number;
@@ -570,6 +1664,7 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeSubtext?: string;
               }
             >;
           };
@@ -581,6 +1676,33 @@ export declare const api: {
               "public",
               { guildId: Id<"guilds"> },
               null
+            >;
+          };
+        };
+        guildSupportConfigs: {
+          update: {
+            update: FunctionReference<
+              "mutation",
+              "public",
+              {
+                discordGuildId: string;
+                enabled: boolean;
+                escalationPolicy: "none" | "jcn-product-only";
+                staffRoleIds: Array<string>;
+                targetId?: string | null;
+                targetType: "channel" | "thread" | "forum";
+                transcriptPolicy: "metadata-only" | "explicit-messages";
+              },
+              {
+                enabled: boolean;
+                escalationPolicy: "none" | "jcn-product-only";
+                staffRoleIds: Array<string>;
+                supportConfigId: Id<"guildSupportConfigs">;
+                targetId?: string;
+                targetType: "channel" | "thread" | "forum";
+                transcriptPolicy: "metadata-only" | "explicit-messages";
+                updatedAt: number;
+              }
             >;
           };
         };
@@ -682,6 +1804,7 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeSubtext?: string;
               } | null
             >;
           };
@@ -750,6 +1873,9 @@ export declare const api: {
                 name: string;
                 ownerDiscordId?: string;
                 presenceCount?: number;
+                readyShardCount?: number;
+                readyShardId?: number;
+                readyShardKey?: string;
                 updatedAt: number;
               } | null
             >;
@@ -775,6 +1901,28 @@ export declare const api: {
                 permissions?: string;
                 presenceCount?: number;
               }>
+            >;
+          };
+          moderationActions: {
+            list: FunctionReference<
+              "query",
+              "public",
+              { discordGuildId: string },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  actions: Array<{
+                    actionType: "ban" | "kick";
+                    actorDiscordUserId: string;
+                    failureCode?: string;
+                    moderationActionId: Id<"discordModerationActions">;
+                    occurredAt: number;
+                    reason?: string;
+                    result: "success" | "failed" | "denied";
+                    targetDiscordUserId: string;
+                  }>;
+                  status: "ready";
+                }
             >;
           };
           overview: {
@@ -806,6 +1954,7 @@ export declare const api: {
                       updatesChannelId?: string;
                       welcomeChannelId?: string;
                       welcomeEnabled: boolean;
+                      welcomeSubtext?: string;
                     } | null;
                     guildId: Id<"guilds">;
                     iconHash?: string;
@@ -820,9 +1969,7 @@ export declare const api: {
                       isOwner?: boolean;
                       lastSyncedAt?: number;
                       managementVerificationSource?:
-                        | "discord-bot"
-                        | "discord-oauth"
-                        | "manual";
+                        "discord-bot" | "discord-oauth" | "manual";
                       managementVerifiedAt?: number;
                       membershipId: Id<"discordGuildMemberships">;
                       permissions?: string;
@@ -855,6 +2002,7 @@ export declare const api: {
                       updatesChannelId?: string;
                       welcomeChannelId?: string;
                       welcomeEnabled: boolean;
+                      welcomeSubtext?: string;
                     } | null;
                     guildId: Id<"guilds">;
                     iconHash?: string;
@@ -869,9 +2017,7 @@ export declare const api: {
                       isOwner?: boolean;
                       lastSyncedAt?: number;
                       managementVerificationSource?:
-                        | "discord-bot"
-                        | "discord-oauth"
-                        | "manual";
+                        "discord-bot" | "discord-oauth" | "manual";
                       managementVerifiedAt?: number;
                       membershipId: Id<"discordGuildMemberships">;
                       permissions?: string;
@@ -881,6 +2027,44 @@ export declare const api: {
                     presenceCount?: number;
                   };
                   status: "ready";
+                }
+            >;
+          };
+          support: {
+            get: FunctionReference<
+              "query",
+              "public",
+              { discordGuildId: string },
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  config: null | {
+                    enabled: boolean;
+                    escalationPolicy: "none" | "jcn-product-only";
+                    staffRoleIds: Array<string>;
+                    supportConfigId: Id<"guildSupportConfigs">;
+                    targetId?: string;
+                    targetType: "channel" | "thread" | "forum";
+                    transcriptPolicy: "metadata-only" | "explicit-messages";
+                    updatedAt: number;
+                  };
+                  status: "ready";
+                  tickets: Array<{
+                    createdAt: number;
+                    escalationPolicy: "none" | "jcn-product-only";
+                    lastActivityAt: number;
+                    latestMessage?: string;
+                    openCount: number;
+                    requesterDiscordUserId: string;
+                    status:
+                      | "open"
+                      | "waiting-on-requester"
+                      | "waiting-on-staff"
+                      | "resolved"
+                      | "closed";
+                    ticketId: Id<"supportTickets">;
+                    transcriptPolicy: "metadata-only" | "explicit-messages";
+                  }>;
                 }
             >;
           };
@@ -909,6 +2093,393 @@ export declare const api: {
             >;
           };
         };
+        runtimeIncidents: {
+          access: {
+            get: FunctionReference<
+              "query",
+              "public",
+              {},
+              | { status: "forbidden" }
+              | { status: "disabled" }
+              | { status: "ready" }
+            >;
+          };
+          list: {
+            list: FunctionReference<
+              "query",
+              "public",
+              {
+                discordGuildId?: string;
+                guildId?: Id<"guilds">;
+                lastSeenAtFrom?: number;
+                lastSeenAtTo?: number;
+                limit?: number;
+                serviceArea?:
+                  | "startup"
+                  | "gateway"
+                  | "command"
+                  | "configuration"
+                  | "permission"
+                  | "backend"
+                  | "transport"
+                  | "welcome"
+                  | "moderation"
+                  | "logging"
+                  | "unknown";
+                severity?: "info" | "warn" | "error" | "critical";
+              },
+              | { status: "forbidden" }
+              | { status: "disabled" }
+              | {
+                  incidents: Array<{
+                    commandName?: string;
+                    discordGuildId?: string;
+                    eventName?: string;
+                    fingerprint: string;
+                    firstSeenAt: number;
+                    guildId?: Id<"guilds">;
+                    id: Id<"discordBotRuntimeErrors">;
+                    lastSeenAt: number;
+                    message: string;
+                    metadata?:
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                            >
+                        >;
+                    occurrenceCount: number;
+                    operation?: string;
+                    serviceArea:
+                      | "startup"
+                      | "gateway"
+                      | "command"
+                      | "configuration"
+                      | "permission"
+                      | "backend"
+                      | "transport"
+                      | "welcome"
+                      | "moderation"
+                      | "logging"
+                      | "unknown";
+                    severity: "info" | "warn" | "error" | "critical";
+                  }>;
+                  status: "ready";
+                }
+            >;
+          };
+        };
+      };
+      staff: {
+        access: {
+          get: FunctionReference<
+            "query",
+            "public",
+            {},
+            { status: "forbidden" | "ready" }
+          >;
+        };
+      };
+      supportTickets: {
+        listJcn: {
+          list: FunctionReference<
+            "query",
+            "public",
+            {},
+            | { status: "forbidden" }
+            | {
+                status: "ready";
+                tickets: Array<{
+                  createdAt: number;
+                  escalationPolicy: "none" | "jcn-product-only";
+                  lastActivityAt: number;
+                  latestMessage?: string;
+                  openCount: number;
+                  requesterDiscordUserId: string;
+                  status:
+                    | "open"
+                    | "waiting-on-requester"
+                    | "waiting-on-staff"
+                    | "resolved"
+                    | "closed";
+                  ticketId: Id<"supportTickets">;
+                }>;
+              }
+          >;
+        };
       };
     };
   };
@@ -936,6 +2507,320 @@ export declare const internal: {
             >;
           };
         };
+        guildEvents: {
+          record: {
+            record: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                event: {
+                  actorDiscordUserId?: string;
+                  channelId?: string;
+                  dedupeKey?: string;
+                  discordGuildId: string;
+                  eventType:
+                    | "guildMemberAdd"
+                    | "guildMemberRemove"
+                    | "guildBanAdd"
+                    | "guildBanRemove"
+                    | "channelCreate"
+                    | "channelDelete"
+                    | "roleCreate"
+                    | "roleDelete"
+                    | "messageDelete";
+                  metadata?:
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                      >;
+                  occurredAt: number;
+                  reason?: string;
+                  roleId?: string;
+                  targetDiscordId?: string;
+                  targetDisplayName?: string;
+                  targetType:
+                    "member" | "user" | "channel" | "role" | "message";
+                };
+              },
+              { deduplicated: boolean; id: Id<"discordGuildEvents"> }
+            >;
+          };
+        };
         guildMemberships: {
           upsertVerified: {
             upsert: FunctionReference<
@@ -948,9 +2833,7 @@ export declare const internal: {
                 isOwner?: boolean;
                 lastSyncedAt?: number;
                 managementVerificationSource:
-                  | "discord-bot"
-                  | "discord-oauth"
-                  | "manual";
+                  "discord-bot" | "discord-oauth" | "manual";
                 managementVerifiedAt: number;
                 permissions?: string;
                 userId?: Id<"users">;
@@ -960,6 +2843,100 @@ export declare const internal: {
           };
         };
         guilds: {
+          markBotLeft: {
+            mark: FunctionReference<
+              "mutation",
+              "internal",
+              { discordGuildId: string; leftAt?: number; name?: string },
+              null
+            >;
+          };
+          markBotLeftBatch: {
+            mark: FunctionReference<
+              "mutation",
+              "internal",
+              { discordGuildIds: Array<string>; leftAt: number },
+              { markedLeft: number; requested: number; skipped: number }
+            >;
+            markAbsentForReadyScopePage: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                leftAt: number;
+                paginationOpts: {
+                  cursor: string | null;
+                  endCursor?: string | null;
+                  id?: number;
+                  maximumBytesRead?: number;
+                  maximumRowsRead?: number;
+                  numItems: number;
+                };
+                shardCount: number;
+                shardIds: Array<number>;
+              },
+              {
+                continueCursor: string;
+                isDone: boolean;
+                markedLeft: number;
+                scanned: number;
+                skipped: number;
+              }
+            >;
+            markAbsentForReadyShardPage: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                leftAt: number;
+                paginationOpts: {
+                  cursor: string | null;
+                  endCursor?: string | null;
+                  id?: number;
+                  maximumBytesRead?: number;
+                  maximumRowsRead?: number;
+                  numItems: number;
+                };
+                readyShardKey: string;
+              },
+              {
+                continueCursor: string;
+                isDone: boolean;
+                markedLeft: number;
+                scanned: number;
+                skipped: number;
+              }
+            >;
+          };
+          syncReadyBatch: {
+            sync: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                guilds: Array<{
+                  botJoinedAt?: number;
+                  description?: string;
+                  discordGuildId: string;
+                  iconHash?: string;
+                  iconUrl?: string;
+                  memberCount?: number;
+                  name: string;
+                  ownerDiscordId?: string;
+                  presenceCount?: number;
+                  readyShardCount: number;
+                  readyShardId: number;
+                  readyShardKey: string;
+                }>;
+                lastSyncedAt: number;
+              },
+              {
+                insertedConfigs: number;
+                insertedGuilds: number;
+                patchedGuilds: number;
+                processed: number;
+                skippedStaleGuilds: number;
+                skippedUnchangedGuilds: number;
+              }
+            >;
+          };
           upsertFromGateway: {
             upsert: FunctionReference<
               "mutation",
@@ -970,13 +2947,671 @@ export declare const internal: {
                 discordGuildId: string;
                 iconHash?: string;
                 iconUrl?: string;
-                lastSyncedAt?: number;
+                lastSyncedAt: number;
                 memberCount?: number;
                 name: string;
                 ownerDiscordId?: string;
                 presenceCount?: number;
               },
               Id<"guilds">
+            >;
+          };
+        };
+        moderationActions: {
+          record: {
+            record: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                action: {
+                  actionType: "ban" | "kick";
+                  actorDiscordUserId: string;
+                  discordGuildId: string;
+                  failureCode?: string;
+                  metadata?:
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                                | Record<
+                                    string,
+                                    | null
+                                    | boolean
+                                    | number
+                                    | string
+                                    | Array<null | boolean | number | string>
+                                    | Record<
+                                        string,
+                                        null | boolean | number | string
+                                      >
+                                  >
+                              >
+                          >
+                      >;
+                  occurredAt: number;
+                  operationId: string;
+                  reason?: string;
+                  result: "success" | "failed" | "denied";
+                  targetDiscordUserId: string;
+                };
+              },
+              { deduplicated: boolean; id: Id<"discordModerationActions"> }
+            >;
+          };
+        };
+        runtimeErrors: {
+          record: {
+            record: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                commandName?: string;
+                discordGuildId?: string;
+                eventName?: string;
+                fingerprint?: string;
+                guildId?: Id<"guilds">;
+                message: string;
+                metadata?:
+                  | null
+                  | boolean
+                  | number
+                  | string
+                  | Array<
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                    >
+                  | Record<
+                      string,
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                    >;
+                occurredAt?: number;
+                operation?: string;
+                serviceArea:
+                  | "startup"
+                  | "gateway"
+                  | "command"
+                  | "configuration"
+                  | "permission"
+                  | "backend"
+                  | "transport"
+                  | "welcome"
+                  | "moderation"
+                  | "logging"
+                  | "unknown";
+                severity: "info" | "warn" | "error" | "critical";
+                stack?: string;
+              },
+              {
+                deduplicated: boolean;
+                id: Id<"discordBotRuntimeErrors">;
+                occurrenceCount: number;
+              }
+            >;
+          };
+        };
+        supportTickets: {
+          openOrResume: {
+            openOrResume: FunctionReference<
+              "mutation",
+              "internal",
+              {
+                discordGuildId?: string;
+                message?: string;
+                requesterDiscordUserId: string;
+              },
+              | {
+                  reason:
+                    "notConfigured" | "disabled" | "unknownGuild" | "botLeft";
+                  status: "guildSupportUnavailable";
+                }
+              | {
+                  messageStored: boolean;
+                  route?: {
+                    staffRoleIds: Array<string>;
+                    targetId: string;
+                    targetType: "channel" | "thread" | "forum";
+                    threadId?: string;
+                  };
+                  scope: "jcn" | "guild";
+                  status: "opened" | "resumed";
+                  submittedMessage?: string;
+                  ticketId: Id<"supportTickets">;
+                }
+            >;
+          };
+          setRoutingThread: {
+            set: FunctionReference<
+              "mutation",
+              "internal",
+              { threadId: string; ticketId: Id<"supportTickets"> },
+              null
             >;
           };
         };
@@ -995,7 +3630,286 @@ export declare const internal: {
                 eventType: string;
                 externalId?: string;
                 guildId: Id<"guilds">;
-                metadata?: any;
+                metadata?:
+                  | null
+                  | boolean
+                  | number
+                  | string
+                  | Array<
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                    >
+                  | Record<
+                      string,
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                    >;
                 occurredAt?: number;
                 summary: string;
                 targetDiscordId?: string;
@@ -1009,7 +3923,286 @@ export declare const internal: {
               {
                 eventType: string;
                 guildId: Id<"guilds">;
-                metadata?: any;
+                metadata?:
+                  | null
+                  | boolean
+                  | number
+                  | string
+                  | Array<
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                    >
+                  | Record<
+                      string,
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<null | boolean | number | string>
+                                  | Record<
+                                      string,
+                                      null | boolean | number | string
+                                    >
+                                >
+                            >
+                        >
+                    >;
                 occurredAt?: number;
                 summary: string;
                 userId?: Id<"users">;
@@ -1024,10 +4217,301 @@ export declare const internal: {
                   actionType: number;
                   actorDiscordUserId?: string;
                   actorDisplayName?: string;
-                  changes?: Array<any>;
+                  changes?: Array<
+                    Record<
+                      string,
+                      | null
+                      | boolean
+                      | number
+                      | string
+                      | Array<
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                            >
+                        >
+                      | Record<
+                          string,
+                          | null
+                          | boolean
+                          | number
+                          | string
+                          | Array<
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                            >
+                          | Record<
+                              string,
+                              | null
+                              | boolean
+                              | number
+                              | string
+                              | Array<
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                              | Record<
+                                  string,
+                                  | null
+                                  | boolean
+                                  | number
+                                  | string
+                                  | Array<
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                  | Record<
+                                      string,
+                                      | null
+                                      | boolean
+                                      | number
+                                      | string
+                                      | Array<null | boolean | number | string>
+                                      | Record<
+                                          string,
+                                          null | boolean | number | string
+                                        >
+                                    >
+                                >
+                            >
+                        >
+                    >
+                  >;
                   discordAuditLogId: string;
                   occurredAt: number;
-                  options?: any;
+                  options?: Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<null | boolean | number | string>
+                    | Record<string, null | boolean | number | string>
+                  >;
                   reason?: string;
                   summary: string;
                   targetDiscordId?: string;
@@ -1083,9 +4567,7 @@ export declare const internal: {
                 isOwner?: boolean;
                 lastSyncedAt: number;
                 managementVerificationSource:
-                  | "discord-bot"
-                  | "discord-oauth"
-                  | "manual";
+                  "discord-bot" | "discord-oauth" | "manual";
                 managementVerifiedAt: number;
                 memberCount?: number;
                 name: string;
@@ -1111,6 +4593,9 @@ export declare const internal: {
                 name: string;
                 ownerDiscordId?: string;
                 presenceCount?: number;
+                readyShardCount?: number;
+                readyShardId?: number;
+                readyShardKey?: string;
                 updatedAt: number;
               }
             >;
@@ -1178,7 +4663,72 @@ export declare const internal: {
           upsertFromWebhook: FunctionReference<
             "mutation",
             "internal",
-            { data: any },
+            {
+              data: {
+                emailAddresses?: Array<{
+                  emailAddress?: string;
+                  email_address?: string;
+                  id?: string;
+                }>;
+                email_addresses?: Array<{
+                  emailAddress?: string;
+                  email_address?: string;
+                  id?: string;
+                }>;
+                externalAccounts?: Array<{
+                  approvedScopes?: string | Array<string> | null;
+                  approved_scopes?: string | Array<string> | null;
+                  avatarUrl?: string | null;
+                  avatar_url?: string | null;
+                  emailAddress?: string | null;
+                  email_address?: string | null;
+                  externalAccountId?: string | null;
+                  external_account_id?: string | null;
+                  firstName?: string | null;
+                  first_name?: string | null;
+                  id?: string | null;
+                  imageUrl?: string | null;
+                  image_url?: string | null;
+                  lastName?: string | null;
+                  last_name?: string | null;
+                  provider?: string | null;
+                  providerUserId?: string | null;
+                  provider_user_id?: string | null;
+                  username?: string | null;
+                }>;
+                external_accounts?: Array<{
+                  approvedScopes?: string | Array<string> | null;
+                  approved_scopes?: string | Array<string> | null;
+                  avatarUrl?: string | null;
+                  avatar_url?: string | null;
+                  emailAddress?: string | null;
+                  email_address?: string | null;
+                  externalAccountId?: string | null;
+                  external_account_id?: string | null;
+                  firstName?: string | null;
+                  first_name?: string | null;
+                  id?: string | null;
+                  imageUrl?: string | null;
+                  image_url?: string | null;
+                  lastName?: string | null;
+                  last_name?: string | null;
+                  provider?: string | null;
+                  providerUserId?: string | null;
+                  provider_user_id?: string | null;
+                  username?: string | null;
+                }>;
+                firstName?: string | null;
+                first_name?: string | null;
+                id: string;
+                imageUrl?: string | null;
+                image_url?: string | null;
+                lastName?: string | null;
+                last_name?: string | null;
+                primaryEmailAddressId?: string | null;
+                primary_email_address_id?: string | null;
+                username?: string | null;
+              };
+            },
             Id<"users">
           >;
         };
@@ -1193,7 +4743,286 @@ export declare const internal: {
             {
               level: "debug" | "info" | "warn" | "error";
               message: string;
-              metadata?: any;
+              metadata?:
+                | null
+                | boolean
+                | number
+                | string
+                | Array<
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                          >
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                          >
+                      >
+                  >
+                | Record<
+                    string,
+                    | null
+                    | boolean
+                    | number
+                    | string
+                    | Array<
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                          >
+                      >
+                    | Record<
+                        string,
+                        | null
+                        | boolean
+                        | number
+                        | string
+                        | Array<
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                          >
+                        | Record<
+                            string,
+                            | null
+                            | boolean
+                            | number
+                            | string
+                            | Array<
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                            | Record<
+                                string,
+                                | null
+                                | boolean
+                                | number
+                                | string
+                                | Array<null | boolean | number | string>
+                                | Record<
+                                    string,
+                                    null | boolean | number | string
+                                  >
+                              >
+                          >
+                      >
+                  >;
               source:
                 | "dashboard"
                 | "discord-bot"
@@ -1209,6 +5038,46 @@ export declare const internal: {
     };
   };
   queries: {
+    bot: {
+      discord: {
+        guildConfigs: {
+          runtimeConfigByDiscordId: {
+            get: FunctionReference<
+              "query",
+              "internal",
+              { discordGuildId: string },
+              | {
+                  config: {
+                    announcementChannelId?: string;
+                    discordGuildId: string;
+                    logChannelId?: string;
+                    logLevel?: "none" | "minimal" | "medium" | "maximum";
+                    loggingEnabled: boolean;
+                    modLogChannelId?: string;
+                    moderationEnabled: boolean;
+                    supportEnabled: boolean;
+                    supportEscalationPolicy?: "none" | "jcn-product-only";
+                    supportStaffRoleIds?: Array<string>;
+                    supportTargetId?: string;
+                    supportTargetType?: "channel" | "thread" | "forum";
+                    supportTranscriptPolicy?:
+                      "metadata-only" | "explicit-messages";
+                    updatesChannelId?: string;
+                    welcomeChannelId?: string;
+                    welcomeEnabled: boolean;
+                    welcomeSubtext?: string;
+                  };
+                  status: "ready";
+                }
+              | {
+                  reason: "unknownGuild" | "botLeft" | "missingConfig";
+                  status: "disabled";
+                }
+            >;
+          };
+        };
+      };
+    };
     dashboard: {
       discord: {
         guilds: {
@@ -1238,6 +5107,9 @@ export declare const internal: {
                     name: string;
                     ownerDiscordId?: string;
                     presenceCount?: number;
+                    readyShardCount?: number;
+                    readyShardId?: number;
+                    readyShardKey?: string;
                     updatedAt: number;
                   };
                   status: "ready";
@@ -1332,10 +5204,7 @@ export declare const internal: {
                     installSessionExpiresAt?: number;
                     installSessionId?: Id<"discordGuildInstallSessions">;
                     installSessionStatus?:
-                      | "pending"
-                      | "bot_joined"
-                      | "configured"
-                      | "expired";
+                      "pending" | "bot_joined" | "configured" | "expired";
                     isOwner?: boolean;
                     memberCount?: number;
                     name: string;

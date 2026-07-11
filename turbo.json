@@ -1,8 +1,10 @@
 {
-  "$schema": "https://v2-9-16.turborepo.dev/schema.json",
+  "$schema": "https://v2-10-0.turborepo.dev/schema.json",
   "ui": "tui",
   "globalEnv": [
+    "NODE_ENV",
     "NEXT_PUBLIC_CONVEX_URL",
+    "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
     "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
@@ -10,7 +12,10 @@
     "NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL",
     "CLERK_JWT_ISSUER_DOMAIN",
     "CLERK_SECRET_KEY",
-    "CLERK_WEBHOOK_SECRET"
+    "CLERK_WEBHOOK_SECRET",
+    "DISCORD_BOT_CONVEX_SECRET",
+    "DISCORD_BOT_TOKEN",
+    "PORT"
   ],
   "tasks": {
     "build": {
@@ -26,6 +31,14 @@
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "outputs": []
+    },
+    "test:coverage": {
+      "dependsOn": ["^test:coverage"],
+      "outputs": ["../../coverage/**"]
     },
     "dev": {
       "cache": false,

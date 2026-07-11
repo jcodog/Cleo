@@ -1,8 +1,8 @@
 "use client"
 
 import { IconMoonStars, IconSunHigh } from "@tabler/icons-react"
-import { useTheme } from "next-themes"
 
+import { useTheme } from "@/components/providers/theme-provider"
 import { Button } from "@workspace/ui/components/button"
 import {
   Tooltip,
