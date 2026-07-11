@@ -89,7 +89,7 @@ jobs:
         )
       )
     environment: discord-production
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     outputs:
       artifact_name: ${{ steps.package.outputs.artifact_name }}
@@ -110,6 +110,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+
+      - name: Verify packaging architecture
+        run: test "$(node -p '`${process.platform}-${process.arch}`')" = "linux-x64"
 
       - name: Install exact dependencies
         run: pnpm install --frozen-lockfile
@@ -138,7 +141,7 @@ jobs:
       - name: Build Discord bot
         run: pnpm --filter @workspace/discord-bot run build
 
-      - name: Package portable ARM64 release
+      - name: Package portable Linux x64 release
         id: package
         run: >-
           bash .github/scripts/package-discord-release.sh
@@ -163,7 +166,7 @@ jobs:
 
       - name: Record validation-only success
         if: github.event_name == 'workflow_dispatch' && inputs.operation == 'validate'
-        run: echo "Discord v3 validation and ARM64 packaging passed on GitHub-hosted infrastructure."
+        run: echo "Discord v3 validation and Linux x64 packaging passed on GitHub-hosted infrastructure."
 
   activate:
     name: Activate Discord release on production VPS
@@ -213,6 +216,17 @@ jobs:
         with:
           name: ${{ needs.validate-package.outputs.artifact_name }}
           path: ${{ runner.temp }}/cleo-discord-release
+
+      - name: Verify release architecture
+        env:
+          CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz
+        run: |
+          artifact_platform="$(tar -xOzf "$CLEO_DISCORD_RELEASE_ARCHIVE" ./.cleo-release-platform)"
+          runtime_platform="$(node -p '`${process.platform}-${process.arch}`')"
+          if [[ "$artifact_platform" != "$runtime_platform" ]]; then
+            echo "Release platform $artifact_platform does not match production runtime $runtime_platform" >&2
+            exit 1
+          fi
 
       - name: Activate release
         env:

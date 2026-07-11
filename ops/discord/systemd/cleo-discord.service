@@ -1,5 +1,6 @@
 [Unit]
 Description=Cleo Discord bot
+ConditionPathIsDirectory=/srv/cleo/discord-bot/current
 After=network-online.target
 Wants=network-online.target
 
