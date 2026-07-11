@@ -15,59 +15,32 @@ jobs:
     name: Verify production runner contract
     if: github.ref == 'refs/heads/main'
     environment: discord-production
-    runs-on: [self-hosted, Linux, X64, cleo-prod]
+    runs-on: cleo-prod
     timeout-minutes: 5
     env:
-      COREPACK_HOME: /opt/corepack
+      CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
+      CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
+      CLEO_DISCORD_SERVICE: cleo-discord.service
+      CLEO_DISCORD_COMMAND_SERVICE: cleo-discord-register-commands.service
+      CLEO_DISCORD_RUNTIME_USER: cleo
+      CLEO_DISCORD_RUNTIME_GROUP: cleo
+      CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
 
     steps:
-      - name: Verify host identity and release toolchain
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(id -un)" = "github-runner"
-          test "$(uname -s)" = "Linux"
-          test "$(uname -m)" = "x86_64"
-          test "$(node --version)" = "v24.15.0"
-          test "$(cd /opt/cleo/discord && pnpm --version)" = "11.10.0"
+      - name: Checkout exact commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
 
-      - name: Verify deployment access without reading secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          deploy_root=/opt/cleo/discord
-          env_file="$deploy_root/shared/.env.production"
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
-          test -d "$deploy_root/releases"
-          test -w "$deploy_root/releases"
-          test -f "$env_file"
-          test -r "$env_file"
-          test "$(stat -c %a "$env_file")" = "600"
-          test "$(stat -c %U:%G "$env_file")" = "github-runner:github-runner"
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
 
-          for key in \
-            NODE_ENV \
-            DISCORD_BOT_TOKEN \
-            DISCORD_APPLICATION_ID \
-            DISCORD_CLIENT_ID \
-            CONVEX_URL \
-            DISCORD_BOT_CONVEX_SECRET \
-            DISCORD_BOT_RUNTIME_MODE \
-            DISCORD_BOT_SHARD_COUNT; do
-            grep -q "^${key}=" "$env_file"
-          done
-
-      - name: Verify user service and harmless release write
-        shell: bash
-        run: |
-          set -euo pipefail
-          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-          test "$(systemctl --user is-enabled cleo-discord.service)" = "enabled"
-          test "$(systemctl --user show cleo-discord.service -p LoadState --value)" = "loaded"
-
-          marker="/opt/cleo/discord/releases/.runner-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          trap 'rm -f "$marker"' EXIT
-          umask 077
-          : > "$marker"
-          test -O "$marker"
-          rm -f "$marker"
+      - name: Verify host, services, permissions, and toolchain
+        run: bash .github/scripts/check-discord-runner.sh
