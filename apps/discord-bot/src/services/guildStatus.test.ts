@@ -102,6 +102,22 @@ test("buildCleoGuildStatusView covers alternate module setup branches", () => {
       },
     },
   })
+  const missingSupportRoles = buildCleoGuildStatusView({
+    discordGuildId,
+    guildName: "Cleo HQ",
+    result: {
+      status: "ready",
+      config: {
+        discordGuildId,
+        moderationEnabled: false,
+        welcomeEnabled: false,
+        loggingEnabled: false,
+        supportEnabled: true,
+        supportTargetId: "423456789012345678",
+        supportTargetType: "forum",
+      },
+    },
+  })
 
   assert.match(configured.content, /⚠️ \*\*Welcome\*\* · On, setup incomplete/)
   assert.match(configured.content, /✅ \*\*Logging\*\* · On$/m)
@@ -112,6 +128,10 @@ test("buildCleoGuildStatusView covers alternate module setup branches", () => {
   )
   assert.match(partialSupport.content, /⚠️ \*\*Logging\*\* · On, setup incomplete/)
   assert.match(partialSupport.content, /⚠️ \*\*Support\*\* · On, setup incomplete/)
+  assert.match(
+    missingSupportRoles.content,
+    /⚠️ \*\*Support\*\* · On, setup incomplete/
+  )
 })
 
 test("buildCleoGuildStatusView formats disabled modules without setup warnings", () => {
