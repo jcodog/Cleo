@@ -202,6 +202,7 @@ test("/cleo status reads runtime config and returns actionable module state", as
         type: ComponentType.Button,
         style: ButtonStyle.Link,
         label: "Open Cleo dashboard",
+        emoji: undefined,
         url: `https://dashboard.example.com/dashboard/${discordGuildId}`,
       },
     ],
