@@ -11,7 +11,8 @@ The production VPS is an application host, not a CI build machine.
 
 ### GitHub-hosted Linux x64 job
 
-`Validate and package Discord bot` runs on `ubuntu-24.04-arm` and performs:
+`Validate and package Discord bot` runs on the hosted `ubuntu-24.04` Linux x64
+runner and performs:
 
 - exact checkout and frozen workspace install;
 - peer dependency validation;
@@ -66,10 +67,13 @@ The runtime environment is never copied or linked into a release. Systemd loads
 Each release contains the compiled runtime at `dist/index.js`, compiled global
 command registration at `dist/scripts/registerCommands.js`, their source maps,
 the artifact contract and validator, production dependencies, and exact release
-metadata. The service starts `node --enable-source-maps dist/index.js`. The
-command service runs Node against the compiled registration entrypoint. Production
-releases contain neither `src/index.ts` nor the `tsx` CLI. Local development,
-watch mode, previews, and source command registration continue to use `tsx`.
+metadata. The systemd units use the root-owned release launcher, which starts Node
+against the compiled runtime and command-registration entrypoints. During the
+JCN-194 release-format transition, the launcher also recognizes the previously
+deployed TypeScript artifact so switching the `current` symlink back restores the
+known rollback release. New production releases contain neither `src/` nor the
+`tsx` package. Local development, watch mode, previews, and source command
+registration continue to use `tsx`.
 
 ## One-time VPS setup
 
@@ -85,7 +89,7 @@ The idempotent bootstrap installs or verifies:
 - `cleo-deploy` membership for `github-runner` and `cleo`;
 - `/srv/cleo/discord-bot/{releases,shared}`;
 - `/etc/cleo/discord-bot.env` as `root:cleo` mode `0640`;
-- root-owned environment and runtime validators;
+- root-owned environment and runtime validators plus the release launcher;
 - system-level runtime and command-registration units;
 - the narrow deployment sudo policy;
 - systemd reload and runtime-service enablement.

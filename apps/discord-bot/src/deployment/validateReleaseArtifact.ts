@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, lstatSync, readFileSync } from "node:fs"
 import path from "node:path"
 
 import artifactContract from "../../runtime-artifact.json" with { type: "json" }
@@ -41,9 +41,19 @@ export function validateReleaseArtifactDirectory(
     existsSync(resolveArtifactPath(artifactRoot, relativePath))
   )
 
-  if (forbiddenFiles.length > 0) {
+  const forbiddenPathPrefixes = artifactContract.forbiddenPathPrefixes.filter(
+    (relativePath) =>
+      lstatSync(
+        resolveArtifactPath(artifactRoot, relativePath.slice(0, -1)),
+        { throwIfNoEntry: false }
+      ) !== undefined
+  )
+
+  const forbiddenPaths = [...forbiddenFiles, ...forbiddenPathPrefixes]
+
+  if (forbiddenPaths.length > 0) {
     throw new Error(
-      `Discord release artifact contains forbidden production files: ${forbiddenFiles.join(", ")}`
+      `Discord release artifact contains forbidden production files: ${forbiddenPaths.join(", ")}`
     )
   }
 

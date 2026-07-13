@@ -57,7 +57,11 @@ function createFakeClient(startError?: Error): BotClient {
 }
 
 test("runtime dispatches a sharding worker directly to the client", async () => {
-  const env = { SHARDING_MANAGER: "true", SHARDS: "0" }
+  const env = {
+    DISCORD_BOT_TOKEN: "worker-token",
+    SHARDING_MANAGER: "true",
+    SHARDS: "0",
+  }
   const clientStarts: unknown[] = []
 
   await startDiscordBotRuntimeFromEnv({
@@ -75,11 +79,16 @@ test("runtime dispatches a sharding worker directly to the client", async () => 
     },
   })
 
-  assert.deepEqual(clientStarts, [{ mode: "sharded", env }])
+  assert.deepEqual(clientStarts, [
+    { mode: "sharded", token: "worker-token", env },
+  ])
 })
 
 test("runtime dispatches single-process configuration to the client", async () => {
-  const env = { DISCORD_BOT_RUNTIME_MODE: "single" }
+  const env = {
+    DISCORD_BOT_RUNTIME_MODE: "single",
+    DISCORD_BOT_TOKEN: "single-token",
+  }
   const clientStarts: unknown[] = []
 
   await startDiscordBotRuntimeFromEnv({
@@ -97,7 +106,9 @@ test("runtime dispatches single-process configuration to the client", async () =
     },
   })
 
-  assert.deepEqual(clientStarts, [{ mode: "single", env }])
+  assert.deepEqual(clientStarts, [
+    { mode: "single", token: "single-token", env },
+  ])
 })
 
 test("runtime passes an explicit shard count and compiled entrypoint", async () => {
@@ -105,7 +116,10 @@ test("runtime passes an explicit shard count and compiled entrypoint", async () 
 
   await startDiscordBotRuntimeFromEnv({
     entrypoint: "/srv/cleo/discord-bot/current/dist/index.js",
-    env: { DISCORD_BOT_RUNTIME_MODE: "sharded" },
+    env: {
+      DISCORD_BOT_RUNTIME_MODE: "sharded",
+      DISCORD_BOT_TOKEN: "manager-token",
+    },
     resolveRuntimeConfig() {
       return { mode: "sharded", shardCount: 4 }
     },
@@ -121,6 +135,7 @@ test("runtime passes an explicit shard count and compiled entrypoint", async () 
   assert.deepEqual(managerStarts, [
     {
       shardCount: 4,
+      token: "manager-token",
       entrypoint: "/srv/cleo/discord-bot/current/dist/index.js",
     },
   ])

@@ -42,6 +42,10 @@ behavior, required compiled files and source maps, exact release metadata,
 command-registration compatibility, native canvas packaging, and archive path
 safety.
 
+The root-owned Discord release launcher is covered by regression shell tests
+that prove legacy-to-compiled activation and compiled-to-legacy rollback for
+both the runtime and command-registration entrypoints.
+
 The Convex handlers run through `convex-test` against its in-memory database.
 The enforced tests cover authorization, insert/replace behavior, audit writes,
 ticket persistence and resume behavior, linked requester resolution, transcript

@@ -42,7 +42,10 @@ jobs:
           bash -n ops/discord/bin/check-discord-env
           bash -n ops/discord/bin/check-discord-runtime
           bash -n ops/discord/bin/check-discord-env.test.sh
+          bash -n ops/discord/bin/run-discord-release
+          bash -n ops/discord/bin/run-discord-release.test.sh
           bash ops/discord/bin/check-discord-env.test.sh
+          bash ops/discord/bin/run-discord-release.test.sh
 
       - name: Check peer dependency compatibility
         run: pnpm check:peers

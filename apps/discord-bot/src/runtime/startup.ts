@@ -67,6 +67,7 @@ export async function startDiscordBotRuntimeFromEnv({
   if (isDiscordShardingWorker(env)) {
     await startClientRuntime({
       mode: "sharded",
+      token: env.DISCORD_BOT_TOKEN,
       env,
     })
     return
@@ -77,6 +78,7 @@ export async function startDiscordBotRuntimeFromEnv({
   if (runtimeConfig.mode === "single") {
     await startClientRuntime({
       mode: "single",
+      token: env.DISCORD_BOT_TOKEN,
       env,
     })
     return
@@ -84,6 +86,7 @@ export async function startDiscordBotRuntimeFromEnv({
 
   await startManagerRuntime({
     shardCount: runtimeConfig.shardCount,
+    token: env.DISCORD_BOT_TOKEN,
     entrypoint,
   })
 }

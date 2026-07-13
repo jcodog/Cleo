@@ -13,7 +13,7 @@ WorkingDirectory=/srv/cleo/discord-bot/current
 EnvironmentFile=/etc/cleo/discord-bot.env
 Environment=HOME=/home/cleo
 Environment=NVM_DIR=/home/cleo/.nvm
-ExecStart=/home/cleo/.nvm/nvm-exec node --enable-source-maps dist/index.js
+ExecStart=/usr/local/libexec/cleo/run-discord-release runtime
 Restart=on-failure
 RestartSec=5
 KillSignal=SIGTERM

@@ -10,6 +10,7 @@ command_service_name="${CLEO_DISCORD_COMMAND_SERVICE:-cleo-discord-register-comm
 runtime_user="${CLEO_DISCORD_RUNTIME_USER:-cleo}"
 runtime_group="${CLEO_DISCORD_RUNTIME_GROUP:-cleo}"
 deploy_group="${CLEO_DISCORD_DEPLOY_GROUP:-cleo-deploy}"
+runtime_launcher="${CLEO_DISCORD_RUNTIME_LAUNCHER:-/usr/local/libexec/cleo/run-discord-release}"
 release_archive="${CLEO_DISCORD_RELEASE_ARCHIVE:-}"
 release_checksum="${CLEO_DISCORD_RELEASE_CHECKSUM:-}"
 releases_dir="$deploy_root/releases"
@@ -46,6 +47,7 @@ contains_word() {
 
 assert_unit_contract() {
   local unit="$1"
+  local operation="$2"
 
   [[ "$(unit_value "$unit" LoadState)" == "loaded" ]] || {
     echo "Required systemd unit is not loaded: $unit" >&2
@@ -71,6 +73,10 @@ assert_unit_contract() {
     echo "$unit must load EnvironmentFile=$env_file." >&2
     return 1
   }
+  [[ "$(unit_value "$unit" ExecStart)" == *"$runtime_launcher $operation"* ]] || {
+    echo "$unit must start $runtime_launcher $operation." >&2
+    return 1
+  }
 }
 
 if [[ ! -d "$deploy_root" || ! -d "$releases_dir" || ! -d "$shared_dir" ]]; then
@@ -89,8 +95,8 @@ for directory in "$deploy_root" "$releases_dir" "$shared_dir"; do
   fi
 done
 
-assert_unit_contract "$service_name"
-assert_unit_contract "$command_service_name"
+assert_unit_contract "$service_name" runtime
+assert_unit_contract "$command_service_name" register-commands
 
 if ! sudo -n -u "$runtime_user" /usr/bin/test -r "$env_file"; then
   echo "Persistent Discord environment is missing or unreadable by $runtime_user: $env_file" >&2

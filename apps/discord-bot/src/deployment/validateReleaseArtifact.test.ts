@@ -1,5 +1,11 @@
 import assert from "node:assert/strict"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { test } from "node:test"
@@ -108,6 +114,47 @@ test("artifact validation rejects production TypeScript and tsx", async () => {
           expectedSha: releaseSha,
         }),
       /src\/index\.ts, node_modules\/tsx\/dist\/cli\.mjs/
+    )
+  })
+})
+
+test("artifact validation rejects every descendant of forbidden prefixes", async () => {
+  await withArtifactFixture((artifactRoot) => {
+    for (const relativePath of [
+      "src/runtime/startup.ts",
+      "node_modules/tsx/package.json",
+    ]) {
+      const filePath = resolveArtifactPath(artifactRoot, relativePath)
+      mkdirSync(path.dirname(filePath), { recursive: true })
+      writeFileSync(filePath, "forbidden\n")
+    }
+
+    assert.throws(
+      () =>
+        validateReleaseArtifactDirectory(artifactRoot, {
+          expectedPlatform: releasePlatform,
+          expectedSha: releaseSha,
+        }),
+      /src\/, node_modules\/tsx\//
+    )
+  })
+})
+
+test("artifact validation rejects symlinked forbidden prefixes", async () => {
+  await withArtifactFixture((artifactRoot) => {
+    symlinkSync(
+      resolveArtifactPath(artifactRoot, "dist"),
+      resolveArtifactPath(artifactRoot, "src"),
+      process.platform === "win32" ? "junction" : "dir"
+    )
+
+    assert.throws(
+      () =>
+        validateReleaseArtifactDirectory(artifactRoot, {
+          expectedPlatform: releasePlatform,
+          expectedSha: releaseSha,
+        }),
+      /forbidden production files: src\//
     )
   })
 })

@@ -10,6 +10,7 @@ runtime_group="${CLEO_DISCORD_RUNTIME_GROUP:-cleo}"
 deploy_group="${CLEO_DISCORD_DEPLOY_GROUP:-cleo-deploy}"
 env_check="/usr/local/libexec/cleo/check-discord-env"
 runtime_check="/usr/local/libexec/cleo/check-discord-runtime"
+runtime_launcher="/usr/local/libexec/cleo/run-discord-release"
 
 fail() {
   echo "Discord production runner check failed: $*" >&2
@@ -59,6 +60,8 @@ contains_word "$(unit_value "$service_name" SupplementaryGroups)" "$deploy_group
   fail "$service_name has the wrong working directory"
 [[ "$(unit_value "$service_name" EnvironmentFiles)" == *"$env_file"* ]] ||
   fail "$service_name does not load $env_file"
+[[ "$(unit_value "$service_name" ExecStart)" == *"$runtime_launcher runtime"* ]] ||
+  fail "$service_name does not use the release runtime launcher"
 [[ "$(systemctl is-enabled "$service_name")" == "enabled" ]] || fail "$service_name is not enabled"
 
 [[ "$(unit_value "$command_service_name" LoadState)" == "loaded" ]] ||
@@ -73,10 +76,13 @@ contains_word "$(unit_value "$command_service_name" SupplementaryGroups)" "$depl
   fail "$command_service_name has the wrong working directory"
 [[ "$(unit_value "$command_service_name" EnvironmentFiles)" == *"$env_file"* ]] ||
   fail "$command_service_name does not load $env_file"
+[[ "$(unit_value "$command_service_name" ExecStart)" == *"$runtime_launcher register-commands"* ]] ||
+  fail "$command_service_name does not use the command release launcher"
 
 [[ ! -r "$env_file" ]] || fail "github-runner must not be able to read $env_file directly"
 assert_root_owned_check "$env_check"
 assert_root_owned_check "$runtime_check"
+assert_root_owned_check "$runtime_launcher"
 
 sudo -n -u "$runtime_user" "$env_check" "$env_file" ||
   fail "Discord production environment validation failed"

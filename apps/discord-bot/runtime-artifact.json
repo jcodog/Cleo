@@ -27,5 +27,9 @@
     "node_modules/.package-map.json",
     "node_modules/.bin/convex",
     "node_modules/.pnpm/node_modules/@workspace/discord-bot"
+  ],
+  "forbiddenPathPrefixes": [
+    "src/",
+    "node_modules/tsx/"
   ]
 }

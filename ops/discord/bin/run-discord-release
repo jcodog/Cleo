@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+operation="${1:-}"
+release_root="${CLEO_DISCORD_RELEASE_ROOT:-/srv/cleo/discord-bot/current}"
+nvm_exec="${CLEO_DISCORD_NVM_EXEC:-/home/cleo/.nvm/nvm-exec}"
+
+fail() {
+  echo "Discord release launcher failed: $*" >&2
+  exit 1
+}
+
+[[ "$release_root" == /* ]] || fail "release root must be absolute"
+[[ -x "$nvm_exec" ]] || fail "$nvm_exec is missing or not executable"
+
+case "$operation" in
+  runtime)
+    compiled_entrypoint="$release_root/dist/index.js"
+    legacy_entrypoint="$release_root/src/index.ts"
+    arguments=()
+    ;;
+  register-commands)
+    compiled_entrypoint="$release_root/dist/scripts/registerCommands.js"
+    legacy_entrypoint="$release_root/src/scripts/registerCommands.ts"
+    arguments=(--global)
+    ;;
+  *)
+    fail "expected runtime or register-commands"
+    ;;
+esac
+
+if [[ -f "$compiled_entrypoint" ]]; then
+  exec "$nvm_exec" node --enable-source-maps "$compiled_entrypoint" "${arguments[@]}"
+fi
+
+legacy_tsx_cli="$release_root/node_modules/tsx/dist/cli.mjs"
+if [[ -f "$legacy_entrypoint" && -f "$legacy_tsx_cli" ]]; then
+  exec "$nvm_exec" node "$legacy_tsx_cli" "$legacy_entrypoint" "${arguments[@]}"
+fi
+
+fail "release contains neither a compiled nor a legacy $operation entrypoint"
