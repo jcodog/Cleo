@@ -54,7 +54,17 @@ jobs:
         run: pnpm lint
 
       - name: Run workspace tests with coverage
-        run: pnpm test:coverage
+        run: |
+          set -o pipefail
+          pnpm test:coverage 2>&1 | tee coverage-test.log
+
+      - name: Upload failed coverage output
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: failed-coverage-output
+          if-no-files-found: error
+          path: coverage-test.log
 
       - name: Verify coverage reports
         run: |
