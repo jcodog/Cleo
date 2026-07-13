@@ -3,7 +3,7 @@ import { test } from "node:test"
 
 import {
   buildCleoGuildDashboardUrl,
-  buildCleoGuildStatusMessage,
+  buildCleoGuildStatusView,
 } from "./guildStatus"
 
 const discordGuildId = "123456789012345678"
@@ -22,110 +22,127 @@ test("buildCleoGuildDashboardUrl creates the current guild management route", ()
   )
 })
 
-test("buildCleoGuildStatusMessage formats active module state", () => {
-  const message = buildCleoGuildStatusMessage({
+test("buildCleoGuildDashboardUrl requires HTTPS", () => {
+  assert.throws(
+    () =>
+      buildCleoGuildDashboardUrl(
+        discordGuildId,
+        "http://dashboard.example.com"
+      ),
+    /must use HTTPS/
+  )
+})
+
+test("buildCleoGuildStatusView formats active and incomplete modules", () => {
+  const view = buildCleoGuildStatusView({
+    discordGuildId,
+    guildName: "Cleo *HQ*",
+    result: {
+      status: "ready",
+      config: {
+        discordGuildId,
+        moderationEnabled: true,
+        welcomeEnabled: true,
+        loggingEnabled: true,
+        supportEnabled: true,
+        welcomeChannelId: "223456789012345678",
+        logLevel: "maximum",
+        logChannelId: "323456789012345678",
+        supportStaffRoleIds: [],
+        supportTargetId: "423456789012345678",
+        supportTargetType: "forum",
+      },
+    },
+  })
+
+  assert.match(view.content, /Cleo status · Cleo \\\*HQ\\\*/)
+  assert.match(view.content, /Configuration is connected/)
+  assert.match(view.content, /✅ \*\*Moderation\*\* · On/)
+  assert.match(
+    view.content,
+    /✅ \*\*Welcome\*\* · On · <#223456789012345678>/
+  )
+  assert.match(view.content, /✅ \*\*Logging\*\* · On · Maximum detail/)
+  assert.match(view.content, /⚠️ \*\*Support\*\* · On, setup incomplete/)
+})
+
+test("buildCleoGuildStatusView formats disabled modules without setup warnings", () => {
+  const view = buildCleoGuildStatusView({
     discordGuildId,
     guildName: "Cleo HQ",
     result: {
       status: "ready",
       config: {
         discordGuildId,
-        moderationEnabled: true,
+        moderationEnabled: false,
         welcomeEnabled: false,
-        loggingEnabled: true,
-        supportEnabled: true,
-        logLevel: "maximum",
+        loggingEnabled: false,
+        supportEnabled: false,
       },
     },
   })
 
-  assert.equal(
-    message,
-    [
-      "**Cleo status · Cleo HQ**",
-      "Configuration: **Active**",
-      "Moderation: Enabled",
-      "Welcome: Disabled",
-      "Logging: Enabled · Maximum",
-      "Support: Enabled",
-      "",
-      "Manage Cleo: <https://beta.cleoai.cloud/dashboard/123456789012345678>",
-    ].join("\n")
-  )
+  assert.match(view.content, /◻️ \*\*Moderation\*\* · Off/)
+  assert.match(view.content, /◻️ \*\*Welcome\*\* · Off/)
+  assert.match(view.content, /◻️ \*\*Logging\*\* · Off/)
+  assert.match(view.content, /◻️ \*\*Support\*\* · Off/)
+  assert.doesNotMatch(view.content, /setup incomplete/)
 })
 
-test("buildCleoGuildStatusMessage handles enabled logging without an active level", () => {
-  for (const logLevel of [undefined, "none"] as const) {
-    const message = buildCleoGuildStatusMessage({
-      discordGuildId,
-      guildName: "Cleo HQ",
-      result: {
-        status: "ready",
-        config: {
-          discordGuildId,
-          moderationEnabled: false,
-          welcomeEnabled: false,
-          loggingEnabled: true,
-          supportEnabled: false,
-          ...(logLevel === undefined ? {} : { logLevel }),
-        },
-      },
-    })
-
-    assert.match(message, /Logging: Enabled/)
-    assert.doesNotMatch(message, /Logging: Enabled ·/)
-  }
-})
-
-test("buildCleoGuildStatusMessage formats incomplete setup", () => {
-  const message = buildCleoGuildStatusMessage({
+test("buildCleoGuildStatusView explains incomplete setup", () => {
+  const missingConfig = buildCleoGuildStatusView({
     discordGuildId,
     guildName: "Cleo HQ",
-    result: {
-      status: "disabled",
-      reason: "missingConfig",
-    },
+    result: { status: "disabled", reason: "missingConfig" },
   })
-
-  assert.match(message, /Configuration: \*\*Needs setup\*\*/)
-  assert.match(message, /Moderation: Not configured/)
-  assert.match(message, /Finish this server's Cleo setup in the dashboard\./)
-  assert.match(message, new RegExp(discordGuildId))
-})
-
-test("buildCleoGuildStatusMessage hides backend failure details", () => {
-  for (const reason of [
-    "convexUnavailable",
-    "invalidBackendResponse",
-    "invalidGuildId",
-  ] as const) {
-    const message = buildCleoGuildStatusMessage({
-      discordGuildId,
-      guildName: "Cleo HQ",
-      result: {
-        status: "disabled",
-        reason,
-      },
-    })
-
-    assert.match(message, /Configuration: \*\*Temporarily unavailable\*\*/)
-    assert.match(message, /Cleo could not verify this server's settings\./)
-    assert.doesNotMatch(message, /convex|backend|invalid/i)
-  }
-})
-
-test("buildCleoGuildStatusMessage distinguishes missing guild reconciliation", () => {
-  const unknownGuild = buildCleoGuildStatusMessage({
+  const unknownGuild = buildCleoGuildStatusView({
     discordGuildId,
     guildName: "Cleo HQ",
     result: { status: "disabled", reason: "unknownGuild" },
   })
-  const botLeft = buildCleoGuildStatusMessage({
+
+  assert.match(missingConfig.content, /Setup is incomplete/)
+  assert.match(missingConfig.content, /active configuration/)
+  assert.doesNotMatch(missingConfig.content, /missingConfig/)
+  assert.match(unknownGuild.content, /Server is not connected/)
+  assert.match(unknownGuild.content, /connect the server/)
+  assert.doesNotMatch(unknownGuild.content, /unknownGuild/)
+})
+
+test("buildCleoGuildStatusView explains stale installation state", () => {
+  const view = buildCleoGuildStatusView({
     discordGuildId,
     guildName: "Cleo HQ",
     result: { status: "disabled", reason: "botLeft" },
   })
 
-  assert.match(unknownGuild, /Configuration: \*\*Not connected\*\*/)
-  assert.match(botLeft, /Configuration: \*\*Reconnecting\*\*/)
+  assert.match(view.content, /Installation needs attention/)
+  assert.match(view.content, /repair or reinstall/)
+  assert.doesNotMatch(view.content, /botLeft/)
+})
+
+test("buildCleoGuildStatusView maps backend failures to safe guidance", () => {
+  const unavailable = buildCleoGuildStatusView({
+    discordGuildId,
+    guildName: "Cleo HQ",
+    result: { status: "disabled", reason: "convexUnavailable" },
+  })
+  const invalid = buildCleoGuildStatusView({
+    discordGuildId,
+    guildName: "Cleo HQ",
+    result: { status: "disabled", reason: "invalidBackendResponse" },
+  })
+  const invalidGuild = buildCleoGuildStatusView({
+    discordGuildId,
+    guildName: "Cleo HQ",
+    result: { status: "disabled", reason: "invalidGuildId" },
+  })
+
+  assert.match(unavailable.content, /temporarily unavailable/)
+  assert.match(unavailable.content, /safely disabled/)
+  assert.doesNotMatch(unavailable.content, /convexUnavailable/)
+  assert.match(invalid.content, /disabled for safety/)
+  assert.doesNotMatch(invalid.content, /invalidBackendResponse/)
+  assert.match(invalidGuild.content, /could not be identified/)
+  assert.doesNotMatch(invalidGuild.content, /invalidGuildId/)
 })
