@@ -66,6 +66,54 @@ test("buildCleoGuildStatusView formats active and incomplete modules", () => {
   assert.match(view.content, /⚠️ \*\*Support\*\* · On, setup incomplete/)
 })
 
+test("buildCleoGuildStatusView covers alternate module setup branches", () => {
+  const configured = buildCleoGuildStatusView({
+    discordGuildId,
+    guildName: "Cleo HQ",
+    result: {
+      status: "ready",
+      config: {
+        discordGuildId,
+        moderationEnabled: false,
+        welcomeEnabled: true,
+        loggingEnabled: true,
+        supportEnabled: true,
+        logLevel: "none",
+        modLogChannelId: "323456789012345678",
+        supportTargetId: "423456789012345678",
+        supportTargetType: "forum",
+        supportStaffRoleIds: ["523456789012345678"],
+      },
+    },
+  })
+  const partialSupport = buildCleoGuildStatusView({
+    discordGuildId,
+    guildName: "Cleo HQ",
+    result: {
+      status: "ready",
+      config: {
+        discordGuildId,
+        moderationEnabled: false,
+        welcomeEnabled: false,
+        loggingEnabled: true,
+        supportEnabled: true,
+        supportTargetId: "423456789012345678",
+        supportStaffRoleIds: ["523456789012345678"],
+      },
+    },
+  })
+
+  assert.match(configured.content, /⚠️ \*\*Welcome\*\* · On, setup incomplete/)
+  assert.match(configured.content, /✅ \*\*Logging\*\* · On$/m)
+  assert.doesNotMatch(configured.content, /Logging\*\* · On ·/)
+  assert.match(
+    configured.content,
+    /✅ \*\*Support\*\* · On · <#423456789012345678>/
+  )
+  assert.match(partialSupport.content, /⚠️ \*\*Logging\*\* · On, setup incomplete/)
+  assert.match(partialSupport.content, /⚠️ \*\*Support\*\* · On, setup incomplete/)
+})
+
 test("buildCleoGuildStatusView formats disabled modules without setup warnings", () => {
   const view = buildCleoGuildStatusView({
     discordGuildId,
