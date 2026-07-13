@@ -1,6 +1,9 @@
 import {
+  ActionRowBuilder,
   ApplicationCommandOptionType,
   ApplicationIntegrationType,
+  ButtonBuilder,
+  ButtonStyle,
   InteractionContextType,
   MessageFlags,
   PermissionFlagsBits,
@@ -12,7 +15,7 @@ import {
   type DiscordGuildRuntimeConfigResult,
 } from "@/services/guildRuntimeConfig"
 import {
-  buildCleoGuildStatusMessage,
+  buildCleoGuildStatusView,
   CLEO_DASHBOARD_BASE_URL,
 } from "@/services/guildStatus"
 import { botLogError } from "@/utils/botLog"
@@ -45,7 +48,7 @@ export function createCleoCommand({
         {
           type: ApplicationCommandOptionType.Subcommand,
           name: "status",
-          description: "Show the active Cleo services for this server",
+          description: "Check Cleo's configured services for this server",
         },
       ],
     },
@@ -68,9 +71,7 @@ export function createCleoCommand({
         return
       }
 
-      const subcommand = interaction.options.getSubcommand()
-
-      if (subcommand !== "status") {
+      if (interaction.options.getSubcommand() !== "status") {
         await interaction.reply({
           content: "That Cleo command is not available.",
           flags: MessageFlags.Ephemeral,
@@ -96,13 +97,23 @@ export function createCleoCommand({
         }
       }
 
+      const view = buildCleoGuildStatusView({
+        discordGuildId: interaction.guildId,
+        guildName: interaction.guild?.name ?? "This server",
+        result,
+        dashboardBaseUrl,
+      })
+      const dashboardButton = new ButtonBuilder()
+        .setLabel("Open Cleo dashboard")
+        .setStyle(ButtonStyle.Link)
+        .setURL(view.dashboardUrl)
+      const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        dashboardButton
+      )
+
       await interaction.editReply({
-        content: buildCleoGuildStatusMessage({
-          discordGuildId: interaction.guildId,
-          guildName: interaction.guild?.name ?? "This server",
-          result,
-          dashboardBaseUrl,
-        }),
+        content: view.content,
+        components: [actionRow],
         allowedMentions: { parse: [] },
       })
     },
