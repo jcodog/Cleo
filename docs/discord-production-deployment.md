@@ -75,6 +75,29 @@ known rollback release. New production releases contain neither `src/` nor the
 `tsx` package. Local development, watch mode, previews, and source command
 registration continue to use `tsx`.
 
+## JCN-194 first compiled-release migration
+
+The production host initially has the legacy systemd units and does not have the
+root-owned release launcher. Use this exact sequence for the first compiled
+release so the merge cannot trigger activation before the host contract is
+installed:
+
+1. Set `CLEO_DISCORD_DEPLOY_ENABLED=false` before merging the PR.
+2. Merge the reviewed PR into `main`.
+3. Update the VPS checkout to the merged `main` revision.
+4. Run `sudo bash ops/discord/bootstrap-host.sh` to install the release launcher
+   and updated systemd units.
+5. Run **Discord Production Runner Smoke** from the merged `main` revision.
+6. Run **Deploy Discord Production** with `operation=validate` and require the
+   validation-only workflow to pass.
+7. Set `CLEO_DISCORD_DEPLOY_ENABLED=true`, then run the compiled production
+   deployment.
+8. Keep the previous legacy release available and confirm rollback remains
+   usable until the first compiled release is accepted.
+
+Do not re-enable the deployment gate before the bootstrap, runner smoke, and
+validation-only workflow have all passed.
+
 ## One-time VPS setup
 
 The `github-runner` and `cleo` users and the `cleo` user's NVM installation must
