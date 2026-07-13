@@ -1,4 +1,5 @@
 import type { Command } from "@/classes/Command"
+import cleo from "@/handlers/commands/management/cleo"
 import ban from "@/handlers/commands/moderation/ban"
 import kick from "@/handlers/commands/moderation/kick"
 import help from "@/handlers/commands/utility/help"
@@ -7,6 +8,7 @@ import ping from "@/handlers/commands/utility/ping"
 export const commandRegistry = [
   ping,
   help,
+  cleo,
   ban,
   kick,
 ] as const satisfies readonly Command[]
