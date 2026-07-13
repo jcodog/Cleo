@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "format": "prettier -w \"**/*.{ts,json}\"",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src --include=\"src/classes/Command.ts\" --include=\"src/classes/Event.ts\" --include=\"src/loaders/loadCommands.ts\" --include=\"src/loaders/loadEvents.ts\" --include=\"src/handlers/events/interactionCreate.ts\" --include=\"src/services/guildEventLogging.ts\" --include=\"src/services/supportTickets.ts\" --include=\"src/utils/createGuildSnapshot.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/discord-bot\" --temp-directory=\"../../.coverage-tmp/apps/discord-bot\" tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src --include=\"src/classes/Command.ts\" --include=\"src/classes/Event.ts\" --include=\"src/loaders/loadCommands.ts\" --include=\"src/loaders/loadEvents.ts\" --include=\"src/handlers/events/interactionCreate.ts\" --include=\"src/services/cleoGuildStatus.ts\" --include=\"src/services/guildEventLogging.ts\" --include=\"src/services/supportTickets.ts\" --include=\"src/utils/createGuildSnapshot.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/discord-bot\" --temp-directory=\"../../.coverage-tmp/apps/discord-bot\" tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "welcome:preview": "tsx --env-file=.env.local src/scripts/sendWelcomePreview.ts",
     "commands:register": "tsx --env-file=.env.local src/scripts/registerCommands.ts",
