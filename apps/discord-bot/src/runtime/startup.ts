@@ -1,5 +1,3 @@
-import { fileURLToPath } from "node:url"
-
 import { ShardingManager, type Client, type Shard } from "discord.js"
 
 import { BotClient } from "@/classes/Client"
@@ -39,7 +37,7 @@ type StartBotClientRuntimeOptions = {
 type StartShardingManagerRuntimeOptions = {
   shardCount: DiscordBotShardCount
   token?: string
-  entrypoint?: string
+  entrypoint: string
   createManager?: (
     file: string,
     options: ConstructorParameters<typeof ShardingManager>[1]
@@ -49,32 +47,44 @@ type StartShardingManagerRuntimeOptions = {
   exit?: (code?: number) => void
 }
 
-const defaultShardEntrypoint = fileURLToPath(
-  new URL("../index.ts", import.meta.url)
-)
+type StartDiscordBotRuntimeFromEnvOptions = {
+  entrypoint: string
+  env?: NodeJS.ProcessEnv
+  resolveRuntimeConfig?: typeof resolveDiscordBotRuntimeConfig
+  startClientRuntime?: typeof startBotClientRuntime
+  startManagerRuntime?: typeof startShardingManagerRuntime
+}
+
 const shutdownHandlerTargets = new WeakSet<ProcessLike>()
 
-export async function startDiscordBotRuntimeFromEnv(): Promise<void> {
-  if (isDiscordShardingWorker()) {
-    await startBotClientRuntime({
+export async function startDiscordBotRuntimeFromEnv({
+  entrypoint,
+  env = process.env,
+  resolveRuntimeConfig = resolveDiscordBotRuntimeConfig,
+  startClientRuntime = startBotClientRuntime,
+  startManagerRuntime = startShardingManagerRuntime,
+}: StartDiscordBotRuntimeFromEnvOptions): Promise<void> {
+  if (isDiscordShardingWorker(env)) {
+    await startClientRuntime({
       mode: "sharded",
-      env: process.env,
+      env,
     })
     return
   }
 
-  const runtimeConfig = resolveDiscordBotRuntimeConfig(process.env)
+  const runtimeConfig = resolveRuntimeConfig(env)
 
   if (runtimeConfig.mode === "single") {
-    await startBotClientRuntime({
+    await startClientRuntime({
       mode: "single",
-      env: process.env,
+      env,
     })
     return
   }
 
-  await startShardingManagerRuntime({
+  await startManagerRuntime({
     shardCount: runtimeConfig.shardCount,
+    entrypoint,
   })
 }
 
@@ -88,6 +98,8 @@ export async function startBotClientRuntime({
   exit = process.exit,
   env = process.env,
 }: StartBotClientRuntimeOptions): Promise<Client> {
+  assertDiscordBotToken(token)
+
   const client = createBotClientRuntime({
     token,
     createClient,
@@ -126,7 +138,7 @@ export async function startBotClientRuntime({
 export async function startShardingManagerRuntime({
   shardCount,
   token = discordEnv.DISCORD_BOT_TOKEN,
-  entrypoint = defaultShardEntrypoint,
+  entrypoint,
   createManager = (file, options) => new ShardingManager(file, options),
   shutdown = shutdownDiscordShardingManager,
   processLike = process,
@@ -135,7 +147,7 @@ export async function startShardingManagerRuntime({
   assertDiscordBotToken(token)
 
   const manager = createManager(entrypoint, {
-    execArgv: ["--import", "tsx"],
+    execArgv: resolveShardExecArgv(entrypoint),
     token,
     totalShards: shardCount,
     respawn: true,
@@ -173,6 +185,10 @@ export async function startShardingManagerRuntime({
     })
     throw error
   }
+}
+
+export function resolveShardExecArgv(entrypoint: string): string[] {
+  return entrypoint.endsWith(".ts") ? ["--import", "tsx"] : []
 }
 
 export function isDiscordShardingWorker(

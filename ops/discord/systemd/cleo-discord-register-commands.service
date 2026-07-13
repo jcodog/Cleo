@@ -13,7 +13,7 @@ WorkingDirectory=/srv/cleo/discord-bot/current
 EnvironmentFile=/etc/cleo/discord-bot.env
 Environment=HOME=/home/cleo
 Environment=NVM_DIR=/home/cleo/.nvm
-ExecStart=/home/cleo/.nvm/nvm-exec node node_modules/tsx/dist/cli.mjs src/scripts/registerCommands.ts --global
+ExecStart=/home/cleo/.nvm/nvm-exec node --enable-source-maps dist/scripts/registerCommands.js --global
 UMask=0027
 NoNewPrivileges=true
 PrivateTmp=true
