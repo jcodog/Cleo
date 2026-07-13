@@ -10,6 +10,7 @@ command_service_name="${CLEO_DISCORD_COMMAND_SERVICE:-cleo-discord-register-comm
 runtime_user="${CLEO_DISCORD_RUNTIME_USER:-cleo}"
 runtime_group="${CLEO_DISCORD_RUNTIME_GROUP:-cleo}"
 deploy_group="${CLEO_DISCORD_DEPLOY_GROUP:-cleo-deploy}"
+runtime_launcher="${CLEO_DISCORD_RUNTIME_LAUNCHER:-/usr/local/libexec/cleo/run-discord-release}"
 release_archive="${CLEO_DISCORD_RELEASE_ARCHIVE:-}"
 release_checksum="${CLEO_DISCORD_RELEASE_CHECKSUM:-}"
 releases_dir="$deploy_root/releases"
@@ -46,6 +47,7 @@ contains_word() {
 
 assert_unit_contract() {
   local unit="$1"
+  local operation="$2"
 
   [[ "$(unit_value "$unit" LoadState)" == "loaded" ]] || {
     echo "Required systemd unit is not loaded: $unit" >&2
@@ -71,6 +73,10 @@ assert_unit_contract() {
     echo "$unit must load EnvironmentFile=$env_file." >&2
     return 1
   }
+  [[ "$(unit_value "$unit" ExecStart)" == *"$runtime_launcher $operation"* ]] || {
+    echo "$unit must start $runtime_launcher $operation." >&2
+    return 1
+  }
 }
 
 if [[ ! -d "$deploy_root" || ! -d "$releases_dir" || ! -d "$shared_dir" ]]; then
@@ -89,8 +95,8 @@ for directory in "$deploy_root" "$releases_dir" "$shared_dir"; do
   fi
 done
 
-assert_unit_contract "$service_name"
-assert_unit_contract "$command_service_name"
+assert_unit_contract "$service_name" runtime
+assert_unit_contract "$command_service_name" register-commands
 
 if ! sudo -n -u "$runtime_user" /usr/bin/test -r "$env_file"; then
   echo "Persistent Discord environment is missing or unreadable by $runtime_user: $env_file" >&2
@@ -218,10 +224,35 @@ verify_release_artifact() {
     sha256sum -c "$checksum_name"
   ) || return 1
 
-  if tar -tzf "$release_archive" | grep -Eq '(^|/)\.\.(/|$)|^/'; then
+  if tar -tzf "$release_archive" | grep -Eq '(^|[/\\])\.\.([/\\]|$)|^[/\\]'; then
     echo "Discord release archive contains an unsafe path." >&2
     return 1
   fi
+}
+
+validate_staged_release() {
+  local release_root="$1"
+  local expected_sha="$2"
+  local expected_platform
+  expected_platform="$(node -p '`${process.platform}-${process.arch}`')"
+
+  for bootstrap_path in \
+    runtime-artifact.json \
+    dist/deployment/validateReleaseArtifact.js; do
+    [[ -e "$release_root/$bootstrap_path" ]] || {
+      echo "Discord release is missing $bootstrap_path" >&2
+      return 1
+    }
+  done
+
+  node --input-type=module -e '
+    import path from "node:path"
+    import { pathToFileURL } from "node:url"
+    const [root, expectedSha, expectedPlatform] = process.argv.slice(1)
+    const validatorUrl = pathToFileURL(path.join(root, "dist/deployment/validateReleaseArtifact.js")).href
+    const { validateReleaseArtifactDirectory } = await import(validatorUrl)
+    validateReleaseArtifactDirectory(root, { expectedSha, expectedPlatform })
+  ' "$release_root" "$expected_sha" "$expected_platform"
 }
 
 stage_release() {
@@ -231,14 +262,7 @@ stage_release() {
   verify_release_artifact || return 1
 
   if [[ -d "$release_dir" ]]; then
-    [[ -f "$release_dir/.cleo-release-sha" ]] || {
-      echo "Existing release is missing its SHA marker: $release_dir" >&2
-      return 1
-    }
-    [[ "$(<"$release_dir/.cleo-release-sha")" == "$sha" ]] || {
-      echo "Existing release SHA marker does not match $sha" >&2
-      return 1
-    }
+    validate_staged_release "$release_dir" "$sha" || return 1
     find "$release_dir" -type f -name '.env*' -delete
     return 0
   fi
@@ -248,22 +272,7 @@ stage_release() {
   mkdir -p "$staging_dir"
   tar --no-same-owner -xzf "$release_archive" -C "$staging_dir"
 
-  for required_path in \
-    package.json \
-    .nvmrc \
-    .cleo-release-sha \
-    src/index.ts \
-    node_modules/tsx/dist/cli.mjs; do
-    [[ -e "$staging_dir/$required_path" ]] || {
-      echo "Discord release is missing $required_path" >&2
-      return 1
-    }
-  done
-
-  [[ "$(<"$staging_dir/.cleo-release-sha")" == "$sha" ]] || {
-    echo "Discord release artifact SHA does not match $sha" >&2
-    return 1
-  }
+  validate_staged_release "$staging_dir" "$sha" || return 1
   cmp -s "$repository_root/.nvmrc" "$staging_dir/.nvmrc" || {
     echo "Discord release Node version does not match the checked-out revision." >&2
     return 1

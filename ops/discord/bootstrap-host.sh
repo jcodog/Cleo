@@ -37,6 +37,7 @@ for file in \
   package.json \
   ops/discord/bin/check-discord-env \
   ops/discord/bin/check-discord-runtime \
+  ops/discord/bin/run-discord-release \
   ops/discord/discord-bot.env.example \
   ops/discord/systemd/cleo-discord.service \
   ops/discord/systemd/cleo-discord-register-commands.service \
@@ -74,6 +75,9 @@ install -o root -g root -m 0755 \
 install -o root -g root -m 0755 \
   "$repository_root/ops/discord/bin/check-discord-runtime" \
   "$libexec_dir/check-discord-runtime"
+install -o root -g root -m 0755 \
+  "$repository_root/ops/discord/bin/run-discord-release" \
+  "$libexec_dir/run-discord-release"
 
 install -o root -g root -m 0644 \
   "$repository_root/ops/discord/systemd/cleo-discord.service" \

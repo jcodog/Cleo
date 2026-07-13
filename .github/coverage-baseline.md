@@ -30,6 +30,22 @@ the enforced include sets:
 - `packages/backend/convex/mutations/bot/discord/supportTickets/openOrResume.ts`
 - `packages/backend/convex/mutations/dashboard/discord/guildSupportConfigs/update.ts`
 
+JCN-194 adds the compiled Discord production runtime and release artifact
+contract to the enforced include set:
+
+- `apps/discord-bot/src/runtime/startup.ts`
+- `apps/discord-bot/src/deployment/validateReleaseArtifact.ts`
+
+These tests enforce single-process and sharded startup dispatch, compiled worker
+entrypoints without a production `tsx` hook, startup failure and shutdown
+behavior, required compiled files and source maps, exact release metadata,
+command-registration compatibility, native canvas packaging, and archive path
+safety.
+
+The root-owned Discord release launcher is covered by regression shell tests
+that prove legacy-to-compiled activation and compiled-to-legacy rollback for
+both the runtime and command-registration entrypoints.
+
 The Convex handlers run through `convex-test` against its in-memory database.
 The enforced tests cover authorization, insert/replace behavior, audit writes,
 ticket persistence and resume behavior, linked requester resolution, transcript

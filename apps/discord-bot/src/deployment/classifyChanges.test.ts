@@ -26,6 +26,15 @@ test("Discord deploy paths include runtime and direct dependencies", () => {
     true
   )
   assert.equal(
+    isDiscordDeployPath("ops/discord/bin/run-discord-release"),
+    true
+  )
+  assert.equal(isDiscordDeployPath("ops/discord/bootstrap-host.sh"), true)
+  assert.equal(
+    isDiscordDeployPath("ops/discord/systemd/cleo-discord.service"),
+    true
+  )
+  assert.equal(
     isDiscordDeployPath(".github/workflows/discord-runner-smoke.yml"),
     false
   )
@@ -47,6 +56,10 @@ test("command registration paths exclude runtime-only changes", () => {
   )
   assert.equal(
     isCommandRegistrationPath("apps/discord-bot/src/runtime/startup.ts"),
+    false
+  )
+  assert.equal(
+    isCommandRegistrationPath("ops/discord/bin/run-discord-release"),
     false
   )
   assert.deepEqual(

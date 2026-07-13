@@ -42,7 +42,10 @@ jobs:
           bash -n ops/discord/bin/check-discord-env
           bash -n ops/discord/bin/check-discord-runtime
           bash -n ops/discord/bin/check-discord-env.test.sh
+          bash -n ops/discord/bin/run-discord-release
+          bash -n ops/discord/bin/run-discord-release.test.sh
           bash ops/discord/bin/check-discord-env.test.sh
+          bash ops/discord/bin/run-discord-release.test.sh
 
       - name: Check peer dependency compatibility
         run: pnpm check:peers
@@ -113,16 +116,24 @@ jobs:
           rm -rf "$extract_dir"
           mkdir -p "$extract_dir"
           tar -xzf "$archive" -C "$extract_dir"
-          test -f "$extract_dir/src/index.ts"
-          test -f "$extract_dir/tsconfig.json"
-          test -f "$extract_dir/node_modules/tsx/dist/cli.mjs"
+          test -f "$extract_dir/dist/index.js"
+          test -f "$extract_dir/dist/index.js.map"
+          test -f "$extract_dir/dist/scripts/registerCommands.js"
+          test -f "$extract_dir/dist/scripts/registerCommands.js.map"
+          test -f "$extract_dir/runtime-artifact.json"
+          test ! -e "$extract_dir/src/index.ts"
+          test ! -e "$extract_dir/node_modules/tsx/dist/cli.mjs"
           test -f "$extract_dir/.cleo-release-sha"
           test -f "$extract_dir/.cleo-release-platform"
           test "$(cat "$extract_dir/.cleo-release-sha")" = "$release_sha"
           test "$(cat "$extract_dir/.cleo-release-platform")" = "linux-x64"
           (
             cd "$extract_dir"
-            node node_modules/tsx/dist/cli.mjs -e 'import("@/classes/Event")'
+            node --input-type=module -e 'await import("./dist/scripts/registerCommands.js")'
+            node --input-type=module -e '
+              const { createCanvas } = await import("@napi-rs/canvas")
+              await createCanvas(2, 2).encode("png")
+            '
           )
 
       - name: Upload Cobertura artifacts

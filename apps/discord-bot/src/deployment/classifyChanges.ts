@@ -10,6 +10,7 @@ const DEPLOY_PREFIXES = [
   "packages/shared/",
   "packages/eslint-config/",
   "packages/typescript-config/",
+  "ops/discord/",
 ] as const
 
 const DEPLOY_FILES = new Set<string>([

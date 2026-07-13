@@ -11,6 +11,7 @@ on:
       - "packages/shared/**"
       - "packages/eslint-config/**"
       - "packages/typescript-config/**"
+      - "ops/discord/**"
       - ".github/scripts/deploy-discord.sh"
       - ".github/scripts/package-discord-release.sh"
       - ".github/scripts/check-discord-runner.sh"
