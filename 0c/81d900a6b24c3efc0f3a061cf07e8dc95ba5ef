@@ -1,0 +1,56 @@
+apps/discord-bot/src/runtime/startup.test.ts
+  s_9ae8792a9487de::t_9e1c8907e68519 60-64,82-84,88-91,109-111,119-122,138
+apps/discord-bot/src/deployment/validateReleaseArtifact.test.ts
+  s_9ae8792a9487de::t_9e1c8907e68519 2-8,121-160
+  s_9ae8792a9487de::t_4b1e01426be784 161
+apps/discord-bot/runtime-artifact.json
+  s_9ae8792a9487de::t_9e1c8907e68519 30-33
+docs/discord-production-deployment.md
+  s_9ae8792a9487de::t_9e1c8907e68519 14-15
+  s_9ae8792a9487de::t_7910cc916a1c6d 70-76,92
+ops/discord/bin/run-discord-release
+  s_9ae8792a9487de::t_9e1c8907e68519 1-41
+ops/discord/bin/run-discord-release.test.sh
+  s_9ae8792a9487de::t_9e1c8907e68519 1-4,6-35,37-79,81-85
+  s_9ae8792a9487de::t_e072bfb4c35253 5,36,80
+apps/discord-bot/src/deployment/validateReleaseArtifact.ts
+  s_9ae8792a9487de::t_9e1c8907e68519 1,44-54,56
+.github/scripts/deploy-discord.sh
+  s_9ae8792a9487de::t_9e1c8907e68519 13
+  s_9ae8792a9487de::t_5b0806675acc4e 50,76-79,98-99
+.github/coverage-baseline.md
+  s_9ae8792a9487de::t_6d8d3b6f5b50c3 45-48
+.github/scripts/check-discord-runner.sh
+  s_9ae8792a9487de::t_07d37f792036b0 13,63-64,79-80,85
+.github/workflows/regression.yml
+  s_9ae8792a9487de::t_be2d188c2aa8f6 45-46,48
+apps/discord-bot/src/runtime/startup.ts
+  s_9ae8792a9487de::t_94d8bf3b3c6847 70,81,89
+ops/discord/bootstrap-host.sh
+  s_9ae8792a9487de::t_b2bee8387b0dec 40,78-80
+ops/discord/systemd/cleo-discord-register-commands.service
+  s_9ae8792a9487de::t_97e5d37d8538f6 16
+ops/discord/systemd/cleo-discord.service
+  s_9ae8792a9487de::t_55a0dfab78c19e 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "0c81d900a6b24c3efc0f3a061cf07e8dc95ba5ef",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_9ae8792a9487de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5bde-dc15-7f92-b9e2-0cabf011025d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
