@@ -4,6 +4,8 @@ import { test } from "node:test"
 import {
   ApplicationCommandOptionType,
   ApplicationIntegrationType,
+  ButtonStyle,
+  ComponentType,
   InteractionContextType,
   MessageFlags,
   PermissionFlagsBits,
@@ -29,7 +31,7 @@ test("/cleo is a guild-manager command with a status subcommand", () => {
     {
       type: ApplicationCommandOptionType.Subcommand,
       name: "status",
-      description: "Show the active Cleo services for this server",
+      description: "Check Cleo's configured services for this server",
     },
   ])
 })
@@ -96,7 +98,42 @@ test("/cleo requires Manage Server before reading configuration", async () => {
   ])
 })
 
-test("/cleo status reads the cached runtime configuration and replies safely", async () => {
+test("/cleo rejects unavailable subcommands before reading configuration", async () => {
+  let fetchCount = 0
+  const replies: unknown[] = []
+  const command = createCleoCommand({
+    async fetchRuntimeConfig() {
+      fetchCount += 1
+      return { status: "disabled", reason: "unknownGuild" }
+    },
+  })
+  const interaction = {
+    guildId: discordGuildId,
+    inGuild: () => true,
+    memberPermissions: {
+      has: () => true,
+    },
+    options: {
+      getSubcommand: () => "removed-command",
+    },
+    async reply(message: unknown) {
+      replies.push(message)
+    },
+  }
+
+  await command.execute({ interaction: interaction as never })
+
+  assert.equal(fetchCount, 0)
+  assert.deepEqual(replies, [
+    {
+      content: "That Cleo command is not available.",
+      flags: MessageFlags.Ephemeral,
+      allowedMentions: { parse: [] },
+    },
+  ])
+})
+
+test("/cleo status reads runtime config and returns actionable module state", async () => {
   const calls: string[] = []
   const fetchedGuildIds: string[] = []
   const deferred: unknown[] = []
@@ -113,13 +150,16 @@ test("/cleo status reads the cached runtime configuration and replies safely", a
           welcomeEnabled: true,
           loggingEnabled: false,
           supportEnabled: true,
+          supportTargetId: "223456789012345678",
+          supportTargetType: "forum",
+          supportStaffRoleIds: [],
         },
       }
     },
   })
   const interaction = {
     guildId: discordGuildId,
-    guild: { name: "Cleo HQ" },
+    guild: { name: "Cleo *HQ*" },
     inGuild: () => true,
     memberPermissions: {
       has: (permission: bigint) => permission === PermissionFlagsBits.ManageGuild,
@@ -142,17 +182,29 @@ test("/cleo status reads the cached runtime configuration and replies safely", a
   assert.deepEqual(fetchedGuildIds, [discordGuildId])
   assert.deepEqual(calls, ["deferReply", "editReply"])
   assert.deepEqual(deferred, [{ flags: MessageFlags.Ephemeral }])
-  assert.equal(typeof (edits[0] as { content?: unknown }).content, "string")
-  const content = (edits[0] as { content: string }).content
-  assert.match(content, /Configuration: \*\*Active\*\*/)
-  assert.match(content, /Moderation: Enabled/)
-  assert.match(content, /Logging: Disabled/)
-  assert.match(
-    content,
-    /https:\/\/dashboard\.example\.com\/dashboard\/123456789012345678/
-  )
-  assert.deepEqual((edits[0] as { allowedMentions: unknown }).allowedMentions, {
-    parse: [],
+
+  const edit = edits[0] as {
+    content: string
+    components: Array<{ toJSON(): unknown }>
+    allowedMentions: unknown
+  }
+
+  assert.match(edit.content, /Cleo status · Cleo \\\*HQ\\\*/)
+  assert.match(edit.content, /✅ \*\*Moderation\*\* · On/)
+  assert.match(edit.content, /⚠️ \*\*Welcome\*\* · On, setup incomplete/)
+  assert.match(edit.content, /◻️ \*\*Logging\*\* · Off/)
+  assert.match(edit.content, /⚠️ \*\*Support\*\* · On, setup incomplete/)
+  assert.deepEqual(edit.allowedMentions, { parse: [] })
+  assert.deepEqual(edit.components[0]?.toJSON(), {
+    type: ComponentType.ActionRow,
+    components: [
+      {
+        type: ComponentType.Button,
+        style: ButtonStyle.Link,
+        label: "Open Cleo dashboard",
+        url: `https://dashboard.example.com/dashboard/${discordGuildId}`,
+      },
+    ],
   })
 })
 
@@ -191,6 +243,7 @@ test("/cleo status converts unexpected backend failures into a safe state", asyn
   }
 
   const content = (edits[0] as { content: string }).content
-  assert.match(content, /Configuration: \*\*Temporarily unavailable\*\*/)
-  assert.doesNotMatch(content, /do-not-expose/)
+
+  assert.match(content, /temporarily unavailable/)
+  assert.doesNotMatch(content, /do-not-expose|secret=/)
 })
