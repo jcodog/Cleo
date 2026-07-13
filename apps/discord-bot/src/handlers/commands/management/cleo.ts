@@ -1,9 +1,8 @@
 import {
-  ActionRowBuilder,
   ApplicationCommandOptionType,
   ApplicationIntegrationType,
-  ButtonBuilder,
   ButtonStyle,
+  ComponentType,
   InteractionContextType,
   MessageFlags,
   PermissionFlagsBits,
@@ -103,17 +102,22 @@ export function createCleoCommand({
         result,
         dashboardBaseUrl,
       })
-      const dashboardButton = new ButtonBuilder()
-        .setLabel("Open Cleo dashboard")
-        .setStyle(ButtonStyle.Link)
-        .setURL(view.dashboardUrl)
-      const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        dashboardButton
-      )
 
       await interaction.editReply({
         content: view.content,
-        components: [actionRow],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                style: ButtonStyle.Link,
+                label: "Open Cleo dashboard",
+                url: view.dashboardUrl,
+              },
+            ],
+          },
+        ],
         allowedMentions: { parse: [] },
       })
     },
