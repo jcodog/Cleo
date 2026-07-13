@@ -54,6 +54,29 @@ test("buildCleoGuildStatusMessage formats active module state", () => {
   )
 })
 
+test("buildCleoGuildStatusMessage handles enabled logging without an active level", () => {
+  for (const logLevel of [undefined, "none"] as const) {
+    const message = buildCleoGuildStatusMessage({
+      discordGuildId,
+      guildName: "Cleo HQ",
+      result: {
+        status: "ready",
+        config: {
+          discordGuildId,
+          moderationEnabled: false,
+          welcomeEnabled: false,
+          loggingEnabled: true,
+          supportEnabled: false,
+          ...(logLevel === undefined ? {} : { logLevel }),
+        },
+      },
+    })
+
+    assert.match(message, /Logging: Enabled/)
+    assert.doesNotMatch(message, /Logging: Enabled ·/)
+  }
+})
+
 test("buildCleoGuildStatusMessage formats incomplete setup", () => {
   const message = buildCleoGuildStatusMessage({
     discordGuildId,
@@ -74,6 +97,7 @@ test("buildCleoGuildStatusMessage hides backend failure details", () => {
   for (const reason of [
     "convexUnavailable",
     "invalidBackendResponse",
+    "invalidGuildId",
   ] as const) {
     const message = buildCleoGuildStatusMessage({
       discordGuildId,
