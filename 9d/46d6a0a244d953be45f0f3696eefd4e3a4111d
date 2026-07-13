@@ -1,0 +1,30 @@
+.github/workflows/discord-production.yml
+  s_9ae8792a9487de::t_cf8977e04e39af 14
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_9ae8792a9487de::t_cbcd4cd5ac72d1 28-36,61-64
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_9ae8792a9487de::t_c9c7bc4fda8d3e 13
+docs/discord-production-deployment.md
+  s_9ae8792a9487de::t_6471041a5dbe21 78-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9d46d6a0a244d953be45f0f3696eefd4e3a4111d",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_9ae8792a9487de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5bde-dc15-7f92-b9e2-0cabf011025d",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
