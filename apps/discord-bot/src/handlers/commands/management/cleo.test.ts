@@ -185,7 +185,7 @@ test("/cleo status reads runtime config and returns actionable module state", as
 
   const edit = edits[0] as {
     content: string
-    components: Array<{ toJSON(): unknown }>
+    components: unknown[]
     allowedMentions: unknown
   }
 
@@ -195,18 +195,19 @@ test("/cleo status reads runtime config and returns actionable module state", as
   assert.match(edit.content, /◻️ \*\*Logging\*\* · Off/)
   assert.match(edit.content, /⚠️ \*\*Support\*\* · On, setup incomplete/)
   assert.deepEqual(edit.allowedMentions, { parse: [] })
-  assert.deepEqual(edit.components[0]?.toJSON(), {
-    type: ComponentType.ActionRow,
-    components: [
-      {
-        type: ComponentType.Button,
-        style: ButtonStyle.Link,
-        label: "Open Cleo dashboard",
-        emoji: undefined,
-        url: `https://dashboard.example.com/dashboard/${discordGuildId}`,
-      },
-    ],
-  })
+  assert.deepEqual(edit.components, [
+    {
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.Button,
+          style: ButtonStyle.Link,
+          label: "Open Cleo dashboard",
+          url: `https://dashboard.example.com/dashboard/${discordGuildId}`,
+        },
+      ],
+    },
+  ])
 })
 
 test("/cleo status converts unexpected backend failures into a safe state", async () => {
