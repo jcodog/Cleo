@@ -8,131 +8,170 @@ import type {
 
 export const CLEO_DASHBOARD_BASE_URL = "https://beta.cleoai.cloud"
 
-type GuildStatusMessageInput = {
+export type CleoGuildStatusView = {
+  content: string
+  dashboardUrl: string
+}
+
+type GuildStatusViewInput = {
   discordGuildId: string
   guildName: string
   result: DiscordGuildRuntimeConfigResult
   dashboardBaseUrl?: string
 }
 
-type DisabledStatusDescription = {
-  state: string
-  detail: string
-  moduleState: string
-}
-
 export function buildCleoGuildDashboardUrl(
   discordGuildId: string,
   dashboardBaseUrl = CLEO_DASHBOARD_BASE_URL
 ): string {
-  const dashboardUrl = new URL(
-    `/dashboard/${encodeURIComponent(discordGuildId)}`,
-    dashboardBaseUrl
-  )
+  const dashboardUrl = new URL(dashboardBaseUrl)
 
+  if (dashboardUrl.protocol !== "https:") {
+    throw new Error("Cleo dashboard URL must use HTTPS.")
+  }
+
+  dashboardUrl.pathname = `/dashboard/${encodeURIComponent(discordGuildId)}`
   dashboardUrl.search = ""
   dashboardUrl.hash = ""
 
   return dashboardUrl.toString()
 }
 
-export function buildCleoGuildStatusMessage({
+export function buildCleoGuildStatusView({
   discordGuildId,
   guildName,
   result,
   dashboardBaseUrl,
-}: GuildStatusMessageInput): string {
+}: GuildStatusViewInput): CleoGuildStatusView {
   const dashboardUrl = buildCleoGuildDashboardUrl(
     discordGuildId,
     dashboardBaseUrl
   )
-  const heading = `**Cleo status · ${escapeMarkdown(guildName)}**`
+  const heading = `## Cleo status · ${escapeMarkdown(guildName)}`
 
-  if (result.status === "ready") {
-    return [
-      heading,
-      "Configuration: **Active**",
-      ...formatReadyModules(result.config),
-      "",
-      `Manage Cleo: <${dashboardUrl}>`,
-    ].join("\n")
+  if (result.status === "disabled") {
+    return {
+      content: formatDisabledStatus(heading, result.reason),
+      dashboardUrl,
+    }
   }
 
-  const disabled = describeDisabledStatus(result.reason)
+  return {
+    content: formatReadyStatus(heading, result.config),
+    dashboardUrl,
+  }
+}
 
+function formatReadyStatus(
+  heading: string,
+  config: DiscordGuildRuntimeConfig
+): string {
   return [
     heading,
-    `Configuration: **${disabled.state}**`,
-    `Moderation: ${disabled.moduleState}`,
-    `Welcome: ${disabled.moduleState}`,
-    `Logging: ${disabled.moduleState}`,
-    `Support: ${disabled.moduleState}`,
+    "Configuration is connected and loaded from Cleo.",
     "",
-    disabled.detail,
-    `Manage Cleo: <${dashboardUrl}>`,
+    formatModuleLine("Moderation", config.moderationEnabled, true),
+    formatModuleLine(
+      "Welcome",
+      config.welcomeEnabled,
+      Boolean(config.welcomeChannelId),
+      config.welcomeChannelId ? `<#${config.welcomeChannelId}>` : undefined
+    ),
+    formatModuleLine(
+      "Logging",
+      config.loggingEnabled,
+      Boolean(config.logChannelId || config.modLogChannelId),
+      config.logLevel && config.logLevel !== "none"
+        ? `${capitalize(config.logLevel)} detail`
+        : undefined
+    ),
+    formatModuleLine(
+      "Support",
+      config.supportEnabled,
+      Boolean(
+        config.supportTargetId &&
+          config.supportTargetType &&
+          config.supportStaffRoleIds?.length
+      ),
+      config.supportTargetId ? `<#${config.supportTargetId}>` : undefined
+    ),
+    "",
+    "Use the dashboard to change settings or finish any incomplete setup.",
   ].join("\n")
 }
 
-function formatReadyModules(config: DiscordGuildRuntimeConfig): string[] {
-  return [
-    `Moderation: ${formatEnabled(config.moderationEnabled)}`,
-    `Welcome: ${formatEnabled(config.welcomeEnabled)}`,
-    `Logging: ${formatLogging(config)}`,
-    `Support: ${formatEnabled(config.supportEnabled)}`,
-  ]
-}
-
-function formatEnabled(enabled: boolean): "Enabled" | "Disabled" {
-  return enabled ? "Enabled" : "Disabled"
-}
-
-function formatLogging(config: DiscordGuildRuntimeConfig): string {
-  if (!config.loggingEnabled) {
-    return "Disabled"
-  }
-
-  if (!config.logLevel || config.logLevel === "none") {
-    return "Enabled"
-  }
-
-  return `Enabled · ${capitalize(config.logLevel)}`
-}
-
-function describeDisabledStatus(
+function formatDisabledStatus(
+  heading: string,
   reason: DiscordGuildRuntimeConfigDisabledReason
-): DisabledStatusDescription {
+): string {
   switch (reason) {
     case "missingConfig":
-      return {
-        state: "Needs setup",
-        moduleState: "Not configured",
-        detail: "Finish this server's Cleo setup in the dashboard.",
-      }
+      return [
+        heading,
+        "⚠️ **Setup is incomplete**",
+        "",
+        "Cleo is installed, but this server does not have an active configuration yet.",
+        "Use the dashboard to finish setup before enabling config-driven features.",
+      ].join("\n")
     case "unknownGuild":
-      return {
-        state: "Not connected",
-        moduleState: "Not configured",
-        detail: "Add this server to the Cleo dashboard to configure its services.",
-      }
+      return [
+        heading,
+        "⚠️ **Server is not connected**",
+        "",
+        "Cleo could not find this server in the control plane.",
+        "Use the dashboard to connect the server and create its configuration.",
+      ].join("\n")
     case "botLeft":
-      return {
-        state: "Reconnecting",
-        moduleState: "Unavailable",
-        detail:
-          "Cleo is online here, but the control plane has not reconciled this server yet. Try again shortly.",
-      }
+      return [
+        heading,
+        "⚠️ **Installation needs attention**",
+        "",
+        "Cleo's saved state says the bot is no longer installed in this server.",
+        "Open the dashboard to repair or reinstall the connection.",
+      ].join("\n")
     case "convexUnavailable":
+      return [
+        heading,
+        "⚠️ **Configuration service is temporarily unavailable**",
+        "",
+        "Cleo could not verify this server's settings right now. Config-driven features remain safely disabled unless a valid cached configuration is available.",
+        "Try again shortly or use the dashboard to check the service state.",
+      ].join("\n")
     case "invalidBackendResponse":
+      return [
+        heading,
+        "⚠️ **Configuration was disabled for safety**",
+        "",
+        "Cleo received a configuration response it could not validate and did not apply it.",
+        "Use the dashboard to review the server configuration.",
+      ].join("\n")
     case "invalidGuildId":
-      return {
-        state: "Temporarily unavailable",
-        moduleState: "Unavailable",
-        detail:
-          "Cleo could not verify this server's settings. Try again shortly or use the dashboard.",
-      }
+      return [
+        heading,
+        "⚠️ **This server could not be identified**",
+        "",
+        "Cleo could not safely load configuration for this server.",
+      ].join("\n")
   }
+}
+
+function formatModuleLine(
+  label: string,
+  enabled: boolean,
+  configured: boolean,
+  detail?: string
+): string {
+  if (!enabled) {
+    return `◻️ **${label}** · Off`
+  }
+
+  if (!configured) {
+    return `⚠️ **${label}** · On, setup incomplete`
+  }
+
+  return `✅ **${label}** · On${detail ? ` · ${detail}` : ""}`
 }
 
 function capitalize(value: string): string {
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`
 }
