@@ -1,0 +1,86 @@
+ops/discord/bootstrap-host.sh
+  s_d5a5bd74158116::t_d938383dd7644f 15,37-50,91
+  s_9ae8792a9487de::t_9e1c8907e68519 51,139
+  s_d5a5bd74158116::t_eee7dcd0154a58 11,120-138
+  s_d5a5bd74158116::t_231cd5c6fb9efe 111-119
+  s_d5a5bd74158116::t_4b22c557962772 58,101-103
+.github/workflows/discord-runner-smoke.yml
+  s_d5a5bd74158116::t_187873ceb018e4 21-23
+  s_d5a5bd74158116::t_2660f5a89281d4 34-40
+apps/discord-bot/src/deployment/deploymentPipeline.test.ts
+  s_d5a5bd74158116::t_9c511720d39617 38-43,80-95
+  s_d5a5bd74158116::t_2660f5a89281d4 66-69
+ops/discord/bin/read-discord-deployment-state.test.sh
+  s_d5a5bd74158116::t_4b22c557962772 1-66
+docs/discord-production-deployment.md
+  s_d5a5bd74158116::t_dbfcae6b17a8e0 69
+  s_d5a5bd74158116::t_fe6a2caee9f8bb 12,14,25,77,305,322,329
+  s_d5a5bd74158116::t_993003081b28fd 68,117-119,160
+ops/discord/bin/deploy-discord-release
+  s_d5a5bd74158116::t_fa000dd6efbfa4 8,44-48,315-319
+  s_d5a5bd74158116::t_7096278a553321 290,387
+  s_d5a5bd74158116::t_5ded8d7ad651c8 25,135-143,186-192,197
+  s_d5a5bd74158116::t_d06f953212f5bf 6-7,18,34-42
+  s_d5a5bd74158116::t_84849a5a7b3c2f 218-229
+  s_d5a5bd74158116::t_4e75e0bf930a44 281
+  s_d5a5bd74158116::t_d165b588f51dea 43
+  s_d5a5bd74158116::t_02e4586cd2d03f 134
+  s_d5a5bd74158116::t_b62419a918bae0 425
+  s_d5a5bd74158116::t_502cc9369b3d84 26-27,151-152,154-156
+ops/discord/bin/read-discord-deployment-state
+  s_d5a5bd74158116::t_4b22c557962772 1-72
+apps/discord-bot/src/deployment/validateReleaseArtifact.ts
+  s_d5a5bd74158116::t_dbfcae6b17a8e0 143
+  s_d5a5bd74158116::t_187873ceb018e4 141-142,144-145
+.github/scripts/package-discord-release.sh
+  s_d5a5bd74158116::t_187873ceb018e4 20-21
+apps/discord-bot/runtime-artifact.json
+  s_d5a5bd74158116::t_187873ceb018e4 21-22
+.github/workflows/discord-production.yml
+  s_d5a5bd74158116::t_fe6a2caee9f8bb 145,170
+  s_d5a5bd74158116::t_187873ceb018e4 93,116,188-190,232-234
+  s_d5a5bd74158116::t_2660f5a89281d4 201-207,245-251
+apps/discord-bot/src/deployment/validateReleaseArtifact.test.ts
+  s_d5a5bd74158116::t_187873ceb018e4 336-363
+  s_d5a5bd74158116::t_fe6a2caee9f8bb 25,72,139,262,271,306,311,313
+  s_d5a5bd74158116::t_3cdd32edcc95ad 325
+.github/workflows/regression.yml
+  s_d5a5bd74158116::t_4b22c557962772 45-46,52
+  s_d5a5bd74158116::t_187873ceb018e4 16,139
+  s_d5a5bd74158116::t_502cc9369b3d84 44,53
+ops/discord/bin/deploy-discord-release.test.sh
+  s_d5a5bd74158116::t_85630d877bfcb6 100
+  s_d5a5bd74158116::t_502cc9369b3d84 1-99,101-137
+ops/discord/bin/check-discord-runner
+  s_d5a5bd74158116::t_d938383dd7644f 16,18-20,49-51,94,96-102
+  s_d5a5bd74158116::t_9c511720d39617 17,95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "c423efb8bbbe0e84c8a42acaa5c3fbd66621f917",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_9ae8792a9487de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5bde-dc15-7f92-b9e2-0cabf011025d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_d5a5bd74158116": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6502-f6fb-7161-8ac8-0f19a9b8e589",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
