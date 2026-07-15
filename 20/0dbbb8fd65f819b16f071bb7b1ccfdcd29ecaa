@@ -1,0 +1,25 @@
+apps/discord-bot/src/deployment/validateReleaseArtifact.test.ts
+  s_d5a5bd74158116::t_51dbf4e250b186 94-109,293-352,411-464
+  s_d5a5bd74158116::t_e19046827ab8e2 465
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "200dbbb8fd65f819b16f071bb7b1ccfdcd29ecaa",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_d5a5bd74158116": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6502-f6fb-7161-8ac8-0f19a9b8e589",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
