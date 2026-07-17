@@ -1,0 +1,112 @@
+apps/dashboard/src/features/auth/DiscordOAuthCallback.tsx
+  s_d8c5be9d81ffb3::t_2daceafc4ddd3f 386-388
+  s_d8c5be9d81ffb3::t_769450f11018e2 274-275
+  s_d8c5be9d81ffb3::t_65ed44df416d1c 112-125,139-152,173-186,228,230-232
+  s_d8c5be9d81ffb3::t_7a5be241a95cf7 55,271-273,276-354,356-367,401,405-411,415-424,431-435,442-446,453-470,472-478
+  s_d8c5be9d81ffb3::t_fb742bd2174425 425-430,436-441,447-452,471
+  s_d8c5be9d81ffb3::t_df0854b6152230 3,12-14,19-27,33-37
+apps/dashboard/src/features/onboarding/onboardingState.test.ts
+  s_d8c5be9d81ffb3::t_db2b9de5e99545 1-101
+packages/backend/convex/mutations/dashboard/account/onboarding.ts
+  s_d8c5be9d81ffb3::t_e1a1d7c48faddc 75-77
+  s_d8c5be9d81ffb3::t_bebe1761dbdf03 5-9,11-64,68,71-74,80-82,86-90,94-96,101-102
+apps/dashboard/src/features/onboarding/OnboardingExperience.tsx
+  s_d8c5be9d81ffb3::t_2001aba0fe7518 59,98-99
+  s_d8c5be9d81ffb3::t_77f4690c838479 3,50,67-68,70,72,76,151
+  s_d8c5be9d81ffb3::t_769450f11018e2 100-103,146,160,162
+  s_d8c5be9d81ffb3::t_b32ce2cd126325 13,26,42-44,57-58,60-66,69,71,73-75,148
+apps/dashboard/src/features/app-shell/dashboardGuildSelection.ts
+  s_d8c5be9d81ffb3::t_fb742bd2174425 32
+  s_d8c5be9d81ffb3::t_cc20eed724cd06 1-31,33-52
+apps/dashboard/src/components/backgrounds/DotGrid.tsx
+  s_d8c5be9d81ffb3::t_d292c14917cb28 372-384,473-479
+apps/dashboard/src/features/onboarding/onboardingState.ts
+  s_d8c5be9d81ffb3::t_2001aba0fe7518 39-40,43,47,67-71
+  s_d8c5be9d81ffb3::t_b32ce2cd126325 1-16,18-38,41-42,44-46,48-66,72
+  s_d8c5be9d81ffb3::t_fb742bd2174425 17
+apps/dashboard/src/features/auth/ClerkSessionTask.tsx
+  s_d8c5be9d81ffb3::t_41874fb00fe307 1-2,4-17,19-20,29-33,35-39,41,43,45-58
+  s_d8c5be9d81ffb3::t_769450f11018e2 3,18,21-28,34,40,42,44
+packages/backend/convex/_generated/dataModel.d.ts
+  s_d8c5be9d81ffb3::t_9e908d060bb473 2219
+  s_d8c5be9d81ffb3::t_73b76287e9db7b 2236
+apps/dashboard/src/features/auth/clerkOperations.ts
+  s_d8c5be9d81ffb3::t_bba3fc667cc99e 1-36
+apps/dashboard/src/components/providers/app-providers.tsx
+  s_d8c5be9d81ffb3::t_41874fb00fe307 20-23
+  s_d8c5be9d81ffb3::t_9f976510077a5c 24
+apps/dashboard/src/features/auth/authContinuation.ts
+  s_d8c5be9d81ffb3::t_41874fb00fe307 1-19,22-40
+  s_d8c5be9d81ffb3::t_fb742bd2174425 20-21
+packages/backend/convex/queries/dashboard/account/onboarding.ts
+  s_d8c5be9d81ffb3::t_bebe1761dbdf03 11-15,54
+packages/backend/convex/mutations/dashboard/account/onboarding.test.ts
+  s_d8c5be9d81ffb3::t_b7e7d5d7c1c8ea 1-13,15-25,27-54,56-132
+  s_d8c5be9d81ffb3::t_e1a1d7c48faddc 133-163
+  s_d8c5be9d81ffb3::t_fb742bd2174425 14,26,55
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_d8c5be9d81ffb3::t_cc20eed724cd06 19,44,63-65
+  s_d8c5be9d81ffb3::t_c375066fff6afa 61-62,69-75
+  s_d8c5be9d81ffb3::t_fb742bd2174425 45-50
+apps/dashboard/src/features/auth/DiscordAuthPage.tsx
+  s_d8c5be9d81ffb3::t_bba3fc667cc99e 89-92,94-95
+  s_d8c5be9d81ffb3::t_9b2fad31fbfb3d 17-20
+packages/backend/convex/_generated/api.d.ts
+  s_d8c5be9d81ffb3::t_9e908d060bb473 1563-1576,1751,1818,5219,5304,5374
+  s_d8c5be9d81ffb3::t_590c35f69815df 1562
+packages/backend/convex/dbTables/users.ts
+  s_d8c5be9d81ffb3::t_bebe1761dbdf03 14-16
+apps/dashboard/src/features/auth/AuthShell.tsx
+  s_d8c5be9d81ffb3::t_9e20a107dbf262 10-11,34,37-60
+apps/discord-bot/src/services/rotatingStatus.ts
+  s_d8c5be9d81ffb3::t_a6a4ff9e33d9b9 20,29
+apps/dashboard/src/features/landing/LandingAuthActions.tsx
+  s_d8c5be9d81ffb3::t_3027917bbe1d65 3,14-16
+apps/dashboard/src/features/onboarding/OnboardingGuard.tsx
+  s_d8c5be9d81ffb3::t_fb742bd2174425 40,60
+  s_d8c5be9d81ffb3::t_b32ce2cd126325 6,17,22-23,28-29,34,37,44,49,53-54,56-58,70,75-76,85
+apps/dashboard/src/app/(auth)/session-tasks/[task]/page.tsx
+  s_d8c5be9d81ffb3::t_41874fb00fe307 1-17
+packages/backend/src/shared/onboarding.ts
+  s_d8c5be9d81ffb3::t_bebe1761dbdf03 1-18,21-27
+  s_d8c5be9d81ffb3::t_dea31b487f9037 19-20
+packages/backend/convex/mutations/integrations/clerk/users.ts
+  s_d8c5be9d81ffb3::t_bebe1761dbdf03 52
+packages/backend/convex/lib/validators.ts
+  s_d8c5be9d81ffb3::t_bebe1761dbdf03 183-185
+apps/dashboard/src/features/auth/safeRedirect.test.ts
+  s_d8c5be9d81ffb3::t_db2b9de5e99545 17-19
+apps/dashboard/src/features/app-shell/dashboardGuildSelection.test.ts
+  s_d8c5be9d81ffb3::t_db2b9de5e99545 1-54
+packages/backend/src/shared/onboarding.test.ts
+  s_d8c5be9d81ffb3::t_b7e7d5d7c1c8ea 1-15,17-41
+  s_d8c5be9d81ffb3::t_fb742bd2174425 16
+packages/backend/package.json
+  s_d8c5be9d81ffb3::t_bebe1761dbdf03 40
+apps/dashboard/src/features/auth/safeRedirect.ts
+  s_d8c5be9d81ffb3::t_bf607157107e67 4-11,17-20
+apps/dashboard/src/features/auth/authContinuation.test.ts
+  s_d8c5be9d81ffb3::t_db2b9de5e99545 1-33,35-48
+  s_d8c5be9d81ffb3::t_fb742bd2174425 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "f87ca70635b3e2f94b54fabe1b6a9eaac76710dc",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_d8c5be9d81ffb3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6f95-7bca-7090-9c69-96fef6dc4431",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
