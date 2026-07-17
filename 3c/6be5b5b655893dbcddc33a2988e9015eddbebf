@@ -1,0 +1,61 @@
+packages/backend/convex/_generated/dataModel.d.ts
+  s_d8c5be9d81ffb3::t_e0904e16e227b8 2234-2235
+  s_d8c5be9d81ffb3::t_49c16a67e42e09 2218-2219
+apps/dashboard/src/app/(app)/layout.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 1-2,5-16
+  s_d8c5be9d81ffb3::t_549e5eabcbf745 4,19-23
+packages/backend/convex/mutations/dashboard/account/onboarding.ts
+  s_d8c5be9d81ffb3::t_909b27b8161b3d 1-40
+packages/backend/convex/lib/validators.ts
+  s_d8c5be9d81ffb3::t_909b27b8161b3d 181-182
+packages/backend/convex/_generated/api.d.ts
+  s_d8c5be9d81ffb3::t_e0904e16e227b8 1557-1564,1736-1737,1792-1811
+  s_d8c5be9d81ffb3::t_2cf07ed913740b 1812-1813
+  s_d8c5be9d81ffb3::t_a1a29f1e49ee59 5202-5203,5286-5287,5355-5356
+apps/dashboard/src/app/(onboarding)/onboarding/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,5-9
+  s_d8c5be9d81ffb3::t_0ab950dd5dfe2b 1,3-4,10-19
+apps/dashboard/src/features/onboarding/OnboardingGuard.tsx
+  s_d8c5be9d81ffb3::t_549e5eabcbf745 1-2,4-7,9-20,27-29,32-41,51,53,74-82,100-140
+  s_d8c5be9d81ffb3::t_52246b98830cdc 3,8,21-26,30-31,42-50,52,54-65,83-99
+  s_d8c5be9d81ffb3::t_eb64ab682dd1ce 66-73
+apps/dashboard/src/app/(onboarding)/layout.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 1-19
+apps/dashboard/src/features/onboarding/OnboardingExperience.tsx
+  s_d8c5be9d81ffb3::t_0ab950dd5dfe2b 1-23,25-77,79-90,106-161,165-232,234-258,263-338
+  s_d8c5be9d81ffb3::t_a44dab7bc842e9 24,92-105
+  s_d8c5be9d81ffb3::t_76d36e787b7a73 91,162-164,233,259-262
+  s_d8c5be9d81ffb3::t_52246b98830cdc 78
+packages/backend/convex/dbTables/users.ts
+  s_d8c5be9d81ffb3::t_909b27b8161b3d 12-13
+packages/backend/convex/queries/dashboard/account/onboarding.ts
+  s_d8c5be9d81ffb3::t_909b27b8161b3d 1-59
+apps/dashboard/src/features/app-shell/DashboardDiscordHydrator.tsx
+  s_d8c5be9d81ffb3::t_55e1bddb485c14 9
+  s_d8c5be9d81ffb3::t_68d8022a3b34cf 10-17,31,48,53,56-62,66-67,69-70,74,82-83
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_d8c5be9d81ffb3::t_be7ca0d7014d7d 3,33,35-37,43-45,47-48,50-52,58-62
+  s_d8c5be9d81ffb3::t_a45b8d90145515 4
+  s_d8c5be9d81ffb3::t_1a25aeedfd2032 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "3c6be5b5b655893dbcddc33a2988e9015eddbebf",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_d8c5be9d81ffb3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6f95-7bca-7090-9c69-96fef6dc4431",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
