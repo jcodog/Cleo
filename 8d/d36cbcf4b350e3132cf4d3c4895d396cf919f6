@@ -1,0 +1,131 @@
+packages/ui/src/styles/globals.css
+  s_d8c5be9d81ffb3::t_b4cfbaf491ca1e 165-176,180-181,183-185,189-191,193-196,198-200,202-204,208-212,216-218,221-223,226-227,231-232,237-239
+  s_d8c5be9d81ffb3::t_16b6d35d355afc 139-140,163-164,228-230,240-241
+  s_d8c5be9d81ffb3::t_8872a86c6f91f1 179,182,186,192,197,201,205-207,213-215,219-220,224-225
+  s_d8c5be9d81ffb3::t_e79ed3e10a61f2 11-45,49-79,83-125,131,134-136,138,143-162,177-178,187-188,233-236
+  s_d8c5be9d81ffb3::t_c9488a63905165 141-142
+apps/dashboard/src/app/(auth)/sign-up/[[...sign-up]]/page.tsx
+  s_d8c5be9d81ffb3::t_4eed3b4657d1ae 1,4,13-15
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,5-9
+  s_d8c5be9d81ffb3::t_d43d6079944268 3
+apps/dashboard/src/app/(auth)/sign-in/[[...sign-in]]/page.tsx
+  s_d8c5be9d81ffb3::t_4eed3b4657d1ae 1,4,13-15
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,5-9
+  s_d8c5be9d81ffb3::t_623350a5c2407c 3
+apps/dashboard/src/features/landing/LandingAuthActions.tsx
+  s_d8c5be9d81ffb3::t_76d36e787b7a73 28
+  s_d8c5be9d81ffb3::t_77daeffb198b6c 1-9,11-14,35-127
+  s_d8c5be9d81ffb3::t_b87cb351730150 10,15-27,29-34
+apps/dashboard/src/app/(app)/kick/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2-5
+  s_d8c5be9d81ffb3::t_f48260fd8abe4f 6
+apps/dashboard/src/app/(app)/twitch/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2-5
+  s_d8c5be9d81ffb3::t_d09eb45e09a490 6
+apps/dashboard/src/app/(app)/dashboard/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,6-7
+  s_d8c5be9d81ffb3::t_6147caf45f7279 8-9
+apps/dashboard/src/components/backgrounds/DotGrid.tsx
+  s_d8c5be9d81ffb3::t_eb05c08faa432a 296
+  s_d8c5be9d81ffb3::t_1cb9fcc4b75c13 48-52,79-88,95-99,121,127,212-213,215-226,228-229,238-240,242-254,256-259,265-280,282-288,297-298,303,309-318,320-321,323-330,332-339,342-346,353-357,392,428
+  s_d8c5be9d81ffb3::t_e6aff4470d2bb1 1-47,53-78,89-94,100-120,122-123,125-126,128-188,190-211,214,227,230-237,241,260-264,289,295,299-302,304-308,319,322,331,340-341,361-391,393-427,429-502
+  s_d8c5be9d81ffb3::t_724e32c106e183 124,189,347-352,358-360
+  s_d8c5be9d81ffb3::t_55e1bddb485c14 255,281
+  s_d8c5be9d81ffb3::t_dc6e05d51a7ecc 290-294
+apps/dashboard/src/app/(app)/dashboard/[discordGuildId]/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,6-7
+  s_d8c5be9d81ffb3::t_77e717be5fd8a3 8-9
+apps/dashboard/src/app/(app)/staff/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,5-6
+  s_d8c5be9d81ffb3::t_480ed6f36bea52 7-8
+apps/dashboard/src/app/(auth)/layout.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 1-19
+apps/dashboard/src/features/auth/AuthShell.tsx
+  s_d8c5be9d81ffb3::t_c92061b37d5db2 5,7-8,34-43,49-55,59
+  s_d8c5be9d81ffb3::t_4eed3b4657d1ae 2-4,6,56-58,62-67
+  s_d8c5be9d81ffb3::t_ece56e6bbba8b2 30
+  s_d8c5be9d81ffb3::t_6d19da058ebc30 44-48
+  s_d8c5be9d81ffb3::t_55e1bddb485c14 26
+  s_d8c5be9d81ffb3::t_0f92f3abe34a40 9-25,27-29,31-33,60
+  s_d8c5be9d81ffb3::t_8f24979d47c4b2 1
+  s_d8c5be9d81ffb3::t_cb02f3732d781c 61
+apps/dashboard/src/app/(app)/dashboard/[discordGuildId]/[section]/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,20-35,37
+  s_d8c5be9d81ffb3::t_09c9ceb15d0d47 36,38
+apps/dashboard/src/app/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 1,4-7
+  s_d8c5be9d81ffb3::t_a54cb62607a66f 3,10
+  s_d8c5be9d81ffb3::t_1cb5f2e8b54213 2
+apps/dashboard/src/features/auth/safeRedirect.ts
+  s_d8c5be9d81ffb3::t_4eed3b4657d1ae 1-30
+apps/dashboard/src/features/landing/LandingPage.tsx
+  s_d8c5be9d81ffb3::t_0367f468c88df7 61,67,70,79,81,143-145,159-182,184,276,415,419,500-501,546-547,571,596,639
+  s_d8c5be9d81ffb3::t_1102e75596fa75 5-6,63,68,88,93-94,128
+  s_d8c5be9d81ffb3::t_16b6d35d355afc 141,146-147
+  s_d8c5be9d81ffb3::t_93714640bef3db 421,473,499
+  s_d8c5be9d81ffb3::t_b87cb351730150 7,24,27-32,42,44,64-66,80,84,86,92,97-98,112,126,132,142,188-214,216,219-220,222-225,227-228,232-250,253,257,259-270,272-274,277-286,296,302-324,326-336,338,341,343-357,359-399,401,405,407-414,416-418,441,456,505-506,510-511,513,515,517-518,521-543,545,548-568,570,572-595,602,604-605,607-608,615-617,619,623,625-626,628,630-638,647-648,653-666,670-672
+  s_d8c5be9d81ffb3::t_15c27fd0e9eb7f 358,610,612
+  s_d8c5be9d81ffb3::t_c1a99752dbf8e2 218,221
+  s_d8c5be9d81ffb3::t_a198541a07d594 299-301,339-340,342,400
+  s_d8c5be9d81ffb3::t_c9488a63905165 16,23,47-55,60,105,110,115,117-124,127,129-131,133-137,139,148-149,151-153,155-157,629
+  s_d8c5be9d81ffb3::t_1fa581dbb264cc 87,89
+  s_d8c5be9d81ffb3::t_c8ff623d3495f3 9-10,12,33-34,62,69,71-72,183,185-187,215,217,226,254-256,258,271,275,297-298,402-404,406,420,569,597-601,624,627,640-646,667
+  s_d8c5be9d81ffb3::t_a54cb62607a66f 1,4,13-15,17-18,21-22,25-26,35-41,43,45-46,56-59,74-78,82-83,90-91,95,99-101,103-104,106-109,111,113-114,116,125,140,668-669
+  s_d8c5be9d81ffb3::t_76d36e787b7a73 96,138,287-288,291-295,649-652
+  s_d8c5be9d81ffb3::t_77daeffb198b6c 19-20,73,102
+  s_d8c5be9d81ffb3::t_bb01f2e4199bbe 502-504,507-509,512,514,516,519-520,544
+  s_d8c5be9d81ffb3::t_560318c22f89c2 422-440,442-455,457-472,474,476-498
+  s_d8c5be9d81ffb3::t_ff930219d9f5f8 325,337
+  s_d8c5be9d81ffb3::t_40adebd19cb9fd 2-3,8,11,229-231,251-252
+  s_d8c5be9d81ffb3::t_3e7a3f95986d24 289-290,475
+  s_d8c5be9d81ffb3::t_b4cfbaf491ca1e 85,150,154,158
+  s_d8c5be9d81ffb3::t_45be3fd17d789f 603,606,609,611,613-614,618,620-622
+apps/dashboard/src/app/(auth)/sso-callback/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,5-8
+  s_d8c5be9d81ffb3::t_4eed3b4657d1ae 1,3-4,9-16
+apps/dashboard/src/app/(app)/staff/discord-runtime-incidents/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,6-7
+  s_d8c5be9d81ffb3::t_0285de7896835c 8-9
+apps/dashboard/src/app/(app)/dashboard/add-server/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,6-7
+  s_d8c5be9d81ffb3::t_f57795c9508721 8-9
+apps/dashboard/src/features/auth/DiscordAuthPage.tsx
+  s_d8c5be9d81ffb3::t_4eed3b4657d1ae 1-16,18-22,25-31,34-85,87-95,97-188
+  s_d8c5be9d81ffb3::t_8f24979d47c4b2 33
+  s_d8c5be9d81ffb3::t_55e1bddb485c14 17,86
+  s_d8c5be9d81ffb3::t_c92061b37d5db2 96
+  s_d8c5be9d81ffb3::t_30f5775dd2f44e 23-24,32
+apps/dashboard/src/app/(app)/staff/support-tickets/page.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,6-7
+  s_d8c5be9d81ffb3::t_fd3dd27267493e 8-9
+apps/dashboard/src/features/auth/DiscordOAuthCallback.tsx
+  s_d8c5be9d81ffb3::t_4eed3b4657d1ae 1-4,6-16,18-28,39-230,235-238,240-306
+  s_d8c5be9d81ffb3::t_c92061b37d5db2 239
+  s_d8c5be9d81ffb3::t_55e1bddb485c14 5,17,29-38,231-234
+apps/dashboard/src/app/layout.tsx
+  s_d8c5be9d81ffb3::t_73db5bc3a9f06f 2,4,18-90
+  s_d8c5be9d81ffb3::t_943876dab62f47 91
+apps/dashboard/src/features/auth/safeRedirect.test.ts
+  s_d8c5be9d81ffb3::t_4eed3b4657d1ae 1-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8dd36cbcf4b350e3132cf4d3c4895d396cf919f6",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_d8c5be9d81ffb3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6f95-7bca-7090-9c69-96fef6dc4431",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
