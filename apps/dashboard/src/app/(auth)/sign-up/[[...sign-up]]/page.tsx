@@ -1,9 +1,17 @@
-import { SignUp } from "@clerk/nextjs"
+import { Suspense } from "react"
+import type { Metadata } from "next"
+
+import { DiscordAuthPage } from "@/features/auth/DiscordAuthPage"
+
+export const metadata: Metadata = {
+  title: "Create account",
+  description: "Use Discord to get started with Cleo.",
+}
 
 export default function SignUpPage() {
   return (
-    <main className="flex min-h-svh items-center justify-center p-6">
-      <SignUp />
-    </main>
+    <Suspense>
+      <DiscordAuthPage mode="sign-up" />
+    </Suspense>
   )
 }

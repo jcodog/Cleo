@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server"
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import {
@@ -14,6 +15,25 @@ type DiscordGuildSectionPageProps = {
     discordGuildId: string
     section: string
   }>
+}
+
+const SECTION_TITLES: Record<string, string> = {
+  logs: "Logs",
+  moderation: "Moderation",
+  overview: "Overview",
+  settings: "Settings",
+  support: "Support",
+  welcome: "Welcome",
+}
+
+export async function generateMetadata({
+  params,
+}: DiscordGuildSectionPageProps): Promise<Metadata> {
+  const { section } = await params
+
+  return {
+    title: SECTION_TITLES[section] ?? "Discord server",
+  }
 }
 
 export default async function DiscordGuildSectionPage({
