@@ -1,0 +1,24 @@
+apps/discord-bot/src/services/rotatingStatus.ts
+  s_d8c5be9d81ffb3::t_548a60f4e77c34 20,29,35-43,111-113,134-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b1068f6e4f0a206576c24a6d5cf4e9efcb30fc0c",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_d8c5be9d81ffb3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6f95-7bca-7090-9c69-96fef6dc4431",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
