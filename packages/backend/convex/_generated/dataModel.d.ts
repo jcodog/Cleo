@@ -2215,6 +2215,8 @@ export type DataModel = {
       displayName?: string | null;
       email: string;
       imageUrl?: string | null;
+      onboardingCompletedAt?: number;
+      onboardingVersion?: number;
       role: "user" | "staff" | "admin" | "superadmin";
       status?: "active" | "disabled";
       updatedAt: number;
@@ -2229,6 +2231,8 @@ export type DataModel = {
       | "displayName"
       | "email"
       | "imageUrl"
+      | "onboardingCompletedAt"
+      | "onboardingVersion"
       | "role"
       | "status"
       | "updatedAt";

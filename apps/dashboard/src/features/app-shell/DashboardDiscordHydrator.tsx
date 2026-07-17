@@ -6,7 +6,15 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 import { useAction, useConvexAuth } from "convex/react"
 import { usePathname } from "next/navigation"
 
-export function DashboardDiscordHydrator() {
+export type DashboardDiscordSyncStatus = "idle" | "syncing" | "ready" | "error"
+
+export function DashboardDiscordHydrator({
+  onStatusChange,
+  retryToken = 0,
+}: {
+  onStatusChange?: (status: DashboardDiscordSyncStatus) => void
+  retryToken?: number
+}) {
   const pathname = usePathname()
   const { isLoaded, isSignedIn, userId } = useAuth()
   const { isLoading: isConvexAuthLoading, isAuthenticated } = useConvexAuth()
@@ -20,7 +28,7 @@ export function DashboardDiscordHydrator() {
 
   useEffect(() => {
     if (
-      !pathname.startsWith("/dashboard") ||
+      (!pathname.startsWith("/dashboard") && pathname !== "/onboarding") ||
       !isLoaded ||
       !isSignedIn ||
       !userId ||
@@ -37,20 +45,33 @@ export function DashboardDiscordHydrator() {
     }
 
     if (sessionStorage.getItem(syncKey) === "ready") {
+      onStatusChange?.("ready")
       return
     }
 
     activeSyncKey.current = syncKey
+    onStatusChange?.("syncing")
 
     void syncLinkedAccounts({})
-      .then(() => syncDashboardGuilds({}))
+      .then((result) => {
+        if (result.status !== "ready") {
+          throw new Error("Linked account synchronisation is unavailable.")
+        }
+
+        return syncDashboardGuilds({})
+      })
       .then((result) => {
         if (result.status === "ready") {
           sessionStorage.setItem(syncKey, "ready")
+          onStatusChange?.("ready")
+          return
         }
+
+        throw new Error("Discord server synchronisation is unavailable.")
       })
       .catch(() => {
         activeSyncKey.current = null
+        onStatusChange?.("error")
       })
   }, [
     isAuthenticated,
@@ -58,6 +79,8 @@ export function DashboardDiscordHydrator() {
     isLoaded,
     isSignedIn,
     pathname,
+    onStatusChange,
+    retryToken,
     syncDashboardGuilds,
     syncLinkedAccounts,
     userId,

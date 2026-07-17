@@ -1,6 +1,7 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { useEffect } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import {
   IconHome,
   IconLogs,
@@ -29,25 +30,36 @@ export function DashboardShellClient({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const staffAccess = useQuery(api.queries.dashboard.staff.access.get)
+  const manageableGuilds = useQuery(
+    api.queries.dashboard.discord.guilds.manageable.list
+  )
   const currentArea = getAppShellAreaFromPathname(pathname)
   const staffEntry = getStaffTopbarEntry(currentArea, staffAccess)
   const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
+  const storedGuildIsManageable = manageableGuilds?.some(
+    (guild) => guild.discordGuildId === storedDiscordGuildId
+  )
   const activeDiscordGuildId =
-    getRouteDiscordGuildId(pathname) ?? storedDiscordGuildId
+    getRouteDiscordGuildId(pathname) ??
+    (storedGuildIsManageable ? storedDiscordGuildId : undefined)
   const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
-  const discordOverviewHref =
-    pathname === "/dashboard"
-      ? "/dashboard"
-      : activeDiscordGuildId
-        ? `/dashboard/${activeDiscordGuildId}`
-        : "/dashboard"
+  const discordOverviewHref = activeDiscordGuildId
+    ? `/dashboard/${activeDiscordGuildId}`
+    : "/dashboard"
   const discordGuildSectionHref = (section: string) =>
     activeDiscordGuildId
       ? `/dashboard/${activeDiscordGuildId}/${section}`
       : "/dashboard"
+
+  useEffect(() => {
+    if (pathname === "/dashboard" && activeDiscordGuildId) {
+      router.replace(`/dashboard/${activeDiscordGuildId}`)
+    }
+  }, [activeDiscordGuildId, pathname, router])
 
   const discordNavSections: AppShellNavSection[] = [
     {

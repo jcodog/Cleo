@@ -1554,6 +1554,14 @@ export declare const api: {
             >;
           };
         };
+        onboarding: {
+          complete: FunctionReference<
+            "mutation",
+            "public",
+            {},
+            { onboardingCompletedAt: number; onboardingVersion: number }
+          >;
+        };
       };
       discord: {
         guildConfigs: {
@@ -1725,6 +1733,8 @@ export declare const api: {
               displayName?: string | null;
               email: string;
               imageUrl?: string | null;
+              onboardingCompletedAt?: number;
+              onboardingVersion?: number;
               role: "user" | "staff" | "admin" | "superadmin";
               status?: "active" | "disabled";
               updatedAt: number;
@@ -1777,6 +1787,28 @@ export declare const api: {
               userId: Id<"users">;
               username?: string;
             }>
+          >;
+        };
+        onboarding: {
+          get: FunctionReference<
+            "query",
+            "public",
+            {},
+            | { status: "accountSyncPending" }
+            | {
+                account: {
+                  displayName: string | null;
+                  imageUrl: string | null;
+                  onboardingCompletedAt: number | null;
+                  onboardingVersion: number | null;
+                };
+                discordIdentity: {
+                  avatarUrl: string | null;
+                  displayName: string | null;
+                  username: string | null;
+                } | null;
+                status: "ready";
+              }
           >;
         };
       };
@@ -5167,6 +5199,8 @@ export declare const internal: {
                     displayName?: string | null;
                     email: string;
                     imageUrl?: string | null;
+                    onboardingCompletedAt?: number;
+                    onboardingVersion?: number;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
                     updatedAt: number;
@@ -5249,6 +5283,8 @@ export declare const internal: {
                     displayName?: string | null;
                     email: string;
                     imageUrl?: string | null;
+                    onboardingCompletedAt?: number;
+                    onboardingVersion?: number;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
                     updatedAt: number;
@@ -5316,6 +5352,8 @@ export declare const internal: {
                     displayName?: string | null;
                     email: string;
                     imageUrl?: string | null;
+                    onboardingCompletedAt?: number;
+                    onboardingVersion?: number;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
                     updatedAt: number;

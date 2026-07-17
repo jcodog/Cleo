@@ -2,7 +2,6 @@ import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar"
 
 import { AppSidebar } from "@/features/app-shell/AppSidebar"
 import { AppTopbar } from "@/features/app-shell/AppTopbar"
-import { DashboardDiscordHydrator } from "@/features/app-shell/DashboardDiscordHydrator"
 import type { AppShellProps } from "@/features/app-shell/types"
 
 export function AppShell({
@@ -15,7 +14,6 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <SidebarProvider>
-      <DashboardDiscordHydrator />
       <AppSidebar
         navSections={navSections}
         footerNavSections={footerNavSections}

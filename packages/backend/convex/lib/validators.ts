@@ -178,6 +178,8 @@ export const userDoc = v.object({
     v.literal("superadmin")
   ),
   status: v.optional(v.union(v.literal("active"), v.literal("disabled"))),
+  onboardingCompletedAt: v.optional(v.number()),
+  onboardingVersion: v.optional(v.number()),
   createdAt: v.number(),
   updatedAt: v.number(),
 })
