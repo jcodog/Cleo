@@ -2,10 +2,13 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
+  createMissingRequirementFormState,
   getSessionTaskPath,
+  getSessionTaskReturnTo,
+  keepMissingRequirementValidationError,
   partitionMissingRequirements,
 } from "./authContinuation"
-import { getClerkOperationError } from "./clerkOperations"
+import { getClerkOperationError, resetClerkAttempts } from "./clerkOperations"
 
 test("Clerk promise rejection becomes a readable retry error", async () => {
   assert.equal(
@@ -29,14 +32,92 @@ test("Clerk returned errors and successful operations are distinguished", async 
   )
 })
 
-test("configured missing requirements continue without restarting OAuth", () => {
+test("configured profile requirements continue without restarting OAuth", () => {
   assert.deepEqual(
-    partitionMissingRequirements(["first_name", "last_name", "legal_accepted"]),
+    partitionMissingRequirements(["first_name", "last_name", "username"]),
     {
-      supported: ["first_name", "last_name", "legal_accepted"],
+      supported: ["first_name", "last_name", "username"],
       unsupported: [],
     }
   )
+})
+
+test("legal acceptance stays unsupported until reviewed policy surfaces exist", () => {
+  assert.deepEqual(partitionMissingRequirements(["legal_accepted"]), {
+    supported: [],
+    unsupported: ["legal_accepted"],
+  })
+})
+
+test("requirement validation errors preserve fields and entered values", () => {
+  const form = createMissingRequirementFormState(["first_name", "username"], {
+    firstName: "Jason",
+    lastName: "",
+    username: "existing-name",
+  })
+
+  assert.deepEqual(
+    keepMissingRequirementValidationError(
+      form,
+      "That username is unavailable."
+    ),
+    {
+      errorMessage: "That username is unavailable.",
+      fields: ["first_name", "username"],
+      unsupportedFields: [],
+      values: {
+        firstName: "Jason",
+        lastName: "",
+        username: "existing-name",
+      },
+    }
+  )
+})
+
+test("Clerk retry navigates only after both resets succeed", async () => {
+  assert.equal(
+    await resetClerkAttempts(
+      async () => ({ error: null }),
+      async () => ({ error: null })
+    ),
+    null
+  )
+})
+
+test("Clerk retry retains a sign-in reset error", async () => {
+  assert.equal(
+    await resetClerkAttempts(
+      async () => ({ error: { message: "Sign-in reset failed." } }),
+      async () => ({ error: null })
+    ),
+    "Sign-in reset failed."
+  )
+})
+
+test("Clerk retry retains a sign-up reset error", async () => {
+  assert.equal(
+    await resetClerkAttempts(
+      async () => ({ error: null }),
+      async () => ({ error: { message: "Sign-up reset failed." } })
+    ),
+    "Sign-up reset failed."
+  )
+})
+
+test("Clerk retry retains rejected reset operations", async () => {
+  for (const rejectSignIn of [true, false]) {
+    assert.equal(
+      await resetClerkAttempts(
+        rejectSignIn
+          ? () => Promise.reject(new Error("Reset rejected."))
+          : async () => ({ error: null }),
+        rejectSignIn
+          ? async () => ({ error: null })
+          : () => Promise.reject(new Error("Reset rejected."))
+      ),
+      "Reset rejected."
+    )
+  }
 })
 
 test("pending Clerk session tasks use dedicated continuation routes", () => {
@@ -45,4 +126,6 @@ test("pending Clerk session tasks use dedicated continuation routes", () => {
     "/session-tasks/setup-mfa?returnTo=%2Fdashboard%2F123"
   )
   assert.equal(getSessionTaskPath("unknown-task", "/dashboard"), null)
+  assert.equal(getSessionTaskReturnTo("/dashboard/123"), "/dashboard/123")
+  assert.equal(getSessionTaskReturnTo("https://evil.example"), "/onboarding")
 })

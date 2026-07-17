@@ -1,5 +1,4 @@
 import {
-  IconActivity,
   IconAdjustments,
   IconBrandDiscord,
   IconBrandKick,

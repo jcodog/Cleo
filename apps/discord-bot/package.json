@@ -3,10 +3,7 @@
   "version": "3.1.0",
   "private": true,
   "type": "module",
-  "files": [
-    "dist",
-    "runtime-artifact.json"
-  ],
+  "files": ["dist", "runtime-artifact.json"],
   "scripts": {
     "dev": "tsx watch --env-file=.env.local src/index.ts",
     "start": "tsx src/index.ts",
@@ -25,21 +22,21 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
-    "discord.js": "^14.27.0"
+    "discord.js": "^14.26.4"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "@workspace/backend": "workspace:*",
-    "@workspace/env": "workspace:*",
     "@workspace/eslint-config": "workspace:*",
+    "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "convex": "^1.42.2",
+    "convex": "^1.42.1",
     "esbuild": "^0.28.1",
     "eslint": "catalog:",
     "prettier": "catalog:",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.0",
     "typescript": "catalog:",
     "zod": "^4.4.3"
   }

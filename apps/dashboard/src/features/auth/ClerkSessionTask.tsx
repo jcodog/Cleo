@@ -1,38 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import {
   TaskChooseOrganization,
   TaskResetPassword,
   TaskSetupMFA,
-  useAuth,
 } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 
 import { AuthShell } from "@/features/auth/AuthShell"
-import { getSafeInternalPath } from "@/features/auth/safeRedirect"
+import { getSessionTaskReturnTo } from "@/features/auth/authContinuation"
 
 export function ClerkSessionTask({ task }: { task: string }) {
-  const router = useRouter()
-  const { isLoaded, isSignedIn } = useAuth()
-  const [returnTo, setReturnTo] = useState("/onboarding")
-
-  useEffect(() => {
-    const storedReturnTo = getSafeInternalPath(
-      sessionStorage.getItem("cleo:auth-return-to")
-    )
-
-    if (storedReturnTo) {
-      setReturnTo(storedReturnTo)
-    }
-
-    if (!isLoaded || !isSignedIn) {
-      return
-    }
-
-    sessionStorage.removeItem("cleo:auth-return-to")
-    router.replace(storedReturnTo ?? "/onboarding")
-  }, [isLoaded, isSignedIn, router])
+  const searchParams = useSearchParams()
+  const returnTo = getSessionTaskReturnTo(searchParams.get("returnTo"))
 
   return (
     <AuthShell>

@@ -9,7 +9,6 @@ import {
   AlertTitle,
 } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
-import { Checkbox } from "@workspace/ui/components/checkbox"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { Spinner } from "@workspace/ui/components/spinner"
@@ -17,13 +16,16 @@ import { useRouter, useSearchParams } from "next/navigation"
 
 import { AuthShell } from "@/features/auth/AuthShell"
 import {
+  createMissingRequirementFormState,
   getSessionTaskPath,
-  partitionMissingRequirements,
+  keepMissingRequirementValidationError,
+  type MissingRequirementFormState,
   type SupportedMissingRequirement,
 } from "@/features/auth/authContinuation"
 import {
   getClerkErrorMessage,
   getClerkOperationError,
+  resetClerkAttempts,
 } from "@/features/auth/clerkOperations"
 import { getSafeInternalPath, withReturnTo } from "@/features/auth/safeRedirect"
 
@@ -32,8 +34,7 @@ type CallbackState =
   | { status: "error"; message: string }
   | {
       status: "requirements"
-      fields: SupportedMissingRequirement[]
-      unsupportedFields: string[]
+      form: MissingRequirementFormState
     }
 
 export function DiscordOAuthCallback() {
@@ -52,7 +53,6 @@ export function DiscordOAuthCallback() {
     fetchStatus: signUpFetchStatus,
   } = useSignUp()
   const [state, setState] = useState<CallbackState>({ status: "processing" })
-  const [legalAccepted, setLegalAccepted] = useState(false)
   const attemptKeyRef = useRef<string | null>(null)
   const flow = searchParams.get("flow") === "sign-up" ? "sign-up" : "sign-in"
   const returnTo =
@@ -225,11 +225,9 @@ export function DiscordOAuthCallback() {
       }
 
       if (signUp.status === "missing_requirements") {
-        const fields = partitionMissingRequirements(signUp.missingFields)
         setState({
           status: "requirements",
-          fields: fields.supported,
-          unsupportedFields: fields.unsupported,
+          form: createMissingRequirementFormState(signUp.missingFields),
         })
         return
       }
@@ -270,45 +268,51 @@ export function DiscordOAuthCallback() {
 
   async function submitMissingRequirements(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const fields: SupportedMissingRequirement[] =
-      state.status === "requirements" ? state.fields : []
+    if (state.status !== "requirements") {
+      return
+    }
+
+    const currentForm = state.form
+    const fields: SupportedMissingRequirement[] = currentForm.fields
     const updates: {
       firstName?: string
       lastName?: string
-      legalAccepted?: boolean
       username?: string
     } = {}
 
     if (fields.includes("first_name")) {
-      updates.firstName = String(formData.get("firstName") ?? "").trim()
+      updates.firstName = currentForm.values.firstName.trim()
     }
     if (fields.includes("last_name")) {
-      updates.lastName = String(formData.get("lastName") ?? "").trim()
+      updates.lastName = currentForm.values.lastName.trim()
     }
     if (fields.includes("username")) {
-      updates.username = String(formData.get("username") ?? "").trim()
-    }
-    if (fields.includes("legal_accepted")) {
-      updates.legalAccepted = legalAccepted
+      updates.username = currentForm.values.username.trim()
     }
 
-    setState({ status: "processing" })
+    setState({
+      status: "requirements",
+      form: { ...currentForm, errorMessage: null },
+    })
     const updateError = await getClerkOperationError(() =>
       signUp.update(updates)
     )
 
     if (updateError) {
-      setState({ status: "error", message: updateError })
+      setState({
+        status: "requirements",
+        form: keepMissingRequirementValidationError(currentForm, updateError),
+      })
       return
     }
 
     if (signUp.status === "missing_requirements") {
-      const nextFields = partitionMissingRequirements(signUp.missingFields)
       setState({
         status: "requirements",
-        fields: nextFields.supported,
-        unsupportedFields: nextFields.unsupported,
+        form: createMissingRequirementFormState(
+          signUp.missingFields,
+          currentForm.values
+        ),
       })
       return
     }
@@ -320,6 +324,8 @@ export function DiscordOAuthCallback() {
       })
       return
     }
+
+    setState({ status: "processing" })
 
     const finalizeError = await getClerkOperationError(() =>
       signUp.finalize({
@@ -353,14 +359,19 @@ export function DiscordOAuthCallback() {
   }
 
   async function retry() {
-    const resetError = await getClerkOperationError(() =>
-      Promise.all([signIn.reset(), signUp.reset()])
+    const resetError = await resetClerkAttempts(
+      () => signIn.reset(),
+      () => signUp.reset()
     )
 
     if (resetError) {
+      const existingMessage =
+        state.status === "error"
+          ? state.message
+          : "Discord authentication could not finish."
       setState({
         status: "error",
-        message: `${resetError} Retry remains available.`,
+        message: `${existingMessage} ${resetError} Retry remains available.`,
       })
       return
     }
@@ -404,74 +415,107 @@ export function DiscordOAuthCallback() {
           </AlertTitle>
           <AlertDescription>
             {state.status === "requirements"
-              ? state.unsupportedFields.length > 0
-                ? `Clerk requires unsupported Discord-only fields: ${state.unsupportedFields.join(", ")}. Contact Cleo support before retrying.`
-                : "Add the remaining account information to finish with Discord."
+              ? (state.form.errorMessage ??
+                (state.form.unsupportedFields.length > 0
+                  ? `Clerk requires unsupported Discord-only fields: ${state.form.unsupportedFields.join(", ")}. Contact Cleo support before retrying.`
+                  : "Add the remaining account information to finish with Discord."))
               : state.message}
           </AlertDescription>
         </Alert>
       )}
 
       {state.status === "requirements" &&
-      state.unsupportedFields.length === 0 &&
-      state.fields.length > 0 ? (
+      state.form.unsupportedFields.length === 0 &&
+      state.form.fields.length > 0 ? (
         <form
           className="flex flex-col gap-5"
           onSubmit={submitMissingRequirements}
         >
-          {state.fields.includes("first_name") ? (
+          {state.form.fields.includes("first_name") ? (
             <div className="space-y-2">
               <Label htmlFor="firstName">First name</Label>
               <Input
                 autoComplete="given-name"
                 id="firstName"
                 name="firstName"
+                onChange={(event) =>
+                  setState((current) =>
+                    current.status === "requirements"
+                      ? {
+                          ...current,
+                          form: {
+                            ...current.form,
+                            values: {
+                              ...current.form.values,
+                              firstName: event.target.value,
+                            },
+                          },
+                        }
+                      : current
+                  )
+                }
                 required
+                value={state.form.values.firstName}
               />
             </div>
           ) : null}
-          {state.fields.includes("last_name") ? (
+          {state.form.fields.includes("last_name") ? (
             <div className="space-y-2">
               <Label htmlFor="lastName">Last name</Label>
               <Input
                 autoComplete="family-name"
                 id="lastName"
                 name="lastName"
+                onChange={(event) =>
+                  setState((current) =>
+                    current.status === "requirements"
+                      ? {
+                          ...current,
+                          form: {
+                            ...current.form,
+                            values: {
+                              ...current.form.values,
+                              lastName: event.target.value,
+                            },
+                          },
+                        }
+                      : current
+                  )
+                }
                 required
+                value={state.form.values.lastName}
               />
             </div>
           ) : null}
-          {state.fields.includes("username") ? (
+          {state.form.fields.includes("username") ? (
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
                 autoComplete="username"
                 id="username"
                 name="username"
-                required
-              />
-            </div>
-          ) : null}
-          {state.fields.includes("legal_accepted") ? (
-            <div className="flex items-start gap-3">
-              <Checkbox
-                checked={legalAccepted}
-                id="legalAccepted"
-                onCheckedChange={(checked) =>
-                  setLegalAccepted(checked === true)
+                onChange={(event) =>
+                  setState((current) =>
+                    current.status === "requirements"
+                      ? {
+                          ...current,
+                          form: {
+                            ...current.form,
+                            values: {
+                              ...current.form.values,
+                              username: event.target.value,
+                            },
+                          },
+                        }
+                      : current
+                  )
                 }
+                required
+                value={state.form.values.username}
               />
-              <Label className="leading-5" htmlFor="legalAccepted">
-                I accept Cleo&apos;s terms and privacy policy.
-              </Label>
             </div>
           ) : null}
-          <Button
-            className="h-12 w-full"
-            disabled={state.fields.includes("legal_accepted") && !legalAccepted}
-            size="lg"
-            type="submit"
-          >
+          <Button className="h-12 w-full" size="lg" type="submit">
             Finish account
           </Button>
         </form>

@@ -25,14 +25,6 @@ export const resolveProvenance = mutation({
     const onboardingProvenance =
       user.onboardingProvenance ?? getOnboardingProvenance(user.createdAt)
 
-    if (user.onboardingProvenance !== undefined) {
-      return {
-        onboardingCompletedAt: user.onboardingCompletedAt ?? null,
-        onboardingVersion: user.onboardingVersion ?? null,
-        onboardingProvenance,
-      }
-    }
-
     if (onboardingProvenance === "pre-rollout") {
       const onboardingCompletedAt = user.onboardingCompletedAt ?? user.createdAt
       const onboardingVersion = Math.max(
@@ -40,15 +32,30 @@ export const resolveProvenance = mutation({
         CURRENT_ONBOARDING_VERSION
       )
 
-      await ctx.db.patch(user._id, {
-        onboardingCompletedAt,
-        onboardingVersion,
-        onboardingProvenance,
-      })
+      if (
+        user.onboardingCompletedAt === undefined ||
+        user.onboardingVersion === undefined ||
+        user.onboardingVersion < CURRENT_ONBOARDING_VERSION ||
+        user.onboardingProvenance === undefined
+      ) {
+        await ctx.db.patch(user._id, {
+          onboardingCompletedAt,
+          onboardingVersion,
+          onboardingProvenance,
+        })
+      }
 
       return {
         onboardingCompletedAt,
         onboardingVersion,
+        onboardingProvenance,
+      }
+    }
+
+    if (user.onboardingProvenance !== undefined) {
+      return {
+        onboardingCompletedAt: user.onboardingCompletedAt ?? null,
+        onboardingVersion: user.onboardingVersion ?? null,
         onboardingProvenance,
       }
     }

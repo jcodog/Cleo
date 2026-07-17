@@ -99,9 +99,7 @@ function setBotPresence(
   client.user.setPresence(presence)
 }
 
-function createShardSummaryPresence(
-  client: Client<true>
-): RotatingStatusPresence {
+function createShardSummaryPresence(client: Client<true>): RotatingStatusPresence {
   const shardCount = client.shard?.count ?? 1
   const serverCount = client.guilds.cache.size
   const serverLabel = serverCount === 1 ? "server" : "servers"
@@ -122,9 +120,7 @@ function createShardSummaryPresence(
   }
 }
 
-function createShardDebugPresence(
-  client: Client<true>
-): RotatingStatusPresence {
+function createShardDebugPresence(client: Client<true>): RotatingStatusPresence {
   const shardIds = client.shard?.ids ?? [0]
   const shardLabel = shardIds.map((shardId) => shardId + 1).join(",")
   const guildCount = client.guilds.cache.size

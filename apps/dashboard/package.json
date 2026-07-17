@@ -14,13 +14,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.5.19",
+    "@clerk/nextjs": "^7.5.15",
     "@clerk/themes": "^2.4.57",
     "@tabler/icons-react": "^3.44.0",
     "@workspace/backend": "workspace:*",
     "@workspace/env": "workspace:*",
     "@workspace/ui": "workspace:*",
-    "convex": "^1.42.2",
+    "convex": "^1.42.1",
     "gsap": "^3.15.0",
     "next": "16.2.10",
     "next-themes": "^0.4.6",

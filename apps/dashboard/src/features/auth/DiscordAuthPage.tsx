@@ -86,7 +86,6 @@ export function DiscordAuthPage({ mode }: { mode: AuthMode }) {
       redirectUrl: returnTo,
       redirectCallbackUrl: `/sso-callback?${callbackParams.toString()}`,
     }
-    sessionStorage.setItem("cleo:auth-return-to", returnTo)
     const errorMessage = await getClerkOperationError(() =>
       mode === "sign-in" ? signIn.sso(params) : signUp.sso(params)
     )

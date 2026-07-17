@@ -34,3 +34,15 @@ export async function getClerkOperationError(
     return getClerkErrorMessage(error)
   }
 }
+
+export async function resetClerkAttempts(
+  resetSignIn: () => Promise<unknown>,
+  resetSignUp: () => Promise<unknown>
+): Promise<string | null> {
+  const [signInError, signUpError] = await Promise.all([
+    getClerkOperationError(resetSignIn),
+    getClerkOperationError(resetSignUp),
+  ])
+
+  return signInError ?? signUpError
+}
