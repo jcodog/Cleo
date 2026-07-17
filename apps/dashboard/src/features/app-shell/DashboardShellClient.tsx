@@ -16,6 +16,7 @@ import { useQuery } from "convex/react"
 
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { AppShell } from "@/features/app-shell/AppShell"
+import { getDashboardGuildSelection } from "@/features/app-shell/dashboardGuildSelection"
 import {
   getAppShellAreaFromPathname,
   getRouteDiscordGuildId,
@@ -40,12 +41,13 @@ export function DashboardShellClient({
   const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
-  const storedGuildIsManageable = manageableGuilds?.some(
-    (guild) => guild.discordGuildId === storedDiscordGuildId
-  )
-  const activeDiscordGuildId =
-    getRouteDiscordGuildId(pathname) ??
-    (storedGuildIsManageable ? storedDiscordGuildId : undefined)
+  const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
+  const { activeDiscordGuildId, invalidRouteGuildId, safeDashboardPath } =
+    getDashboardGuildSelection({
+      manageableGuilds,
+      routeDiscordGuildId,
+      storedDiscordGuildId,
+    })
   const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
   const discordOverviewHref = activeDiscordGuildId
     ? `/dashboard/${activeDiscordGuildId}`
@@ -56,10 +58,21 @@ export function DashboardShellClient({
       : "/dashboard"
 
   useEffect(() => {
+    if (invalidRouteGuildId) {
+      router.replace(safeDashboardPath)
+      return
+    }
+
     if (pathname === "/dashboard" && activeDiscordGuildId) {
       router.replace(`/dashboard/${activeDiscordGuildId}`)
     }
-  }, [activeDiscordGuildId, pathname, router])
+  }, [
+    activeDiscordGuildId,
+    invalidRouteGuildId,
+    pathname,
+    router,
+    safeDashboardPath,
+  ])
 
   const discordNavSections: AppShellNavSection[] = [
     {

@@ -14,6 +14,10 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 
 import { AuthShell } from "@/features/auth/AuthShell"
+import {
+  getClerkErrorMessage,
+  getClerkOperationError,
+} from "@/features/auth/clerkOperations"
 import { getSafeInternalPath, withReturnTo } from "@/features/auth/safeRedirect"
 
 type AuthMode = "sign-in" | "sign-up"
@@ -82,11 +86,13 @@ export function DiscordAuthPage({ mode }: { mode: AuthMode }) {
       redirectUrl: returnTo,
       redirectCallbackUrl: `/sso-callback?${callbackParams.toString()}`,
     }
-    const result =
-      mode === "sign-in" ? await signIn.sso(params) : await signUp.sso(params)
+    sessionStorage.setItem("cleo:auth-return-to", returnTo)
+    const errorMessage = await getClerkOperationError(() =>
+      mode === "sign-in" ? signIn.sso(params) : signUp.sso(params)
+    )
 
-    if (result.error) {
-      setLocalError(getClerkErrorMessage(result.error))
+    if (errorMessage) {
+      setLocalError(errorMessage)
     }
   }
 
@@ -152,25 +158,6 @@ export function DiscordAuthPage({ mode }: { mode: AuthMode }) {
       </p>
     </AuthShell>
   )
-}
-
-export function getClerkErrorMessage(error: unknown): string {
-  if (typeof error === "object" && error !== null) {
-    const candidate = error as {
-      longMessage?: unknown
-      message?: unknown
-    }
-
-    if (typeof candidate.longMessage === "string") {
-      return candidate.longMessage
-    }
-
-    if (typeof candidate.message === "string") {
-      return candidate.message
-    }
-  }
-
-  return "Cleo could not complete the Discord request. Please try again."
 }
 
 function getHookErrorMessage(errors: unknown): string | null {

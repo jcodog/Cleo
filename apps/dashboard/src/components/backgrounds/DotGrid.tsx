@@ -369,7 +369,19 @@ export function DotGrid({
     const onMove = (event: PointerEvent) => {
       const now = performance.now()
       const pointer = pointerRef.current
-      const elapsed = pointer.lastTime ? now - pointer.lastTime : 16
+      const rect = wrapper.getBoundingClientRect()
+
+      if (pointer.lastTime === 0) {
+        pointer.lastTime = now
+        pointer.lastX = event.clientX
+        pointer.lastY = event.clientY
+        pointer.lastActivity = now
+        pointer.x = event.clientX - rect.left
+        pointer.y = event.clientY - rect.top
+        return
+      }
+
+      const elapsed = Math.max(now - pointer.lastTime, 1)
       const deltaX = event.clientX - pointer.lastX
       const deltaY = event.clientY - pointer.lastY
       let velocityX = (deltaX / elapsed) * 1000
@@ -391,7 +403,6 @@ export function DotGrid({
       pointer.speed = speed
       pointer.lastActivity = now
 
-      const rect = wrapper.getBoundingClientRect()
       pointer.x = event.clientX - rect.left
       pointer.y = event.clientY - rect.top
 
@@ -459,8 +470,13 @@ export function DotGrid({
     }
 
     const onLeave = () => {
-      pointerRef.current.x = Number.NEGATIVE_INFINITY
-      pointerRef.current.y = Number.NEGATIVE_INFINITY
+      const pointer = pointerRef.current
+      pointer.x = Number.NEGATIVE_INFINITY
+      pointer.y = Number.NEGATIVE_INFINITY
+      pointer.lastTime = 0
+      pointer.speed = 0
+      pointer.vx = 0
+      pointer.vy = 0
     }
     const throttledMove = throttle(onMove, 40)
 

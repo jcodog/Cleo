@@ -1,5 +1,6 @@
 "use client"
 
+import type { JSX } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { IconArrowRight } from "@tabler/icons-react"
 import { buttonVariants } from "@workspace/ui/components/button"
@@ -10,7 +11,9 @@ type LandingAuthActionsProps = {
   placement: "footer" | "navigation" | "hero"
 }
 
-export function LandingAuthActions({ placement }: LandingAuthActionsProps) {
+export function LandingAuthActions({
+  placement,
+}: LandingAuthActionsProps): JSX.Element {
   const { isLoaded, isSignedIn } = useAuth()
 
   if (placement === "footer") {

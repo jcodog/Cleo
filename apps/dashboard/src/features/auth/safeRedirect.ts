@@ -1,12 +1,23 @@
 const SAFE_ORIGIN = "https://cleo.local"
 
 export function getSafeInternalPath(value: string | null): string | null {
+  let decodedValue: string
+
+  try {
+    decodedValue = value ? decodeURIComponent(value) : ""
+  } catch {
+    return null
+  }
+
   if (
     !value ||
     !value.startsWith("/") ||
     value.startsWith("//") ||
     value.includes("\\") ||
-    /[\u0000-\u001f\u007f]/.test(value)
+    decodedValue.startsWith("//") ||
+    decodedValue.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(value) ||
+    /[\u0000-\u001f\u007f]/.test(decodedValue)
   ) {
     return null
   }

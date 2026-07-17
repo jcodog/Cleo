@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { IconRefresh } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
+import { isCurrentOnboardingComplete } from "@workspace/backend/shared/onboarding"
 import { Button } from "@workspace/ui/components/button"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { useMutation, useQuery } from "convex/react"
@@ -13,64 +14,50 @@ import {
   type DashboardDiscordSyncStatus,
 } from "@/features/app-shell/DashboardDiscordHydrator"
 
-const CURRENT_ONBOARDING_VERSION = 1
+import { getOnboardingGuardDecision } from "@/features/onboarding/onboardingState"
 
 export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const onboarding = useQuery(api.queries.dashboard.account.onboarding.get)
-  const manageableGuilds = useQuery(
-    api.queries.dashboard.discord.guilds.manageable.list
-  )
-  const completeOnboarding = useMutation(
-    api.mutations.dashboard.account.onboarding.complete
+  const resolveProvenance = useMutation(
+    api.mutations.dashboard.account.onboarding.resolveProvenance
   )
   const [syncStatus, setSyncStatus] =
     useState<DashboardDiscordSyncStatus>("idle")
   const [retryToken, setRetryToken] = useState(0)
-  const [legacyCompletionError, setLegacyCompletionError] = useState(false)
-  const legacyCompletionStarted = useRef(false)
+  const [provenanceError, setProvenanceError] = useState(false)
+  const provenanceResolutionStarted = useRef(false)
   const handleStatusChange = useCallback(
     (status: DashboardDiscordSyncStatus) => setSyncStatus(status),
     []
   )
+  const decision = getOnboardingGuardDecision(onboarding)
   const isComplete =
     onboarding?.status === "ready" &&
-    onboarding.account.onboardingCompletedAt !== null &&
-    (onboarding.account.onboardingVersion ?? 0) >= CURRENT_ONBOARDING_VERSION
+    isCurrentOnboardingComplete(onboarding.account)
 
   useEffect(() => {
-    if (
-      onboarding?.status !== "ready" ||
-      isComplete ||
-      manageableGuilds === undefined
-    ) {
+    if (decision === "loading" || decision === "allow-dashboard") {
       return
     }
 
-    if (manageableGuilds.length === 0) {
+    if (decision === "show-onboarding") {
       router.replace("/onboarding")
       return
     }
 
-    if (legacyCompletionStarted.current) {
+    if (provenanceResolutionStarted.current) {
       return
     }
 
-    legacyCompletionStarted.current = true
-    setLegacyCompletionError(false)
+    provenanceResolutionStarted.current = true
+    setProvenanceError(false)
 
-    void completeOnboarding({}).catch(() => {
-      legacyCompletionStarted.current = false
-      setLegacyCompletionError(true)
+    void resolveProvenance({}).catch(() => {
+      provenanceResolutionStarted.current = false
+      setProvenanceError(true)
     })
-  }, [
-    completeOnboarding,
-    isComplete,
-    manageableGuilds,
-    onboarding,
-    retryToken,
-    router,
-  ])
+  }, [decision, resolveProvenance, retryToken, router])
 
   return (
     <>
@@ -80,13 +67,13 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
       />
       {isComplete ? (
         children
-      ) : legacyCompletionError ? (
+      ) : provenanceError ? (
         <GuardState
           action={
             <Button
               onClick={() => {
-                setLegacyCompletionError(false)
-                legacyCompletionStarted.current = false
+                setProvenanceError(false)
+                provenanceResolutionStarted.current = false
                 setRetryToken((value) => value + 1)
               }}
               variant="outline"
@@ -95,7 +82,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
               Try again
             </Button>
           }
-          message="Cleo could not restore your dashboard access."
+          message="Cleo could not verify your onboarding status."
         />
       ) : syncStatus === "error" &&
         onboarding?.status === "accountSyncPending" ? (

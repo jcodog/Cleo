@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import {
   IconArrowRight,
@@ -10,6 +10,7 @@ import {
   IconServer,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
+import { isCurrentOnboardingComplete } from "@workspace/backend/shared/onboarding"
 import { Button } from "@workspace/ui/components/button"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { useMutation, useQuery } from "convex/react"
@@ -22,8 +23,7 @@ import {
   type DashboardDiscordSyncStatus,
 } from "@/features/app-shell/DashboardDiscordHydrator"
 import { DotGrid } from "@/components/backgrounds/DotGrid"
-
-const CURRENT_ONBOARDING_VERSION = 1
+import { getOnboardingExperienceState } from "@/features/onboarding/onboardingState"
 
 type ManageableGuild = {
   discordGuildId: string
@@ -39,19 +39,41 @@ export function OnboardingExperience() {
   const completeOnboarding = useMutation(
     api.mutations.dashboard.account.onboarding.complete
   )
+  const resolveProvenance = useMutation(
+    api.mutations.dashboard.account.onboarding.resolveProvenance
+  )
   const [syncStatus, setSyncStatus] =
     useState<DashboardDiscordSyncStatus>("idle")
   const [retryToken, setRetryToken] = useState(0)
   const [destination, setDestination] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const provenanceResolutionStarted = useRef(false)
   const handleStatusChange = useCallback(
     (status: DashboardDiscordSyncStatus) => setSyncStatus(status),
     []
   )
   const isAlreadyComplete =
     onboarding?.status === "ready" &&
-    onboarding.account.onboardingCompletedAt !== null &&
-    (onboarding.account.onboardingVersion ?? 0) >= CURRENT_ONBOARDING_VERSION
+    isCurrentOnboardingComplete(onboarding.account)
+  const experienceState = getOnboardingExperienceState({
+    guildCount: guilds?.length,
+    onboarding,
+    syncStatus,
+  })
+
+  useEffect(() => {
+    if (
+      onboarding?.status === "ready" &&
+      onboarding.account.onboardingProvenance === null &&
+      !provenanceResolutionStarted.current
+    ) {
+      provenanceResolutionStarted.current = true
+      void resolveProvenance({}).catch(() => {
+        provenanceResolutionStarted.current = false
+        setSyncStatus("error")
+      })
+    }
+  }, [onboarding, resolveProvenance, retryToken])
 
   useEffect(() => {
     if (isAlreadyComplete) {
@@ -73,10 +95,12 @@ export function OnboardingExperience() {
   }
 
   const isReady =
-    onboarding?.status === "ready" &&
-    guilds !== undefined &&
-    (syncStatus === "ready" || onboarding.discordIdentity !== null) &&
-    !isAlreadyComplete
+    experienceState === "ready-with-guilds" ||
+    experienceState === "ready-without-guilds"
+  const readyData =
+    isReady && onboarding?.status === "ready" && guilds !== undefined
+      ? { guilds, onboarding }
+      : null
 
   return (
     <main className="dark cleo-atmosphere relative min-h-svh overflow-hidden bg-background text-foreground">
@@ -119,11 +143,12 @@ export function OnboardingExperience() {
           <span className="font-heading text-xl font-semibold">Cleo</span>
         </Link>
 
-        {!isReady ? (
+        {!readyData ? (
           <OnboardingLoading
-            canRetry={syncStatus === "error"}
+            canRetry={experienceState === "error"}
             isRedirecting={isAlreadyComplete}
             onRetry={() => {
+              provenanceResolutionStarted.current = false
               setSyncStatus("idle")
               setRetryToken((value) => value + 1)
             }}
@@ -132,9 +157,9 @@ export function OnboardingExperience() {
           <OnboardingReady
             destination={destination}
             errorMessage={errorMessage}
-            guilds={guilds}
+            guilds={readyData.guilds}
             onContinue={continueTo}
-            onboarding={onboarding}
+            onboarding={readyData.onboarding}
             userImageUrl={user?.imageUrl}
             userName={user?.fullName ?? user?.firstName ?? undefined}
           />

@@ -11,6 +11,9 @@ export const users = defineTable({
   status: v.optional(userStatus),
   onboardingCompletedAt: v.optional(v.number()),
   onboardingVersion: v.optional(v.number()),
+  onboardingProvenance: v.optional(
+    v.union(v.literal("pre-rollout"), v.literal("post-rollout"))
+  ),
   createdAt: v.number(),
   updatedAt: v.number(),
 })

@@ -14,6 +14,9 @@ test("rejects absolute, protocol-relative, and backslash redirects", () => {
   assert.equal(getSafeInternalPath("https://example.com/dashboard"), null)
   assert.equal(getSafeInternalPath("//example.com/dashboard"), null)
   assert.equal(getSafeInternalPath("/\\example.com/dashboard"), null)
+  assert.equal(getSafeInternalPath("/%5cexample.com/dashboard"), null)
+  assert.equal(getSafeInternalPath("/%2f%2fevil.example/dashboard"), null)
+  assert.equal(getSafeInternalPath("/dashboard\u0000/elsewhere"), null)
 })
 
 test("builds encoded return destinations", () => {

@@ -8,6 +8,11 @@ const onboardingAccount = v.object({
   imageUrl: v.union(v.string(), v.null()),
   onboardingCompletedAt: v.union(v.number(), v.null()),
   onboardingVersion: v.union(v.number(), v.null()),
+  onboardingProvenance: v.union(
+    v.literal("pre-rollout"),
+    v.literal("post-rollout"),
+    v.null()
+  ),
 })
 
 const onboardingDiscordIdentity = v.object({
@@ -46,6 +51,7 @@ export const get = query({
         imageUrl: user.imageUrl ?? null,
         onboardingCompletedAt: user.onboardingCompletedAt ?? null,
         onboardingVersion: user.onboardingVersion ?? null,
+        onboardingProvenance: user.onboardingProvenance ?? null,
       },
       discordIdentity: discordIdentity
         ? {

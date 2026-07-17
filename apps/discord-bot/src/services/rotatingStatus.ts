@@ -17,7 +17,7 @@ const baseRotatingStatuses: RotatingStatusPresence[] = [
   {
     activities: [
       {
-        name: "new look, same me.",
+        name: "new look, new me.",
         type: ActivityType.Playing,
       },
     ],
@@ -26,17 +26,8 @@ const baseRotatingStatuses: RotatingStatusPresence[] = [
   {
     activities: [
       {
-        name: "the changes make me better.",
+        name: "the dashboard come alive",
         type: ActivityType.Watching,
-      },
-    ],
-    status: "online",
-  },
-  {
-    activities: [
-      {
-        name: "to the music of progress as v3 enhances.",
-        type: ActivityType.Listening,
       },
     ],
     status: "online",

@@ -1559,7 +1559,21 @@ export declare const api: {
             "mutation",
             "public",
             {},
-            { onboardingCompletedAt: number; onboardingVersion: number }
+            {
+              onboardingCompletedAt: number | null;
+              onboardingProvenance: "pre-rollout" | "post-rollout";
+              onboardingVersion: number | null;
+            }
+          >;
+          resolveProvenance: FunctionReference<
+            "mutation",
+            "public",
+            {},
+            {
+              onboardingCompletedAt: number | null;
+              onboardingProvenance: "pre-rollout" | "post-rollout";
+              onboardingVersion: number | null;
+            }
           >;
         };
       };
@@ -1734,6 +1748,7 @@ export declare const api: {
               email: string;
               imageUrl?: string | null;
               onboardingCompletedAt?: number;
+              onboardingProvenance?: "pre-rollout" | "post-rollout";
               onboardingVersion?: number;
               role: "user" | "staff" | "admin" | "superadmin";
               status?: "active" | "disabled";
@@ -1800,6 +1815,7 @@ export declare const api: {
                   displayName: string | null;
                   imageUrl: string | null;
                   onboardingCompletedAt: number | null;
+                  onboardingProvenance: "pre-rollout" | "post-rollout" | null;
                   onboardingVersion: number | null;
                 };
                 discordIdentity: {
@@ -5200,6 +5216,7 @@ export declare const internal: {
                     email: string;
                     imageUrl?: string | null;
                     onboardingCompletedAt?: number;
+                    onboardingProvenance?: "pre-rollout" | "post-rollout";
                     onboardingVersion?: number;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
@@ -5284,6 +5301,7 @@ export declare const internal: {
                     email: string;
                     imageUrl?: string | null;
                     onboardingCompletedAt?: number;
+                    onboardingProvenance?: "pre-rollout" | "post-rollout";
                     onboardingVersion?: number;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
@@ -5353,6 +5371,7 @@ export declare const internal: {
                     email: string;
                     imageUrl?: string | null;
                     onboardingCompletedAt?: number;
+                    onboardingProvenance?: "pre-rollout" | "post-rollout";
                     onboardingVersion?: number;
                     role: "user" | "staff" | "admin" | "superadmin";
                     status?: "active" | "disabled";
