@@ -53,7 +53,9 @@ export function DiscordOAuthCallback() {
     fetchStatus: signUpFetchStatus,
   } = useSignUp()
   const [state, setState] = useState<CallbackState>({ status: "processing" })
+  const [isSubmittingRequirements, setIsSubmittingRequirements] = useState(false)
   const attemptKeyRef = useRef<string | null>(null)
+  const requirementsSubmissionRef = useRef(false)
   const flow = searchParams.get("flow") === "sign-up" ? "sign-up" : "sign-in"
   const returnTo =
     getSafeInternalPath(searchParams.get("returnTo")) ?? "/onboarding"
@@ -268,9 +270,15 @@ export function DiscordOAuthCallback() {
 
   async function submitMissingRequirements(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (state.status !== "requirements") {
+    if (
+      requirementsSubmissionRef.current ||
+      state.status !== "requirements"
+    ) {
       return
     }
+
+    requirementsSubmissionRef.current = true
+    setIsSubmittingRequirements(true)
 
     const currentForm = state.form
     const fields: SupportedMissingRequirement[] = currentForm.fields
@@ -290,71 +298,76 @@ export function DiscordOAuthCallback() {
       updates.username = currentForm.values.username.trim()
     }
 
-    setState({
-      status: "requirements",
-      form: { ...currentForm, errorMessage: null },
-    })
-    const updateError = await getClerkOperationError(() =>
-      signUp.update(updates)
-    )
-
-    if (updateError) {
+    try {
       setState({
         status: "requirements",
-        form: keepMissingRequirementValidationError(currentForm, updateError),
+        form: { ...currentForm, errorMessage: null },
       })
-      return
-    }
+      const updateError = await getClerkOperationError(() =>
+        signUp.update(updates)
+      )
 
-    if (signUp.status === "missing_requirements") {
-      setState({
-        status: "requirements",
-        form: createMissingRequirementFormState(
-          signUp.missingFields,
-          currentForm.values
-        ),
-      })
-      return
-    }
+      if (updateError) {
+        setState({
+          status: "requirements",
+          form: keepMissingRequirementValidationError(currentForm, updateError),
+        })
+        return
+      }
 
-    if (signUp.status !== "complete") {
-      setState({
-        status: "error",
-        message: "Clerk could not complete the account requirements.",
-      })
-      return
-    }
+      if (signUp.status === "missing_requirements") {
+        setState({
+          status: "requirements",
+          form: createMissingRequirementFormState(
+            signUp.missingFields,
+            currentForm.values
+          ),
+        })
+        return
+      }
 
-    setState({ status: "processing" })
+      if (signUp.status !== "complete") {
+        setState({
+          status: "error",
+          message: "Clerk could not complete the account requirements.",
+        })
+        return
+      }
 
-    const finalizeError = await getClerkOperationError(() =>
-      signUp.finalize({
-        navigate: ({ decorateUrl, session }) => {
-          if (session.currentTask) {
-            const taskPath = getSessionTaskPath(
-              session.currentTask.key,
-              returnTo
-            )
+      setState({ status: "processing" })
 
-            if (!taskPath) {
-              setState({
-                status: "error",
-                message: "Clerk returned an unsupported session task.",
-              })
+      const finalizeError = await getClerkOperationError(() =>
+        signUp.finalize({
+          navigate: ({ decorateUrl, session }) => {
+            if (session.currentTask) {
+              const taskPath = getSessionTaskPath(
+                session.currentTask.key,
+                returnTo
+              )
+
+              if (!taskPath) {
+                setState({
+                  status: "error",
+                  message: "Clerk returned an unsupported session task.",
+                })
+                return
+              }
+
+              navigateToDecoratedUrl(decorateUrl(taskPath), router)
               return
             }
 
-            navigateToDecoratedUrl(decorateUrl(taskPath), router)
-            return
-          }
+            navigateToDecoratedUrl(decorateUrl(returnTo), router)
+          },
+        })
+      )
 
-          navigateToDecoratedUrl(decorateUrl(returnTo), router)
-        },
-      })
-    )
-
-    if (finalizeError) {
-      setState({ status: "error", message: finalizeError })
+      if (finalizeError) {
+        setState({ status: "error", message: finalizeError })
+      }
+    } finally {
+      requirementsSubmissionRef.current = false
+      setIsSubmittingRequirements(false)
     }
   }
 
@@ -428,6 +441,7 @@ export function DiscordOAuthCallback() {
       state.form.unsupportedFields.length === 0 &&
       state.form.fields.length > 0 ? (
         <form
+          aria-busy={isSubmittingRequirements}
           className="flex flex-col gap-5"
           onSubmit={submitMissingRequirements}
         >
@@ -436,6 +450,7 @@ export function DiscordOAuthCallback() {
               <Label htmlFor="firstName">First name</Label>
               <Input
                 autoComplete="given-name"
+                disabled={isSubmittingRequirements}
                 id="firstName"
                 name="firstName"
                 onChange={(event) =>
@@ -464,6 +479,7 @@ export function DiscordOAuthCallback() {
               <Label htmlFor="lastName">Last name</Label>
               <Input
                 autoComplete="family-name"
+                disabled={isSubmittingRequirements}
                 id="lastName"
                 name="lastName"
                 onChange={(event) =>
@@ -492,6 +508,7 @@ export function DiscordOAuthCallback() {
               <Label htmlFor="username">Username</Label>
               <Input
                 autoComplete="username"
+                disabled={isSubmittingRequirements}
                 id="username"
                 name="username"
                 onChange={(event) =>
@@ -515,8 +532,20 @@ export function DiscordOAuthCallback() {
               />
             </div>
           ) : null}
-          <Button className="h-12 w-full" size="lg" type="submit">
-            Finish account
+          <Button
+            className="h-12 w-full"
+            disabled={isSubmittingRequirements}
+            size="lg"
+            type="submit"
+          >
+            {isSubmittingRequirements ? (
+              <>
+                <Spinner />
+                Finishing account…
+              </>
+            ) : (
+              "Finish account"
+            )}
           </Button>
         </form>
       ) : state.status !== "processing" ? (
