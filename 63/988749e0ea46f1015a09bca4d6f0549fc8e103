@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "63988749e0ea46f1015a09bca4d6f0549fc8e103",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
