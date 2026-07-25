@@ -17,6 +17,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <ClerkProvider
+      taskUrls={{
+        "choose-organization": "/session-tasks/choose-organization",
+        "reset-password": "/session-tasks/reset-password",
+        "setup-mfa": "/session-tasks/setup-mfa",
+      }}
       appearance={{
         theme: resolvedTheme === "dark" ? [dark, shadcn] : [shadcn],
       }}

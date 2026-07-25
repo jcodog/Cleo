@@ -1,4 +1,9 @@
 import { auth } from "@clerk/nextjs/server"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Twitch",
+}
 
 export default async function TwitchPage() {
   const authResult = await auth()

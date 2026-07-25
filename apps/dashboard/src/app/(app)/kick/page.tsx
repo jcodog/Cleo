@@ -1,4 +1,9 @@
 import { auth } from "@clerk/nextjs/server"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Kick",
+}
 
 export default async function KickPage() {
   const authResult = await auth()

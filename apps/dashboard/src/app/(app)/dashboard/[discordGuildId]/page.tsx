@@ -1,6 +1,11 @@
 import { auth } from "@clerk/nextjs/server"
+import type { Metadata } from "next"
 
 import { DiscordGuildWorkspacePageShell } from "@/features/discord-guild-workspace"
+
+export const metadata: Metadata = {
+  title: "Server overview",
+}
 
 type DiscordGuildWorkspacePageProps = {
   params: Promise<{

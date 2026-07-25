@@ -37,6 +37,7 @@
     "./lib/errors": "./src/lib/errors.ts",
     "./lib/ids": "./src/lib/ids.ts",
     "./shared": "./src/shared/index.ts",
+    "./shared/onboarding": "./src/shared/onboarding.ts",
     "./convex/_generated/*": "./convex/_generated/*"
   }
 }

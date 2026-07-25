@@ -49,6 +49,7 @@ export const upsertFromWebhook = internalMutation({
         imageUrl: imageUrl ?? null,
         role: "user",
         status: "active",
+        onboardingProvenance: "post-rollout",
         createdAt: now,
         updatedAt: now,
       })

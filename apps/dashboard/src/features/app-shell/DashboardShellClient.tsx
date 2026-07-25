@@ -1,6 +1,7 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { useEffect } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import {
   IconHome,
   IconLogs,
@@ -15,6 +16,7 @@ import { useQuery } from "convex/react"
 
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { AppShell } from "@/features/app-shell/AppShell"
+import { getDashboardGuildSelection } from "@/features/app-shell/dashboardGuildSelection"
 import {
   getAppShellAreaFromPathname,
   getRouteDiscordGuildId,
@@ -29,25 +31,48 @@ export function DashboardShellClient({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const staffAccess = useQuery(api.queries.dashboard.staff.access.get)
+  const manageableGuilds = useQuery(
+    api.queries.dashboard.discord.guilds.manageable.list
+  )
   const currentArea = getAppShellAreaFromPathname(pathname)
   const staffEntry = getStaffTopbarEntry(currentArea, staffAccess)
   const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
-  const activeDiscordGuildId =
-    getRouteDiscordGuildId(pathname) ?? storedDiscordGuildId
+  const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
+  const { activeDiscordGuildId, invalidRouteGuildId, safeDashboardPath } =
+    getDashboardGuildSelection({
+      manageableGuilds,
+      routeDiscordGuildId,
+      storedDiscordGuildId,
+    })
   const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
-  const discordOverviewHref =
-    pathname === "/dashboard"
-      ? "/dashboard"
-      : activeDiscordGuildId
-        ? `/dashboard/${activeDiscordGuildId}`
-        : "/dashboard"
+  const discordOverviewHref = activeDiscordGuildId
+    ? `/dashboard/${activeDiscordGuildId}`
+    : "/dashboard"
   const discordGuildSectionHref = (section: string) =>
     activeDiscordGuildId
       ? `/dashboard/${activeDiscordGuildId}/${section}`
       : "/dashboard"
+
+  useEffect(() => {
+    if (invalidRouteGuildId) {
+      router.replace(safeDashboardPath)
+      return
+    }
+
+    if (pathname === "/dashboard" && activeDiscordGuildId) {
+      router.replace(`/dashboard/${activeDiscordGuildId}`)
+    }
+  }, [
+    activeDiscordGuildId,
+    invalidRouteGuildId,
+    pathname,
+    router,
+    safeDashboardPath,
+  ])
 
   const discordNavSections: AppShellNavSection[] = [
     {

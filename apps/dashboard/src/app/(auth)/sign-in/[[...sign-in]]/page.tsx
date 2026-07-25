@@ -1,9 +1,17 @@
-import { SignIn } from "@clerk/nextjs"
+import { Suspense } from "react"
+import type { Metadata } from "next"
+
+import { DiscordAuthPage } from "@/features/auth/DiscordAuthPage"
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Continue to Cleo with your Discord account.",
+}
 
 export default function SignInPage() {
   return (
-    <main className="flex min-h-svh items-center justify-center p-6">
-      <SignIn />
-    </main>
+    <Suspense>
+      <DiscordAuthPage mode="sign-in" />
+    </Suspense>
   )
 }

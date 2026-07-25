@@ -9,6 +9,11 @@ export const users = defineTable({
   imageUrl: v.optional(v.union(v.string(), v.null())),
   role: userRole,
   status: v.optional(userStatus),
+  onboardingCompletedAt: v.optional(v.number()),
+  onboardingVersion: v.optional(v.number()),
+  onboardingProvenance: v.optional(
+    v.union(v.literal("pre-rollout"), v.literal("post-rollout"))
+  ),
   createdAt: v.number(),
   updatedAt: v.number(),
 })
