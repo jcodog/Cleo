@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono, Outfit } from "next/font/google"
 import type { Metadata, Viewport } from "next"
+import "@clerk/ui/themes/shadcn.css"
 import "@workspace/ui/globals.css"
 import { dashboardEnv } from "@workspace/env/dashboard"
 import { AppProviders } from "@/components/providers/app-providers"

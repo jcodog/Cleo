@@ -2,8 +2,8 @@
 
 import { type ReactNode } from "react"
 import { ClerkProvider, useAuth } from "@clerk/nextjs"
+import { dark, shadcn } from "@clerk/ui/themes"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
-import { dark, shadcn } from "@clerk/themes"
 
 import { useTheme } from "@/components/providers/theme-provider"
 import { convexClient } from "@/lib/convexClient"
@@ -17,15 +17,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <ClerkProvider
-      signInFallbackRedirectUrl="/onboarding"
+      signInFallbackRedirectUrl="/dashboard"
       signInUrl="/sign-in"
       signUpFallbackRedirectUrl="/onboarding"
       signUpUrl="/sign-up"
-      taskUrls={{
-        "choose-organization": "/session-tasks/choose-organization",
-        "reset-password": "/session-tasks/reset-password",
-        "setup-mfa": "/session-tasks/setup-mfa",
-      }}
       appearance={{
         theme: resolvedTheme === "dark" ? [dark, shadcn] : [shadcn],
       }}

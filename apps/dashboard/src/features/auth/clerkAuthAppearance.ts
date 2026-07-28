@@ -1,14 +1,13 @@
 import type { ComponentProps } from "react"
 import { SignIn } from "@clerk/nextjs"
-import { dark } from "@clerk/themes"
+import { dark, shadcn } from "@clerk/ui/themes"
 
 type ClerkAuthAppearance = NonNullable<
   ComponentProps<typeof SignIn>["appearance"]
 >
 
 export const clerkAuthAppearance: ClerkAuthAppearance = {
-  theme: dark,
-  cssLayerName: "clerk",
+  theme: [dark, shadcn],
   options: {
     elevation: "flush",
     socialButtonsPlacement: "top",
@@ -30,10 +29,11 @@ export const clerkAuthAppearance: ClerkAuthAppearance = {
     rootBox: "w-full",
     cardBox: "w-full",
     card: "w-full bg-transparent p-0 shadow-none",
-    header: "gap-3 text-left",
+    logoBox: { display: "none" },
+    header: "items-center gap-3 text-center",
     headerTitle:
-      "font-heading text-3xl font-semibold tracking-[-0.025em] text-foreground",
-    headerSubtitle: "text-sm leading-6 text-muted-foreground",
+      "font-heading text-center text-3xl font-semibold tracking-[-0.025em] text-foreground",
+    headerSubtitle: "text-center text-sm leading-6 text-muted-foreground",
     socialButtons: "gap-3",
     socialButtonsBlockButton:
       "h-12 w-full rounded-md border border-white/15 bg-white/[0.04] text-sm font-medium text-foreground shadow-none transition-colors hover:bg-white/[0.08]",
