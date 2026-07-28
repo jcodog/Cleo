@@ -6,11 +6,7 @@ export const metadata: Metadata = {
 }
 
 export default async function KickPage() {
-  const authResult = await auth()
-
-  if (!authResult.isAuthenticated) {
-    return authResult.redirectToSignIn()
-  }
+  await auth.protect()
 
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">

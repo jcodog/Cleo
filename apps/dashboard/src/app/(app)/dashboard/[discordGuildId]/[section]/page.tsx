@@ -39,11 +39,7 @@ export async function generateMetadata({
 export default async function DiscordGuildSectionPage({
   params,
 }: DiscordGuildSectionPageProps) {
-  const authResult = await auth()
-
-  if (!authResult.isAuthenticated) {
-    return authResult.redirectToSignIn()
-  }
+  await auth.protect()
 
   const { discordGuildId, section } = await params
 
