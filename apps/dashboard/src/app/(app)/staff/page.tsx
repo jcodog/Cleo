@@ -7,11 +7,7 @@ export const metadata: Metadata = {
 }
 
 export default async function StaffPage() {
-  const authResult = await auth()
-
-  if (!authResult.isAuthenticated) {
-    return authResult.redirectToSignIn()
-  }
+  await auth.protect()
 
   redirect("/staff/support-tickets")
 }

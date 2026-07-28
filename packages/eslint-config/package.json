@@ -19,7 +19,7 @@
     "eslint-plugin-react-hooks": "catalog:",
     "eslint-plugin-turbo": "catalog:",
     "globals": "catalog:",
-    "typescript": "catalog:",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "catalog:"
   }
 }

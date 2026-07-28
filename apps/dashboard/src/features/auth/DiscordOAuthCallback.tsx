@@ -52,15 +52,24 @@ export function DiscordOAuthCallback() {
     errors: signUpErrors,
     fetchStatus: signUpFetchStatus,
   } = useSignUp()
-  const [state, setState] = useState<CallbackState>({ status: "processing" })
-  const [isSubmittingRequirements, setIsSubmittingRequirements] = useState(false)
-  const attemptKeyRef = useRef<string | null>(null)
-  const requirementsSubmissionRef = useRef(false)
   const flow = searchParams.get("flow") === "sign-up" ? "sign-up" : "sign-in"
   const returnTo =
     getSafeInternalPath(searchParams.get("returnTo")) ?? "/onboarding"
   const providerError =
     searchParams.get("error_description") ?? searchParams.get("error")
+  const [state, setState] = useState<CallbackState>(() =>
+    providerError
+      ? {
+          status: "error",
+          message: providerError.toLowerCase().includes("denied")
+            ? "The Discord request was cancelled before Cleo received permission."
+            : providerError,
+        }
+      : { status: "processing" }
+  )
+  const [isSubmittingRequirements, setIsSubmittingRequirements] = useState(false)
+  const attemptKeyRef = useRef<string | null>(null)
+  const requirementsSubmissionRef = useRef(false)
 
   useEffect(() => {
     if (!isLoaded || state.status !== "processing") {
@@ -69,16 +78,6 @@ export function DiscordOAuthCallback() {
 
     if (isSignedIn) {
       router.replace(returnTo)
-      return
-    }
-
-    if (providerError) {
-      setState({
-        status: "error",
-        message: providerError.toLowerCase().includes("denied")
-          ? "The Discord request was cancelled before Cleo received permission."
-          : providerError,
-      })
       return
     }
 
@@ -256,7 +255,6 @@ export function DiscordOAuthCallback() {
     flow,
     isLoaded,
     isSignedIn,
-    providerError,
     returnTo,
     router,
     signIn,

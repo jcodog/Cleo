@@ -16,11 +16,7 @@ type DiscordGuildWorkspacePageProps = {
 export default async function DiscordGuildWorkspacePage({
   params,
 }: DiscordGuildWorkspacePageProps) {
-  const authResult = await auth()
-
-  if (!authResult.isAuthenticated) {
-    return authResult.redirectToSignIn()
-  }
+  await auth.protect()
 
   const { discordGuildId } = await params
 

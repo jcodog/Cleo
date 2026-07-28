@@ -9,11 +9,7 @@ export const metadata: Metadata = {
 }
 
 export default async function OnboardingPage() {
-  const authResult = await auth()
-
-  if (!authResult.isAuthenticated) {
-    return authResult.redirectToSignIn()
-  }
+  await auth.protect()
 
   return <OnboardingExperience />
 }

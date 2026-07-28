@@ -16,8 +16,8 @@ export function getSafeInternalPath(value: string | null): string | null {
     value.includes("\\") ||
     decodedValue.startsWith("//") ||
     decodedValue.includes("\\") ||
-    /[\u0000-\u001f\u007f]/.test(value) ||
-    /[\u0000-\u001f\u007f]/.test(decodedValue)
+    containsControlCharacter(value) ||
+    containsControlCharacter(decodedValue)
   ) {
     return null
   }
@@ -38,4 +38,16 @@ export function getSafeInternalPath(value: string | null): string | null {
 export function withReturnTo(pathname: string, returnTo: string): string {
   const params = new URLSearchParams({ returnTo })
   return `${pathname}?${params.toString()}`
+}
+
+function containsControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const characterCode = character.charCodeAt(0)
+
+    if (characterCode <= 0x1f || characterCode === 0x7f) {
+      return true
+    }
+  }
+
+  return false
 }
