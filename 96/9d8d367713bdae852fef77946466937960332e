@@ -1,0 +1,52 @@
+apps/dashboard/src/app/(app)/twitch/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 9
+apps/dashboard/src/features/auth/safeRedirect.ts
+  s_846ce9813198ed::t_572a78228a088a 19-20,42-52
+  s_846ce9813198ed::t_78a22957a5d7d3 53
+apps/dashboard/src/app/(app)/dashboard/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 11
+apps/dashboard/src/app/(app)/dashboard/[discordGuildId]/[section]/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 42
+apps/dashboard/src/app/(onboarding)/onboarding/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 12
+apps/dashboard/src/app/(app)/dashboard/add-server/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 11
+apps/dashboard/src/app/(app)/kick/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 9
+apps/dashboard/src/app/(app)/dashboard/[discordGuildId]/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 19
+apps/dashboard/src/app/(app)/staff/support-tickets/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 11
+packages/ui/src/hooks/use-mobile.ts
+  s_846ce9813198ed::t_572a78228a088a 4,6-8,10-11,13-22
+apps/dashboard/src/app/(app)/staff/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 10
+packages/eslint-config/package.json
+  s_846ce9813198ed::t_7addd9a8a3a0af 22
+apps/dashboard/src/features/auth/DiscordOAuthCallback.tsx
+  s_846ce9813198ed::t_572a78228a088a 60-72
+apps/dashboard/src/app/(app)/staff/discord-runtime-incidents/page.tsx
+  s_846ce9813198ed::t_b94ef8d7c0603e 11
+pnpm-workspace.yaml
+  s_846ce9813198ed::t_8f59af7642ef8a 12-14
+packages/ui/src/components/carousel.tsx
+  s_846ce9813198ed::t_572a78228a088a 98-99,104-106
+pnpm-lock.yaml
+  s_846ce9813198ed::t_a6082341e35642 299,302,322-323,326,2871-2874,5304-5308,7793,7796,7798-7799,7804-7805,7809,7813,7817,7821,7825,7829,7833,7835,7838,7842,7844,7847,7856,7858,7860,7863-7864,7867-7868,7874,7876-7877,7884-7885,7889,7891-7892,7899-7900,7904,7909,7911,8011-8014,10541,10543,10589,10591-10594,10596,10600-10601
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "969d8d367713bdae852fef77946466937960332e",
+  "prompts": {},
+  "sessions": {
+    "s_846ce9813198ed": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fa6da-d491-7ca1-b709-48460c0be4c8",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
