@@ -1,7 +1,8 @@
-import { Suspense } from "react"
+import { SignIn } from "@clerk/nextjs"
 import type { Metadata } from "next"
 
-import { DiscordAuthPage } from "@/features/auth/DiscordAuthPage"
+import { AuthShell } from "@/features/auth/AuthShell"
+import { clerkAuthAppearance } from "@/features/auth/clerkAuthAppearance"
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -10,8 +11,15 @@ export const metadata: Metadata = {
 
 export default function SignInPage() {
   return (
-    <Suspense>
-      <DiscordAuthPage mode="sign-in" />
-    </Suspense>
+    <AuthShell>
+      <SignIn
+        appearance={clerkAuthAppearance}
+        fallbackRedirectUrl="/onboarding"
+        path="/sign-in"
+        routing="path"
+        signUpFallbackRedirectUrl="/onboarding"
+        signUpUrl="/sign-up"
+      />
+    </AuthShell>
   )
 }
