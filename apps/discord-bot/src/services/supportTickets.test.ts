@@ -26,14 +26,18 @@ const guildId = "234567890123456789"
 const targetId = "345678901234567890"
 const roleId = "456789012345678901"
 
-function createInteraction(options: { guildId?: string; message?: string }) {
+function createInteraction(options: {
+  guildId?: string
+  message?: string
+  userInstall?: boolean
+}) {
   const replies: unknown[] = []
 
   return {
     replies,
     interaction: {
       commandName: "help",
-      authorizingIntegrationOwners: options.guildId
+      authorizingIntegrationOwners: options.guildId && !options.userInstall
         ? {
             0: options.guildId,
           }
@@ -186,10 +190,7 @@ test("guild /help requires configured runtime support routing", async () => {
 })
 
 test("user-installed /help inside a guild routes to JCN support", async () => {
-  const { interaction } = createInteraction({ guildId })
-  interaction.authorizingIntegrationOwners = {
-    1: userId,
-  }
+  const { interaction } = createInteraction({ guildId, userInstall: true })
   let openedInput: DiscordSupportTicketOpenInput | undefined
 
   await handleHelpCommand(interaction, {
