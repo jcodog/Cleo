@@ -17,6 +17,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <ClerkProvider
+      signInFallbackRedirectUrl="/onboarding"
+      signInUrl="/sign-in"
+      signUpFallbackRedirectUrl="/onboarding"
+      signUpUrl="/sign-up"
       taskUrls={{
         "choose-organization": "/session-tasks/choose-organization",
         "reset-password": "/session-tasks/reset-password",
