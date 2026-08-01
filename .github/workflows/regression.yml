@@ -53,8 +53,8 @@ jobs:
       - name: Typecheck workspace
         run: pnpm typecheck
 
-      - name: Lint workspace
-        run: pnpm lint
+      - name: Lint workspace with zero warnings
+        run: pnpm lint:ci
 
       - name: Run workspace tests with coverage
         run: |

@@ -81,6 +81,6 @@ Keep routine dependency updates current without accepting unsupported release to
 2. Run the repository supply-chain policy checks.
 3. Run `pnpm check:peers`.
 4. Correct unsupported toolchain majors or remove obsolete peer blockers. Do not suppress unsupported peers.
-5. Test ahead-of-ecosystem compiler majors through `pnpm typecheck:native-preview` without making them the release compiler.
+5. Keep compiler changes on the official TypeScript release pinned in the workspace catalog. Do not add preview or duplicate compiler packages.
 6. Run the affected workspace typecheck, lint, tests, coverage, and build commands.
 7. Accept the lockfile only after peer compatibility and validation pass.

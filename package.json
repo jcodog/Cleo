@@ -6,10 +6,10 @@
     "build": "turbo build",
     "dev": "turbo dev --ui=tui",
     "lint": "turbo lint",
+    "lint:ci": "turbo lint -- --max-warnings=0",
     "format": "turbo format",
     "check:peers": "pnpm peers check",
     "typecheck": "turbo typecheck",
-    "typecheck:native-preview": "pnpm --filter @workspace/backend run typecheck:native-preview",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage"
   },
