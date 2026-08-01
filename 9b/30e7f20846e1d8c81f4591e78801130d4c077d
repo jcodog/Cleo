@@ -1,0 +1,24 @@
+packages/backend/package.json
+  s_f9edc9d2eb3f9b::t_c08d733d991c1b 13
+packages/backend/convex/lib/auth.test.ts
+  s_f9edc9d2eb3f9b::t_375fe41165a673 1-15,19-20,22-43,45-76,78-104,107-109,111-122,124-254
+  s_f9edc9d2eb3f9b::t_5cfdb6af9e7688 21,44,77,123
+  s_f9edc9d2eb3f9b::t_f9e43befeb7163 16-18
+  s_f9edc9d2eb3f9b::t_983762dbf7ef19 105-106,110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "9b30e7f20846e1d8c81f4591e78801130d4c077d",
+  "prompts": {},
+  "sessions": {
+    "s_f9edc9d2eb3f9b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fbeed-df16-79b3-887a-ba941ab012d7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
