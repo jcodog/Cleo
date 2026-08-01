@@ -1,0 +1,29 @@
+packages/backend/convex/lib/discordRestTransport.test.ts
+  s_f9edc9d2eb3f9b::t_375fe41165a673 1-34,36-45,47-142,160-169
+  s_f9edc9d2eb3f9b::t_5cfdb6af9e7688 35,46
+  s_f9edc9d2eb3f9b::t_ef0934e7d97814 143-159
+packages/backend/convex/lib/discordRestTransport.ts
+  s_f9edc9d2eb3f9b::t_375fe41165a673 1-113
+packages/backend/convex/lib/discordRest.ts
+  s_f9edc9d2eb3f9b::t_375fe41165a673 7
+packages/backend/convex/lib/discordRest.test.ts
+  s_f9edc9d2eb3f9b::t_375fe41165a673 1-36
+packages/backend/package.json
+  s_f9edc9d2eb3f9b::t_d8361d137e0e62 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "7fbb0ca8ec75b1b98e216892f0dda7bbe665a8a6",
+  "prompts": {},
+  "sessions": {
+    "s_f9edc9d2eb3f9b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fbeed-df16-79b3-887a-ba941ab012d7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
