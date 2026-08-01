@@ -1,0 +1,35 @@
+package.json
+  s_f9edc9d2eb3f9b::t_58ef25dee1ffd7 9
+.github/scripts/build-coverage-site.mjs
+  s_f9edc9d2eb3f9b::t_58ef25dee1ffd7 47,98
+apps/dashboard/next-env.d.ts
+  s_f9edc9d2eb3f9b::t_4275eede42f2ef 3-4
+packages/backend/package.json
+  s_f9edc9d2eb3f9b::t_b2b2b7f11f9c70 14
+apps/dashboard/next.config.mjs
+  s_f9edc9d2eb3f9b::t_b2b2b7f11f9c70 3-4
+.github/workflows/regression.yml
+  s_f9edc9d2eb3f9b::t_58ef25dee1ffd7 56-57
+pnpm-lock.yaml
+  s_f9edc9d2eb3f9b::t_5b19debfdb6f2a 5567,5571,5573-5574,5628-5629,5638,5673,5724-5725,6482,6775,7668,7734,7738,8136,8145,9131,9148,9407-9408,9433,9435,9444-9446,9465-9466,9468-9469,10335
+CONTRIBUTING.md
+  s_f9edc9d2eb3f9b::t_fb18344b051d02 84
+.github/coverage-baseline.md
+  s_f9edc9d2eb3f9b::t_58ef25dee1ffd7 23-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "4ac2deb95736dc369858f7813810c7092e46f2bb",
+  "prompts": {},
+  "sessions": {
+    "s_f9edc9d2eb3f9b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fbeed-df16-79b3-887a-ba941ab012d7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": null
+    }
+  }
+}
