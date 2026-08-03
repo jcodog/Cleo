@@ -1,0 +1,6 @@
+[install]
+linker = "isolated"
+globalStore = false
+
+[install.cache]
+dir = "E:/DevCache/bun/cache"
