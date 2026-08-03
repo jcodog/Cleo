@@ -182,8 +182,10 @@ test("Discord transport handles success and network failure", async () => {
     },
   })
   assert.equal(failure, null)
+})
 
-  const timeout = await fetchDiscordJson(
+test("Discord transport treats a request timeout as a failure", async () => {
+  const result = await fetchDiscordJson(
     "https://discord.test/resource",
     {},
     {
@@ -196,7 +198,28 @@ test("Discord transport handles success and network failure", async () => {
       requestTimeoutMs: 5,
     }
   )
-  assert.equal(timeout, null)
+
+  assert.equal(result, null)
+})
+
+test("Discord transport preserves caller cancellation", async () => {
+  const controller = new AbortController()
+  const result = fetchDiscordJson(
+    "https://discord.test/resource",
+    { signal: controller.signal },
+    {
+      fetch: async (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"))
+          })
+        }),
+      requestTimeoutMs: 1_000,
+    }
+  )
+
+  controller.abort()
+  assert.equal(await result, null)
 })
 
 test("Discord transport uses its production wait boundary", async () => {

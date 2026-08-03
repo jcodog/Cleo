@@ -25,6 +25,7 @@
     "node_modules/tsx/dist/cli.mjs",
     "node_modules/.modules.yaml",
     "node_modules/.bin/convex",
+    "node_modules/@workspace/discord-bot",
     "bun.lock",
     "bunfig.toml"
   ],

@@ -34,9 +34,13 @@ export async function fetchDiscordJson(
 
   try {
     while (true) {
+      const timeoutSignal = AbortSignal.timeout(requestTimeoutMs)
+      const signal = init.signal
+        ? AbortSignal.any([init.signal, timeoutSignal])
+        : timeoutSignal
       const response = await fetchImpl(url, {
         ...init,
-        signal: AbortSignal.timeout(requestTimeoutMs),
+        signal,
       })
 
       if (response.status === 429) {

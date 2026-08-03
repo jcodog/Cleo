@@ -159,6 +159,30 @@ test("artifact validation rejects symlinked forbidden prefixes", async () => {
   })
 })
 
+test("artifact validation rejects the Bun workspace self-link", async () => {
+  await withArtifactFixture((artifactRoot) => {
+    const selfLink = resolveArtifactPath(
+      artifactRoot,
+      "node_modules/@workspace/discord-bot"
+    )
+    mkdirSync(path.dirname(selfLink), { recursive: true })
+    symlinkSync(
+      resolveArtifactPath(artifactRoot, "dist"),
+      selfLink,
+      process.platform === "win32" ? "junction" : "dir"
+    )
+
+    assert.throws(
+      () =>
+        validateReleaseArtifactDirectory(artifactRoot, {
+          expectedPlatform: releasePlatform,
+          expectedSha: releaseSha,
+        }),
+      /node_modules\/@workspace\/discord-bot/
+    )
+  })
+})
+
 test("artifact validation requires an exact expected SHA", async () => {
   await withArtifactFixture((artifactRoot) => {
     assert.throws(

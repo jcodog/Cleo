@@ -111,8 +111,6 @@ bun install
 bun run dev
 ```
 
-The repository may already have development services running in WezTerm. Read `AGENTS.md` before starting watchers, servers, tunnels, or broad validation commands.
-
 ### Targeted validation
 
 Run checks only for the workspaces affected by a change:
