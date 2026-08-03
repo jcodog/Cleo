@@ -9,7 +9,7 @@ reviews:
     - "!**/_generated/**"
     - "!**/dist/**"
     - "!**/coverage/**"
-    - "!pnpm-lock.yaml"
+    - "!bun.lock"
 
     # These product areas are explicitly post-v3.0.0 release scope.
     - "!packages/shared/src/cleoEntitlements.*"

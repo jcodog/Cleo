@@ -68,7 +68,7 @@ test("compiled artifact validates runtime, command, metadata, and native files",
     assert.ok(contract.requiredFiles.includes("dist/index.js.map"))
     assert.ok(
       contract.requiredFiles.includes(
-        "node_modules/.pnpm/node_modules/@napi-rs/canvas-linux-x64-gnu/skia.linux-x64-gnu.node"
+        "node_modules/@napi-rs/canvas-linux-x64-gnu/skia.linux-x64-gnu.node"
       )
     )
     assert.equal(

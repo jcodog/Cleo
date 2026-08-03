@@ -20,8 +20,8 @@ const DEPLOY_FILES = new Set<string>([
   ".github/workflows/discord-production.yml",
   ".nvmrc",
   "package.json",
-  "pnpm-lock.yaml",
-  "pnpm-workspace.yaml",
+  "bun.lock",
+  "bunfig.toml",
   "turbo.json",
 ])
 

@@ -19,7 +19,7 @@ reviews:
       - ".coverage-tmp/**"
       - "**/_generated/**"
       - "dist/**"
-      - "pnpm-lock.yaml"
+      - "bun.lock"
     base_branches:
       - "feat/**"
       - "fix/**"

@@ -12,10 +12,10 @@ Stats are a separate product/project called [CoD Stats](https://codstats.tech) w
 
 ## Architecture rules
 
-- Use the pinned pnpm version from `package.json`.
-- Use pnpm scripts for repo commands: `pnpm run <script>` or `pnpm --filter <workspace> run <script>`.
-- Use `pnpm exec <command>` for locally installed CLIs, and `pnpm dlx <package>` only for one-off CLIs that are not installed.
-- Do not use `bun`, `bunx`, `npm`, `npx`, or `yarn` for scripts, validation, codegen, package installs, or local CLIs.
+- Use the pinned Bun version from `package.json`.
+- Use package scripts for repo commands: `bun run <script>` or `bun run --filter <workspace> <script>`.
+- Use `bunx --no-install <command>` for locally installed CLIs, and plain `bunx <package>` only for deliberate one-off tools.
+- Do not use another package manager for scripts, validation, codegen, package installs, or local CLIs.
 - Use Convex for backend data and business logic.
 - Do not add Prisma.
 - Use Clerk as the primary auth identity.
@@ -68,19 +68,21 @@ Every PR should include:
 Before opening a PR, run the relevant checks when they exist:
 
 ```bash
-pnpm --filter <workspace> run lint
-pnpm --filter <workspace> run typecheck
-pnpm --filter <workspace> run build
+bun run --filter <workspace> lint
+bun run --filter <workspace> typecheck
+bun run --filter <workspace> build
 ```
 
 ## Friday dependency updates
 
 Keep routine dependency updates current without accepting unsupported release toolchains:
 
-1. Run `pnpm update --latest --recursive`.
-2. Run the repository supply-chain policy checks.
-3. Run `pnpm check:peers`.
-4. Correct unsupported toolchain majors or remove obsolete peer blockers. Do not suppress unsupported peers.
+1. Run `bun update --interactive --recursive` and select only the intended updates.
+2. Update shared catalog ranges in the root `package.json`; update workspace-only ranges in that workspace's manifest.
+3. Run `bun install` and review both manifest and `bun.lock` changes.
+4. Run the repository supply-chain policy checks and review Bun's peer warnings. Do not suppress unsupported peers.
 5. Keep compiler changes on the official TypeScript release pinned in the workspace catalog. Do not add preview or duplicate compiler packages.
 6. Run the affected workspace typecheck, lint, tests, coverage, and build commands.
-7. Accept the lockfile only after peer compatibility and validation pass.
+7. Accept `bun.lock` only after compatibility and validation pass.
+
+On Windows, an optional machine-local cache can be configured with the user-level `BUN_INSTALL_CACHE_DIR` environment variable. Do not add a developer-specific cache path to `bunfig.toml`.

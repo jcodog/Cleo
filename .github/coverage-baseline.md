@@ -17,7 +17,7 @@ regression tests are added.
 
 Do not lower these thresholds to absorb uncovered changes. Add focused tests and
 expand the scoped include sets when a new module becomes a stable regression
-boundary. Re-run `pnpm test:coverage` and update this document whenever the
+boundary. Re-run `bun run test:coverage` and update this document whenever the
 enforced policy changes.
 
 The reliability hardening pass adds two backend security and transport
