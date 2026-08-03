@@ -137,6 +137,26 @@ test("Discord transport cancels unused error response bodies", async () => {
   assert.equal(cancelled, true)
 })
 
+test("Discord transport preserves errors when body cancellation fails", async () => {
+  const cancellationFailure = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () =>
+        new Response(
+          new ReadableStream({
+            cancel() {
+              throw new Error("stream cancellation failed")
+            },
+          }),
+          { status: 403 }
+        ),
+    }
+  )
+
+  assert.deepEqual(cancellationFailure, { ok: false, status: 403 })
+})
+
 test("Discord transport accepts successful responses without a body", async () => {
   const result = await fetchDiscordJson("https://discord.test/resource", {}, {
     fetch: async () => new Response(null, { status: 204 }),
