@@ -1,0 +1,21 @@
+packages/backend/convex/lib/discordRestTransport.test.ts
+  s_df08fe71b0e396::t_1627b4b2c7d400 140
+  s_df08fe71b0e396::t_b7f170248fc626 141-157
+  s_df08fe71b0e396::t_ef151ac3d704dc 158-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "d2073d5a5d50dfcc5ee229712590b1079d13e0fb",
+  "prompts": {},
+  "sessions": {
+    "s_df08fe71b0e396": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc721-d1f9-7ce0-8453-df1229ea2b8e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
