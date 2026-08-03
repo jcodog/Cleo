@@ -1,0 +1,62 @@
+package.json
+  s_df08fe71b0e396::t_16d339a59d5bfe 6-7,61
+apps/discord-bot/src/deployment/validateReleaseArtifact.test.ts
+  s_df08fe71b0e396::t_16d339a59d5bfe 71
+README.md
+  s_df08fe71b0e396::t_67dd9a24f0a744 5,100,105,111,121-123,125-127,129-131,134,139-140
+packages/eslint-config/package.json
+  s_df08fe71b0e396::t_0f1ee9e572bde6 22
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_df08fe71b0e396::t_16d339a59d5bfe 23-24
+.github/coverage-baseline.md
+  s_df08fe71b0e396::t_67dd9a24f0a744 20
+apps/discord-bot/runtime-artifact.json
+  s_df08fe71b0e396::t_16d339a59d5bfe 19-20,28-29
+docs/discord-production-deployment.md
+  s_df08fe71b0e396::t_67dd9a24f0a744 22,44
+cubic.yaml
+  s_df08fe71b0e396::t_16d339a59d5bfe 22
+.prettierignore
+  s_df08fe71b0e396::t_16d339a59d5bfe 6
+AGENTS.md
+  s_df08fe71b0e396::t_2d33d3a6b6bb99 29,102,112-115,117,140-142,156,159-162
+  s_df08fe71b0e396::t_6b5811b5cc3ef8 116
+.github/workflows/regression.yml
+  s_df08fe71b0e396::t_eb99d7718e23b7 24-25,33,50,53,58
+.github/scripts/package-discord-release.sh
+  s_df08fe71b0e396::t_4e1de7963f391e 35-38
+  s_df08fe71b0e396::t_8c8a88515569e7 57-61
+  s_df08fe71b0e396::t_5ca1a6c0b47dc6 30-33,39-55,63-64,67-101
+  s_df08fe71b0e396::t_d9a1bcfcc71925 34
+  s_df08fe71b0e396::t_86d889e7f45d4c 56
+  s_df08fe71b0e396::t_61b38fdcfd34ac 62
+apps/dashboard/next-env.d.ts
+  s_df08fe71b0e396::t_eb58e79430bebd 3-4
+CONTRIBUTING.md
+  s_df08fe71b0e396::t_6b5811b5cc3ef8 18
+  s_df08fe71b0e396::t_ff5db19d29d4e6 15-17,71-73,80-83,86-88
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_df08fe71b0e396::t_16d339a59d5bfe 14-15
+.coderabbit.yaml
+  s_df08fe71b0e396::t_16d339a59d5bfe 12
+.github/workflows/discord-production.yml
+  s_df08fe71b0e396::t_eb99d7718e23b7 21-22,106-107,118,121,124,127,130,133,136,139,162
+bun.lock
+  s_df08fe71b0e396::t_df85976c91a6cb 120,196,2237
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "dab0c6efd93ec255fcb90ed2f43c419bb00d359c",
+  "prompts": {},
+  "sessions": {
+    "s_df08fe71b0e396": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc721-d1f9-7ce0-8453-df1229ea2b8e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
