@@ -40,9 +40,7 @@ assert_root_owned_check() {
 contains_word "$(id -nG)" "$deploy_group" || fail "github-runner is not in $deploy_group"
 
 expected_node="v$(node -p "require('./package.json').engines.node")"
-expected_pnpm="$(node -p "require('./package.json').packageManager.split('@')[1].split('+')[0]")"
 [[ "$(node --version)" == "$expected_node" ]] || fail "Actions Node version does not match package.json"
-[[ "$(pnpm --version)" == "$expected_pnpm" ]] || fail "Actions pnpm version does not match package.json"
 
 for directory in "$deploy_root" "$deploy_root/releases" "$deploy_root/shared"; do
   [[ -d "$directory" ]] || fail "missing directory $directory"

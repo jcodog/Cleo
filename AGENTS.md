@@ -26,7 +26,7 @@ Stats are a separate product/project.
 
 ## Stack
 
-- pnpm
+- Bun
 - Turborepo
 - TypeScript
 - Next.js
@@ -99,7 +99,7 @@ If a Cleo dev pane is already running, read its recent output instead of startin
 wezterm cli get-text --pane-id <PANE_ID> --start-line -300
 ```
 
-Do not start duplicate `pnpm dev`, `turbo dev`, `next dev`, `convex dev`, workers, websocket, bot, or tunnel processes.
+Do not start duplicate `bun run dev`, `turbo dev`, `next dev`, `convex dev`, workers, websocket, bot, or tunnel processes.
 
 Use existing WezTerm output as the first source of truth for dev server errors, route errors, compile errors, runtime errors, and browser-triggered logs.
 
@@ -109,12 +109,12 @@ If the correct pane is unclear, ask Jason which pane ID to inspect.
 
 ## Package manager and command runner
 
-- This repo uses the pinned `pnpm` version from `package.json`.
-- Use pnpm scripts for project commands: `pnpm run <script>` from a workspace, or `pnpm --filter <workspace> run <script>` from the repo root.
-- Use `pnpm exec <command>` for locally installed CLIs such as Convex, Next.js, ESLint, Prettier, and shadcn.
-- Use `pnpm dlx <package>` only when a one-off CLI is not already installed in the workspace.
-- Do not use `bun`, `bunx`, `npm`, `npx`, or `yarn` for repo scripts, validation, codegen, package installs, or local CLIs.
-- Do not add or update dependencies with another package manager. Use pnpm so `pnpm-lock.yaml` remains the only lockfile.
+- This repo uses the pinned Bun version from `package.json`.
+- Use package scripts for project commands: `bun run <script>` from a workspace, or `bun run --filter <workspace> <script>` from the repo root.
+- Use `bunx --no-install <command>` for locally installed CLIs such as Convex, Next.js, ESLint, Prettier, and shadcn.
+- Use plain `bunx <package>` only when a one-off CLI is not already installed in the workspace.
+- Do not use another package manager for repo scripts, validation, codegen, package installs, or local CLIs.
+- Do not add or update dependencies with another package manager. Keep `bun.lock` as the only package-manager lockfile.
 
 ## Apps
 
@@ -137,9 +137,9 @@ If the correct pane is unclear, ask Jason which pane ID to inspect.
 Do not run repo-root validation commands:
 
 ```bash
-pnpm run lint
-pnpm run typecheck
-pnpm run build
+bun run lint
+bun run typecheck
+bun run build
 turbo lint
 turbo typecheck
 turbo build
@@ -153,13 +153,13 @@ Run only targeted package/app checks from the relevant workspace when they exist
 - `packages/env`
 - `apps/dashboard`
 
-Use pnpm scripts for workspace commands. For example:
+Use Bun scripts for workspace commands. For example:
 
 ```bash
-pnpm --filter dashboard run lint
-pnpm --filter dashboard run typecheck
-pnpm --filter @workspace/backend run typecheck
-pnpm --filter @workspace/backend run codegen
+bun run --filter @workspace/dashboard lint
+bun run --filter @workspace/dashboard typecheck
+bun run --filter @workspace/backend typecheck
+bun run --filter @workspace/backend codegen
 ```
 
 Report:

@@ -2,7 +2,7 @@
 
 Cleo is a Discord-first community operations SaaS platform by JCoNet LTD. It combines a production Discord bot, a web dashboard, Convex-backed configuration, moderation and support tooling, operational visibility, and foundations for creator-platform automation.
 
-Cleo v3 replaces the legacy collection of standalone services with one typed pnpm and Turborepo monorepo. The current release prioritises a reliable Discord service and an honest, minimal dashboard instead of shipping disconnected settings, generic bot filler, or vanity features.
+Cleo v3 replaces the legacy collection of standalone services with one typed Bun and Turborepo monorepo. The current release prioritises a reliable Discord service and an honest, minimal dashboard instead of shipping disconnected settings, generic bot filler, or vanity features.
 
 ## Product links
 
@@ -97,49 +97,45 @@ Do not reintroduce Prisma or duplicate backend APIs. New product state belongs i
 ### Requirements
 
 - Node.js version from `.nvmrc` and the root `engines` field
-- Corepack
-- The pnpm version declared by the root `packageManager` field
+- The Bun version declared by the root `packageManager` field
 
 ### Install
 
 ```bash
-corepack enable
-pnpm install
+bun install
 ```
 
 ### Run development tasks
 
 ```bash
-pnpm run dev
+bun run dev
 ```
-
-The repository may already have development services running in WezTerm. Read `AGENTS.md` before starting watchers, servers, tunnels, or broad validation commands.
 
 ### Targeted validation
 
 Run checks only for the workspaces affected by a change:
 
 ```bash
-pnpm --filter @workspace/discord-bot run test
-pnpm --filter @workspace/discord-bot run typecheck
-pnpm --filter @workspace/discord-bot run lint
+bun run --filter @workspace/discord-bot test
+bun run --filter @workspace/discord-bot typecheck
+bun run --filter @workspace/discord-bot lint
 
-pnpm --filter @workspace/backend run test
-pnpm --filter @workspace/backend run typecheck
-pnpm --filter @workspace/backend run codegen
+bun run --filter @workspace/backend test
+bun run --filter @workspace/backend typecheck
+bun run --filter @workspace/backend codegen
 
-pnpm --filter dashboard run test
-pnpm --filter dashboard run typecheck
-pnpm --filter dashboard run lint
+bun run --filter @workspace/dashboard test
+bun run --filter @workspace/dashboard typecheck
+bun run --filter @workspace/dashboard lint
 ```
 
-Use `pnpm run test:coverage` only when the affected scope needs the full regression and coverage path.
+Use `bun run test:coverage` only when the affected scope needs the full regression and coverage path.
 
 ### Discord command registration
 
 ```bash
-pnpm --filter @workspace/discord-bot run commands:register:guild
-pnpm --filter @workspace/discord-bot run commands:register:global
+bun run --filter @workspace/discord-bot commands:register:guild
+bun run --filter @workspace/discord-bot commands:register:global
 ```
 
 Global command replacement uses Discord's bulk overwrite endpoint and must remain non-destructive.

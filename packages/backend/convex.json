@@ -5,7 +5,6 @@
     "staticApi": true,
     "staticDataModel": true
   },
-  "typescriptCompiler": "tsgo",
   "aiFiles": {
     "enabled": false
   }

@@ -25,6 +25,7 @@ coverage-site
 
 # Build Outputs
 .next/
+apps/dashboard/next-env.d.ts
 out/
 build
 dist

@@ -27,17 +27,105 @@ trap 'rm -rf -- "$bundle_dir"' EXIT
 rm -rf -- "$output_dir"
 mkdir -p "$output_dir"
 
-pnpm --dir "$repository_root" --filter @workspace/discord-bot run build
-pnpm --dir "$repository_root" --filter @workspace/discord-bot --prod deploy \
-  --legacy "$bundle_dir"
+command -v bun >/dev/null || {
+  echo "Bun is required on the GitHub-hosted packaging runner." >&2
+  exit 1
+}
 
-# pnpm deploy metadata and generated CLI shims include the temporary bundle path.
-# The Node runtime does not use them, so remove them from the immutable artifact.
-rm -f -- \
-  "$bundle_dir/node_modules/.modules.yaml" \
-  "$bundle_dir/node_modules/.package-map.json"
-rm -rf -- "$bundle_dir/node_modules/.pnpm/node_modules/@workspace"
+(
+  cd "$repository_root"
+  bun run --filter @workspace/discord-bot build
+)
+
+# Recreate the locked workspace graph in a temporary directory, then install
+# only the Discord runtime closure. A hoisted staging layout is intentional:
+# the immutable release runs under Node and must not depend on workspace or
+# external-cache symlinks.
+install -m 0644 "$repository_root/package.json" "$bundle_dir/package.json"
+install -m 0644 "$repository_root/bun.lock" "$bundle_dir/bun.lock"
+install -m 0644 "$repository_root/bunfig.toml" "$bundle_dir/bunfig.toml"
+
+while IFS= read -r manifest; do
+  relative_manifest="${manifest#"$repository_root/"}"
+  install -d "$bundle_dir/$(dirname "$relative_manifest")"
+  install -m 0644 "$manifest" "$bundle_dir/$relative_manifest"
+done < <(
+  find "$repository_root/apps" "$repository_root/packages" \
+    -mindepth 2 -maxdepth 2 -type f -name package.json -print
+)
+
+(
+  cd "$bundle_dir"
+  bun install --frozen-lockfile --omit=dev \
+    --filter @workspace/discord-bot --linker hoisted
+)
+
+self_workspace_link="$bundle_dir/node_modules/@workspace/discord-bot"
+if [[ -L "$self_workspace_link" ]]; then
+  self_workspace_target="$(readlink -f -- "$self_workspace_link")"
+  if [[ "$self_workspace_target" != "$bundle_dir/apps/discord-bot" ]]; then
+    echo "Discord workspace self-link has an unexpected target: $self_workspace_target" >&2
+    exit 1
+  fi
+  rm -f -- "$self_workspace_link"
+fi
+
+rm -rf -- "$bundle_dir/apps" "$bundle_dir/packages"
+rm -f -- "$bundle_dir/bun.lock" "$bundle_dir/bunfig.toml"
 find "$bundle_dir/node_modules" -type d -name .bin -prune -exec rm -rf -- {} +
+
+# Reject dangling links and links that escape the immutable release. Running
+# this after workspace cleanup also catches dependencies that still point into
+# the temporary apps/ or packages/ source closures.
+while IFS= read -r -d '' link_path; do
+  if ! resolved_path="$(readlink -f -- "$link_path")"; then
+    echo "Packaged Discord release contains a dangling symlink: $link_path" >&2
+    exit 1
+  fi
+
+  case "$resolved_path" in
+    "$bundle_dir" | "$bundle_dir"/*) ;;
+    *)
+      echo "Packaged Discord release symlink escapes the bundle: $link_path -> $resolved_path" >&2
+      exit 1
+      ;;
+  esac
+done < <(find "$bundle_dir" -type l -print0)
+
+cp -a "$repository_root/apps/discord-bot/dist" "$bundle_dir/dist"
+install -m 0644 \
+  "$repository_root/apps/discord-bot/runtime-artifact.json" \
+  "$bundle_dir/runtime-artifact.json"
+
+node --input-type=module - "$repository_root" "$bundle_dir/package.json" <<'NODE'
+import { readFileSync, writeFileSync } from "node:fs"
+import path from "node:path"
+
+const [repositoryRoot, outputPath] = process.argv.slice(2)
+const rootManifest = JSON.parse(
+  readFileSync(path.join(repositoryRoot, "package.json"), "utf8")
+)
+const appManifest = JSON.parse(
+  readFileSync(
+    path.join(repositoryRoot, "apps/discord-bot/package.json"),
+    "utf8"
+  )
+)
+const runtimeManifest = {
+  name: appManifest.name,
+  version: appManifest.version,
+  private: true,
+  type: appManifest.type,
+  engines: rootManifest.engines,
+  scripts: {
+    start: appManifest.scripts["start:production"],
+    "commands:register": appManifest.scripts["commands:register:production"],
+  },
+  dependencies: appManifest.dependencies,
+}
+
+writeFileSync(outputPath, `${JSON.stringify(runtimeManifest, null, 2)}\n`)
+NODE
 
 install -m 0644 "$repository_root/.nvmrc" "$bundle_dir/.nvmrc"
 printf '%s\n' "$sha" > "$bundle_dir/.cleo-release-sha"

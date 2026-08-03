@@ -44,6 +44,7 @@ const reportLinks = reports
 const sourceLink = runUrl
   ? `<a href="${runUrl}">Workflow run</a>`
   : `<span>Local coverage build</span>`
+const policyUrl = `https://github.com/${repository}/blob/main/.github/coverage-baseline.md`
 
 const html = `<!doctype html>
 <html lang="en">
@@ -94,6 +95,7 @@ const html = `<!doctype html>
         <div class="meta">
           <span>Commit ${shortSha}</span>
           ${sourceLink}
+          <a href="${policyUrl}">Scoped coverage policy</a>
         </div>
       </header>
       <section class="grid" aria-label="Workspace coverage reports">

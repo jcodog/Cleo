@@ -16,17 +16,18 @@
     "dist/deployment/validateReleaseArtifact.js",
     "dist/deployment/validateReleaseArtifact.js.map",
     "node_modules/@napi-rs/canvas/package.json",
-    "node_modules/.pnpm/node_modules/@napi-rs/canvas-linux-x64-gnu/package.json",
-    "node_modules/.pnpm/node_modules/@napi-rs/canvas-linux-x64-gnu/skia.linux-x64-gnu.node",
+    "node_modules/@napi-rs/canvas-linux-x64-gnu/package.json",
+    "node_modules/@napi-rs/canvas-linux-x64-gnu/skia.linux-x64-gnu.node",
     "node_modules/discord.js/package.json"
   ],
   "forbiddenFiles": [
     "src/index.ts",
     "node_modules/tsx/dist/cli.mjs",
     "node_modules/.modules.yaml",
-    "node_modules/.package-map.json",
     "node_modules/.bin/convex",
-    "node_modules/.pnpm/node_modules/@workspace/discord-bot"
+    "node_modules/@workspace/discord-bot",
+    "bun.lock",
+    "bunfig.toml"
   ],
   "forbiddenPathPrefixes": [
     "src/",

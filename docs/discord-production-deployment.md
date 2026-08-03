@@ -19,7 +19,7 @@ runner and performs:
 - Discord bot and Convex backend tests;
 - Discord bot and Convex backend typecheck and lint;
 - compiled Node ESM build with source maps;
-- `pnpm deploy` packaging for `@workspace/discord-bot` and its production dependency closure;
+- a frozen Bun install of only `@workspace/discord-bot`'s non-development dependency closure into a portable Node-compatible staging layout;
 - compiled runtime, command-registration, artifact-contract, and native canvas probes;
 - creation of a deterministic commit-marked Linux x64 tarball and SHA-256 checksum;
 - workflow artifact upload;
@@ -41,7 +41,7 @@ The dashboard is not built or copied by this workflow.
 - selective global command registration;
 - deployment-state update and automatic runtime rollback on activation failure.
 
-The production VPS must never run `pnpm install`, tests, lint, typecheck, builds,
+The production VPS must never run `bun install`, tests, lint, typecheck, builds,
 or Convex deployment as part of release activation.
 
 ## Production ownership and paths

@@ -11,7 +11,8 @@ test("Discord deploy paths include runtime and direct dependencies", () => {
   assert.equal(isDiscordDeployPath("apps/discord-bot/src/index.ts"), true)
   assert.equal(isDiscordDeployPath("packages/backend/convex/schema.ts"), true)
   assert.equal(isDiscordDeployPath("packages/shared/src/index.ts"), true)
-  assert.equal(isDiscordDeployPath("pnpm-lock.yaml"), true)
+  assert.equal(isDiscordDeployPath("bun.lock"), true)
+  assert.equal(isDiscordDeployPath("bunfig.toml"), true)
   assert.equal(
     isDiscordDeployPath(".github/workflows/discord-production.yml"),
     true

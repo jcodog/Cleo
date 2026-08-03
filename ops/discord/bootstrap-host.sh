@@ -97,7 +97,6 @@ systemctl daemon-reload
 systemctl enable cleo-discord.service
 
 expected_node="$(tr -d '[:space:]' < "$repository_root/.nvmrc")"
-expected_pnpm="$(node -p "require('$repository_root/package.json').packageManager.split('@')[1].split('+')[0]" 2>/dev/null || true)"
 
 cat <<EOF
 
@@ -109,6 +108,5 @@ Still required before runner smoke:
 3. Restart the GitHub Actions runner service so github-runner receives cleo-deploy membership.
 4. Run Discord Production Runner Smoke from main.
 
-Expected pnpm for Actions jobs: ${expected_pnpm:-see package.json}
 The bot service was enabled but not started; the first successful deployment creates the current release.
 EOF

@@ -68,7 +68,7 @@ test("compiled artifact validates runtime, command, metadata, and native files",
     assert.ok(contract.requiredFiles.includes("dist/index.js.map"))
     assert.ok(
       contract.requiredFiles.includes(
-        "node_modules/.pnpm/node_modules/@napi-rs/canvas-linux-x64-gnu/skia.linux-x64-gnu.node"
+        "node_modules/@napi-rs/canvas-linux-x64-gnu/skia.linux-x64-gnu.node"
       )
     )
     assert.equal(
@@ -155,6 +155,30 @@ test("artifact validation rejects symlinked forbidden prefixes", async () => {
           expectedSha: releaseSha,
         }),
       /forbidden production files: src\//
+    )
+  })
+})
+
+test("artifact validation rejects the Bun workspace self-link", async () => {
+  await withArtifactFixture((artifactRoot) => {
+    const selfLink = resolveArtifactPath(
+      artifactRoot,
+      "node_modules/@workspace/discord-bot"
+    )
+    mkdirSync(path.dirname(selfLink), { recursive: true })
+    symlinkSync(
+      resolveArtifactPath(artifactRoot, "dist"),
+      selfLink,
+      process.platform === "win32" ? "junction" : "dir"
+    )
+
+    assert.throws(
+      () =>
+        validateReleaseArtifactDirectory(artifactRoot, {
+          expectedPlatform: releasePlatform,
+          expectedSha: releaseSha,
+        }),
+      /node_modules\/@workspace\/discord-bot/
     )
   })
 })

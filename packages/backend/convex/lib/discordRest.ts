@@ -4,6 +4,7 @@ import {
   type ConvexJsonObject,
   type ConvexJsonShallowObject,
 } from "./validators"
+import { fetchDiscordJson } from "./discordRestTransport"
 
 const DISCORD_API_BASE_URL = "https://discord.com/api/v10"
 const DISCORD_CDN_BASE_URL = "https://cdn.discordapp.com"
@@ -16,7 +17,6 @@ const DISCORD_GUILD_FORUM_CHANNEL = 15
 const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
 const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
 const DISCORD_EPOCH = 1420070400000n
-const DISCORD_FETCH_TIMEOUT_MS = 10000
 
 type DiscordApiUnavailableReason =
   | "discordApiUnavailable"
@@ -76,12 +76,6 @@ type DiscordAuditLogEntry = {
 type DiscordAuditLogResponse = {
   audit_log_entries: DiscordAuditLogEntry[]
   users?: DiscordAuditLogUser[]
-}
-
-type DiscordJsonResponse = {
-  ok: boolean
-  status: number
-  json?: unknown
 }
 
 export type DiscordManageableGuild = {
@@ -690,33 +684,6 @@ function getDiscordGuildIconUrl(guildId: string, iconHash: string) {
   const extension = iconHash.startsWith("a_") ? "gif" : "png"
 
   return `${DISCORD_CDN_BASE_URL}/icons/${guildId}/${iconHash}.${extension}?size=64`
-}
-
-async function fetchDiscordJson(
-  url: string,
-  init: RequestInit
-): Promise<DiscordJsonResponse | null> {
-  try {
-    const response = await fetch(url, {
-      ...init,
-      signal: AbortSignal.timeout(DISCORD_FETCH_TIMEOUT_MS),
-    })
-
-    if (!response.ok) {
-      return {
-        ok: false,
-        status: response.status,
-      }
-    }
-
-    return {
-      ok: true,
-      status: response.status,
-      json: await response.json(),
-    }
-  } catch {
-    return null
-  }
 }
 
 function isDiscordUserGuilds(value: unknown): value is DiscordUserGuild[] {
