@@ -255,6 +255,20 @@ validate_staged_release() {
   ' "$release_root" "$expected_sha" "$expected_platform"
 }
 
+prepare_release_root() {
+  local release_root="$1"
+
+  if [[ "$(stat -c %G "$release_root")" != "$deploy_group" ]]; then
+    echo "Discord release root must use group $deploy_group: $release_root" >&2
+    return 1
+  fi
+
+  # Release archives include their root directory entry. Normalize it after
+  # extraction so a restrictive packaging umask cannot prevent systemd from
+  # entering WorkingDirectory as the cleo runtime user.
+  chmod 0750 "$release_root"
+}
+
 stage_release() {
   local sha="$1"
   local release_dir="$releases_dir/$sha"
@@ -262,6 +276,7 @@ stage_release() {
   verify_release_artifact || return 1
 
   if [[ -d "$release_dir" ]]; then
+    prepare_release_root "$release_dir" || return 1
     validate_staged_release "$release_dir" "$sha" || return 1
     find "$release_dir" -type f -name '.env*' -delete
     return 0
@@ -272,6 +287,7 @@ stage_release() {
   mkdir -p "$staging_dir"
   tar --no-same-owner -xzf "$release_archive" -C "$staging_dir"
 
+  prepare_release_root "$staging_dir" || return 1
   validate_staged_release "$staging_dir" "$sha" || return 1
   cmp -s "$repository_root/.nvmrc" "$staging_dir/.nvmrc" || {
     echo "Discord release Node version does not match the checked-out revision." >&2

@@ -133,6 +133,11 @@ printf '%s\n' "$release_platform" > "$bundle_dir/.cleo-release-platform"
 
 find "$bundle_dir" -type f -name '.env*' -delete
 
+# mktemp creates the bundle root with mode 0700. The archive includes that root
+# entry, so make it traversable by the production runtime group before packing.
+# Files inside the release remain protected by the script's 0027 umask.
+chmod 0750 "$bundle_dir"
+
 for required_path in runtime-artifact.json dist/deployment/validateReleaseArtifact.js; do
   if [[ ! -e "$bundle_dir/$required_path" ]]; then
     echo "Packaged Discord release is missing $required_path" >&2
