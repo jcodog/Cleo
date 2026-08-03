@@ -60,9 +60,37 @@ done < <(
     --filter @workspace/discord-bot --linker hoisted
 )
 
+self_workspace_link="$bundle_dir/node_modules/@workspace/discord-bot"
+if [[ -L "$self_workspace_link" ]]; then
+  self_workspace_target="$(readlink -f -- "$self_workspace_link")"
+  if [[ "$self_workspace_target" != "$bundle_dir/apps/discord-bot" ]]; then
+    echo "Discord workspace self-link has an unexpected target: $self_workspace_target" >&2
+    exit 1
+  fi
+  rm -f -- "$self_workspace_link"
+fi
+
 rm -rf -- "$bundle_dir/apps" "$bundle_dir/packages"
 rm -f -- "$bundle_dir/bun.lock" "$bundle_dir/bunfig.toml"
 find "$bundle_dir/node_modules" -type d -name .bin -prune -exec rm -rf -- {} +
+
+# Reject dangling links and links that escape the immutable release. Running
+# this after workspace cleanup also catches dependencies that still point into
+# the temporary apps/ or packages/ source closures.
+while IFS= read -r -d '' link_path; do
+  if ! resolved_path="$(readlink -f -- "$link_path")"; then
+    echo "Packaged Discord release contains a dangling symlink: $link_path" >&2
+    exit 1
+  fi
+
+  case "$resolved_path" in
+    "$bundle_dir" | "$bundle_dir"/*) ;;
+    *)
+      echo "Packaged Discord release symlink escapes the bundle: $link_path -> $resolved_path" >&2
+      exit 1
+      ;;
+  esac
+done < <(find "$bundle_dir" -type l -print0)
 
 cp -a "$repository_root/apps/discord-bot/dist" "$bundle_dir/dist"
 install -m 0644 \

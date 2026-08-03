@@ -41,6 +41,7 @@ export async function fetchDiscordJson(
 
       if (response.status === 429) {
         const retryDelayMs = await getRetryDelayMs(response)
+        await discardResponseBody(response)
 
         if (
           retryDelayMs === null ||
@@ -57,7 +58,12 @@ export async function fetchDiscordJson(
       }
 
       if (!response.ok) {
+        await discardResponseBody(response)
         return { ok: false, status: response.status }
+      }
+
+      if (response.status === 204) {
+        return { ok: true, status: response.status }
       }
 
       return {
@@ -68,6 +74,18 @@ export async function fetchDiscordJson(
     }
   } catch {
     return null
+  }
+}
+
+async function discardResponseBody(response: Response): Promise<void> {
+  if (response.body === null || response.bodyUsed) {
+    return
+  }
+
+  try {
+    await response.body.cancel()
+  } catch {
+    // Preserving the Discord status is more useful than surfacing cleanup errors.
   }
 }
 
@@ -108,6 +126,6 @@ function parseRetryDelayMs(value: unknown): number | null {
   return Math.ceil(seconds * 1_000)
 }
 
-async function wait(delayMs: number) {
+async function wait(delayMs: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, delayMs))
 }

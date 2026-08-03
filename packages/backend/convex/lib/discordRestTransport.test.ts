@@ -121,6 +121,30 @@ test("Discord transport does not retry authentication or permission failures", a
   }
 })
 
+test("Discord transport cancels unused error response bodies", async () => {
+  let cancelled = false
+  const body = new ReadableStream({
+    cancel() {
+      cancelled = true
+    },
+  })
+
+  const result = await fetchDiscordJson("https://discord.test/resource", {}, {
+    fetch: async () => new Response(body, { status: 403 }),
+  })
+
+  assert.deepEqual(result, { ok: false, status: 403 })
+  assert.equal(cancelled, true)
+})
+
+test("Discord transport accepts successful responses without a body", async () => {
+  const result = await fetchDiscordJson("https://discord.test/resource", {}, {
+    fetch: async () => new Response(null, { status: 204 }),
+  })
+
+  assert.deepEqual(result, { ok: true, status: 204 })
+})
+
 test("Discord transport handles success and network failure", async () => {
   const success = await fetchDiscordJson("https://discord.test/resource", {}, {
     fetch: async () => jsonResponse(200, { guild: "ready" }),
@@ -138,6 +162,21 @@ test("Discord transport handles success and network failure", async () => {
     },
   })
   assert.equal(failure, null)
+
+  const timeout = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"))
+          })
+        }),
+      requestTimeoutMs: 5,
+    }
+  )
+  assert.equal(timeout, null)
 })
 
 test("Discord transport uses its production wait boundary", async () => {
