@@ -3,14 +3,15 @@
 import { useEffect, useState } from "react"
 import { UserButton } from "@clerk/nextjs"
 import { IconHome, IconShieldLock } from "@tabler/icons-react"
-import Link from "next/link"
 
-import { buttonVariants } from "@workspace/ui/components/button"
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 import { Separator } from "@workspace/ui/components/separator"
-import { cn } from "@workspace/ui/lib/utils"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import type { StaffTopbarEntry } from "@/features/app-shell/staffAccess"
+import {
+  getStaffUserButtonLink,
+  type StaffUserButtonLink,
+} from "@/features/app-shell/staffUserButton"
 
 export function AppTopbar({
   staffEntry = null,
@@ -26,30 +27,19 @@ export function AppTopbar({
         <p className="truncate text-sm font-medium">CleoAI Dashboard</p>
       </div>
 
-      {staffEntry ? <StaffEntryButton entry={staffEntry} /> : null}
-      <MountedUserButton />
+      <MountedUserButton staffEntry={staffEntry} />
       <ThemeToggle />
     </header>
   )
 }
 
-function StaffEntryButton({ entry }: { entry: StaffTopbarEntry }) {
-  const Icon = entry.mode === "dashboard" ? IconHome : IconShieldLock
-
-  return (
-    <Link
-      className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-      href={entry.href}
-    >
-      <Icon aria-hidden data-icon="inline-start" />
-      <span className="hidden sm:inline">{entry.label}</span>
-      <span className="sr-only sm:hidden">{entry.label}</span>
-    </Link>
-  )
-}
-
-function MountedUserButton() {
+function MountedUserButton({
+  staffEntry,
+}: {
+  staffEntry: StaffTopbarEntry | null
+}) {
   const [mounted, setMounted] = useState(false)
+  const staffLink = getStaffUserButtonLink(staffEntry)
 
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => {
@@ -65,5 +55,31 @@ function MountedUserButton() {
     return <div aria-hidden="true" className="h-8 w-28 shrink-0" />
   }
 
-  return <UserButton showName />
+  return <StaffUserButton staffLink={staffLink} />
+}
+
+export function StaffUserButton({
+  staffLink,
+}: {
+  staffLink: StaffUserButtonLink | null
+}) {
+  return (
+    <UserButton showName>
+      {staffLink ? (
+        <UserButton.MenuItems>
+          <UserButton.Link
+            href={staffLink.href}
+            label={staffLink.label}
+            labelIcon={
+              staffLink.icon === "shield-lock" ? (
+                <IconShieldLock aria-hidden size={16} />
+              ) : (
+                <IconHome aria-hidden size={16} />
+              )
+            }
+          />
+        </UserButton.MenuItems>
+      ) : null}
+    </UserButton>
+  )
 }
