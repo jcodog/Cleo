@@ -1,0 +1,28 @@
+scripts/lint-javascript.mjs
+  s_f4f07b22d44af0::t_114843ada403fe 1-4,6-7,9-13,15-16,18-24,26-27,29-40
+  s_f4f07b22d44af0::t_20e856243ad045 5,8,14,17,25,28,41
+.oxlintrc.json
+  s_f4f07b22d44af0::t_114843ada403fe 114-118,124
+  s_f4f07b22d44af0::t_1c7080106c00d5 119-122
+  s_f4f07b22d44af0::t_70bee9db7598cb 112-113
+  s_f4f07b22d44af0::t_2b1f124e646b23 123
+  s_f4f07b22d44af0::t_3d184be6e89cd1 125-126
+package.json
+  s_f4f07b22d44af0::t_114843ada403fe 8-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "5ba4aac942d7304c8957f31205ab7c9de3fb595d",
+  "prompts": {},
+  "sessions": {
+    "s_f4f07b22d44af0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a011e2-216a-7230-ac6f-f1e9152560fa",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
