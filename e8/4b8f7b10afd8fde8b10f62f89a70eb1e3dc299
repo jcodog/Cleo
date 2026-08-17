@@ -1,0 +1,19 @@
+apps/dashboard/package.json
+  s_f4f07b22d44af0::t_1634cd2c815aea 12-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e84b8f7b10afd8fde8b10f62f89a70eb1e3dc299",
+  "prompts": {},
+  "sessions": {
+    "s_f4f07b22d44af0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a011e2-216a-7230-ac6f-f1e9152560fa",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
