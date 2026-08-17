@@ -46,7 +46,7 @@ The v3.1 workstream adds product-connected Discord features that were deliberate
 
 ### Engineering and operations
 
-- Uses targeted TypeScript, ESLint, test, coverage, build, packaging, and deployment checks.
+- Uses targeted TypeScript, Oxlint, test, coverage, build, packaging, and deployment checks.
 - Publishes browsable coverage from successful `main` regression runs.
 - Packages exact-SHA Discord releases and activates them through a dedicated production runner.
 - Keeps production environment files outside repository checkouts.
@@ -82,7 +82,7 @@ flowchart LR
 - `packages/logger` contains structured logging, error serialisation, and redaction helpers.
 - `packages/shared` contains app-safe contracts, constants, schemas, entitlements, and Cleo Profile and Pet models.
 - `packages/ui` contains shared shadcn/ui primitives and Cleo design-system components.
-- `packages/eslint-config` and `packages/typescript-config` contain shared engineering configuration.
+- `packages/typescript-config` contains shared TypeScript engineering configuration.
 
 ## Product boundary
 

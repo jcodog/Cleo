@@ -8,7 +8,6 @@ export type StaffToolAccess =
 
 export type StaffTopbarEntry = {
   href: string
-  label: "Dashboard" | "Staff"
   mode: "dashboard" | "staff"
 }
 
@@ -27,14 +26,12 @@ export function getStaffTopbarEntry(
   if (area === "staff") {
     return {
       href: "/dashboard",
-      label: "Dashboard",
       mode: "dashboard",
     }
   }
 
   return {
     href: "/staff",
-    label: "Staff",
     mode: "staff",
   }
 }

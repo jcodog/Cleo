@@ -111,7 +111,7 @@ If the correct pane is unclear, ask Jason which pane ID to inspect.
 
 - This repo uses the pinned Bun version from `package.json`.
 - Use package scripts for project commands: `bun run <script>` from a workspace, or `bun run --filter <workspace> <script>` from the repo root.
-- Use `bunx --no-install <command>` for locally installed CLIs such as Convex, Next.js, ESLint, Prettier, and shadcn.
+- Use `bunx --no-install <command>` for locally installed CLIs such as Convex, Next.js, Oxlint, Prettier, and shadcn.
 - Use plain `bunx <package>` only when a one-off CLI is not already installed in the workspace.
 - Do not use another package manager for repo scripts, validation, codegen, package installs, or local CLIs.
 - Do not add or update dependencies with another package manager. Keep `bun.lock` as the only package-manager lockfile.

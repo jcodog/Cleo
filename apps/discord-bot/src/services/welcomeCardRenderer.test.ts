@@ -11,12 +11,13 @@ import {
 test("welcome card renderer returns a PNG attachment", async () => {
   const message = await renderWelcomeCardMessage(createMember())
   const file = getAttachmentPayload(message.files?.[0])
+  const attachment = file?.attachment
 
   assert.equal(message.content, "Welcome <@345678901234567890> to Cleo HQ")
   assert.equal(file?.name, "cleo-welcome.png")
-  assert.ok(Buffer.isBuffer(file?.attachment))
+  assert.ok(Buffer.isBuffer(attachment))
   assert.deepEqual(
-    Array.from((file?.attachment as Buffer).subarray(0, 8)),
+    Array.from(attachment.subarray(0, 8)),
     [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
   )
 })

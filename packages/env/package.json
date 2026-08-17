@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=95 --src=src --include=\"src/**/*.ts\" --exclude=\"src/**/*.test.ts\" --exclude=\"src/index.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/packages/env\" --temp-directory=\"../../.coverage-tmp/packages/env\" tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc"
@@ -15,9 +15,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "catalog:",
     "typescript": "catalog:"
   },
   "exports": {

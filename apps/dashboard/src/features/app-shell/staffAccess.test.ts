@@ -13,13 +13,11 @@ test("top-bar staff entry is gated by ready staff tool access", () => {
 test("top-bar staff entry points back to dashboard on staff routes", () => {
   assert.deepEqual(getStaffTopbarEntry("staff", { status: "ready" }), {
     href: "/dashboard",
-    label: "Dashboard",
     mode: "dashboard",
   })
 
   assert.deepEqual(getStaffTopbarEntry("discord", { status: "ready" }), {
     href: "/staff",
-    label: "Staff",
     mode: "staff",
   })
 

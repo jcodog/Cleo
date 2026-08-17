@@ -13,13 +13,10 @@ test("Discord deploy paths include runtime and direct dependencies", () => {
   assert.equal(isDiscordDeployPath("packages/shared/src/index.ts"), true)
   assert.equal(isDiscordDeployPath("bun.lock"), true)
   assert.equal(isDiscordDeployPath("bunfig.toml"), true)
+  assert.equal(isDiscordDeployPath("pnpm-lock.yaml"), false)
+  assert.equal(isDiscordDeployPath("pnpm-workspace.yaml"), false)
   assert.equal(
     isDiscordDeployPath(".github/workflows/discord-production.yml"),
-    true
-  )
-  assert.equal(isDiscordDeployPath(".github/scripts/deploy-discord.sh"), true)
-  assert.equal(
-    isDiscordDeployPath(".github/scripts/package-discord-release.sh"),
     true
   )
   assert.equal(
@@ -27,9 +24,22 @@ test("Discord deploy paths include runtime and direct dependencies", () => {
     true
   )
   assert.equal(
-    isDiscordDeployPath("ops/discord/bin/run-discord-release"),
+    isDiscordDeployPath(".github/scripts/deploy-discord.sh"),
     true
   )
+  assert.equal(
+    isDiscordDeployPath(".github/scripts/package-discord-release.sh"),
+    true
+  )
+  assert.equal(
+    isDiscordDeployPath("ops/discord/bin/deploy-discord-release"),
+    true
+  )
+  assert.equal(
+    isDiscordDeployPath("ops/discord/bin/check-discord-runner"),
+    true
+  )
+  assert.equal(isDiscordDeployPath("ops/discord/bin/run-discord-release"), true)
   assert.equal(isDiscordDeployPath("ops/discord/bootstrap-host.sh"), true)
   assert.equal(
     isDiscordDeployPath("ops/discord/systemd/cleo-discord.service"),
@@ -63,13 +73,10 @@ test("command registration paths exclude runtime-only changes", () => {
     isCommandRegistrationPath("ops/discord/bin/run-discord-release"),
     false
   )
-  assert.deepEqual(
-    classifyChangedPaths(["apps/dashboard/src/app/page.tsx"]),
-    {
-      deploy: false,
-      registerCommands: false,
-    }
-  )
+  assert.deepEqual(classifyChangedPaths(["apps/dashboard/src/app/page.tsx"]), {
+    deploy: false,
+    registerCommands: false,
+  })
   assert.deepEqual(
     classifyChangedPaths([".github/workflows/discord-runner-smoke.yml"]),
     {

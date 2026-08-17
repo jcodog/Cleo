@@ -8,7 +8,6 @@ const DEPLOY_PREFIXES = [
   "packages/env/",
   "packages/logger/",
   "packages/shared/",
-  "packages/eslint-config/",
   "packages/typescript-config/",
   "ops/discord/",
 ] as const
