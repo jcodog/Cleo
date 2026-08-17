@@ -7,7 +7,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
     "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src/features/discord-guild-workspace --include=\"src/features/discord-guild-workspace/**/*.ts\" --exclude=\"src/**/*.test.ts\" --exclude=\"src/**/index.ts\" --exclude=\"src/features/discord-guild-workspace/types.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/dashboard\" --temp-directory=\"../../.coverage-tmp/apps/dashboard\" node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
@@ -33,9 +33,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "catalog:",
     "typescript": "catalog:"
   }
 }

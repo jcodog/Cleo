@@ -6,17 +6,20 @@
     "build": "turbo build",
     "dev": "turbo dev --ui=tui",
     "lint": "turbo lint",
-    "lint:ci": "turbo lint -- --max-warnings=0",
+    "lint:ci": "turbo lint",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "catalog:",
     "@types/node": "catalog:",
-    "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "c8": "^12.0.0",
+    "eslint-plugin-react-hooks": "catalog:",
+    "eslint-plugin-turbo": "catalog:",
+    "oxlint": "catalog:",
     "prettier": "catalog:",
     "prettier-plugin-tailwindcss": "catalog:",
     "tsx": "catalog:",
@@ -32,28 +35,21 @@
       "packages/*"
     ],
     "catalog": {
-      "@eslint/js": "^10.0.1",
       "@next/eslint-plugin-next": "^16.3.1",
       "@tailwindcss/postcss": "^4.3.3",
       "@turbo/gen": "^2.10.10",
       "@types/node": "^26.2.0",
       "@types/react": "^19.2.18",
       "@types/react-dom": "^19.2.4",
-      "@typescript-eslint/eslint-plugin": "^8.67.0",
-      "@typescript-eslint/parser": "^8.67.0",
-      "eslint": "^10.8.1",
-      "eslint-config-prettier": "^10.1.8",
-      "eslint-plugin-only-warn": "^1.2.1",
       "eslint-plugin-react-hooks": "^7.1.1",
       "eslint-plugin-turbo": "^2.10.10",
-      "globals": "^17.11.0",
       "prettier": "^3.9.6",
       "prettier-plugin-tailwindcss": "^0.8.1",
       "tailwindcss": "^4.3.3",
       "turbo": "^2.10.10",
       "typescript": "^7.0.2",
-      "typescript-eslint": "^8.67.0",
-      "tsx": "^4.23.12"
+      "tsx": "^4.23.12",
+      "oxlint": "1.76.0"
     }
   },
   "trustedDependencies": [

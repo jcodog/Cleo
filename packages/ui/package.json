@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "lint": "eslint",
+    "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src/lib --include=\"src/lib/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/packages/ui\" --temp-directory=\"../../.coverage-tmp/packages/ui\" tsx --test \"src/**/*.test.ts\"",
@@ -35,9 +35,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "catalog:",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "shadcn": "^4.18.0",
