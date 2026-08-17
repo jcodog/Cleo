@@ -1,0 +1,29 @@
+apps/dashboard/package.json
+  s_f4f07b22d44af0::t_d6dbc526f991db 10
+AGENTS.md
+  s_df08fe71b0e396::t_1284942e771f29 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "97e287ced554e4787f084c8f58c255899c29aa86",
+  "prompts": {},
+  "sessions": {
+    "s_df08fe71b0e396": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc721-d1f9-7ce0-8453-df1229ea2b8e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_f4f07b22d44af0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a011e2-216a-7230-ac6f-f1e9152560fa",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
