@@ -5,8 +5,9 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev --ui=tui",
-    "lint": "turbo lint",
-    "lint:ci": "turbo lint",
+    "lint": "turbo lint && bun run lint:javascript",
+    "lint:ci": "bun run lint",
+    "lint:javascript": "bun scripts/lint-javascript.mjs",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",

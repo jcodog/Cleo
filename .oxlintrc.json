@@ -111,6 +111,21 @@
   "overrides": [
     {
       "files": [
+        ".github/scripts/**/*.{js,mjs,cjs}",
+        "scripts/**/*.{js,mjs,cjs}"
+      ],
+      "env": {
+        "node": true
+      },
+      "globals": {
+        "Bun": "readonly"
+      },
+      "rules": {
+        "turbo/no-undeclared-env-vars": "off"
+      }
+    },
+    {
+      "files": [
         "**/*.ts",
         "**/*.tsx",
         "**/*.mts",
