@@ -1,0 +1,27 @@
+apps/dashboard/package.json
+  s_df08fe71b0e396::t_883d15eed2ea45 17-18,23,25,29
+apps/discord-bot/package.json
+  s_df08fe71b0e396::t_0903145d0c7bc8 27,38-39
+package.json
+  s_df08fe71b0e396::t_67fcc1432048a7 36,38-39,42-44,48-49,53,55-56
+packages/backend/package.json
+  s_df08fe71b0e396::t_d8dcc65a3fb47e 20,27
+packages/eslint-config/package.json
+  s_df08fe71b0e396::t_b8cea650856bfd 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "da90e505d3fdf801e10962d96793de245d13ca8c",
+  "prompts": {},
+  "sessions": {
+    "s_df08fe71b0e396": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc721-d1f9-7ce0-8453-df1229ea2b8e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
