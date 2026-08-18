@@ -8,7 +8,7 @@ Wants=network-online.target
 Type=simple
 User=cleo
 Group=cleo
-SupplementaryGroups=cleo-deploy
+SupplementaryGroups=cleo-runtime
 WorkingDirectory=/srv/cleo/discord-bot/current
 EnvironmentFile=/etc/cleo/discord-bot.env
 Environment=HOME=/home/cleo

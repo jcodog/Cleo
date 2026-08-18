@@ -18,7 +18,7 @@ jobs:
     runs-on: cleo-prod
     timeout-minutes: 5
     env:
-      CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
       CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
@@ -28,6 +28,7 @@ jobs:
       CLEO_DISCORD_RUNTIME_USER: cleo
       CLEO_DISCORD_RUNTIME_GROUP: cleo
       CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
+      CLEO_DISCORD_RUNTIME_READ_GROUP: cleo-runtime
 
     steps:
       - name: Verify host, services, permissions, and controller
@@ -38,3 +39,6 @@ jobs:
             "$CLEO_DISCORD_HOST_CONTRACT_VERSION" \
             "$CLEO_DISCORD_HOST_NODE_VERSION" \
             "$CLEO_DISCORD_RELEASE_PLATFORM"
+          sudo -n -u "$CLEO_DISCORD_RUNTIME_USER" \
+            /usr/local/libexec/cleo/check-discord-runtime \
+            "v$CLEO_DISCORD_HOST_NODE_VERSION"

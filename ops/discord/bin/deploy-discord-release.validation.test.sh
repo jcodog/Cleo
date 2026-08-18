@@ -14,6 +14,8 @@ env_file="$fixture_root/discord.env"
 archive="$fixture_root/release.tar.gz"
 checksum="$archive.sha256"
 release_sha="0123456789abcdef0123456789abcdef01234567"
+active_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+active_fingerprint="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 runtime_user="$(id -un)"
 host_node="$(command -v node)"
 release_platform="$($host_node -p '`${process.platform}-${process.arch}`')"
@@ -21,8 +23,11 @@ release_os="${release_platform%%-*}"
 release_architecture="${release_platform#*-}"
 
 mkdir -p "$deploy_root/releases" "$deploy_root/shared" "$bin_dir"
+chmod 2775 "$deploy_root" "$deploy_root/releases" "$deploy_root/shared"
 runtime_group="$(stat -c %G "$deploy_root")"
 touch "$env_file"
+touch "$deploy_root/shared/deployment.lock"
+chmod 0640 "$deploy_root/shared/deployment.lock"
 
 cat > "$runtime_check" <<'EOF'
 #!/usr/bin/env bash
@@ -47,7 +52,7 @@ case "$operation" in
       LoadState) printf '%s\n' loaded ;;
       User) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_USER" ;;
       Group) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_GROUP" ;;
-      SupplementaryGroups) printf '%s\n' "$CLEO_DISCORD_TEST_DEPLOY_GROUP" ;;
+      SupplementaryGroups) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_READ_GROUP" ;;
       WorkingDirectory) printf '%s\n' "$CLEO_DISCORD_TEST_DEPLOY_ROOT/current" ;;
       EnvironmentFiles) printf '%s\n' "$CLEO_DISCORD_TEST_ENV_FILE" ;;
       ExecStart)
@@ -73,13 +78,16 @@ chmod 0755 \
   "$bin_dir/systemctl"
 
 export PATH="$bin_dir:$PATH"
-export CLEO_DISCORD_HOST_CONTRACT_VERSION=3
+export CLEO_DISCORD_HOST_CONTRACT_VERSION=4
 export CLEO_DISCORD_RELEASE_PLATFORM="$release_platform"
 export CLEO_DISCORD_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_ENV_FILE="$env_file"
 export CLEO_DISCORD_RUNTIME_USER="$runtime_user"
 export CLEO_DISCORD_RUNTIME_GROUP="$runtime_group"
 export CLEO_DISCORD_DEPLOY_GROUP="$runtime_group"
+export CLEO_DISCORD_RUNTIME_READ_GROUP="$runtime_group"
+export CLEO_DISCORD_DEPLOY_OWNER="$runtime_user"
+export CLEO_DISCORD_DEPLOY_ROOT_OWNER="$runtime_user"
 export CLEO_DISCORD_RUNTIME_LAUNCHER="$fixture_root/run-release"
 export CLEO_DISCORD_RUNTIME_CHECK="$runtime_check"
 export CLEO_DISCORD_HOST_NODE="$host_node"
@@ -94,6 +102,7 @@ export CLEO_DISCORD_RELEASE_CHECKSUM="$checksum"
 export CLEO_DISCORD_TEST_RUNTIME_USER="$runtime_user"
 export CLEO_DISCORD_TEST_RUNTIME_GROUP="$runtime_group"
 export CLEO_DISCORD_TEST_DEPLOY_GROUP="$runtime_group"
+export CLEO_DISCORD_TEST_RUNTIME_READ_GROUP="$runtime_group"
 export CLEO_DISCORD_TEST_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_TEST_ENV_FILE="$env_file"
 export CLEO_DISCORD_TEST_RUNTIME_LAUNCHER="$fixture_root/run-release"
@@ -213,6 +222,27 @@ expect_rejected() {
   }
 }
 
+initialize_active_release() {
+  mkdir -p "$deploy_root/releases/$active_sha"
+  ln -s "$deploy_root/releases/$active_sha" "$deploy_root/current"
+  printf 'APPLICATION_SHA=%s\nPREVIOUS_APPLICATION_SHA=\nCOMMAND_FINGERPRINT=%s\n' \
+    "$active_sha" "$active_fingerprint" > "$deploy_root/shared/deployment-state.env"
+  chmod 0640 "$deploy_root/shared/deployment-state.env"
+}
+
+expect_rejected_preserving_active() {
+  local name="$1"
+  local expected_message="$2"
+  local state_snapshot="$fixture_root/active-state.snapshot"
+  local current_before
+  initialize_active_release
+  current_before="$(readlink "$deploy_root/current")"
+  cp "$deploy_root/shared/deployment-state.env" "$state_snapshot"
+  expect_rejected "$name" "$expected_message"
+  [[ "$(readlink "$deploy_root/current")" == "$current_before" ]]
+  cmp "$state_snapshot" "$deploy_root/shared/deployment-state.env"
+}
+
 set_manifest_timestamp() {
   local value="$1"
   "$host_node" --input-type=module - "$release_fixture/release-manifest.json" "$value" <<'NODE'
@@ -278,5 +308,25 @@ create_valid_release
 package_release
 ln -s "$release_fixture" "$deploy_root/releases/$release_sha"
 expect_rejected "a staged release root escaping through a symlink" "regular non-symlink directory"
+
+reset_deployment
+create_valid_release
+rm -f "$release_fixture/.nvmrc"
+ln -s missing-nvmrc "$release_fixture/.nvmrc"
+package_release
+expect_rejected_preserving_active \
+  "an archive with a dangling required-file symlink" \
+  "Discord release contains a dangling symlink"
+
+reset_deployment
+create_valid_release
+outside_required="$fixture_root/outside-required-file"
+printf '%s\n' outside > "$outside_required"
+rm -f "$release_fixture/.nvmrc"
+ln -s "$outside_required" "$release_fixture/.nvmrc"
+package_release
+expect_rejected_preserving_active \
+  "an archive with a staging-escaping required-file symlink" \
+  "Discord release symlink escapes the staged release"
 
 echo "Discord host release validation tests passed."

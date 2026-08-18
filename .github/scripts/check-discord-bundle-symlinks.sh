@@ -10,8 +10,13 @@ root="${1:-}"
 root="$(realpath -e -- "$root")"
 
 while IFS= read -r -d '' link_path; do
-  if ! resolved_path="$(readlink -f -- "$link_path")"; then
+  if [[ ! -e "$link_path" ]]; then
     echo "Packaged Discord release contains a dangling symlink: $link_path" >&2
+    exit 1
+  fi
+
+  if ! resolved_path="$(realpath -e -- "$link_path")"; then
+    echo "Packaged Discord release symlink cannot be resolved strictly: $link_path" >&2
     exit 1
   fi
 

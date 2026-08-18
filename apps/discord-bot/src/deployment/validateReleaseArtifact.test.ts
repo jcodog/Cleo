@@ -292,6 +292,13 @@ test("artifact validation rejects a manifest for another commit", async () => {
 
 for (const invalidManifest of [
   {
+    name: "critical file hash map",
+    update: (manifest: Record<string, unknown>) => {
+      manifest.criticalFileSha256 = null
+    },
+    error: /manifest critical file hashes are invalid/,
+  },
+  {
     name: "contract version",
     update: (manifest: Record<string, unknown>) => {
       manifest.artifactContractVersion = 999
@@ -373,6 +380,26 @@ for (const invalidManifest of [
             expectedSha: releaseSha,
           }),
         invalidManifest.error
+      )
+    })
+  })
+}
+
+for (const invalidTopLevelManifest of ["null", "[]", '"manifest"']) {
+  test(`artifact validation rejects top-level manifest ${invalidTopLevelManifest}`, async () => {
+    await withArtifactFixture((artifactRoot) => {
+      writeFileSync(
+        resolveArtifactPath(artifactRoot, artifactContract.releaseManifest),
+        `${invalidTopLevelManifest}\n`
+      )
+
+      assert.throws(
+        () =>
+          validateReleaseArtifactDirectory(artifactRoot, {
+            expectedPlatform: releasePlatform,
+            expectedSha: releaseSha,
+          }),
+        /manifest must be a JSON object/
       )
     })
   })

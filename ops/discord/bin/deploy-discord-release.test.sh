@@ -15,9 +15,12 @@ command_attempts="$fixture_root/command-attempts"
 source_sha="0123456789abcdef0123456789abcdef01234567"
 target_sha="fedcba9876543210fedcba9876543210fedcba98"
 runtime_user="$(id -un)"
-runtime_group="$(id -gn)"
 mkdir -p "$deploy_root/releases" "$deploy_root/shared" "$bin_dir"
+chmod 2775 "$deploy_root" "$deploy_root/releases" "$deploy_root/shared"
+runtime_group="$(id -gn)"
 touch "$env_file"
+touch "$deploy_root/shared/deployment.lock"
+chmod 0640 "$deploy_root/shared/deployment.lock"
 
 create_release() {
   local sha="$1"
@@ -70,7 +73,7 @@ case "$operation" in
       LoadState) printf '%s\n' loaded ;;
       User) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_USER" ;;
       Group) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_GROUP" ;;
-      SupplementaryGroups) printf '%s\n' "$CLEO_DISCORD_TEST_DEPLOY_GROUP" ;;
+      SupplementaryGroups) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_READ_GROUP" ;;
       WorkingDirectory) printf '%s\n' "$CLEO_DISCORD_TEST_DEPLOY_ROOT/current" ;;
       EnvironmentFiles) printf '%s\n' "$CLEO_DISCORD_TEST_ENV_FILE" ;;
       ExecStart)
@@ -96,13 +99,16 @@ EOF
 chmod 0755 "$host_node" "$runtime_check" "$bin_dir/sudo" "$bin_dir/systemctl"
 
 export PATH="$bin_dir:$PATH"
-export CLEO_DISCORD_HOST_CONTRACT_VERSION=3
+export CLEO_DISCORD_HOST_CONTRACT_VERSION=4
 export CLEO_DISCORD_RELEASE_PLATFORM=linux-arm64
 export CLEO_DISCORD_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_ENV_FILE="$env_file"
 export CLEO_DISCORD_RUNTIME_USER="$runtime_user"
 export CLEO_DISCORD_RUNTIME_GROUP="$runtime_group"
 export CLEO_DISCORD_DEPLOY_GROUP="$runtime_group"
+export CLEO_DISCORD_RUNTIME_READ_GROUP="$runtime_group"
+export CLEO_DISCORD_DEPLOY_OWNER="$runtime_user"
+export CLEO_DISCORD_DEPLOY_ROOT_OWNER="$runtime_user"
 export CLEO_DISCORD_RUNTIME_LAUNCHER="$fixture_root/run-release"
 export CLEO_DISCORD_RUNTIME_CHECK="$runtime_check"
 export CLEO_DISCORD_HOST_NODE="$host_node"
@@ -114,6 +120,7 @@ export CLEO_DISCORD_HEALTH_DELAY_SECONDS=0
 export CLEO_DISCORD_TEST_RUNTIME_USER="$runtime_user"
 export CLEO_DISCORD_TEST_RUNTIME_GROUP="$runtime_group"
 export CLEO_DISCORD_TEST_DEPLOY_GROUP="$runtime_group"
+export CLEO_DISCORD_TEST_RUNTIME_READ_GROUP="$runtime_group"
 export CLEO_DISCORD_TEST_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_TEST_ENV_FILE="$env_file"
 export CLEO_DISCORD_TEST_RUNTIME_LAUNCHER="$fixture_root/run-release"

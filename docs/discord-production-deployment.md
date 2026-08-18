@@ -72,7 +72,7 @@ summary does not weaken the deployment gate.
 ## Host contract
 
 The workflow, runner check, and deployment controller share host contract version
-`3`. Activation verifies the installed controller contract before downloading an
+`4`. Activation verifies the installed controller contract before downloading an
 artifact. A stale bootstrap installation therefore fails closed.
 
 The expected host controller Node version is `24.15.0` and the release platform is
@@ -82,7 +82,8 @@ The expected host controller Node version is `24.15.0` and the release platform 
 | --- | --- |
 | Actions runner user | `github-runner` |
 | Runtime user | `cleo` |
-| Shared deployment group | `cleo-deploy` |
+| Writable deployment group | `cleo-deploy` (`github-runner` only) |
+| Read-only runtime group | `cleo-runtime` |
 | Runner label | `cleo-prod` |
 | Deployment root | `/srv/cleo/discord-bot` |
 | Releases | `/srv/cleo/discord-bot/releases/<sha>` |
@@ -137,6 +138,9 @@ Use this sequence for the migration:
 4. Run `sudo bash ops/discord/bootstrap-host.sh`.
 5. Restart the GitHub Actions runner service if group membership changed.
 6. Dispatch **Discord Production Runner Smoke** from `main` and require success.
+   The smoke workflow executes `check-discord-runtime` as `cleo`, using the same
+   NVM runtime contract as `run-discord-release`, so a missing or stale runtime
+   fails before deployment.
 7. Dispatch **Deploy Discord Production** with `operation=validate` and require the
    hosted ARM64 validation/package job to pass.
 8. Set `CLEO_DISCORD_DEPLOY_ENABLED=true`.
@@ -173,7 +177,8 @@ sudo bash ops/discord/bootstrap-host.sh
 
 Bootstrap is idempotent and installs or verifies:
 
-- `cleo-deploy` membership for `github-runner` and `cleo`;
+- writable `cleo-deploy` membership for `github-runner` only;
+- read-only `cleo-runtime` membership for `github-runner` and `cleo`;
 - `/srv/cleo/discord-bot/{releases,shared}`;
 - `/etc/cleo/discord-bot.env` as `root:cleo` mode `0640`;
 - root-owned environment and runtime validators;
@@ -185,6 +190,11 @@ Bootstrap is idempotent and installs or verifies:
 
 The bot service is enabled but should not be manually started before a valid
 `current` release exists.
+
+Bootstrap migrates existing releases to `github-runner:cleo-runtime`, with
+directories at mode `0750` and files at mode `0640`, and removes `cleo` from the
+writable deployment group. If the bot is already active, bootstrap restarts it so
+the running process immediately receives the read-only group set.
 
 ## Runtime environment
 

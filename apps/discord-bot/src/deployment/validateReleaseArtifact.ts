@@ -131,9 +131,23 @@ export function readReleaseManifest(
     artifactRoot,
     artifactContract.releaseManifest
   )
-  const manifest = JSON.parse(
-    readFileSync(manifestPath, "utf8")
-  ) as DiscordReleaseManifest
+  const parsedManifest = JSON.parse(readFileSync(manifestPath, "utf8")) as unknown
+  if (
+    typeof parsedManifest !== "object" ||
+    parsedManifest === null ||
+    Array.isArray(parsedManifest)
+  ) {
+    throw new Error("Discord release manifest must be a JSON object")
+  }
+
+  const manifest = parsedManifest as DiscordReleaseManifest
+  if (
+    typeof manifest.criticalFileSha256 !== "object" ||
+    manifest.criticalFileSha256 === null ||
+    Array.isArray(manifest.criticalFileSha256)
+  ) {
+    throw new Error("Discord release manifest critical file hashes are invalid")
+  }
 
   return manifest
 }

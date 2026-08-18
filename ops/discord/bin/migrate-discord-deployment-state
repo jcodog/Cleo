@@ -42,7 +42,17 @@ mapfile -t legacy_values <<< "$legacy_state"
 application_sha="${legacy_values[0]}"
 previous_application_sha="${legacy_values[1]}"
 command_sha="${legacy_values[2]}"
-command_entrypoint="$deploy_root/releases/$command_sha/dist/scripts/registerCommands.js"
+command_release="$deploy_root/releases/$command_sha"
+command_dist="$command_release/dist"
+command_scripts="$command_dist/scripts"
+command_entrypoint="$command_scripts/registerCommands.js"
+
+for command_directory in "$command_release" "$command_dist" "$command_scripts"; do
+  if [[ ! -d "$command_directory" || -L "$command_directory" ]]; then
+    echo "Cannot migrate command state because $command_directory is not a regular non-symlink directory." >&2
+    exit 1
+  fi
+done
 
 if [[ ! -f "$command_entrypoint" || -L "$command_entrypoint" ]]; then
   echo "Cannot migrate command state because $command_entrypoint is not a regular non-symlink file." >&2

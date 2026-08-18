@@ -112,9 +112,9 @@ test("workflow and installed controller enforce the same host contract", () => {
   const runnerCheck = repositoryFile("ops/discord/bin/check-discord-runner")
   const bootstrap = repositoryFile("ops/discord/bootstrap-host.sh")
 
-  assert.match(workflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"/)
-  assert.match(smokeWorkflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"/)
-  assert.match(controller, /controller_contract_version="3"/)
+  assert.match(workflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"/)
+  assert.match(smokeWorkflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"/)
+  assert.match(controller, /controller_contract_version="4"/)
   assert.match(controller, /operation" == "contract-version"/)
   assert.match(runnerCheck, /deploy_controller contract-version/)
   assert.match(bootstrap, /trusted_node_version="v24\.15\.0"/)
@@ -128,8 +128,55 @@ test("workflow and installed controller enforce the same host contract", () => {
   )
   assert.match(bootstrap, /sha256sum -c -/)
   assert.match(bootstrap, /mktemp "\$libexec_dir\/\.node\.XXXXXX"/)
-  assert.match(bootstrap, /mv -f -- "\$node_staging" "\$host_node"/)
+  assert.match(bootstrap, /mv -fT -- "\$node_staging" "\$host_node"/)
+  assert.match(bootstrap, /Discord host Node path is not a regular non-symlink file/)
+  assert.match(bootstrap, /Installed Discord host Node is not a root-owned regular executable/)
   assert.doesNotMatch(bootstrap, /\/home\/cleo\/\.nvm/)
+  assert.match(
+    smokeWorkflow,
+    /sudo -n -u "\$CLEO_DISCORD_RUNTIME_USER"[\s\S]*check-discord-runtime/
+  )
+})
+
+test("runtime identity can read releases without writing deployment state", () => {
+  const bootstrap = repositoryFile("ops/discord/bootstrap-host.sh")
+  const controller = repositoryFile("ops/discord/bin/deploy-discord-release")
+  const runnerCheck = repositoryFile("ops/discord/bin/check-discord-runner")
+  const runtimeUnit = repositoryFile(
+    "ops/discord/systemd/cleo-discord.service"
+  )
+  const commandUnit = repositoryFile(
+    "ops/discord/systemd/cleo-discord-register-commands.service"
+  )
+  const sudoers = repositoryFile("ops/discord/sudoers/cleo-discord-deploy")
+
+  assert.match(bootstrap, /runtime_read_group="cleo-runtime"/)
+  assert.match(bootstrap, /usermod -aG "\$runtime_read_group" "\$runtime_user"/)
+  assert.match(bootstrap, /gpasswd -d "\$runtime_user" "\$deploy_group"/)
+  assert.doesNotMatch(bootstrap, /usermod -aG cleo-deploy cleo/)
+  assert.match(controller, /seal_release_permissions/)
+  assert.match(controller, /chgrp -hR "\$runtime_read_group"/)
+  assert.match(controller, /-type d -exec chmod 0750/)
+  assert.match(controller, /-type f -exec chmod 0640/)
+  assert.match(runtimeUnit, /SupplementaryGroups=cleo-runtime/)
+  assert.match(commandUnit, /SupplementaryGroups=cleo-runtime/)
+  assert.doesNotMatch(runtimeUnit, /SupplementaryGroups=cleo-deploy/)
+  assert.doesNotMatch(commandUnit, /SupplementaryGroups=cleo-deploy/)
+  assert.match(runnerCheck, /must not be a member of \$deploy_group/)
+  assert.match(
+    runnerCheck,
+    /sudo -n -u "\$runtime_user" \/usr\/bin\/test -w "\$directory"/
+  )
+  for (const path of [
+    "/srv/cleo/discord-bot",
+    "/srv/cleo/discord-bot/releases",
+    "/srv/cleo/discord-bot/shared",
+    "/srv/cleo/discord-bot/shared/deployment.lock",
+    "/srv/cleo/discord-bot/shared/deployment-state.env",
+    "/srv/cleo/discord-bot/current",
+  ]) {
+    assert.match(sudoers, new RegExp(`/usr/bin/test -w ${path}`))
+  }
 })
 
 test("generated production outputs are ignored and untracked", () => {

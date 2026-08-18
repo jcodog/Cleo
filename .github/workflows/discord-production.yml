@@ -181,7 +181,7 @@ jobs:
     runs-on: cleo-prod
     timeout-minutes: 10
     env:
-      CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
       CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
@@ -191,6 +191,7 @@ jobs:
       CLEO_DISCORD_RUNTIME_USER: cleo
       CLEO_DISCORD_RUNTIME_GROUP: cleo
       CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
+      CLEO_DISCORD_RUNTIME_READ_GROUP: cleo-runtime
 
     steps:
       - name: Verify production runner contract
@@ -263,7 +264,7 @@ jobs:
     runs-on: cleo-prod
     timeout-minutes: 10
     env:
-      CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
       CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
@@ -273,6 +274,7 @@ jobs:
       CLEO_DISCORD_RUNTIME_USER: cleo
       CLEO_DISCORD_RUNTIME_GROUP: cleo
       CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
+      CLEO_DISCORD_RUNTIME_READ_GROUP: cleo-runtime
 
     steps:
       - name: Verify production runner contract

@@ -57,6 +57,22 @@ if "$migrator" "$state_file"; then
 fi
 cmp "$workspace/legacy-state.snapshot" "$state_file"
 
+# Migration must not follow a symlinked release path component while hashing
+# the legacy command entrypoint.
+write_legacy_state "$command_sha"
+mv "$deploy_root/releases/$command_sha/dist/scripts" \
+  "$deploy_root/releases/$command_sha/dist/scripts-real"
+ln -s scripts-real "$deploy_root/releases/$command_sha/dist/scripts"
+cp "$state_file" "$workspace/symlinked-state.snapshot"
+if "$migrator" "$state_file"; then
+  echo "Legacy state migration unexpectedly followed a symlinked command path." >&2
+  exit 1
+fi
+cmp "$workspace/symlinked-state.snapshot" "$state_file"
+rm -f "$deploy_root/releases/$command_sha/dist/scripts"
+mv "$deploy_root/releases/$command_sha/dist/scripts-real" \
+  "$deploy_root/releases/$command_sha/dist/scripts"
+
 # No state yet is a valid no-op for first bootstrap.
 rm -f "$state_file"
 "$migrator" "$state_file"
