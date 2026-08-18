@@ -1,0 +1,40 @@
+.github/workflows/regression.yml
+  s_63061778308ebe::t_9051737363d630 38,45,58,168-183
+apps/discord-bot/src/deployment/deploymentPipeline.test.ts
+  s_63061778308ebe::t_9051737363d630 31-34,70-73,101-103,108-110,116,121-124
+.github/workflows/discord-production.yml
+  s_63061778308ebe::t_9051737363d630 14
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_63061778308ebe::t_495f2152d5bbb5 240-249
+  s_63061778308ebe::t_2758b1f4e76708 24
+  s_63061778308ebe::t_61e6701073099a 1-23,25-64,74-239,250-282
+  s_63061778308ebe::t_f0bb079f3a2d6c 65-73
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_63061778308ebe::t_9051737363d630 22-25
+.github/workflows/discord-runner-smoke.yml
+  s_63061778308ebe::t_9051737363d630 21
+apps/discord-bot/src/deployment/validateReleaseArtifact.security.test.ts
+  s_63061778308ebe::t_14b113210dd58d 70-71,116-119,121-124
+.github/scripts/package-discord-release.sh
+  s_63061778308ebe::t_9051737363d630 10,116,120
+ops/discord/bin/deploy-discord-release
+  s_63061778308ebe::t_9051737363d630 280,283-292,294-295,321-338,351
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_63061778308ebe::t_9051737363d630 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "845eb724242a235d90faf0572eb77ae0b8b77001",
+  "prompts": {},
+  "sessions": {
+    "s_63061778308ebe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a01219-0c08-7521-a160-df3d7ce5bef9",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
