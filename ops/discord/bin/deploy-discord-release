@@ -74,6 +74,7 @@ contains_word() {
 assert_unit_contract() {
   local unit="$1"
   local operation="$2"
+  local supplementary_groups
 
   [[ "$(unit_value "$unit" LoadState)" == "loaded" ]] || {
     echo "Required systemd unit is not loaded: $unit" >&2
@@ -87,10 +88,15 @@ assert_unit_contract() {
     echo "$unit must use group $runtime_group." >&2
     return 1
   }
-  contains_word "$(unit_value "$unit" SupplementaryGroups)" "$runtime_read_group" || {
+  supplementary_groups="$(unit_value "$unit" SupplementaryGroups)"
+  contains_word "$supplementary_groups" "$runtime_read_group" || {
     echo "$unit must include supplementary group $runtime_read_group." >&2
     return 1
   }
+  if contains_word "$supplementary_groups" "$deploy_group"; then
+    echo "$unit must not include supplementary group $deploy_group." >&2
+    return 1
+  fi
   [[ "$(unit_value "$unit" WorkingDirectory)" == "$current_link" ]] || {
     echo "$unit must use WorkingDirectory=$current_link." >&2
     return 1

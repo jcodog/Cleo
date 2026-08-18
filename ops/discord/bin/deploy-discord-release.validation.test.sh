@@ -17,6 +17,7 @@ release_sha="0123456789abcdef0123456789abcdef01234567"
 active_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 active_fingerprint="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 runtime_user="$(id -un)"
+runtime_read_group="$(id -g)"
 host_node="$(command -v node)"
 release_platform="$($host_node -p '`${process.platform}-${process.arch}`')"
 release_os="${release_platform%%-*}"
@@ -52,7 +53,9 @@ case "$operation" in
       LoadState) printf '%s\n' loaded ;;
       User) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_USER" ;;
       Group) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_GROUP" ;;
-      SupplementaryGroups) printf '%s\n' "$CLEO_DISCORD_TEST_RUNTIME_READ_GROUP" ;;
+      SupplementaryGroups)
+        printf '%s\n' "${CLEO_DISCORD_TEST_SUPPLEMENTARY_GROUPS:-$CLEO_DISCORD_TEST_RUNTIME_READ_GROUP}"
+        ;;
       WorkingDirectory) printf '%s\n' "$CLEO_DISCORD_TEST_DEPLOY_ROOT/current" ;;
       EnvironmentFiles) printf '%s\n' "$CLEO_DISCORD_TEST_ENV_FILE" ;;
       ExecStart)
@@ -85,7 +88,7 @@ export CLEO_DISCORD_ENV_FILE="$env_file"
 export CLEO_DISCORD_RUNTIME_USER="$runtime_user"
 export CLEO_DISCORD_RUNTIME_GROUP="$runtime_group"
 export CLEO_DISCORD_DEPLOY_GROUP="$runtime_group"
-export CLEO_DISCORD_RUNTIME_READ_GROUP="$runtime_group"
+export CLEO_DISCORD_RUNTIME_READ_GROUP="$runtime_read_group"
 export CLEO_DISCORD_DEPLOY_OWNER="$runtime_user"
 export CLEO_DISCORD_DEPLOY_ROOT_OWNER="$runtime_user"
 export CLEO_DISCORD_RUNTIME_LAUNCHER="$fixture_root/run-release"
@@ -102,7 +105,7 @@ export CLEO_DISCORD_RELEASE_CHECKSUM="$checksum"
 export CLEO_DISCORD_TEST_RUNTIME_USER="$runtime_user"
 export CLEO_DISCORD_TEST_RUNTIME_GROUP="$runtime_group"
 export CLEO_DISCORD_TEST_DEPLOY_GROUP="$runtime_group"
-export CLEO_DISCORD_TEST_RUNTIME_READ_GROUP="$runtime_group"
+export CLEO_DISCORD_TEST_RUNTIME_READ_GROUP="$runtime_read_group"
 export CLEO_DISCORD_TEST_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_TEST_ENV_FILE="$env_file"
 export CLEO_DISCORD_TEST_RUNTIME_LAUNCHER="$fixture_root/run-release"
@@ -254,6 +257,12 @@ manifest.buildTimestamp = value
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 NODE
 }
+
+export CLEO_DISCORD_TEST_SUPPLEMENTARY_GROUPS="$runtime_read_group $runtime_group"
+expect_rejected \
+  "a service unit with deployment-group write access" \
+  "must not include supplementary group $runtime_group"
+unset CLEO_DISCORD_TEST_SUPPLEMENTARY_GROUPS
 
 for invalid_timestamp in \
   malformed \
