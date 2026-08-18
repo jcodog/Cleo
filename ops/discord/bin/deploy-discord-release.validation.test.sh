@@ -285,9 +285,10 @@ unset CLEO_DISCORD_TEST_SUPPLEMENTARY_GROUPS
 
 reset_deployment
 create_valid_release
-find "$release_fixture" -type d -exec chmod 2750 {} +
-find "$release_fixture" -type f -exec chmod 0640 {} +
-[[ "$(stat -c %a "$release_fixture/dist/scripts")" == "2750" ]]
+find "$release_fixture" -type d -exec chmod 7750 {} +
+find "$release_fixture" -type f -exec chmod 7640 {} +
+[[ "$(stat -c %a "$release_fixture/dist/scripts")" == "7750" ]]
+[[ "$(stat -c %a "$release_fixture/dist/index.js")" == "7640" ]]
 package_release
 [[ "$(stat -c %a "$deploy_root/releases")" == "2775" ]]
 bash "$controller" deploy
@@ -299,10 +300,11 @@ create_valid_release
 package_release
 mkdir -p "$deploy_root/releases/$release_sha"
 cp -a "$release_fixture/." "$deploy_root/releases/$release_sha/"
-find "$deploy_root/releases/$release_sha" -type d -exec chmod 2750 {} +
-find "$deploy_root/releases/$release_sha" -type f -exec chmod 0640 {} +
-[[ "$(stat -c %a "$deploy_root/releases/$release_sha")" == "2750" ]]
-[[ "$(stat -c %a "$deploy_root/releases/$release_sha/dist/scripts")" == "2750" ]]
+find "$deploy_root/releases/$release_sha" -type d -exec chmod 7750 {} +
+find "$deploy_root/releases/$release_sha" -type f -exec chmod 7640 {} +
+[[ "$(stat -c %a "$deploy_root/releases/$release_sha")" == "7750" ]]
+[[ "$(stat -c %a "$deploy_root/releases/$release_sha/dist/scripts")" == "7750" ]]
+[[ "$(stat -c %a "$deploy_root/releases/$release_sha/dist/index.js")" == "7640" ]]
 bash "$controller" deploy
 assert_exact_release_permissions "$deploy_root/releases/$release_sha"
 [[ "$(stat -c %a "$deploy_root/releases")" == "2775" ]]
