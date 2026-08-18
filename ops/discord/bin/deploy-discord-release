@@ -277,22 +277,28 @@ verify_release_artifact() {
 validate_staged_release() {
   local release_root="$1"
   local expected_sha="$2"
-  local expected_platform
+  local expected_platform release_root_real releases_root_real
   expected_platform="$($host_node -p '`${process.platform}-${process.arch}`')"
 
-  for bootstrap_path in runtime-artifact.json release-manifest.json; do
-    [[ -e "$release_root/$bootstrap_path" ]] || {
-      echo "Discord release is missing $bootstrap_path" >&2
+  [[ -d "$release_root" && ! -L "$release_root" ]] || {
+    echo "Discord release root must be a regular non-symlink directory: $release_root" >&2
+    return 1
+  }
+  releases_root_real="$(realpath -e -- "$releases_dir")" || return 1
+  release_root_real="$(realpath -e -- "$release_root")" || return 1
+  case "$release_root_real" in
+    "$releases_root_real"/*) ;;
+    *)
+      echo "Discord release root escapes the releases directory: $release_root" >&2
       return 1
-    }
-  done
+      ;;
+  esac
 
   "$host_node" --input-type=module -e '
     import { createHash } from "node:crypto"
     import { existsSync, lstatSync, readFileSync } from "node:fs"
     import path from "node:path"
     const [root, expectedSha, expectedPlatform] = process.argv.slice(1)
-    const read = (relativePath) => readFileSync(path.join(root, relativePath), "utf8")
     const resolveRegularCriticalPath = (relativePath) => {
       const segments = relativePath.split(/[\/]/)
       let currentPath = root
@@ -312,10 +318,24 @@ validate_staged_release() {
       }
       return currentPath
     }
-    const contract = JSON.parse(read("runtime-artifact.json"))
-    const manifest = JSON.parse(read(contract.releaseManifest))
-    const markerSha = read(".cleo-release-sha").trim()
-    const markerPlatform = read(".cleo-release-platform").trim()
+    const readCritical = (relativePath) =>
+      readFileSync(resolveRegularCriticalPath(relativePath), "utf8")
+    const contract = JSON.parse(readCritical("runtime-artifact.json"))
+    const expectedContract = {
+      artifactValidatorEntrypoint: "dist/deployment/validateReleaseArtifact.js",
+      commandRegistrationEntrypoint: "dist/scripts/registerCommands.js",
+      releaseManifest: "release-manifest.json",
+      runtimeEntrypoint: "dist/index.js",
+      schemaVersion: 2,
+    }
+    for (const [key, expectedValue] of Object.entries(expectedContract)) {
+      if (contract[key] !== expectedValue) {
+        throw new Error(`Discord release contract ${key} is invalid`)
+      }
+    }
+    const manifest = JSON.parse(readCritical(contract.releaseManifest))
+    const markerSha = readCritical(".cleo-release-sha").trim()
+    const markerPlatform = readCritical(".cleo-release-platform").trim()
     const [platform, architecture] = expectedPlatform.split("-", 2)
     if (markerSha !== expectedSha || manifest.commitSha !== expectedSha) {
       throw new Error(`Discord release SHA does not match ${expectedSha}`)
@@ -328,7 +348,7 @@ validate_staged_release() {
     if (manifest.artifactContractVersion !== contract.schemaVersion) {
       throw new Error("Discord release contract version is invalid")
     }
-    if (!/^\d+\.\d+\.\d+$/.test(manifest.nodeVersion)) {
+    if (manifest.nodeVersion !== process.versions.node) {
       throw new Error("Discord release Node version is invalid")
     }
     const buildTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/

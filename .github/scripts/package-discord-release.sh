@@ -7,6 +7,7 @@ output_dir="${1:-${RUNNER_TEMP:-/tmp}/cleo-discord-artifact}"
 sha="${CLEO_DISCORD_RELEASE_SHA:-$(git -C "$repository_root" rev-parse HEAD)}"
 release_platform="$(node -p '`${process.platform}-${process.arch}`')"
 discord_root="$repository_root/apps/discord-bot"
+bundle_symlink_validator="$repository_root/.github/scripts/check-discord-bundle-symlinks.sh"
 
 is_sha() {
   [[ "$1" =~ ^[0-9a-f]{40}$ ]]
@@ -49,25 +50,6 @@ snapshot_dist() {
       fi
     done < <(find dist \( -type f -o -type l \) -print0 | sort -z)
   )
-}
-
-assert_bundle_symlinks() {
-  local root="$1"
-  local link_path resolved_path
-  while IFS= read -r -d '' link_path; do
-    if ! resolved_path="$(readlink -f -- "$link_path")"; then
-      echo "Packaged Discord release contains a dangling symlink: $link_path" >&2
-      return 1
-    fi
-
-    case "$resolved_path" in
-      "$root" | "$root"/*) ;;
-      *)
-        echo "Packaged Discord release symlink escapes the bundle: $link_path -> $resolved_path" >&2
-        return 1
-        ;;
-    esac
-  done < <(find "$root" -type l -print0)
 }
 
 assert_no_dist_symlinks "$discord_root"
@@ -131,11 +113,11 @@ fi
 rm -rf -- "$bundle_dir/apps" "$bundle_dir/packages"
 rm -f -- "$bundle_dir/bun.lock" "$bundle_dir/bunfig.toml"
 find "$bundle_dir/node_modules" -type d -name .bin -prune -exec rm -rf -- {} +
-assert_bundle_symlinks "$bundle_dir"
+bash "$bundle_symlink_validator" "$bundle_dir"
 
 cp -a "$discord_root/dist" "$bundle_dir/dist"
 assert_no_dist_symlinks "$bundle_dir"
-assert_bundle_symlinks "$bundle_dir"
+bash "$bundle_symlink_validator" "$bundle_dir"
 snapshot_dist "$discord_root" | diff -u "$compiled_snapshot" - >/dev/null || {
   echo "Packaging mutated the validated Discord build output." >&2
   exit 1

@@ -18,7 +18,7 @@ jobs:
     runs-on: cleo-prod
     timeout-minutes: 5
     env:
-      CLEO_DISCORD_HOST_CONTRACT_VERSION: "2"
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
       CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot

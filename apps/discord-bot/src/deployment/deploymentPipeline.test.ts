@@ -28,7 +28,10 @@ test("production workflow builds once and packages the validated output", () => 
   )
 
   assert.equal(buildInvocations?.length, 1)
-  assert.doesNotMatch(packager, /bun run --filter @workspace\/discord-bot build/)
+  assert.doesNotMatch(
+    packager,
+    /bun run --filter @workspace\/discord-bot build/
+  )
   assert.match(packager, /Validated Discord build output is missing/)
   assert.match(packager, /Packaging mutated the validated Discord build output/)
   assert.match(
@@ -64,7 +67,10 @@ test("VPS activation and rollback are source and package-manager independent", (
     }
     assert.match(job, /\/usr\/local\/libexec\/cleo\/deploy-discord-release/)
     assert.match(job, /\/usr\/local\/libexec\/cleo\/check-discord-runner/)
-    assert.match(job, /\/usr\/local\/libexec\/cleo\/read-discord-deployment-state/)
+    assert.match(
+      job,
+      /\/usr\/local\/libexec\/cleo\/read-discord-deployment-state/
+    )
     assert.match(job, /GITHUB_STEP_SUMMARY/)
     assert.match(job, /Running SHA after attempt/)
     assert.match(job, /Service status/)
@@ -92,23 +98,30 @@ test("host deployment controller uses release fingerprints without Git history",
   assert.match(controller, /currentStat\.isSymbolicLink\(\)/)
   assert.match(controller, /resolveRegularCriticalPath/)
   assert.match(controller, /regular non-symlink path components/)
+  assert.match(controller, /release root escapes the releases directory/)
+  assert.match(controller, /runtimeEntrypoint: "dist\/index\.js"/)
+  assert.match(controller, /manifest\.nodeVersion !== process\.versions\.node/)
 })
 
 test("workflow and installed controller enforce the same host contract", () => {
   const workflow = repositoryFile(".github/workflows/discord-production.yml")
+  const smokeWorkflow = repositoryFile(
+    ".github/workflows/discord-runner-smoke.yml"
+  )
   const controller = repositoryFile("ops/discord/bin/deploy-discord-release")
   const runnerCheck = repositoryFile("ops/discord/bin/check-discord-runner")
   const bootstrap = repositoryFile("ops/discord/bootstrap-host.sh")
 
   assert.match(workflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"/)
+  assert.match(smokeWorkflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"/)
   assert.match(controller, /controller_contract_version="3"/)
   assert.match(controller, /operation" == "contract-version"/)
   assert.match(runnerCheck, /deploy_controller contract-version/)
   assert.match(bootstrap, /trusted_node_version="v24\.15\.0"/)
-assert.match(
-  bootstrap,
-  /trusted_node_archive="node-\$\{trusted_node_version\}-linux-arm64\.tar\.xz"/
-)
+  assert.match(
+    bootstrap,
+    /trusted_node_archive="node-\$\{trusted_node_version\}-linux-arm64\.tar\.xz"/
+  )
   assert.match(
     bootstrap,
     /f3d5a797b5d210ce8e2cb265544c8e482eaedcb8aa409a8b46da7e8595d0dda0/

@@ -67,7 +67,8 @@ function writeManifest(
       {
         architecture: "arm64",
         artifactContractVersion: artifactContract.schemaVersion,
-        artifactValidatorEntrypoint: artifactContract.artifactValidatorEntrypoint,
+        artifactValidatorEntrypoint:
+          artifactContract.artifactValidatorEntrypoint,
         buildTimestamp: "2026-08-17T12:59:17Z",
         commandFingerprint:
           criticalFileSha256[artifactContract.commandRegistrationEntrypoint],
@@ -112,9 +113,15 @@ test("release validation rejects impossible canonical-looking dates", async () =
 
 test("release validation rejects symlinked critical files even when hashes match", async () => {
   await withFixture((root) => {
-    const runtimePath = resolveArtifactPath(root, artifactContract.runtimeEntrypoint)
+    const runtimePath = resolveArtifactPath(
+      root,
+      artifactContract.runtimeEntrypoint
+    )
     rmSync(runtimePath)
-    symlinkSync(path.basename(`${artifactContract.runtimeEntrypoint}.map`), runtimePath)
+    symlinkSync(
+      path.basename(`${artifactContract.runtimeEntrypoint}.map`),
+      runtimePath
+    )
     writeManifest(root)
 
     assert.throws(
@@ -127,7 +134,6 @@ test("release validation rejects symlinked critical files even when hashes match
     )
   })
 })
-
 
 test("release validation rejects symlinked parent directories for critical files", async () => {
   await withFixture((root) => {
