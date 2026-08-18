@@ -8,12 +8,24 @@ fi
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 deploy_root="/srv/cleo/discord-bot"
+state_file="$deploy_root/shared/deployment-state.env"
 env_dir="/etc/cleo"
 env_file="$env_dir/discord-bot.env"
 libexec_dir="/usr/local/libexec/cleo"
+host_node="$libexec_dir/node"
 sudoers_target="/etc/sudoers.d/cleo-discord-deploy"
 sudoers_candidate="$(mktemp)"
-trap 'rm -f -- "$sudoers_candidate"' EXIT
+node_archive_tmp=""
+node_extract_dir=""
+node_staging=""
+
+cleanup() {
+  rm -f -- "$sudoers_candidate"
+  [[ -z "$node_archive_tmp" ]] || rm -f -- "$node_archive_tmp"
+  [[ -z "$node_extract_dir" ]] || rm -rf -- "$node_extract_dir"
+  [[ -z "$node_staging" ]] || rm -f -- "$node_staging"
+}
+trap cleanup EXIT
 
 require_file() {
   [[ -f "$repository_root/$1" ]] || {
@@ -32,11 +44,49 @@ require_user() {
 require_user github-runner
 require_user cleo
 
+expected_node="$(tr -d '[:space:]' < "$repository_root/.nvmrc")"
+trusted_node_version="v24.15.0"
+trusted_node_archive="node-${trusted_node_version}-linux-arm64.tar.xz"
+trusted_node_sha256="f3d5a797b5d210ce8e2cb265544c8e482eaedcb8aa409a8b46da7e8595d0dda0"
+
+if [[ ! "$expected_node" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] ||   [[ "$expected_node" != "$trusted_node_version" ]]; then
+  echo ".nvmrc must contain the pinned production Node version $trusted_node_version" >&2
+  exit 1
+fi
+
+for required_command in curl tar sha256sum; do
+  command -v "$required_command" >/dev/null || {
+    echo "Required bootstrap command is missing: $required_command" >&2
+    exit 1
+  }
+done
+
+node_archive_tmp="$(mktemp "${TMPDIR:-/tmp}/cleo-node-archive.XXXXXX")"
+node_extract_dir="$(mktemp -d "${TMPDIR:-/tmp}/cleo-node-extract.XXXXXX")"
+node_url="https://nodejs.org/download/release/$trusted_node_version/$trusted_node_archive"
+curl --fail --silent --show-error --location   --proto '=https' --proto-redir '=https' --tlsv1.2   "$node_url" -o "$node_archive_tmp"
+printf '%s  %s
+' "$trusted_node_sha256" "$node_archive_tmp" | sha256sum -c -
+tar --no-same-owner -xJf "$node_archive_tmp" -C "$node_extract_dir"
+trusted_node="$node_extract_dir/${trusted_node_archive%.tar.xz}/bin/node"
+if [[ ! -f "$trusted_node" || -L "$trusted_node" || ! -x "$trusted_node" ]]; then
+  echo "Verified Node archive did not contain the expected regular executable." >&2
+  exit 1
+fi
+if [[ "$("$trusted_node" --version)" != "$trusted_node_version" ]] ||   [[ "$("$trusted_node" -p '`${process.platform}-${process.arch}`')" != "linux-arm64" ]]; then
+  echo "Verified Node archive does not match the required version/platform." >&2
+  exit 1
+fi
+trusted_node_hash="$(sha256sum "$trusted_node" | cut -d ' ' -f 1)"
+
 for file in \
   .nvmrc \
-  package.json \
+  ops/discord/bin/check-discord-runner \
   ops/discord/bin/check-discord-env \
   ops/discord/bin/check-discord-runtime \
+  ops/discord/bin/deploy-discord-release \
+  ops/discord/bin/migrate-discord-deployment-state \
+  ops/discord/bin/read-discord-deployment-state \
   ops/discord/bin/run-discord-release \
   ops/discord/discord-bot.env.example \
   ops/discord/systemd/cleo-discord.service \
@@ -59,25 +109,57 @@ if [[ ! -e "$env_file" ]]; then
     "$repository_root/ops/discord/discord-bot.env.example" \
     "$env_file"
   echo "Created $env_file from the non-secret template. Replace every placeholder before smoke validation."
-elif [[ -f "$env_file" ]]; then
+elif [[ -f "$env_file" && ! -L "$env_file" ]]; then
   chown root:cleo "$env_file"
   chmod 0640 "$env_file"
   echo "Preserved existing $env_file and enforced root:cleo 0640 permissions."
 else
-  echo "$env_file exists but is not a regular file" >&2
+  echo "$env_file exists but is not a regular non-symlink file" >&2
   exit 1
 fi
 
 install -d -o root -g root -m 0755 "$libexec_dir"
+node_staging="$(mktemp "$libexec_dir/.node.XXXXXX")"
+install -o root -g root -m 0755 "$trusted_node" "$node_staging"
+if [[ ! -f "$node_staging" || -L "$node_staging" ||   "$(stat -c %U:%G "$node_staging")" != "root:root" ]]; then
+  echo "Staged Discord host Node is not a root-owned regular file." >&2
+  exit 1
+fi
+if [[ "$(sha256sum "$node_staging" | cut -d ' ' -f 1)" != "$trusted_node_hash" ]]; then
+  echo "Staged Discord host Node differs from the verified official runtime." >&2
+  exit 1
+fi
+if [[ "$("$node_staging" --version)" != "$trusted_node_version" ]] ||   [[ "$("$node_staging" -p '`${process.platform}-${process.arch}`')" != "linux-arm64" ]]; then
+  echo "Staged Discord host Node failed version/platform verification." >&2
+  exit 1
+fi
+mv -f -- "$node_staging" "$host_node"
+node_staging=""
+install -o root -g root -m 0755 \
+  "$repository_root/ops/discord/bin/check-discord-runner" \
+  "$libexec_dir/check-discord-runner"
 install -o root -g root -m 0755 \
   "$repository_root/ops/discord/bin/check-discord-env" \
   "$libexec_dir/check-discord-env"
+install -o root -g root -m 0755 \
+  "$repository_root/ops/discord/bin/deploy-discord-release" \
+  "$libexec_dir/deploy-discord-release"
+install -o root -g root -m 0755 \
+  "$repository_root/ops/discord/bin/migrate-discord-deployment-state" \
+  "$libexec_dir/migrate-discord-deployment-state"
+install -o root -g root -m 0755 \
+  "$repository_root/ops/discord/bin/read-discord-deployment-state" \
+  "$libexec_dir/read-discord-deployment-state"
 install -o root -g root -m 0755 \
   "$repository_root/ops/discord/bin/check-discord-runtime" \
   "$libexec_dir/check-discord-runtime"
 install -o root -g root -m 0755 \
   "$repository_root/ops/discord/bin/run-discord-release" \
   "$libexec_dir/run-discord-release"
+
+CLEO_DISCORD_DEPLOY_ROOT="$deploy_root" \
+CLEO_DISCORD_STATE_READER="$libexec_dir/read-discord-deployment-state" \
+  "$libexec_dir/migrate-discord-deployment-state" "$state_file"
 
 install -o root -g root -m 0644 \
   "$repository_root/ops/discord/systemd/cleo-discord.service" \
@@ -95,8 +177,6 @@ visudo -cf "$sudoers_target"
 
 systemctl daemon-reload
 systemctl enable cleo-discord.service
-
-expected_node="$(tr -d '[:space:]' < "$repository_root/.nvmrc")"
 
 cat <<EOF
 

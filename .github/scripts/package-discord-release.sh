@@ -6,6 +6,7 @@ repository_root="${GITHUB_WORKSPACE:-$(pwd)}"
 output_dir="${1:-${RUNNER_TEMP:-/tmp}/cleo-discord-artifact}"
 sha="${CLEO_DISCORD_RELEASE_SHA:-$(git -C "$repository_root" rev-parse HEAD)}"
 release_platform="$(node -p '`${process.platform}-${process.arch}`')"
+discord_root="$repository_root/apps/discord-bot"
 
 is_sha() {
   [[ "$1" =~ ^[0-9a-f]{40}$ ]]
@@ -16,26 +17,83 @@ if ! is_sha "$sha"; then
   exit 1
 fi
 
-if [[ "$release_platform" != "linux-x64" ]]; then
-  echo "Discord production releases must be packaged for linux-x64; got $release_platform" >&2
+if [[ "$release_platform" != "linux-arm64" ]]; then
+  echo "Discord production releases must be packaged for linux-arm64; got $release_platform" >&2
   exit 1
 fi
-
-bundle_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cleo-discord-bundle.XXXXXX")"
-trap 'rm -rf -- "$bundle_dir"' EXIT
-
-rm -rf -- "$output_dir"
-mkdir -p "$output_dir"
 
 command -v bun >/dev/null || {
   echo "Bun is required on the GitHub-hosted packaging runner." >&2
   exit 1
 }
 
-(
-  cd "$repository_root"
-  bun run --filter @workspace/discord-bot build
+assert_no_dist_symlinks() {
+  local root="$1"
+  local link_path
+  while IFS= read -r -d '' link_path; do
+    echo "Validated Discord build output must not contain symlinks: $link_path" >&2
+    return 1
+  done < <(find "$root/dist" -type l -print0)
+}
+
+snapshot_dist() {
+  local root="$1"
+  local entry
+  (
+    cd "$root"
+    while IFS= read -r -d '' entry; do
+      if [[ -L "$entry" ]]; then
+        printf 'link %s -> %s\n' "$entry" "$(readlink -- "$entry")"
+      else
+        sha256sum "$entry"
+      fi
+    done < <(find dist \( -type f -o -type l \) -print0 | sort -z)
+  )
+}
+
+assert_bundle_symlinks() {
+  local root="$1"
+  local link_path resolved_path
+  while IFS= read -r -d '' link_path; do
+    if ! resolved_path="$(readlink -f -- "$link_path")"; then
+      echo "Packaged Discord release contains a dangling symlink: $link_path" >&2
+      return 1
+    fi
+
+    case "$resolved_path" in
+      "$root" | "$root"/*) ;;
+      *)
+        echo "Packaged Discord release symlink escapes the bundle: $link_path -> $resolved_path" >&2
+        return 1
+        ;;
+    esac
+  done < <(find "$root" -type l -print0)
+}
+
+assert_no_dist_symlinks "$discord_root"
+
+compiled_paths=(
+  dist/index.js
+  dist/index.js.map
+  dist/scripts/registerCommands.js
+  dist/scripts/registerCommands.js.map
+  dist/deployment/validateReleaseArtifact.js
+  dist/deployment/validateReleaseArtifact.js.map
 )
+for compiled_path in "${compiled_paths[@]}"; do
+  if [[ ! -f "$discord_root/$compiled_path" ]]; then
+    echo "Validated Discord build output is missing $compiled_path" >&2
+    exit 1
+  fi
+done
+
+bundle_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cleo-discord-bundle.XXXXXX")"
+compiled_snapshot="$(mktemp "${RUNNER_TEMP:-/tmp}/cleo-discord-dist.XXXXXX")"
+trap 'rm -rf -- "$bundle_dir"; rm -f -- "$compiled_snapshot"' EXIT
+
+rm -rf -- "$output_dir"
+mkdir -p "$output_dir"
+snapshot_dist "$discord_root" > "$compiled_snapshot"
 
 # Recreate the locked workspace graph in a temporary directory, then install
 # only the Discord runtime closure. A hoisted staging layout is intentional:
@@ -73,28 +131,22 @@ fi
 rm -rf -- "$bundle_dir/apps" "$bundle_dir/packages"
 rm -f -- "$bundle_dir/bun.lock" "$bundle_dir/bunfig.toml"
 find "$bundle_dir/node_modules" -type d -name .bin -prune -exec rm -rf -- {} +
+assert_bundle_symlinks "$bundle_dir"
 
-# Reject dangling links and links that escape the immutable release. Running
-# this after workspace cleanup also catches dependencies that still point into
-# the temporary apps/ or packages/ source closures.
-while IFS= read -r -d '' link_path; do
-  if ! resolved_path="$(readlink -f -- "$link_path")"; then
-    echo "Packaged Discord release contains a dangling symlink: $link_path" >&2
-    exit 1
-  fi
+cp -a "$discord_root/dist" "$bundle_dir/dist"
+assert_no_dist_symlinks "$bundle_dir"
+assert_bundle_symlinks "$bundle_dir"
+snapshot_dist "$discord_root" | diff -u "$compiled_snapshot" - >/dev/null || {
+  echo "Packaging mutated the validated Discord build output." >&2
+  exit 1
+}
+snapshot_dist "$bundle_dir" | diff -u "$compiled_snapshot" - >/dev/null || {
+  echo "Packaged Discord build differs from the validated build output." >&2
+  exit 1
+}
 
-  case "$resolved_path" in
-    "$bundle_dir" | "$bundle_dir"/*) ;;
-    *)
-      echo "Packaged Discord release symlink escapes the bundle: $link_path -> $resolved_path" >&2
-      exit 1
-      ;;
-  esac
-done < <(find "$bundle_dir" -type l -print0)
-
-cp -a "$repository_root/apps/discord-bot/dist" "$bundle_dir/dist"
 install -m 0644 \
-  "$repository_root/apps/discord-bot/runtime-artifact.json" \
+  "$discord_root/runtime-artifact.json" \
   "$bundle_dir/runtime-artifact.json"
 
 node --input-type=module - "$repository_root" "$bundle_dir/package.json" <<'NODE'
@@ -131,14 +183,64 @@ install -m 0644 "$repository_root/.nvmrc" "$bundle_dir/.nvmrc"
 printf '%s\n' "$sha" > "$bundle_dir/.cleo-release-sha"
 printf '%s\n' "$release_platform" > "$bundle_dir/.cleo-release-platform"
 
-find "$bundle_dir" -type f -name '.env*' -delete
+source_date_epoch="${SOURCE_DATE_EPOCH:-$(git -C "$repository_root" show -s --format=%ct "$sha")}"
+build_timestamp="$(date -u -d "@$source_date_epoch" +'%Y-%m-%dT%H:%M:%SZ')"
+node_version="$(tr -d '[:space:]' < "$repository_root/.nvmrc")"
+node_version="${node_version#v}"
 
-# mktemp creates the bundle root with mode 0700. The archive includes that root
-# entry, so make it traversable by the production runtime group before packing.
-# Files inside the release remain protected by the script's 0027 umask.
+node --input-type=module - "$bundle_dir" "$sha" "$release_platform" \
+  "$node_version" "$build_timestamp" <<'NODE'
+import { createHash } from "node:crypto"
+import { readFileSync, writeFileSync } from "node:fs"
+import path from "node:path"
+
+const [root, commitSha, target, nodeVersion, buildTimestamp] = process.argv.slice(2)
+const contract = JSON.parse(
+  readFileSync(path.join(root, "runtime-artifact.json"), "utf8")
+)
+const criticalPaths = [
+  contract.runtimeEntrypoint,
+  `${contract.runtimeEntrypoint}.map`,
+  contract.commandRegistrationEntrypoint,
+  `${contract.commandRegistrationEntrypoint}.map`,
+  contract.artifactValidatorEntrypoint,
+  `${contract.artifactValidatorEntrypoint}.map`,
+]
+const criticalFileSha256 = Object.fromEntries(
+  criticalPaths.map((relativePath) => [
+    relativePath,
+    createHash("sha256")
+      .update(readFileSync(path.join(root, relativePath)))
+      .digest("hex"),
+  ])
+)
+const [platform, architecture] = target.split("-", 2)
+const manifest = {
+  architecture,
+  artifactContractVersion: contract.schemaVersion,
+  artifactValidatorEntrypoint: contract.artifactValidatorEntrypoint,
+  buildTimestamp,
+  commandFingerprint: criticalFileSha256[contract.commandRegistrationEntrypoint],
+  commandRegistrationEntrypoint: contract.commandRegistrationEntrypoint,
+  commitSha,
+  criticalFileSha256,
+  nodeVersion,
+  platform,
+  runtimeEntrypoint: contract.runtimeEntrypoint,
+}
+writeFileSync(
+  path.join(root, contract.releaseManifest),
+  `${JSON.stringify(manifest, null, 2)}\n`
+)
+NODE
+
+find "$bundle_dir" -type f -name '.env*' -delete
 chmod 0750 "$bundle_dir"
 
-for required_path in runtime-artifact.json dist/deployment/validateReleaseArtifact.js; do
+for required_path in \
+  runtime-artifact.json \
+  release-manifest.json \
+  dist/deployment/validateReleaseArtifact.js; do
   if [[ ! -e "$bundle_dir/$required_path" ]]; then
     echo "Packaged Discord release is missing $required_path" >&2
     find "$bundle_dir" -maxdepth 4 \( -type f -o -type l \) | sort | head -200 >&2
@@ -184,7 +286,6 @@ archive_name="cleo-discord-${sha}.tar.gz"
 archive_path="$output_dir/$archive_name"
 checksum_path="$archive_path.sha256"
 
-source_date_epoch="$(git -C "$repository_root" show -s --format=%ct "$sha")"
 tar --sort=name --mtime="@$source_date_epoch" --owner=0 --group=0 \
   --numeric-owner -C "$bundle_dir" -czf "$archive_path" .
 (

@@ -20,14 +20,6 @@ test("Discord deploy paths include runtime and direct dependencies", () => {
     true
   )
   assert.equal(
-    isDiscordDeployPath(".github/scripts/check-discord-runner.sh"),
-    true
-  )
-  assert.equal(
-    isDiscordDeployPath(".github/scripts/deploy-discord.sh"),
-    true
-  )
-  assert.equal(
     isDiscordDeployPath(".github/scripts/package-discord-release.sh"),
     true
   )

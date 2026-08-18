@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 0027
+
+state_file="${1:-}"
+deploy_root="${CLEO_DISCORD_DEPLOY_ROOT:-/srv/cleo/discord-bot}"
+state_reader="${CLEO_DISCORD_STATE_READER:-/usr/local/libexec/cleo/read-discord-deployment-state}"
+state_owner="${CLEO_DISCORD_STATE_OWNER:-github-runner}"
+state_group="${CLEO_DISCORD_STATE_GROUP:-cleo-deploy}"
+temporary_state=""
+
+cleanup() {
+  if [[ -n "$temporary_state" && -e "$temporary_state" ]]; then
+    rm -f -- "$temporary_state"
+  fi
+}
+trap cleanup EXIT
+
+[[ -n "$state_file" ]] || {
+  echo "Discord deployment state migration requires a state file path." >&2
+  exit 1
+}
+
+if [[ ! -e "$state_file" && ! -L "$state_file" ]]; then
+  exit 0
+fi
+
+if "$state_reader" "$state_file" >/dev/null 2>&1; then
+  exit 0
+fi
+
+legacy_state="$($state_reader --legacy "$state_file")" || {
+  echo "Discord deployment state is neither current nor migratable legacy state." >&2
+  exit 1
+}
+mapfile -t legacy_values <<< "$legacy_state"
+[[ "${#legacy_values[@]}" -eq 3 ]] || {
+  echo "Legacy Discord deployment state did not return exactly three values." >&2
+  exit 1
+}
+
+application_sha="${legacy_values[0]}"
+previous_application_sha="${legacy_values[1]}"
+command_sha="${legacy_values[2]}"
+command_entrypoint="$deploy_root/releases/$command_sha/dist/scripts/registerCommands.js"
+
+if [[ ! -f "$command_entrypoint" || -L "$command_entrypoint" ]]; then
+  echo "Cannot migrate command state because $command_entrypoint is not a regular non-symlink file." >&2
+  exit 1
+fi
+
+command_fingerprint="$(sha256sum "$command_entrypoint" | cut -d ' ' -f 1)"
+state_dir="$(dirname "$state_file")"
+temporary_state="$(mktemp "$state_dir/.deployment-state.XXXXXX")"
+printf 'APPLICATION_SHA=%s\nPREVIOUS_APPLICATION_SHA=%s\nCOMMAND_FINGERPRINT=%s\n' \
+  "$application_sha" "$previous_application_sha" "$command_fingerprint" \
+  > "$temporary_state"
+chmod 0640 "$temporary_state"
+
+current_owner="$(stat -c %U "$temporary_state")"
+current_group="$(stat -c %G "$temporary_state")"
+if [[ "$current_owner" != "$state_owner" || "$current_group" != "$state_group" ]]; then
+  chown "$state_owner:$state_group" "$temporary_state"
+fi
+
+mv -f "$temporary_state" "$state_file"
+temporary_state=""
+echo "Migrated legacy Discord command deployment state to an artifact fingerprint."

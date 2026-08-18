@@ -29,7 +29,8 @@ apps/dashboard/next-env.d.ts
 out/
 build
 dist
-
+*.tar.gz
+*.sha256
 
 # Debug
 npm-debug.log*

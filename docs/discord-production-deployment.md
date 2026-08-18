@@ -1,50 +1,82 @@
 # Discord production deployment
 
-Cleo Discord production deploys only from trusted `main` pushes or an explicit
-manual dispatch. Pull requests never use the production runner. Vercel remains
-responsible for `apps/dashboard`; this workflow validates and packages the Discord
-runtime, deploys Convex, and activates the prepared release on the VPS.
+Cleo deploys the Discord runtime only from trusted `main` pushes or an explicit
+manual workflow dispatch. Pull requests never activate production. Vercel owns the
+dashboard deployment; the Discord production workflow validates the bot and backend,
+packages the Discord runtime, deploys Convex when appropriate, and activates the
+validated release on the production VPS.
 
-## Pipeline architecture
+## Architecture
 
 The production VPS is an application host, not a CI build machine.
 
-### GitHub-hosted Linux x64 job
+### Hosted Linux ARM64 validation and packaging
 
-`Validate and package Discord bot` runs on the hosted `ubuntu-24.04` Linux x64
-runner and performs:
+`Validate and package Discord bot` runs on GitHub-hosted `ubuntu-24.04-arm` and:
 
-- exact checkout and frozen workspace install;
-- peer dependency validation;
-- Discord bot and Convex backend tests;
-- Discord bot and Convex backend typecheck and lint;
-- compiled Node ESM build with source maps;
-- a frozen Bun install of only `@workspace/discord-bot`'s non-development dependency closure into a portable Node-compatible staging layout;
-- compiled runtime, command-registration, artifact-contract, and native canvas probes;
-- creation of a deterministic commit-marked Linux x64 tarball and SHA-256 checksum;
-- workflow artifact upload;
-- Convex production deployment for an actual deploy operation.
+1. checks out the exact commit;
+2. installs the locked workspace with `bun ci`;
+3. runs Discord and backend tests, typechecks, and lint;
+4. builds the Discord Node ESM runtime exactly once;
+5. packages the already-validated `dist` tree without rebuilding or mutating it;
+6. installs only the Discord production dependency closure into a standalone,
+   hoisted Bun staging layout;
+7. validates native `@napi-rs/canvas` on Linux ARM64;
+8. creates an immutable release manifest and deterministic tarball;
+9. uploads the release tarball and SHA-256 checksum;
+10. deploys Convex for a real deploy operation.
 
-The dashboard is not built or copied by this workflow.
+The packager fails if the compiled output is missing, if packaging changes the
+validated `dist` tree, or if the packaged `dist` differs from the validated build.
 
-### Self-hosted `cleo-prod` job
+### Production VPS activation
 
-`Activate Discord release on production VPS` performs only lightweight host work:
+`Activate Discord release on production VPS` runs on `cleo-prod` and deliberately
+does not check out the repository or set up Node, Bun, or another package manager.
+It invokes root-owned host tooling installed by `ops/discord/bootstrap-host.sh`.
 
-- exact checkout for deployment scripts and Git history;
-- runner, service, permission, environment, and runtime checks;
-- download of the validated release artifact;
-- checksum, archive-path, commit-SHA, and Node-version verification;
+Activation performs:
+
+- host contract, Node version, platform, systemd, permissions, and environment checks;
+- release artifact download;
+- checksum and safe archive path verification;
+- manifest, exact commit SHA, Linux ARM64, Node version, entrypoint, and critical-file
+  hash verification;
 - staging under `/srv/cleo/discord-bot/releases/<sha>`;
-- atomic `current` symlink switch;
-- systemd restart and 30-second liveness check;
-- selective global command registration;
-- deployment-state update and automatic runtime rollback on activation failure.
+- atomic `current` symlink activation;
+- systemd restart and repeated liveness checks;
+- global command registration only when the release command fingerprint changes;
+- atomic deployment-state update;
+- automatic restoration of the previous release when activation fails.
 
-The production VPS must never run `bun install`, tests, lint, typecheck, builds,
-or Convex deployment as part of release activation.
+Rollback uses the same installed controller and does not depend on Git history or
+source files.
 
-## Production ownership and paths
+## Deployment observability
+
+The activation and rollback steps always write a GitHub Actions job summary before
+returning their final status. The summary records:
+
+- whether the operation succeeded;
+- the attempted deployment SHA or rollback target;
+- the SHA actually referenced by `current` after the attempt;
+- the persisted application and previous SHAs;
+- the persisted command fingerprint;
+- the systemd service state.
+
+This is intentional. A failed health check can successfully restore the previous
+release, and a later green run must not hide which revision was actually left
+running. The workflow step still fails when the controller fails; recording the
+summary does not weaken the deployment gate.
+
+## Host contract
+
+The workflow, runner check, and deployment controller share host contract version
+`3`. Activation verifies the installed controller contract before downloading an
+artifact. A stale bootstrap installation therefore fails closed.
+
+The expected host controller Node version is `24.15.0` and the release platform is
+`linux-arm64`.
 
 | Purpose | Value |
 | --- | --- |
@@ -59,107 +91,110 @@ or Convex deployment as part of release activation.
 | Runtime environment | `/etc/cleo/discord-bot.env` |
 | Runtime service | `cleo-discord.service` |
 | Command service | `cleo-discord-register-commands.service` |
-| Host checks | `/usr/local/libexec/cleo/check-discord-*` |
+| Deployment controller | `/usr/local/libexec/cleo/deploy-discord-release` |
+| Runner check | `/usr/local/libexec/cleo/check-discord-runner` |
+| State reader | `/usr/local/libexec/cleo/read-discord-deployment-state` |
+| Controller Node | `/usr/local/libexec/cleo/node` |
 
-The runtime environment is never copied or linked into a release. Systemd loads
-`/etc/cleo/discord-bot.env`, and the application reads the resulting `process.env`.
+The state reader never evaluates the state file as shell code. It requires a regular
+non-symlink file with the expected ownership and mode, accepts only the known state
+keys, rejects duplicates and unknown keys, and validates SHA and fingerprint shapes.
 
-Each release contains the compiled runtime at `dist/index.js`, compiled global
-command registration at `dist/scripts/registerCommands.js`, their source maps,
-the artifact contract and validator, production dependencies, and exact release
-metadata. The systemd units use the root-owned release launcher, which starts Node
-against the compiled runtime and command-registration entrypoints. During the
-JCN-194 release-format transition, the launcher also recognizes the previously
-deployed TypeScript artifact so switching the `current` symlink back restores the
-known rollback release. New production releases contain neither `src/` nor the
-`tsx` package. Local development, watch mode, previews, and source command
-registration continue to use `tsx`.
+## Release artifact contract
 
-## JCN-194 first compiled-release migration
+Every new release contains:
 
-The production host initially has the legacy systemd units and does not have the
-root-owned release launcher. Use this exact sequence for the first compiled
-release so the merge cannot trigger activation before the host contract is
-installed:
+- `dist/index.js` and source map;
+- `dist/scripts/registerCommands.js` and source map;
+- the compiled artifact validator;
+- production dependencies for Linux ARM64;
+- `runtime-artifact.json`;
+- `.cleo-release-sha`;
+- `.cleo-release-platform`;
+- `.nvmrc`;
+- `release-manifest.json`.
 
-1. Set `CLEO_DISCORD_DEPLOY_ENABLED=false` before merging the PR.
-2. Merge the reviewed PR into `main`.
-3. Update the VPS checkout to the merged `main` revision.
-4. Run `sudo bash ops/discord/bootstrap-host.sh` to install the release launcher
-   and updated systemd units.
-5. Run **Discord Production Runner Smoke** from the merged `main` revision.
-6. Run **Deploy Discord Production** with `operation=validate` and require the
-   validation-only workflow to pass.
-7. Set `CLEO_DISCORD_DEPLOY_ENABLED=true`, then run the compiled production
-   deployment.
-8. Keep the previous legacy release available and confirm rollback remains
-   usable until the first compiled release is accepted.
+The release manifest records the commit SHA, platform, architecture, required Node
+version, artifact contract version, deterministic build timestamp, runtime and
+command entrypoints, SHA-256 hashes of critical compiled files, and the command
+registration fingerprint.
 
-Do not re-enable the deployment gate before the bootstrap, runner smoke, and
-validation-only workflow have all passed.
+New releases contain neither source TypeScript nor `tsx`, and they do not contain
+the workspace Bun lock or Bun configuration. Local development remains source-based;
+this restriction applies only to immutable production release artifacts.
 
-## One-time VPS setup
+## Bootstrap and rollout for JCN-207
 
-The `github-runner` and `cleo` users and the `cleo` user's NVM installation must
-already exist. From a clean `main` checkout on the VPS:
+The artifact-only workflow depends on root-owned host tooling, so the deployment gate
+must remain disabled while the new host contract is installed.
 
-```bash
-sudo bash ops/discord/bootstrap-host.sh
-```
+Use this sequence for the migration:
 
-The idempotent bootstrap installs or verifies:
+1. Set repository Actions variable `CLEO_DISCORD_DEPLOY_ENABLED=false`.
+2. Merge the reviewed deployment change into `main` using the normal verified commit
+   path.
+3. Update the trusted administrative checkout used for host bootstrap.
+4. Run `sudo bash ops/discord/bootstrap-host.sh`.
+5. Restart the GitHub Actions runner service if group membership changed.
+6. Dispatch **Discord Production Runner Smoke** from `main` and require success.
+7. Dispatch **Deploy Discord Production** with `operation=validate` and require the
+   hosted ARM64 validation/package job to pass.
+8. Set `CLEO_DISCORD_DEPLOY_ENABLED=true`.
+9. Dispatch **Deploy Discord Production** with `operation=deploy`.
+10. Inspect the activation job summary and confirm the attempted SHA, running SHA,
+    persisted application SHA, and active systemd service agree.
+11. After a second manifest-based release exists, exercise `operation=rollback` and
+    verify the rollback summary and command state.
 
-- `cleo-deploy` membership for `github-runner` and `cleo`;
-- `/srv/cleo/discord-bot/{releases,shared}`;
-- `/etc/cleo/discord-bot.env` as `root:cleo` mode `0640`;
-- root-owned environment and runtime validators plus the release launcher;
-- system-level runtime and command-registration units;
-- the narrow deployment sudo policy;
-- systemd reload and runtime-service enablement.
+Do not enable automatic deployment before bootstrap, smoke, and validation have all
+passed.
 
-It preserves an existing environment file. Restart the GitHub runner service after
-changing group membership so new jobs receive `cleo-deploy`.
+Any later change to files installed by `bootstrap-host.sh`, including host scripts,
+systemd units, sudoers policy, or the bootstrap script itself, requires the gate to
+be disabled and bootstrap to be rerun before activation resumes.
 
-Install the exact Node version from `.nvmrc` for the runtime user:
+## One-time VPS prerequisites
+
+The `github-runner` and `cleo` users must already exist. The runtime user must have
+the exact Node version from `.nvmrc` installed through NVM. For the current contract:
 
 ```bash
 sudo -iu cleo bash -lc \
   'source "$HOME/.nvm/nvm.sh" && nvm install 24.15.0 && nvm alias default 24.15.0'
 ```
 
-Do not manually start the bot before the first release creates `current`.
+Bootstrap also downloads the pinned official Node Linux ARM64 archive over HTTPS and verifies its repository-pinned SHA-256 checksum before installing the root-owned controller runtime. The checksum must be updated deliberately whenever `.nvmrc` changes.
 
-## Production credentials and environment placement
+Then run:
 
-### Discord Developer Portal
-
-Use the production Cleo application.
-
-- **General Information → Application ID** supplies `DISCORD_APPLICATION_ID` and normally `DISCORD_CLIENT_ID`.
-- **Bot → Token** supplies `DISCORD_BOT_TOKEN`.
-- **Bot → Privileged Gateway Intents** must enable **Server Members Intent**.
-- Guild installation scopes must include `bot` and `applications.commands`.
-- User installation must permit `applications.commands` for supported user/DM commands.
-
-The reviewed v3 permission bitfield is:
-
-```text
-309237894150
+```bash
+sudo bash ops/discord/bootstrap-host.sh
 ```
 
-It covers View Channels, Send Messages, Embed Links, Attach Files, Read Message
-History, configured role mentions, public threads, thread messaging, kicks, and
-bans. Convex may override it only with a deliberate valid decimal value.
+Bootstrap is idempotent and installs or verifies:
 
-### VPS: `/etc/cleo/discord-bot.env`
+- `cleo-deploy` membership for `github-runner` and `cleo`;
+- `/srv/cleo/discord-bot/{releases,shared}`;
+- `/etc/cleo/discord-bot.env` as `root:cleo` mode `0640`;
+- root-owned environment and runtime validators;
+- the root-owned deployment controller, state reader, runner check, and release
+  launcher;
+- a root-owned controller Node extracted from the pinned official Node release archive only after its SHA-256 checksum is verified;
+- systemd runtime and command-registration services;
+- the narrow deployment sudo policy.
 
-Edit with:
+The bot service is enabled but should not be manually started before a valid
+`current` release exists.
+
+## Runtime environment
+
+Edit the VPS environment with:
 
 ```bash
 sudoedit /etc/cleo/discord-bot.env
 ```
 
-Required values:
+Required values include:
 
 ```dotenv
 NODE_ENV=production
@@ -172,121 +207,56 @@ DISCORD_BOT_SHARD_COUNT=auto
 DISCORD_CLIENT_ID=replace-with-the-discord-application-id
 ```
 
-Generate the bot-to-Convex secret once:
+Generate the bot-to-Convex shared secret once with `openssl rand -hex 32` and store
+the same value in the VPS environment and Convex production. Do not place
+`DISCORD_TEST_GUILD_ID` in production.
 
-```bash
-openssl rand -hex 32
-```
-
-Put the same value in VPS and Convex production
-`DISCORD_BOT_CONVEX_SECRET`. `DISCORD_TEST_GUILD_ID` is development-only and must
-not be present in production.
-
-Validate without printing values:
+Validate the environment without printing secret values:
 
 ```bash
 sudo -u cleo /usr/local/libexec/cleo/check-discord-env \
   /etc/cleo/discord-bot.env
 ```
 
-### GitHub environment: `discord-production`
+## GitHub production environment
 
-Set environment secret:
+The `discord-production` environment requires `CONVEX_DEPLOY_KEY`. Restrict the
+environment to `main`.
 
-| Secret | Purpose |
-| --- | --- |
-| `CONVEX_DEPLOY_KEY` | Production Convex key with deployment permission. |
+`CLEO_DISCORD_DEPLOY_ENABLED` controls automatic and manual deploy activation:
 
-Restrict the environment deployment branch to `main`.
-
-Set repository Actions variable `CLEO_DISCORD_DEPLOY_ENABLED=false` or leave it
-unset during bootstrap and workflow changes. Manual `validate` and `rollback`
-remain available while the gate is off. Automatic pushes and manual `deploy`
-require the value to be exactly `true`.
-
-### Convex production environment
-
-Set these on the production deployment:
-
-| Variable | Source / requirement |
-| --- | --- |
-| `NODE_ENV` | `production` |
-| `CLERK_JWT_ISSUER_DOMAIN` | Clerk production Convex integration URL |
-| `CLERK_SECRET_KEY` | Clerk production API secret |
-| `CLERK_WEBHOOK_SECRET` | Production Clerk webhook signing secret |
-| `DISCORD_BOT_CONVEX_SECRET` | Same value as VPS |
-| `DISCORD_BOT_TOKEN` | Same production bot token as VPS |
-| `DISCORD_APPLICATION_ID` | Discord application ID |
-| `DISCORD_CLIENT_ID` | Normally the same application ID |
-| `DISCORD_BOT_PERMISSIONS` | `309237894150` unless deliberately overridden |
-| `DISCORD_INSTALL_REDIRECT_URI` | Optional approved HTTPS redirect |
-
-The production Convex `.convex.cloud` URL is used by VPS `CONVEX_URL` and Vercel
-`NEXT_PUBLIC_CONVEX_URL`. The `.convex.site` URL is used for the Clerk webhook at:
-
-```text
-https://<production-deployment>.convex.site/clerk-users-webhook
-```
-
-Subscribe the Clerk webhook to `user.created`, `user.updated`, and `user.deleted`.
-
-### Vercel Production: `apps/dashboard`
-
-Set:
-
-```dotenv
-NEXT_PUBLIC_CONVEX_URL=https://your-production-deployment.convex.cloud
-NEXT_PUBLIC_APP_URL=https://cleoai.cloud
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your-production-publishable-key
-CLERK_SECRET_KEY=your-production-secret-key
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/dashboard
-NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/dashboard
-```
-
-Trigger a new Vercel Production deployment after changing build-time values.
-
-## Safe first-production activation
-
-1. Keep `CLEO_DISCORD_DEPLOY_ENABLED=false`.
-2. Merge the reviewed workflow revision to `main`.
-3. Keep the recovered self-hosted runner disabled until the merge is complete.
-4. Pull the new `main` into `/opt/cleo-source`.
-5. Re-run `bootstrap-host.sh` only when host templates or helpers changed.
-6. Enable and start the GitHub runner service.
-7. Dispatch **Discord Production Runner Smoke** from `main` and require it to pass.
-8. Dispatch **Deploy Discord Production** with `operation=validate`.
-9. Confirm `Validate and package Discord bot` runs on GitHub-hosted Linux x64 and no job is assigned to `cleo-prod`.
-10. Set repository variable `CLEO_DISCORD_DEPLOY_ENABLED=true`.
-11. Dispatch **Deploy Discord Production** with `operation=deploy`.
-12. Confirm hosted validation/package and Convex deployment pass before the lightweight VPS activation begins.
-13. Complete the JCN-118 production acceptance matrix.
-14. Prove a second harmless deployment and rollback before closing the release epic.
+- unset or `false`: automatic deployment and manual `deploy` are blocked;
+- `true`: relevant trusted `main` pushes and manual `deploy` may activate production;
+- manual `validate` remains available while the gate is off;
+- manual `rollback` remains available while the gate is off.
 
 ## Operations
 
 ### Runner smoke
 
-The smoke workflow verifies identity, toolchain, runtime Node, groups, directories,
-systemd units, environment validity, helper ownership, sudo rules, and a harmless
-release-directory write. It performs no dependency installation.
+The smoke workflow verifies the installed host contract, exact controller Node,
+Linux ARM64 platform, systemd units, permissions, environment, root-owned helpers,
+sudo rules, and a harmless release-directory write. It performs no checkout or
+dependency installation.
 
 ### Validate
 
-Manual `operation=validate` runs only the GitHub-hosted Linux x64 validation and package
-job. It uploads a seven-day release artifact but does not deploy Convex or touch the
-VPS.
+Manual `operation=validate` runs only hosted Linux ARM64 validation and packaging.
+It uploads the release artifact for inspection but does not deploy Convex or touch
+the VPS.
 
 ### Deploy
 
 Manual `operation=deploy`, or a relevant trusted `main` push while the deployment
-gate is enabled, validates and packages on hosted Linux x64, deploys Convex, then sends
-the prepared artifact to `cleo-prod` for activation. The VPS does not install
-packages.
+gate is enabled, validates and packages on hosted Linux ARM64, deploys Convex, and
+then sends the validated artifact to `cleo-prod` for activation. The VPS does not
+build or install packages.
 
 ### Rollback
 
-Manual `operation=rollback` runs only on `cleo-prod`. It switches to the recorded
-previous SHA, restarts and verifies the service, reapplies command state when
-required, and updates deployment state. Convex is not rolled back automatically.
+Manual `operation=rollback` runs only on `cleo-prod`. It validates the recorded
+previous release, switches the active symlink, restarts and health-checks the
+service, reapplies command registration when its fingerprint differs, and atomically
+updates deployment state. If rollback command registration fails, the controller
+restores the release it started from and repairs command/state consistency. Convex
+is not rolled back automatically.

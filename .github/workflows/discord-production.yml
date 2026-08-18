@@ -11,9 +11,7 @@ on:
       - "packages/shared/**"
       - "packages/typescript-config/**"
       - "ops/discord/**"
-      - ".github/scripts/deploy-discord.sh"
       - ".github/scripts/package-discord-release.sh"
-      - ".github/scripts/check-discord-runner.sh"
       - ".github/workflows/discord-production.yml"
       - ".nvmrc"
       - "package.json"
@@ -42,7 +40,9 @@ concurrency:
 jobs:
   classify:
     name: Classify Discord changes
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      !(github.event_name == 'workflow_dispatch' && inputs.operation == 'rollback')
     runs-on: ubuntu-latest
     outputs:
       deploy: ${{ steps.changes.outputs.deploy }}
@@ -89,7 +89,7 @@ jobs:
         )
       )
     environment: discord-production
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     outputs:
       artifact_name: ${{ steps.package.outputs.artifact_name }}
@@ -111,7 +111,7 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Verify packaging architecture
-        run: test "$(node -p '`${process.platform}-${process.arch}`')" = "linux-x64"
+        run: test "$(node -p '`${process.platform}-${process.arch}`')" = "linux-arm64"
 
       - name: Install exact dependencies
         run: bun ci
@@ -137,7 +137,7 @@ jobs:
       - name: Build Discord bot
         run: bun run --filter @workspace/discord-bot build
 
-      - name: Package portable Linux x64 release
+      - name: Package portable Linux arm64 release
         id: package
         run: >-
           bash .github/scripts/package-discord-release.sh
@@ -162,7 +162,7 @@ jobs:
 
       - name: Record validation-only success
         if: github.event_name == 'workflow_dispatch' && inputs.operation == 'validate'
-        run: echo "Discord v3 validation and Linux x64 packaging passed on GitHub-hosted infrastructure."
+        run: echo "Discord v3 validation and Linux arm64 packaging passed on GitHub-hosted infrastructure."
 
   activate:
     name: Activate Discord release on production VPS
@@ -180,6 +180,9 @@ jobs:
     runs-on: cleo-prod
     timeout-minutes: 10
     env:
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"
+      CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
+      CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
       CLEO_DISCORD_SERVICE: cleo-discord.service
@@ -189,20 +192,14 @@ jobs:
       CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
 
     steps:
-      - name: Checkout exact commit
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-          ref: ${{ github.sha }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-
       - name: Verify production runner contract
-        run: bash .github/scripts/check-discord-runner.sh
+        run: |
+          test "$(/usr/local/libexec/cleo/deploy-discord-release contract-version)" = \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION"
+          /usr/local/libexec/cleo/check-discord-runner \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION" \
+            "$CLEO_DISCORD_HOST_NODE_VERSION" \
+            "$CLEO_DISCORD_RELEASE_PLATFORM"
 
       - name: Download validated release artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -210,26 +207,53 @@ jobs:
           name: ${{ needs.validate-package.outputs.artifact_name }}
           path: ${{ runner.temp }}/cleo-discord-release
 
-      - name: Verify release architecture
+      - name: Activate release and record resulting state
         env:
-          CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz
-        run: |
-          artifact_platform="$(tar -xOzf "$CLEO_DISCORD_RELEASE_ARCHIVE" ./.cleo-release-platform)"
-          runtime_platform="$(node -p '`${process.platform}-${process.arch}`')"
-          if [[ "$artifact_platform" != "$runtime_platform" ]]; then
-            echo "Release platform $artifact_platform does not match production runtime $runtime_platform" >&2
-            exit 1
-          fi
-
-      - name: Activate release
-        env:
+          CLEO_DISCORD_EXPECTED_SHA: ${{ github.sha }}
           CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz
           CLEO_DISCORD_RELEASE_CHECKSUM: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz.sha256
-        run: bash .github/scripts/deploy-discord.sh deploy
+        run: |
+          set +e
+          /usr/local/libexec/cleo/deploy-discord-release deploy
+          deployment_status=$?
+          set -e
+
+          current_target="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current" 2>/dev/null || true)"
+          running_sha="${current_target##*/}"
+          service_status="$(systemctl is-active "$CLEO_DISCORD_SERVICE" 2>/dev/null || true)"
+          state_application="unavailable"
+          state_previous="unavailable"
+          state_fingerprint="unavailable"
+          if state_output="$(/usr/local/libexec/cleo/read-discord-deployment-state \
+            "$CLEO_DISCORD_DEPLOY_ROOT/shared/deployment-state.env" 2>/dev/null)"; then
+            mapfile -t state_values <<< "$state_output"
+            state_application="${state_values[0]:-unavailable}"
+            state_previous="${state_values[1]:-none}"
+            state_fingerprint="${state_values[2]:-unavailable}"
+          fi
+
+          result="failed"
+          if [[ "$deployment_status" -eq 0 ]]; then
+            result="succeeded"
+          fi
+          {
+            echo "### Discord production activation"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            printf '| Result | `%s` |\n' "$result"
+            printf '| Attempted SHA | `%s` |\n' "$CLEO_DISCORD_EXPECTED_SHA"
+            printf '| Running SHA after attempt | `%s` |\n' "${running_sha:-none}"
+            printf '| Persisted application SHA | `%s` |\n' "$state_application"
+            printf '| Persisted previous SHA | `%s` |\n' "${state_previous:-none}"
+            printf '| Command fingerprint | `%s` |\n' "$state_fingerprint"
+            printf '| Service status | `%s` |\n' "${service_status:-unknown}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$deployment_status"
 
   rollback:
     name: Roll back Discord production
-    needs: classify
     if: >-
       github.ref == 'refs/heads/main' &&
       github.event_name == 'workflow_dispatch' &&
@@ -238,6 +262,9 @@ jobs:
     runs-on: cleo-prod
     timeout-minutes: 10
     env:
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "3"
+      CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
+      CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
       CLEO_DISCORD_SERVICE: cleo-discord.service
@@ -247,20 +274,62 @@ jobs:
       CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
 
     steps:
-      - name: Checkout exact commit
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-          ref: ${{ github.sha }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-
       - name: Verify production runner contract
-        run: bash .github/scripts/check-discord-runner.sh
+        run: |
+          test "$(/usr/local/libexec/cleo/deploy-discord-release contract-version)" = \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION"
+          /usr/local/libexec/cleo/check-discord-runner \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION" \
+            "$CLEO_DISCORD_HOST_NODE_VERSION" \
+            "$CLEO_DISCORD_RELEASE_PLATFORM"
 
-      - name: Roll back to previous release
-        run: bash .github/scripts/deploy-discord.sh rollback
+      - name: Roll back and record resulting state
+        run: |
+          rollback_from="unavailable"
+          rollback_target="unavailable"
+          if pre_state="$(/usr/local/libexec/cleo/read-discord-deployment-state \
+            "$CLEO_DISCORD_DEPLOY_ROOT/shared/deployment-state.env" 2>/dev/null)"; then
+            mapfile -t pre_values <<< "$pre_state"
+            rollback_from="${pre_values[0]:-unavailable}"
+            rollback_target="${pre_values[1]:-unavailable}"
+          fi
+
+          set +e
+          /usr/local/libexec/cleo/deploy-discord-release rollback
+          rollback_status=$?
+          set -e
+
+          current_target="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current" 2>/dev/null || true)"
+          running_sha="${current_target##*/}"
+          service_status="$(systemctl is-active "$CLEO_DISCORD_SERVICE" 2>/dev/null || true)"
+          state_application="unavailable"
+          state_previous="unavailable"
+          state_fingerprint="unavailable"
+          if state_output="$(/usr/local/libexec/cleo/read-discord-deployment-state \
+            "$CLEO_DISCORD_DEPLOY_ROOT/shared/deployment-state.env" 2>/dev/null)"; then
+            mapfile -t state_values <<< "$state_output"
+            state_application="${state_values[0]:-unavailable}"
+            state_previous="${state_values[1]:-none}"
+            state_fingerprint="${state_values[2]:-unavailable}"
+          fi
+
+          result="failed"
+          if [[ "$rollback_status" -eq 0 ]]; then
+            result="succeeded"
+          fi
+          {
+            echo "### Discord production rollback"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            printf '| Result | `%s` |\n' "$result"
+            printf '| Previous running SHA | `%s` |\n' "$rollback_from"
+            printf '| Rollback target | `%s` |\n' "$rollback_target"
+            printf '| Running SHA after attempt | `%s` |\n' "${running_sha:-none}"
+            printf '| Persisted application SHA | `%s` |\n' "$state_application"
+            printf '| Persisted previous SHA | `%s` |\n' "${state_previous:-none}"
+            printf '| Command fingerprint | `%s` |\n' "$state_fingerprint"
+            printf '| Service status | `%s` |\n' "${service_status:-unknown}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$rollback_status"

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="current"
+if [[ "${1:-}" == "--legacy" ]]; then
+  mode="legacy"
+  shift
+fi
+
+state_file="${1:-}"
+expected_owner="${CLEO_DISCORD_STATE_OWNER:-github-runner}"
+expected_group="${CLEO_DISCORD_STATE_GROUP:-cleo-deploy}"
+
+fail() {
+  echo "Discord deployment state is invalid: $*" >&2
+  exit 1
+}
+
+[[ -n "$state_file" ]] || fail "state file path is required"
+[[ -f "$state_file" && ! -L "$state_file" ]] || fail "state must be a regular non-symlink file"
+[[ "$(stat -c %U "$state_file")" == "$expected_owner" ]] || fail "unexpected owner"
+[[ "$(stat -c %G "$state_file")" == "$expected_group" ]] || fail "unexpected group"
+[[ "$(stat -c %a "$state_file")" == "640" ]] || fail "mode must be 0640"
+
+declare -A values=()
+declare -A seen=()
+if [[ "$mode" == "legacy" ]]; then
+  expected_keys=(APPLICATION_SHA PREVIOUS_APPLICATION_SHA COMMAND_SHA)
+else
+  expected_keys=(APPLICATION_SHA PREVIOUS_APPLICATION_SHA COMMAND_FINGERPRINT)
+fi
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  [[ "$line" == *=* ]] || fail "expected KEY=value records"
+  key="${line%%=*}"
+  value="${line#*=}"
+  expected=false
+  for expected_key in "${expected_keys[@]}"; do
+    if [[ "$key" == "$expected_key" ]]; then
+      expected=true
+      break
+    fi
+  done
+  [[ "$expected" == "true" ]] || fail "unknown key $key"
+  [[ -z "${seen[$key]:-}" ]] || fail "duplicate key $key"
+  seen[$key]=true
+  values[$key]="$value"
+done < "$state_file"
+
+for key in "${expected_keys[@]}"; do
+  [[ -n "${seen[$key]:-}" ]] || fail "missing key $key"
+done
+
+sha_pattern='^[0-9a-f]{40}$'
+[[ "${values[APPLICATION_SHA]}" =~ $sha_pattern ]] || fail "APPLICATION_SHA is invalid"
+[[ -z "${values[PREVIOUS_APPLICATION_SHA]}" || "${values[PREVIOUS_APPLICATION_SHA]}" =~ $sha_pattern ]] ||
+  fail "PREVIOUS_APPLICATION_SHA is invalid"
+
+if [[ "$mode" == "legacy" ]]; then
+  [[ "${values[COMMAND_SHA]}" =~ $sha_pattern ]] || fail "COMMAND_SHA is invalid"
+  printf '%s\n%s\n%s\n' \
+    "${values[APPLICATION_SHA]}" \
+    "${values[PREVIOUS_APPLICATION_SHA]}" \
+    "${values[COMMAND_SHA]}"
+else
+  [[ "${values[COMMAND_FINGERPRINT]}" =~ ^[0-9a-f]{64}$ ]] ||
+    fail "COMMAND_FINGERPRINT is invalid"
+  printf '%s\n%s\n%s\n' \
+    "${values[APPLICATION_SHA]}" \
+    "${values[PREVIOUS_APPLICATION_SHA]}" \
+    "${values[COMMAND_FINGERPRINT]}"
+fi

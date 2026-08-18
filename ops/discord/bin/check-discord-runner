@@ -11,6 +11,13 @@ deploy_group="${CLEO_DISCORD_DEPLOY_GROUP:-cleo-deploy}"
 env_check="/usr/local/libexec/cleo/check-discord-env"
 runtime_check="/usr/local/libexec/cleo/check-discord-runtime"
 runtime_launcher="/usr/local/libexec/cleo/run-discord-release"
+deploy_controller="/usr/local/libexec/cleo/deploy-discord-release"
+runner_check="/usr/local/libexec/cleo/check-discord-runner"
+host_node="/usr/local/libexec/cleo/node"
+state_reader="/usr/local/libexec/cleo/read-discord-deployment-state"
+expected_contract_version="${1:-}"
+expected_node_version="${2:-}"
+expected_platform="${3:-}"
 
 fail() {
   echo "Discord production runner check failed: $*" >&2
@@ -39,8 +46,9 @@ assert_root_owned_check() {
 [[ "$(uname -s)" == "Linux" ]] || fail "production runner is not Linux"
 contains_word "$(id -nG)" "$deploy_group" || fail "github-runner is not in $deploy_group"
 
-expected_node="v$(node -p "require('./package.json').engines.node")"
-[[ "$(node --version)" == "$expected_node" ]] || fail "Actions Node version does not match package.json"
+[[ "$expected_contract_version" =~ ^[0-9]+$ ]] || fail "host contract version is invalid"
+[[ "$expected_node_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "host Node version is invalid"
+[[ "$expected_platform" == "linux-arm64" ]] || fail "release platform must be linux-arm64"
 
 for directory in "$deploy_root" "$deploy_root/releases" "$deploy_root/shared"; do
   [[ -d "$directory" ]] || fail "missing directory $directory"
@@ -81,12 +89,20 @@ contains_word "$(unit_value "$command_service_name" SupplementaryGroups)" "$depl
 assert_root_owned_check "$env_check"
 assert_root_owned_check "$runtime_check"
 assert_root_owned_check "$runtime_launcher"
+assert_root_owned_check "$deploy_controller"
+assert_root_owned_check "$runner_check"
+assert_root_owned_check "$host_node"
+assert_root_owned_check "$state_reader"
+
+[[ "$($deploy_controller contract-version)" == "$expected_contract_version" ]] ||
+  fail "installed deployment controller contract is stale"
+[[ "$($host_node --version)" == "v$expected_node_version" ]] ||
+  fail "host controller Node version is stale"
+[[ "$($host_node -p '`${process.platform}-${process.arch}`')" == "$expected_platform" ]] ||
+  fail "host controller Node platform does not match $expected_platform"
 
 sudo -n -u "$runtime_user" "$env_check" "$env_file" ||
   fail "Discord production environment validation failed"
-sudo -n -u "$runtime_user" "$runtime_check" "$expected_node" ||
-  fail "Cleo runtime Node validation failed"
-
 sudo -n -l /usr/bin/systemctl restart "$service_name" >/dev/null 2>&1 ||
   fail "missing sudo rule for restarting $service_name"
 sudo -n -l /usr/bin/systemctl stop "$service_name" >/dev/null 2>&1 ||
@@ -97,7 +113,7 @@ sudo -n -l /usr/bin/systemctl reset-failed "$command_service_name" >/dev/null 2>
   fail "missing sudo rule for resetting $command_service_name"
 sudo -n -u "$runtime_user" -l "$env_check" "$env_file" >/dev/null 2>&1 ||
   fail "missing sudo rule for the production environment check"
-sudo -n -u "$runtime_user" -l "$runtime_check" "$expected_node" >/dev/null 2>&1 ||
+sudo -n -u "$runtime_user" -l "$runtime_check" "v0.0.0" >/dev/null 2>&1 ||
   fail "missing sudo rule for the runtime Node check"
 
 marker="$deploy_root/releases/.runner-smoke-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}"
