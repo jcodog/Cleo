@@ -1,0 +1,25 @@
+ops/discord/bin/deploy-discord-release.test.sh
+  s_63061778308ebe::t_7f66cd4b5082b3 21
+  s_63061778308ebe::t_e6fa3015bbf520 18,110,124
+ops/discord/bin/deploy-discord-release
+  s_63061778308ebe::t_e6fa3015bbf520 77,91-92,96-99
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_63061778308ebe::t_e6fa3015bbf520 20,56-58,91,108,261-265
+  s_63061778308ebe::t_02db2db9e6c5a6 266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "f39b3258417e256c6373012ed43d9d6fcddf294f",
+  "prompts": {},
+  "sessions": {
+    "s_63061778308ebe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a01219-0c08-7521-a160-df3d7ce5bef9",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
