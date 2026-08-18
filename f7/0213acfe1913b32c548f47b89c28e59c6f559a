@@ -1,0 +1,19 @@
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_63061778308ebe::t_ffba52ddd7618a 207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "f70213acfe1913b32c548f47b89c28e59c6f559a",
+  "prompts": {},
+  "sessions": {
+    "s_63061778308ebe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a01219-0c08-7521-a160-df3d7ce5bef9",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
