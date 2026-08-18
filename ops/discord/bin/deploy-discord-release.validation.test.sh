@@ -204,6 +204,7 @@ package_release() {
 reset_deployment() {
   rm -rf -- "$deploy_root/releases"
   mkdir -p "$deploy_root/releases"
+  chmod 2775 "$deploy_root/releases"
   rm -f -- "$deploy_root/current" "$deploy_root/shared/deployment-state.env"
 }
 
