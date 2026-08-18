@@ -1,0 +1,29 @@
+ops/discord/bin/deploy-discord-release
+  s_7f73400ae89818::t_ce3d06405f34ae 547,549
+  s_7f73400ae89818::t_0203f5fa6b7a0b 546
+apps/discord-bot/src/deployment/deploymentPipeline.test.ts
+  s_7f73400ae89818::t_681721dd2fbaa3 179-180,182-183
+ops/discord/bootstrap-host.sh
+  s_7f73400ae89818::t_0203f5fa6b7a0b 120
+  s_7f73400ae89818::t_ce3d06405f34ae 121,123
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_7f73400ae89818::t_0203f5fa6b7a0b 290,295,304-305,308
+  s_7f73400ae89818::t_ce3d06405f34ae 261-279,286-289,291-294,296-303,306-307
+  s_7f73400ae89818::t_28797da0cb4aaf 309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "aab98fbd9f5e016d7a2a703c6d6c6f56832c6655",
+  "prompts": {},
+  "sessions": {
+    "s_7f73400ae89818": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a01330-2d84-7c30-9402-940b4ff73757",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
