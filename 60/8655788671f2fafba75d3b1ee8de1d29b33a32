@@ -1,0 +1,43 @@
+ops/discord/bootstrap-host.sh
+  s_f99483b72f8a14::t_8a1f27ddbe45ff 52-53,79,161
+ops/discord/bin/check-discord-runner
+  s_f99483b72f8a14::t_8a1f27ddbe45ff 62
+docs/discord-production-deployment.md
+  s_f99483b72f8a14::t_de88b575fd45ce 13,15,24,43,79,111,145,170,248,254,261
+  s_f99483b72f8a14::t_769b3e85d6ff7e 80-98
+apps/discord-bot/src/deployment/validateReleaseArtifact.test.ts
+  s_f99483b72f8a14::t_e1e5bf7e3a91e4 25,72,139,262,271,313,318,320
+.github/workflows/discord-production.yml
+  s_f99483b72f8a14::t_8a1f27ddbe45ff 93,115,141,166,186,269
+ops/discord/bin/deploy-discord-release.test.sh
+  s_f99483b72f8a14::t_8a1f27ddbe45ff 31,49,104
+apps/discord-bot/src/deployment/validateReleaseArtifact.security.test.ts
+  s_f99483b72f8a14::t_e1e5bf7e3a91e4 23,68
+.github/workflows/regression.yml
+  s_f99483b72f8a14::t_8a1f27ddbe45ff 16,143,145-146
+apps/discord-bot/src/deployment/deploymentPipeline.test.ts
+  s_f99483b72f8a14::t_e1e5bf7e3a91e4 41-44,47,125,129,131,144-146,153-159
+  s_f99483b72f8a14::t_769b3e85d6ff7e 135-142,160-162,167
+.github/scripts/package-discord-release.sh
+  s_f99483b72f8a14::t_8a1f27ddbe45ff 21-22
+.github/workflows/discord-runner-smoke.yml
+  s_f99483b72f8a14::t_8a1f27ddbe45ff 23
+apps/discord-bot/runtime-artifact.json
+  s_f99483b72f8a14::t_8a1f27ddbe45ff 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "608655788671f2fafba75d3b1ee8de1d29b33a32",
+  "prompts": {},
+  "sessions": {
+    "s_f99483b72f8a14": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0130c-b69d-7151-8e43-be64f972613b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
