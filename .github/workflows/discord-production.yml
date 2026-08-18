@@ -90,7 +90,7 @@ jobs:
         )
       )
     environment: discord-production
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     outputs:
       artifact_name: ${{ steps.package.outputs.artifact_name }}
@@ -112,7 +112,7 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Verify packaging architecture
-        run: test "$(node -p '`${process.platform}-${process.arch}`')" = "linux-arm64"
+        run: test "$(node -p '`${process.platform}-${process.arch}`')" = "linux-x64"
 
       - name: Install exact dependencies
         run: bun ci
@@ -138,7 +138,7 @@ jobs:
       - name: Build Discord bot
         run: bun run --filter @workspace/discord-bot build
 
-      - name: Package portable Linux arm64 release
+      - name: Package portable Linux x64 release
         id: package
         run: >-
           bash .github/scripts/package-discord-release.sh
@@ -163,7 +163,7 @@ jobs:
 
       - name: Record validation-only success
         if: github.event_name == 'workflow_dispatch' && inputs.operation == 'validate'
-        run: echo "Discord v3 validation and Linux arm64 packaging passed on GitHub-hosted infrastructure."
+        run: echo "Discord v3 validation and Linux x64 packaging passed on GitHub-hosted infrastructure."
 
   activate:
     name: Activate Discord release on production VPS
@@ -183,7 +183,7 @@ jobs:
     env:
       CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
-      CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
+      CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
       CLEO_DISCORD_SERVICE: cleo-discord.service
@@ -266,7 +266,7 @@ jobs:
     env:
       CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
-      CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
+      CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
       CLEO_DISCORD_SERVICE: cleo-discord.service

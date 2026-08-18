@@ -38,11 +38,13 @@ test("production workflow builds once and packages the validated output", () => 
     packager,
     /Packaged Discord build differs from the validated build output/
   )
-  assert.match(workflow, /runs-on: ubuntu-24\.04-arm/)
-  assert.match(workflow, /process\.platform.*process\.arch.*linux-arm64/)
+  assert.match(workflow, /runs-on: ubuntu-24\.04/)
+  assert.doesNotMatch(workflow, /runs-on: ubuntu-24\.04-arm/)
+  assert.match(workflow, /process\.platform.*process\.arch.*linux-x64/)
+  assert.match(packager, /release_platform.*linux-x64/)
   assert.match(
     repositoryFile("apps/discord-bot/runtime-artifact.json"),
-    /canvas-linux-arm64-gnu/
+    /canvas-linux-x64-gnu\/skia\.linux-x64-gnu\.node/
   )
 })
 
@@ -120,21 +122,41 @@ test("workflow and installed controller enforce the same host contract", () => {
   assert.match(bootstrap, /trusted_node_version="v24\.15\.0"/)
   assert.match(
     bootstrap,
-    /trusted_node_archive="node-\$\{trusted_node_version\}-linux-arm64\.tar\.xz"/
+    /trusted_node_archive="node-\$\{trusted_node_version\}-linux-x64\.tar\.xz"/
   )
   assert.match(
     bootstrap,
-    /f3d5a797b5d210ce8e2cb265544c8e482eaedcb8aa409a8b46da7e8595d0dda0/
+    /472655581fb851559730c48763e0c9d3bc25975c59d518003fc0849d3e4ba0f6/
   )
+  assert.match(bootstrap, /process\.platform.*process\.arch.*linux-x64/)
   assert.match(bootstrap, /sha256sum -c -/)
   assert.match(bootstrap, /mktemp "\$libexec_dir\/\.node\.XXXXXX"/)
   assert.match(bootstrap, /mv -fT -- "\$node_staging" "\$host_node"/)
-  assert.match(bootstrap, /Discord host Node path is not a regular non-symlink file/)
-  assert.match(bootstrap, /Installed Discord host Node is not a root-owned regular executable/)
+  assert.match(
+    bootstrap,
+    /Discord host Node path is not a regular non-symlink file/
+  )
+  assert.match(
+    bootstrap,
+    /Installed Discord host Node is not a root-owned regular executable/
+  )
   assert.doesNotMatch(bootstrap, /\/home\/cleo\/\.nvm/)
+  assert.match(runnerCheck, /expected_platform" == "linux-x64"/)
+  assert.match(workflow, /CLEO_DISCORD_RELEASE_PLATFORM: linux-x64/)
+  assert.match(smokeWorkflow, /CLEO_DISCORD_RELEASE_PLATFORM: linux-x64/)
   assert.match(
     smokeWorkflow,
     /sudo -n -u "\$CLEO_DISCORD_RUNTIME_USER"[\s\S]*check-discord-runtime/
+  )
+})
+
+test("application runtime and command registration remain on Cleo NVM", () => {
+  const launcher = repositoryFile("ops/discord/bin/run-discord-release")
+
+  assert.match(launcher, /\/home\/cleo\/\.nvm\/nvm-exec/)
+  assert.match(
+    launcher,
+    /exec "\$nvm_exec" node --enable-source-maps "\$compiled_entrypoint"/
   )
 })
 
@@ -142,9 +164,7 @@ test("runtime identity can read releases without writing deployment state", () =
   const bootstrap = repositoryFile("ops/discord/bootstrap-host.sh")
   const controller = repositoryFile("ops/discord/bin/deploy-discord-release")
   const runnerCheck = repositoryFile("ops/discord/bin/check-discord-runner")
-  const runtimeUnit = repositoryFile(
-    "ops/discord/systemd/cleo-discord.service"
-  )
+  const runtimeUnit = repositoryFile("ops/discord/systemd/cleo-discord.service")
   const commandUnit = repositoryFile(
     "ops/discord/systemd/cleo-discord-register-commands.service"
   )

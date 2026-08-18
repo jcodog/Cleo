@@ -49,8 +49,8 @@ require_user cleo
 
 expected_node="$(tr -d '[:space:]' < "$repository_root/.nvmrc")"
 trusted_node_version="v24.15.0"
-trusted_node_archive="node-${trusted_node_version}-linux-arm64.tar.xz"
-trusted_node_sha256="f3d5a797b5d210ce8e2cb265544c8e482eaedcb8aa409a8b46da7e8595d0dda0"
+trusted_node_archive="node-${trusted_node_version}-linux-x64.tar.xz"
+trusted_node_sha256="472655581fb851559730c48763e0c9d3bc25975c59d518003fc0849d3e4ba0f6"
 
 if [[ ! "$expected_node" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] ||   [[ "$expected_node" != "$trusted_node_version" ]]; then
   echo ".nvmrc must contain the pinned production Node version $trusted_node_version" >&2
@@ -76,7 +76,7 @@ if [[ ! -f "$trusted_node" || -L "$trusted_node" || ! -x "$trusted_node" ]]; the
   echo "Verified Node archive did not contain the expected regular executable." >&2
   exit 1
 fi
-if [[ "$("$trusted_node" --version)" != "$trusted_node_version" ]] ||   [[ "$("$trusted_node" -p '`${process.platform}-${process.arch}`')" != "linux-arm64" ]]; then
+if [[ "$("$trusted_node" --version)" != "$trusted_node_version" ]] ||   [[ "$("$trusted_node" -p '`${process.platform}-${process.arch}`')" != "linux-x64" ]]; then
   echo "Verified Node archive does not match the required version/platform." >&2
   exit 1
 fi
@@ -158,7 +158,7 @@ if [[ "$(sha256sum "$node_staging" | cut -d ' ' -f 1)" != "$trusted_node_hash" ]
   echo "Staged Discord host Node differs from the verified official runtime." >&2
   exit 1
 fi
-if [[ "$("$node_staging" --version)" != "$trusted_node_version" ]] ||   [[ "$("$node_staging" -p '`${process.platform}-${process.arch}`')" != "linux-arm64" ]]; then
+if [[ "$("$node_staging" --version)" != "$trusted_node_version" ]] ||   [[ "$("$node_staging" -p '`${process.platform}-${process.arch}`')" != "linux-x64" ]]; then
   echo "Staged Discord host Node failed version/platform verification." >&2
   exit 1
 fi

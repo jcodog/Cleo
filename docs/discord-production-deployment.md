@@ -10,9 +10,9 @@ validated release on the production VPS.
 
 The production VPS is an application host, not a CI build machine.
 
-### Hosted Linux ARM64 validation and packaging
+### Hosted Linux x64 validation and packaging
 
-`Validate and package Discord bot` runs on GitHub-hosted `ubuntu-24.04-arm` and:
+`Validate and package Discord bot` runs on GitHub-hosted `ubuntu-24.04` and:
 
 1. checks out the exact commit;
 2. installs the locked workspace with `bun ci`;
@@ -21,7 +21,7 @@ The production VPS is an application host, not a CI build machine.
 5. packages the already-validated `dist` tree without rebuilding or mutating it;
 6. installs only the Discord production dependency closure into a standalone,
    hoisted Bun staging layout;
-7. validates native `@napi-rs/canvas` on Linux ARM64;
+7. validates native `@napi-rs/canvas` on Linux x64 GNU;
 8. creates an immutable release manifest and deterministic tarball;
 9. uploads the release tarball and SHA-256 checksum;
 10. deploys Convex for a real deploy operation.
@@ -40,7 +40,7 @@ Activation performs:
 - host contract, Node version, platform, systemd, permissions, and environment checks;
 - release artifact download;
 - checksum and safe archive path verification;
-- manifest, exact commit SHA, Linux ARM64, Node version, entrypoint, and critical-file
+- manifest, exact commit SHA, Linux x64, Node version, entrypoint, and critical-file
   hash verification;
 - staging under `/srv/cleo/discord-bot/releases/<sha>`;
 - atomic `current` symlink activation;
@@ -76,26 +76,26 @@ The workflow, runner check, and deployment controller share host contract versio
 artifact. A stale bootstrap installation therefore fails closed.
 
 The expected host controller Node version is `24.15.0` and the release platform is
-`linux-arm64`.
+`linux-x64`.
 
-| Purpose | Value |
-| --- | --- |
-| Actions runner user | `github-runner` |
-| Runtime user | `cleo` |
-| Writable deployment group | `cleo-deploy` (`github-runner` only) |
-| Read-only runtime group | `cleo-runtime` |
-| Runner label | `cleo-prod` |
-| Deployment root | `/srv/cleo/discord-bot` |
-| Releases | `/srv/cleo/discord-bot/releases/<sha>` |
-| Active release | `/srv/cleo/discord-bot/current` |
-| Persistent state | `/srv/cleo/discord-bot/shared/deployment-state.env` |
-| Runtime environment | `/etc/cleo/discord-bot.env` |
-| Runtime service | `cleo-discord.service` |
-| Command service | `cleo-discord-register-commands.service` |
-| Deployment controller | `/usr/local/libexec/cleo/deploy-discord-release` |
-| Runner check | `/usr/local/libexec/cleo/check-discord-runner` |
-| State reader | `/usr/local/libexec/cleo/read-discord-deployment-state` |
-| Controller Node | `/usr/local/libexec/cleo/node` |
+| Purpose                   | Value                                                   |
+| ------------------------- | ------------------------------------------------------- |
+| Actions runner user       | `github-runner`                                         |
+| Runtime user              | `cleo`                                                  |
+| Writable deployment group | `cleo-deploy` (`github-runner` only)                    |
+| Read-only runtime group   | `cleo-runtime`                                          |
+| Runner label              | `cleo-prod`                                             |
+| Deployment root           | `/srv/cleo/discord-bot`                                 |
+| Releases                  | `/srv/cleo/discord-bot/releases/<sha>`                  |
+| Active release            | `/srv/cleo/discord-bot/current`                         |
+| Persistent state          | `/srv/cleo/discord-bot/shared/deployment-state.env`     |
+| Runtime environment       | `/etc/cleo/discord-bot.env`                             |
+| Runtime service           | `cleo-discord.service`                                  |
+| Command service           | `cleo-discord-register-commands.service`                |
+| Deployment controller     | `/usr/local/libexec/cleo/deploy-discord-release`        |
+| Runner check              | `/usr/local/libexec/cleo/check-discord-runner`          |
+| State reader              | `/usr/local/libexec/cleo/read-discord-deployment-state` |
+| Controller Node           | `/usr/local/libexec/cleo/node`                          |
 
 The state reader never evaluates the state file as shell code. It requires a regular
 non-symlink file with the expected ownership and mode, accepts only the known state
@@ -108,7 +108,7 @@ Every new release contains:
 - `dist/index.js` and source map;
 - `dist/scripts/registerCommands.js` and source map;
 - the compiled artifact validator;
-- production dependencies for Linux ARM64;
+- production dependencies for Linux x64 GNU;
 - `runtime-artifact.json`;
 - `.cleo-release-sha`;
 - `.cleo-release-platform`;
@@ -142,7 +142,7 @@ Use this sequence for the migration:
    NVM runtime contract as `run-discord-release`, so a missing or stale runtime
    fails before deployment.
 7. Dispatch **Deploy Discord Production** with `operation=validate` and require the
-   hosted ARM64 validation/package job to pass.
+   hosted x64 validation/package job to pass.
 8. Set `CLEO_DISCORD_DEPLOY_ENABLED=true`.
 9. Dispatch **Deploy Discord Production** with `operation=deploy`.
 10. Inspect the activation job summary and confirm the attempted SHA, running SHA,
@@ -167,7 +167,7 @@ sudo -iu cleo bash -lc \
   'source "$HOME/.nvm/nvm.sh" && nvm install 24.15.0 && nvm alias default 24.15.0'
 ```
 
-Bootstrap also downloads the pinned official Node Linux ARM64 archive over HTTPS and verifies its repository-pinned SHA-256 checksum before installing the root-owned controller runtime. The checksum must be updated deliberately whenever `.nvmrc` changes.
+Bootstrap also downloads the pinned official Node Linux x64 archive over HTTPS and verifies its repository-pinned SHA-256 checksum before installing the root-owned controller runtime. This root-owned Node is intentionally separate from the Cleo application's NVM runtime. The checksum must be updated deliberately whenever `.nvmrc` changes.
 
 Then run:
 
@@ -245,20 +245,20 @@ environment to `main`.
 ### Runner smoke
 
 The smoke workflow verifies the installed host contract, exact controller Node,
-Linux ARM64 platform, systemd units, permissions, environment, root-owned helpers,
+Linux x64 platform, systemd units, permissions, environment, root-owned helpers,
 sudo rules, and a harmless release-directory write. It performs no checkout or
 dependency installation.
 
 ### Validate
 
-Manual `operation=validate` runs only hosted Linux ARM64 validation and packaging.
+Manual `operation=validate` runs only hosted Linux x64 validation and packaging.
 It uploads the release artifact for inspection but does not deploy Convex or touch
 the VPS.
 
 ### Deploy
 
 Manual `operation=deploy`, or a relevant trusted `main` push while the deployment
-gate is enabled, validates and packages on hosted Linux ARM64, deploys Convex, and
+gate is enabled, validates and packages on hosted Linux x64, deploys Convex, and
 then sends the validated artifact to `cleo-prod` for activation. The VPS does not
 build or install packages.
 
