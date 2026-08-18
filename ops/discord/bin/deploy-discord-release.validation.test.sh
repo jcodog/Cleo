@@ -258,11 +258,56 @@ writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 NODE
 }
 
+assert_exact_release_permissions() {
+  local release_root="$1"
+  local entry
+
+  while IFS= read -r -d '' entry; do
+    [[ "$(stat -c %a "$entry")" == "750" ]] || {
+      echo "Release directory mode was not normalized to 0750: $entry" >&2
+      exit 1
+    }
+  done < <(find "$release_root" -type d -print0)
+
+  while IFS= read -r -d '' entry; do
+    [[ "$(stat -c %a "$entry")" == "640" ]] || {
+      echo "Release file mode was not normalized to 0640: $entry" >&2
+      exit 1
+    }
+  done < <(find "$release_root" -type f -print0)
+}
+
 export CLEO_DISCORD_TEST_SUPPLEMENTARY_GROUPS="$runtime_read_group $runtime_group"
 expect_rejected \
   "a service unit with deployment-group write access" \
   "must not include supplementary group $runtime_group"
 unset CLEO_DISCORD_TEST_SUPPLEMENTARY_GROUPS
+
+reset_deployment
+create_valid_release
+find "$release_fixture" -type d -exec chmod 7750 {} +
+find "$release_fixture" -type f -exec chmod 7640 {} +
+[[ "$(stat -c %a "$release_fixture/dist/scripts")" == "7750" ]]
+[[ "$(stat -c %a "$release_fixture/dist/index.js")" == "7640" ]]
+package_release
+[[ "$(stat -c %a "$deploy_root/releases")" == "2775" ]]
+bash "$controller" deploy
+assert_exact_release_permissions "$deploy_root/releases/$release_sha"
+[[ "$(stat -c %a "$deploy_root/releases")" == "2775" ]]
+
+reset_deployment
+create_valid_release
+package_release
+mkdir -p "$deploy_root/releases/$release_sha"
+cp -a "$release_fixture/." "$deploy_root/releases/$release_sha/"
+find "$deploy_root/releases/$release_sha" -type d -exec chmod 7750 {} +
+find "$deploy_root/releases/$release_sha" -type f -exec chmod 7640 {} +
+[[ "$(stat -c %a "$deploy_root/releases/$release_sha")" == "7750" ]]
+[[ "$(stat -c %a "$deploy_root/releases/$release_sha/dist/scripts")" == "7750" ]]
+[[ "$(stat -c %a "$deploy_root/releases/$release_sha/dist/index.js")" == "7640" ]]
+bash "$controller" deploy
+assert_exact_release_permissions "$deploy_root/releases/$release_sha"
+[[ "$(stat -c %a "$deploy_root/releases")" == "2775" ]]
 
 for invalid_timestamp in \
   malformed \

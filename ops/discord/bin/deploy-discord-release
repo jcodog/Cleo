@@ -543,7 +543,10 @@ seal_release_permissions() {
   fi
 
   chgrp -hR "$runtime_read_group" "$release_root" || return 1
+  # GNU chmod preserves special bits on directories unless explicitly cleared.
+  find "$release_root" -xdev -type d -exec chmod a-s,a-t {} + || return 1
   find "$release_root" -xdev -type d -exec chmod 0750 {} + || return 1
+  find "$release_root" -xdev -type f -exec chmod a-s,a-t {} + || return 1
   find "$release_root" -xdev -type f -exec chmod 0640 {} + || return 1
 
   unsafe_entry="$(
