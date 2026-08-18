@@ -18,6 +18,9 @@ jobs:
     runs-on: cleo-prod
     timeout-minutes: 5
     env:
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
+      CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
+      CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
       CLEO_DISCORD_SERVICE: cleo-discord.service
@@ -25,18 +28,17 @@ jobs:
       CLEO_DISCORD_RUNTIME_USER: cleo
       CLEO_DISCORD_RUNTIME_GROUP: cleo
       CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
+      CLEO_DISCORD_RUNTIME_READ_GROUP: cleo-runtime
 
     steps:
-      - name: Checkout exact commit
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-        with:
-          persist-credentials: false
-          ref: ${{ github.sha }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4.4.0
-        with:
-          node-version-file: .nvmrc
-
-      - name: Verify host, services, permissions, and toolchain
-        run: bash .github/scripts/check-discord-runner.sh
+      - name: Verify host, services, permissions, and controller
+        run: |
+          test "$(/usr/local/libexec/cleo/deploy-discord-release contract-version)" = \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION"
+          /usr/local/libexec/cleo/check-discord-runner \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION" \
+            "$CLEO_DISCORD_HOST_NODE_VERSION" \
+            "$CLEO_DISCORD_RELEASE_PLATFORM"
+          sudo -n -u "$CLEO_DISCORD_RUNTIME_USER" \
+            /usr/local/libexec/cleo/check-discord-runtime \
+            "v$CLEO_DISCORD_HOST_NODE_VERSION"

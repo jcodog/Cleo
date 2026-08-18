@@ -1,0 +1,634 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 0027
+
+operation="${1:-deploy}"
+controller_contract_version="4"
+expected_contract_version="${CLEO_DISCORD_HOST_CONTRACT_VERSION:-}"
+release_platform="${CLEO_DISCORD_RELEASE_PLATFORM:-}"
+deploy_root="${CLEO_DISCORD_DEPLOY_ROOT:-/srv/cleo/discord-bot}"
+env_file="${CLEO_DISCORD_ENV_FILE:-/etc/cleo/discord-bot.env}"
+service_name="${CLEO_DISCORD_SERVICE:-cleo-discord.service}"
+command_service_name="${CLEO_DISCORD_COMMAND_SERVICE:-cleo-discord-register-commands.service}"
+runtime_user="${CLEO_DISCORD_RUNTIME_USER:-cleo}"
+runtime_group="${CLEO_DISCORD_RUNTIME_GROUP:-cleo}"
+deploy_group="${CLEO_DISCORD_DEPLOY_GROUP:-cleo-deploy}"
+runtime_read_group="${CLEO_DISCORD_RUNTIME_READ_GROUP:-cleo-runtime}"
+deploy_owner="${CLEO_DISCORD_DEPLOY_OWNER:-github-runner}"
+deploy_root_owner="${CLEO_DISCORD_DEPLOY_ROOT_OWNER:-root}"
+runtime_launcher="${CLEO_DISCORD_RUNTIME_LAUNCHER:-/usr/local/libexec/cleo/run-discord-release}"
+runtime_check="${CLEO_DISCORD_RUNTIME_CHECK:-/usr/local/libexec/cleo/check-discord-runtime}"
+host_node="${CLEO_DISCORD_HOST_NODE:-/usr/local/libexec/cleo/node}"
+release_archive="${CLEO_DISCORD_RELEASE_ARCHIVE:-}"
+release_checksum="${CLEO_DISCORD_RELEASE_CHECKSUM:-}"
+releases_dir="$deploy_root/releases"
+shared_dir="$deploy_root/shared"
+current_link="$deploy_root/current"
+state_file="$shared_dir/deployment-state.env"
+lock_file="$shared_dir/deployment.lock"
+state_reader="${CLEO_DISCORD_STATE_READER:-/usr/local/libexec/cleo/read-discord-deployment-state}"
+health_attempts="${CLEO_DISCORD_HEALTH_ATTEMPTS:-6}"
+health_delay_seconds="${CLEO_DISCORD_HEALTH_DELAY_SECONDS:-5}"
+
+application_sha=""
+previous_application_sha=""
+command_fingerprint=""
+staging_dir=""
+
+if [[ "$operation" == "contract-version" ]]; then
+  printf '%s\n' "$controller_contract_version"
+  exit 0
+fi
+
+if [[ "$expected_contract_version" != "$controller_contract_version" ]]; then
+  echo "Discord host controller contract mismatch: installed $controller_contract_version, expected ${expected_contract_version:-unset}." >&2
+  exit 1
+fi
+
+if [[ "$release_platform" != "$($host_node -p '`${process.platform}-${process.arch}`')" ]]; then
+  echo "Discord host platform does not match ${release_platform:-unset}." >&2
+  exit 1
+fi
+
+cleanup() {
+  if [[ -n "$staging_dir" && -d "$staging_dir" ]]; then
+    rm -rf -- "$staging_dir"
+  fi
+}
+trap cleanup EXIT
+
+systemctl_write() {
+  sudo -n systemctl "$@"
+}
+
+unit_value() {
+  systemctl show "$1" --property "$2" --value
+}
+
+contains_word() {
+  local haystack="$1"
+  local needle="$2"
+  [[ " $haystack " == *" $needle "* ]]
+}
+
+assert_unit_contract() {
+  local unit="$1"
+  local operation="$2"
+  local supplementary_groups
+
+  [[ "$(unit_value "$unit" LoadState)" == "loaded" ]] || {
+    echo "Required systemd unit is not loaded: $unit" >&2
+    return 1
+  }
+  [[ "$(unit_value "$unit" User)" == "$runtime_user" ]] || {
+    echo "$unit must run as $runtime_user." >&2
+    return 1
+  }
+  [[ "$(unit_value "$unit" Group)" == "$runtime_group" ]] || {
+    echo "$unit must use group $runtime_group." >&2
+    return 1
+  }
+  supplementary_groups="$(unit_value "$unit" SupplementaryGroups)"
+  contains_word "$supplementary_groups" "$runtime_read_group" || {
+    echo "$unit must include supplementary group $runtime_read_group." >&2
+    return 1
+  }
+  if contains_word "$supplementary_groups" "$deploy_group"; then
+    echo "$unit must not include supplementary group $deploy_group." >&2
+    return 1
+  fi
+  [[ "$(unit_value "$unit" WorkingDirectory)" == "$current_link" ]] || {
+    echo "$unit must use WorkingDirectory=$current_link." >&2
+    return 1
+  }
+  [[ "$(unit_value "$unit" EnvironmentFiles)" == *"$env_file"* ]] || {
+    echo "$unit must load EnvironmentFile=$env_file." >&2
+    return 1
+  }
+  [[ "$(unit_value "$unit" ExecStart)" == *"$runtime_launcher $operation"* ]] || {
+    echo "$unit must start $runtime_launcher $operation." >&2
+    return 1
+  }
+}
+
+if [[ ! -d "$deploy_root" || ! -d "$releases_dir" || ! -d "$shared_dir" ]]; then
+  echo "Discord deployment directories are not prepared under $deploy_root." >&2
+  exit 1
+fi
+
+for directory in "$deploy_root" "$releases_dir" "$shared_dir"; do
+  if [[ ! -w "$directory" ]]; then
+    echo "github-runner cannot write deployment directory: $directory" >&2
+    exit 1
+  fi
+  if [[ "$(stat -c %U:%G "$directory")" != "$deploy_root_owner:$deploy_group" ]]; then
+    echo "Deployment directory must be owned by $deploy_root_owner:$deploy_group: $directory" >&2
+    exit 1
+  fi
+  if [[ "$(stat -c %a "$directory")" != "2775" ]]; then
+    echo "Deployment directory must use mode 2775: $directory" >&2
+    exit 1
+  fi
+done
+
+assert_unit_contract "$service_name" runtime
+assert_unit_contract "$command_service_name" register-commands
+
+if ! sudo -n -u "$runtime_user" /usr/bin/test -r "$env_file"; then
+  echo "Persistent Discord environment is missing or unreadable by $runtime_user: $env_file" >&2
+  exit 1
+fi
+
+if [[ ! -f "$lock_file" || -L "$lock_file" ]] ||
+  [[ "$(stat -c %U:%G:%a "$lock_file")" != "$deploy_owner:$deploy_group:640" ]]; then
+  echo "Discord deployment lock violates the host ownership contract: $lock_file" >&2
+  exit 1
+fi
+exec 9<>"$lock_file"
+if ! flock -n 9; then
+  echo "Another Discord deployment or rollback is already running." >&2
+  exit 1
+fi
+
+if [[ -e "$state_file" || -L "$state_file" ]]; then
+  state_output="$($state_reader "$state_file")" || exit 1
+  mapfile -t state_values <<< "$state_output"
+  [[ "${#state_values[@]}" -eq 3 ]] || {
+    echo "Discord deployment state did not return exactly three values." >&2
+    exit 1
+  }
+  application_sha="${state_values[0]}"
+  previous_application_sha="${state_values[1]}"
+  command_fingerprint="${state_values[2]}"
+fi
+
+is_sha() {
+  [[ "$1" =~ ^[0-9a-f]{40}$ ]]
+}
+
+check_health() {
+  local attempt
+  for ((attempt = 0; attempt < health_attempts; attempt++)); do
+    if systemctl is-active --quiet "$service_name"; then
+      if [[ "$health_delay_seconds" != "0" ]]; then
+        sleep "$health_delay_seconds"
+      fi
+      continue
+    fi
+    return 1
+  done
+}
+
+switch_release() {
+  local sha="$1"
+  local next_link="$deploy_root/.current-$sha"
+  rm -f -- "$next_link" || return 1
+  ln -s "$releases_dir/$sha" "$next_link" || return 1
+  mv -Tf "$next_link" "$current_link" || return 1
+}
+
+activate_release() {
+  local sha="$1"
+  switch_release "$sha" || return 1
+  systemctl_write restart "$service_name" || return 1
+}
+
+register_commands() {
+  systemctl_write reset-failed "$command_service_name" >/dev/null 2>&1 || true
+  systemctl_write start "$command_service_name"
+}
+
+write_state() {
+  local next_application_sha="$1"
+  local next_previous_sha="$2"
+  local next_command_fingerprint="$3"
+  local temporary_state
+
+  is_sha "$next_application_sha" || return 1
+  [[ -z "$next_previous_sha" ]] || is_sha "$next_previous_sha" || return 1
+  [[ "$next_command_fingerprint" =~ ^[0-9a-f]{64}$ ]] || return 1
+
+  temporary_state="$(mktemp "$shared_dir/.deployment-state.XXXXXX")" || return 1
+
+  printf 'APPLICATION_SHA=%s\nPREVIOUS_APPLICATION_SHA=%s\nCOMMAND_FINGERPRINT=%s\n' \
+    "$next_application_sha" "$next_previous_sha" "$next_command_fingerprint" \
+    > "$temporary_state" || return 1
+  chmod 0640 "$temporary_state" || return 1
+  mv -f "$temporary_state" "$state_file" || return 1
+}
+
+rollback_to() {
+  local target_sha="$1"
+  local failed_sha="$2"
+
+  if ! is_sha "$target_sha" || [[ ! -d "$releases_dir/$target_sha" ]]; then
+    echo "Rollback release is unavailable: $target_sha" >&2
+    return 1
+  fi
+
+  validate_rollback_release "$releases_dir/$target_sha" "$target_sha" || return 1
+  activate_release "$target_sha" || return 1
+  check_health || return 1
+
+  local target_command_fingerprint
+  target_command_fingerprint="$(release_command_fingerprint \
+    "$releases_dir/$target_sha")" || return 1
+  if [[ "$target_command_fingerprint" != "$command_fingerprint" ]]; then
+    if ! register_commands; then
+      echo "Rollback command registration failed; restoring $failed_sha." >&2
+      local failed_command_fingerprint
+      validate_rollback_release "$releases_dir/$failed_sha" "$failed_sha" || return 1
+      activate_release "$failed_sha" || return 1
+      check_health || return 1
+      failed_command_fingerprint="$(release_command_fingerprint \
+        "$releases_dir/$failed_sha")" || return 1
+      register_commands || return 1
+      write_state "$failed_sha" "$target_sha" "$failed_command_fingerprint" || return 1
+      return 1
+    fi
+  fi
+
+  write_state "$target_sha" "$failed_sha" "$target_command_fingerprint" || return 1
+}
+
+restore_after_failed_deploy() {
+  local failure_message="$1"
+  local failed_sha="$2"
+
+  if ! is_sha "$application_sha" || [[ ! -d "$releases_dir/$application_sha" ]]; then
+    systemctl_write stop "$service_name" || true
+    rm -f -- "$current_link"
+    echo "$failure_message; no previous release is available." >&2
+    return
+  fi
+
+  if rollback_to "$application_sha" "$failed_sha"; then
+    echo "$failure_message; restored $application_sha" >&2
+  else
+    echo "$failure_message; rollback to $application_sha also failed." >&2
+  fi
+}
+
+verify_release_artifact() {
+  [[ -f "$release_archive" ]] || {
+    echo "Discord release archive is missing: $release_archive" >&2
+    return 1
+  }
+  [[ -f "$release_checksum" ]] || {
+    echo "Discord release checksum is missing: $release_checksum" >&2
+    return 1
+  }
+
+  local checksum_dir checksum_name
+  checksum_dir="$(dirname "$release_checksum")"
+  checksum_name="$(basename "$release_checksum")"
+  (
+    cd "$checksum_dir"
+    sha256sum -c "$checksum_name"
+  ) || return 1
+
+  if tar -tzf "$release_archive" | grep -Eq '(^|[/\\])\.\.([/\\]|$)|^[/\\]'; then
+    echo "Discord release archive contains an unsafe path." >&2
+    return 1
+  fi
+}
+
+validate_release_symlinks() {
+  local release_root="$1"
+  local release_root_real link_path resolved_path
+  release_root_real="$(realpath -e -- "$release_root")" || return 1
+
+  while IFS= read -r -d '' link_path; do
+    if [[ ! -e "$link_path" ]]; then
+      echo "Discord release contains a dangling symlink: $link_path" >&2
+      return 1
+    fi
+    if ! resolved_path="$(realpath -e -- "$link_path")"; then
+      echo "Discord release symlink cannot be resolved strictly: $link_path" >&2
+      return 1
+    fi
+    case "$resolved_path" in
+      "$release_root_real" | "$release_root_real"/*) ;;
+      *)
+        echo "Discord release symlink escapes the staged release: $link_path -> $resolved_path" >&2
+        return 1
+        ;;
+    esac
+  done < <(find "$release_root_real" -type l -print0)
+}
+
+validate_staged_release() {
+  local release_root="$1"
+  local expected_sha="$2"
+  local expected_platform release_root_real releases_root_real
+  expected_platform="$($host_node -p '`${process.platform}-${process.arch}`')"
+
+  [[ -d "$release_root" && ! -L "$release_root" ]] || {
+    echo "Discord release root must be a regular non-symlink directory: $release_root" >&2
+    return 1
+  }
+  releases_root_real="$(realpath -e -- "$releases_dir")" || return 1
+  release_root_real="$(realpath -e -- "$release_root")" || return 1
+  case "$release_root_real" in
+    "$releases_root_real"/*) ;;
+    *)
+      echo "Discord release root escapes the releases directory: $release_root" >&2
+      return 1
+      ;;
+  esac
+  validate_release_symlinks "$release_root_real" || return 1
+
+  "$host_node" --input-type=module -e '
+    import { createHash } from "node:crypto"
+    import { existsSync, lstatSync, readFileSync } from "node:fs"
+    import path from "node:path"
+    const [root, expectedSha, expectedPlatform] = process.argv.slice(1)
+    const resolveRegularCriticalPath = (relativePath) => {
+      const segments = relativePath.split(/[\/]/)
+      let currentPath = root
+      for (const [index, segment] of segments.entries()) {
+        currentPath = path.join(currentPath, segment)
+        const currentStat = lstatSync(currentPath, { throwIfNoEntry: false })
+        const isLast = index === segments.length - 1
+        if (
+          currentStat === undefined ||
+          currentStat.isSymbolicLink() ||
+          (isLast ? !currentStat.isFile() : !currentStat.isDirectory())
+        ) {
+          throw new Error(
+            `Discord release critical file must use regular non-symlink path components: ${relativePath}`
+          )
+        }
+      }
+      return currentPath
+    }
+    const readCritical = (relativePath) =>
+      readFileSync(resolveRegularCriticalPath(relativePath), "utf8")
+    const contract = JSON.parse(readCritical("runtime-artifact.json"))
+    const expectedContract = {
+      artifactValidatorEntrypoint: "dist/deployment/validateReleaseArtifact.js",
+      commandRegistrationEntrypoint: "dist/scripts/registerCommands.js",
+      releaseManifest: "release-manifest.json",
+      runtimeEntrypoint: "dist/index.js",
+      schemaVersion: 2,
+    }
+    for (const [key, expectedValue] of Object.entries(expectedContract)) {
+      if (contract[key] !== expectedValue) {
+        throw new Error(`Discord release contract ${key} is invalid`)
+      }
+    }
+    const manifest = JSON.parse(readCritical(contract.releaseManifest))
+    const markerSha = readCritical(".cleo-release-sha").trim()
+    const markerPlatform = readCritical(".cleo-release-platform").trim()
+    const [platform, architecture] = expectedPlatform.split("-", 2)
+    if (markerSha !== expectedSha || manifest.commitSha !== expectedSha) {
+      throw new Error(`Discord release SHA does not match ${expectedSha}`)
+    }
+    if (
+      markerPlatform !== expectedPlatform ||
+      manifest.platform !== platform ||
+      manifest.architecture !== architecture
+    ) throw new Error(`Discord release platform does not match ${expectedPlatform}`)
+    if (manifest.artifactContractVersion !== contract.schemaVersion) {
+      throw new Error("Discord release contract version is invalid")
+    }
+    if (manifest.nodeVersion !== process.versions.node) {
+      throw new Error("Discord release Node version is invalid")
+    }
+    const buildTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/
+    const parsedBuildTimestamp =
+      typeof manifest.buildTimestamp === "string" &&
+      buildTimestampPattern.test(manifest.buildTimestamp)
+        ? Date.parse(manifest.buildTimestamp)
+        : Number.NaN
+    if (
+      Number.isNaN(parsedBuildTimestamp) ||
+      new Date(parsedBuildTimestamp).toISOString() !==
+        `${manifest.buildTimestamp.slice(0, -1)}.000Z`
+    ) {
+      throw new Error("Discord release build timestamp is invalid")
+    }
+    for (const key of [
+      "runtimeEntrypoint",
+      "commandRegistrationEntrypoint",
+      "artifactValidatorEntrypoint",
+    ]) {
+      if (manifest[key] !== contract[key]) throw new Error(`Discord release ${key} is invalid`)
+    }
+    for (const relativePath of contract.requiredFiles) {
+      if (!existsSync(path.join(root, relativePath))) {
+        throw new Error(`Discord release is missing ${relativePath}`)
+      }
+    }
+    for (const relativePath of contract.forbiddenFiles) {
+      if (existsSync(path.join(root, relativePath))) {
+        throw new Error(`Discord release contains forbidden file ${relativePath}`)
+      }
+    }
+    for (const prefix of contract.forbiddenPathPrefixes) {
+      if (lstatSync(path.join(root, prefix.slice(0, -1)), { throwIfNoEntry: false })) {
+        throw new Error(`Discord release contains forbidden path ${prefix}`)
+      }
+    }
+    const criticalHashes = Object.entries(manifest.criticalFileSha256 ?? {})
+    if (criticalHashes.length === 0) throw new Error("Discord release has no critical hashes")
+    const criticalPaths = [
+      contract.runtimeEntrypoint,
+      `${contract.runtimeEntrypoint}.map`,
+      contract.commandRegistrationEntrypoint,
+      `${contract.commandRegistrationEntrypoint}.map`,
+      contract.artifactValidatorEntrypoint,
+      `${contract.artifactValidatorEntrypoint}.map`,
+    ]
+    if (criticalPaths.some((relativePath) => !manifest.criticalFileSha256[relativePath])) {
+      throw new Error("Discord release is missing critical hashes")
+    }
+    for (const [relativePath, expectedHash] of criticalHashes) {
+      if (path.isAbsolute(relativePath) || relativePath.split(/[\\/]/).includes("..")) {
+        throw new Error(`Discord release hash path is unsafe: ${relativePath}`)
+      }
+      if (!/^[0-9a-f]{64}$/.test(expectedHash)) {
+        throw new Error(`Discord release hash is invalid: ${relativePath}`)
+      }
+      const criticalPath = resolveRegularCriticalPath(relativePath)
+      const actualHash = createHash("sha256")
+        .update(readFileSync(criticalPath))
+        .digest("hex")
+      if (actualHash !== expectedHash) {
+        throw new Error(`Discord release hash mismatch: ${relativePath}`)
+      }
+    }
+    if (
+      !/^[0-9a-f]{64}$/.test(manifest.commandFingerprint) ||
+      manifest.commandFingerprint !==
+      manifest.criticalFileSha256[contract.commandRegistrationEntrypoint]
+    ) throw new Error("Discord release command fingerprint is invalid")
+  ' "$release_root" "$expected_sha" "$expected_platform" || return 1
+
+  local required_node
+  required_node="$(release_manifest_value "$release_root" nodeVersion)" || return 1
+  sudo -n -u "$runtime_user" "$runtime_check" "v$required_node"
+}
+
+release_manifest_value() {
+  local release_root="$1"
+  local key="$2"
+
+  "$host_node" --input-type=module -e '
+    import { readFileSync } from "node:fs"
+    import path from "node:path"
+    const [root, key] = process.argv.slice(1)
+    const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
+    const value = manifest[key]
+    if (typeof value !== "string" || value.length === 0) process.exit(1)
+    process.stdout.write(value)
+  ' "$release_root" "$key"
+}
+
+release_command_fingerprint() {
+  local release_root="$1"
+
+  if [[ -f "$release_root/release-manifest.json" ]]; then
+    release_manifest_value "$release_root" commandFingerprint
+    return
+  fi
+
+  sha256sum "$release_root/dist/scripts/registerCommands.js" | cut -d ' ' -f 1
+}
+
+validate_rollback_release() {
+  local release_root="$1"
+  local expected_sha="$2"
+
+  if [[ -f "$release_root/release-manifest.json" ]]; then
+    validate_staged_release "$release_root" "$expected_sha"
+    return
+  fi
+
+  local expected_platform legacy_sha legacy_platform required_node
+  for marker in .cleo-release-sha .cleo-release-platform .nvmrc; do
+    [[ -f "$release_root/$marker" ]] || {
+      echo "Legacy rollback release is missing $marker" >&2
+      return 1
+    }
+  done
+  expected_platform="$($host_node -p '`${process.platform}-${process.arch}`')"
+  legacy_sha="$(tr -d '[:space:]' < "$release_root/.cleo-release-sha")"
+  legacy_platform="$(tr -d '[:space:]' < "$release_root/.cleo-release-platform")"
+  required_node="$(tr -d '[:space:]' < "$release_root/.nvmrc")"
+  if [[ "$legacy_sha" != "$expected_sha" || "$legacy_platform" != "$expected_platform" ]]; then
+    echo "Legacy rollback release metadata does not match $expected_sha on $expected_platform." >&2
+    return 1
+  fi
+  for required_path in dist/index.js dist/scripts/registerCommands.js; do
+    [[ -f "$release_root/$required_path" ]] || {
+      echo "Legacy rollback release is missing $required_path" >&2
+      return 1
+    }
+  done
+  sudo -n -u "$runtime_user" "$runtime_check" "v${required_node#v}"
+}
+
+seal_release_permissions() {
+  local release_root="$1"
+  local unsafe_entry
+
+  unsafe_entry="$(
+    find "$release_root" -xdev \( -type d -o -type f \) \
+      ! -user "$deploy_owner" -print -quit
+  )"
+  if [[ -n "$unsafe_entry" ]]; then
+    echo "Discord release entry is not owned by $deploy_owner: $unsafe_entry" >&2
+    return 1
+  fi
+
+  chgrp -hR "$runtime_read_group" "$release_root" || return 1
+  find "$release_root" -xdev -type d -exec chmod 0750 {} + || return 1
+  find "$release_root" -xdev -type f -exec chmod 0640 {} + || return 1
+
+  unsafe_entry="$(
+    find "$release_root" -xdev \
+      \( -type d \( ! -group "$runtime_read_group" -o ! -perm 0750 \) \
+      -o -type f \( ! -group "$runtime_read_group" -o ! -perm 0640 \) \) \
+      -print -quit
+  )"
+  if [[ -n "$unsafe_entry" ]]; then
+    echo "Discord release permissions are unsafe: $unsafe_entry" >&2
+    return 1
+  fi
+}
+
+stage_release() {
+  local sha="$1"
+  local release_dir="$releases_dir/$sha"
+
+  verify_release_artifact || return 1
+
+  if [[ -d "$release_dir" ]]; then
+    validate_staged_release "$release_dir" "$sha" || return 1
+    find "$release_dir" -type f -name '.env*' -delete
+    seal_release_permissions "$release_dir" || return 1
+    return 0
+  fi
+
+  staging_dir="$releases_dir/.staging-$sha"
+  rm -rf -- "$staging_dir"
+  mkdir -p "$staging_dir"
+  tar --no-same-owner -xzf "$release_archive" -C "$staging_dir"
+
+  validate_staged_release "$staging_dir" "$sha" || return 1
+  find "$staging_dir" -type f -name '.env*' -delete
+  seal_release_permissions "$staging_dir" || return 1
+  mv "$staging_dir" "$release_dir"
+  staging_dir=""
+}
+
+if [[ "$operation" == "rollback" ]]; then
+  rollback_to "$previous_application_sha" "$application_sha"
+  echo "Rolled back Discord production to $previous_application_sha"
+  exit 0
+fi
+
+if [[ "$operation" != "deploy" ]]; then
+  echo "Unknown operation: $operation" >&2
+  exit 1
+fi
+
+sha="${CLEO_DISCORD_EXPECTED_SHA:-${GITHUB_SHA:-}}"
+if ! is_sha "$sha"; then
+  echo "Deployment SHA is invalid." >&2
+  exit 1
+fi
+
+stage_release "$sha"
+release_dir="$releases_dir/$sha"
+
+next_command_fingerprint="$(release_command_fingerprint "$release_dir")"
+register_commands_for_release=false
+if [[ "$next_command_fingerprint" != "$command_fingerprint" ]]; then
+  register_commands_for_release=true
+fi
+
+if ! activate_release "$sha"; then
+  systemctl status "$service_name" --no-pager || true
+  restore_after_failed_deploy "Discord service restart failed" "$sha"
+  exit 1
+fi
+if ! check_health; then
+  systemctl status "$service_name" --no-pager || true
+  restore_after_failed_deploy "Discord health verification failed" "$sha"
+  exit 1
+fi
+
+if [[ "$register_commands_for_release" == "true" ]]; then
+  if ! register_commands; then
+    systemctl status "$command_service_name" --no-pager || true
+    restore_after_failed_deploy "Command registration failed" "$sha"
+    exit 1
+  fi
+else
+  echo "Discord command registration unchanged; skipping."
+fi
+
+write_state "$sha" "$application_sha" "$next_command_fingerprint"
+echo "Deployed Discord production release $sha"

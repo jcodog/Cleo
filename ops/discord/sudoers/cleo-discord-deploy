@@ -6,6 +6,12 @@ Cmnd_Alias CLEO_DISCORD_SYSTEMD = \
 
 Cmnd_Alias CLEO_DISCORD_CHECKS = \
   /usr/bin/test -r /etc/cleo/discord-bot.env, \
+  /usr/bin/test -w /srv/cleo/discord-bot, \
+  /usr/bin/test -w /srv/cleo/discord-bot/releases, \
+  /usr/bin/test -w /srv/cleo/discord-bot/shared, \
+  /usr/bin/test -w /srv/cleo/discord-bot/shared/deployment.lock, \
+  /usr/bin/test -w /srv/cleo/discord-bot/shared/deployment-state.env, \
+  /usr/bin/test -w /srv/cleo/discord-bot/current, \
   /usr/local/libexec/cleo/check-discord-env /etc/cleo/discord-bot.env, \
   /usr/local/libexec/cleo/check-discord-runtime *
 
