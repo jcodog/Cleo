@@ -117,7 +117,10 @@ install -d -o root -g "$deploy_group" -m 2775 "$shared_dir"
 # their contents readable, but never writable, by the isolated runtime group.
 while IFS= read -r -d '' release_dir; do
   chown -hR "$deploy_owner:$runtime_read_group" "$release_dir"
+  # GNU chmod preserves special bits on directories unless explicitly cleared.
+  find "$release_dir" -type d -exec chmod a-s,a-t {} +
   find "$release_dir" -type d -exec chmod 0750 {} +
+  find "$release_dir" -type f -exec chmod a-s,a-t {} +
   find "$release_dir" -type f -exec chmod 0640 {} +
 done < <(find "$releases_dir" -mindepth 1 -maxdepth 1 -type d -print0)
 
