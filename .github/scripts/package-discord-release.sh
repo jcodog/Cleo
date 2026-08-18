@@ -18,8 +18,8 @@ if ! is_sha "$sha"; then
   exit 1
 fi
 
-if [[ "$release_platform" != "linux-arm64" ]]; then
-  echo "Discord production releases must be packaged for linux-arm64; got $release_platform" >&2
+if [[ "$release_platform" != "linux-x64" ]]; then
+  echo "Discord production releases must be packaged for linux-x64; got $release_platform" >&2
   exit 1
 fi
 

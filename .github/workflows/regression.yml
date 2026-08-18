@@ -13,7 +13,7 @@ permissions:
 jobs:
   regression:
     name: Tests, lint, typecheck, and coverage
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -140,8 +140,10 @@ jobs:
           test -f "$extract_dir/.cleo-release-sha"
           test -f "$extract_dir/.cleo-release-platform"
           test "$(cat "$extract_dir/.cleo-release-sha")" = "$release_sha"
-          test "$(cat "$extract_dir/.cleo-release-platform")" = "linux-arm64"
+          test "$(cat "$extract_dir/.cleo-release-platform")" = "linux-x64"
           test "$(node -p "require('$extract_dir/release-manifest.json').commitSha")" = "$release_sha"
+          test "$(node -p "require('$extract_dir/release-manifest.json').platform")" = "linux"
+          test "$(node -p "require('$extract_dir/release-manifest.json').architecture")" = "x64"
           (
             cd "$extract_dir"
             node --input-type=module -e 'await import("./dist/scripts/registerCommands.js")'

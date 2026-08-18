@@ -18,8 +18,8 @@
     "dist/deployment/validateReleaseArtifact.js",
     "dist/deployment/validateReleaseArtifact.js.map",
     "node_modules/@napi-rs/canvas/package.json",
-    "node_modules/@napi-rs/canvas-linux-arm64-gnu/package.json",
-    "node_modules/@napi-rs/canvas-linux-arm64-gnu/skia.linux-arm64-gnu.node",
+    "node_modules/@napi-rs/canvas-linux-x64-gnu/package.json",
+    "node_modules/@napi-rs/canvas-linux-x64-gnu/skia.linux-x64-gnu.node",
     "node_modules/discord.js/package.json"
   ],
   "forbiddenFiles": [

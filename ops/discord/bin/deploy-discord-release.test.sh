@@ -28,7 +28,7 @@ create_release() {
   local release="$deploy_root/releases/$sha"
   mkdir -p "$release/dist/scripts"
   printf '%s\n' "$sha" > "$release/.cleo-release-sha"
-  printf '%s\n' linux-arm64 > "$release/.cleo-release-platform"
+  printf '%s\n' linux-x64 > "$release/.cleo-release-platform"
   printf '%s\n' v24.15.0 > "$release/.nvmrc"
   printf '%s\n' "runtime-$sha" > "$release/dist/index.js"
   printf '%s\n' "commands-$sha" > "$release/dist/scripts/registerCommands.js"
@@ -46,7 +46,7 @@ chmod 0640 "$deploy_root/shared/deployment-state.env"
 cat > "$host_node" <<'EOF'
 #!/usr/bin/env bash
 if [[ "${1:-}" == "-p" ]]; then
-  printf '%s\n' linux-arm64
+  printf '%s\n' linux-x64
   exit 0
 fi
 exit 1
@@ -101,7 +101,7 @@ chmod 0755 "$host_node" "$runtime_check" "$bin_dir/sudo" "$bin_dir/systemctl"
 
 export PATH="$bin_dir:$PATH"
 export CLEO_DISCORD_HOST_CONTRACT_VERSION=4
-export CLEO_DISCORD_RELEASE_PLATFORM=linux-arm64
+export CLEO_DISCORD_RELEASE_PLATFORM=linux-x64
 export CLEO_DISCORD_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_ENV_FILE="$env_file"
 export CLEO_DISCORD_RUNTIME_USER="$runtime_user"

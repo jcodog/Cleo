@@ -22,7 +22,7 @@ import {
 } from "./validateReleaseArtifact"
 
 const releaseSha = "0123456789abcdef0123456789abcdef01234567"
-const releasePlatform = "linux-arm64"
+const releasePlatform = "linux-x64"
 
 function createArtifactFixture(): string {
   const artifactRoot = mkdtempSync(
@@ -69,7 +69,7 @@ function writeFixtureManifest(
     ])
   )
   const manifest = {
-    architecture: "arm64",
+    architecture: "x64",
     artifactContractVersion: artifactContract.schemaVersion,
     artifactValidatorEntrypoint: artifactContract.artifactValidatorEntrypoint,
     buildTimestamp: "2026-07-15T08:49:55Z",
@@ -136,7 +136,7 @@ test("compiled artifact validates runtime, command, metadata, and native files",
     assert.ok(contract.requiredFiles.includes("dist/index.js.map"))
     assert.ok(
       contract.requiredFiles.includes(
-        "node_modules/@napi-rs/canvas-linux-arm64-gnu/skia.linux-arm64-gnu.node"
+        "node_modules/@napi-rs/canvas-linux-x64-gnu/skia.linux-x64-gnu.node"
       )
     )
     assert.equal(
@@ -259,7 +259,7 @@ test("artifact validation rejects mismatched rollback metadata", async () => {
     )
     writeFileSync(
       resolveArtifactPath(artifactRoot, ".cleo-release-platform"),
-      "linux-x64"
+      "linux-arm64"
     )
 
     assert.throws(
@@ -268,7 +268,7 @@ test("artifact validation rejects mismatched rollback metadata", async () => {
           expectedPlatform: releasePlatform,
           expectedSha: releaseSha,
         }),
-      /release platform linux-x64 does not match linux-arm64/i
+      /release platform linux-arm64 does not match linux-x64/i
     )
   })
 })
@@ -310,14 +310,14 @@ for (const invalidManifest of [
     update: (manifest: Record<string, unknown>) => {
       manifest.platform = "darwin"
     },
-    error: /manifest platform darwin-arm64 does not match linux-arm64/,
+    error: /manifest platform darwin-x64 does not match linux-x64/,
   },
   {
     name: "architecture",
     update: (manifest: Record<string, unknown>) => {
-      manifest.architecture = "x64"
+      manifest.architecture = "arm64"
     },
-    error: /manifest platform linux-x64 does not match linux-arm64/,
+    error: /manifest platform linux-arm64 does not match linux-x64/,
   },
   {
     name: "Node version",

@@ -20,7 +20,7 @@ jobs:
     env:
       CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
-      CLEO_DISCORD_RELEASE_PLATFORM: linux-arm64
+      CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
       CLEO_DISCORD_SERVICE: cleo-discord.service

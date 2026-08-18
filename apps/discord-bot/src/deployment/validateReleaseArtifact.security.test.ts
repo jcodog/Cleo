@@ -20,7 +20,7 @@ import {
 } from "./validateReleaseArtifact"
 
 const releaseSha = "0123456789abcdef0123456789abcdef01234567"
-const releasePlatform = "linux-arm64"
+const releasePlatform = "linux-x64"
 
 function createArtifactFixture(): string {
   const root = mkdtempSync(path.join(tmpdir(), "cleo-discord-security-"))
@@ -65,7 +65,7 @@ function writeManifest(
     resolveArtifactPath(root, artifactContract.releaseManifest),
     `${JSON.stringify(
       {
-        architecture: "arm64",
+        architecture: "x64",
         artifactContractVersion: artifactContract.schemaVersion,
         artifactValidatorEntrypoint:
           artifactContract.artifactValidatorEntrypoint,
