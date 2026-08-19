@@ -11,7 +11,7 @@ test("runtime command loading uses the shared command registry", async () => {
   assert.deepEqual(commands, [...commandRegistry])
   assert.deepEqual(
     commands.map((command) => command.data.name),
-    ["ping", "help", "cleo", "ban", "kick"]
+    ["ping", "help", "8ball", "cleo", "ban", "kick"]
   )
 })
 

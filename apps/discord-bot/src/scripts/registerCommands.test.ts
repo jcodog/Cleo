@@ -65,6 +65,7 @@ test("loaded command metadata is valid and unique", async () => {
   const loadedCommandData = commands.map((command) => command.data)
 
   assert.deepEqual(loadedCommandData.map((command) => command.name).sort(), [
+    "8ball",
     "ban",
     "cleo",
     "help",
