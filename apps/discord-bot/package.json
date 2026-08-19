@@ -24,7 +24,7 @@
     "commands:register:production": "node --enable-source-maps dist/scripts/registerCommands.js --global"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.6",
+    "@napi-rs/canvas": "^1.0.7",
     "discord.js": "^14.27.0"
   },
   "devDependencies": {
