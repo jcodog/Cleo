@@ -1,0 +1,28 @@
+apps/discord-bot/src/handlers/commands/fun/eightBall.test.ts
+  h_2bc691fceb4fe5 8,11,14-16,18,22,27,33,44-45,47-49,53-55,57,59
+apps/discord-bot/src/handlers/commands/fun/eightBall.ts
+  h_2bc691fceb4fe5 5,9,11-13,15-16,19-50,52
+apps/discord-bot/src/services/eightBall.test.ts
+  h_2bc691fceb4fe5 1-85
+apps/discord-bot/src/services/eightBall.ts
+  h_2bc691fceb4fe5 1-70
+apps/discord-bot/src/services/eightBallImage.test.ts
+  h_2bc691fceb4fe5 1-26
+apps/discord-bot/src/services/eightBallImage.ts
+  h_2bc691fceb4fe5 1-283
+apps/discord-bot/src/services/eightBallView.test.ts
+  h_2bc691fceb4fe5 1-119
+apps/discord-bot/src/services/eightBallView.ts
+  h_2bc691fceb4fe5 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "349beb9a5a00137278777afdd0578a369ba64d86",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
