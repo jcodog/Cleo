@@ -5,32 +5,32 @@ import {
   ApplicationCommandOptionType,
   ApplicationIntegrationType,
   InteractionContextType,
+  type ChatInputCommandInteraction,
 } from "discord.js"
 
-import eightBall, {
-  eightBallResponses,
-  pickEightBallResponse,
-} from "./eightBall"
+import { createEightBallCommand } from "./eightBall"
 
 test("/8ball exposes the expected command metadata", () => {
-  assert.equal(eightBall.data.name, "8ball")
+  const command = createEightBallCommand()
+
+  assert.equal(command.data.name, "8ball")
   assert.equal(
-    eightBall.data.description,
+    command.data.description,
     "Ask Cleo a question and let fate decide."
   )
 
-  assert.deepEqual(eightBall.data.integration_types, [
+  assert.deepEqual(command.data.integration_types, [
     ApplicationIntegrationType.GuildInstall,
     ApplicationIntegrationType.UserInstall,
   ])
 
-  assert.deepEqual(eightBall.data.contexts, [
+  assert.deepEqual(command.data.contexts, [
     InteractionContextType.BotDM,
     InteractionContextType.Guild,
     InteractionContextType.PrivateChannel,
   ])
 
-  assert.deepEqual(eightBall.data.options, [
+  assert.deepEqual(command.data.options, [
     {
       type: ApplicationCommandOptionType.String,
       name: "question",
@@ -41,49 +41,20 @@ test("/8ball exposes the expected command metadata", () => {
   ])
 })
 
-test("pickEightBallResponse selects from the response pool", () => {
-  assert.equal(
-    pickEightBallResponse(() => 0),
-    eightBallResponses[0]
-  )
+test("/8ball delegates execution to the eight ball service", async () => {
+  const handledInteractions: ChatInputCommandInteraction[] = []
 
-  assert.equal(
-    pickEightBallResponse(() => 0.999999),
-    eightBallResponses[eightBallResponses.length - 1]
-  )
-})
-
-test("/8ball replies with the question and a valid answer", async () => {
-  const replies: unknown[] = []
-
-  const interaction = {
-    options: {
-      getString(name: string, required: boolean) {
-        assert.equal(name, "question")
-        assert.equal(required, true)
-
-        return "Will Cleo take over the world?"
-      },
+  const command = createEightBallCommand({
+    async handleCommand(interaction) {
+      handledInteractions.push(interaction)
     },
-
-    async reply(message: unknown) {
-      replies.push(message)
-    },
-  }
-
-  await eightBall.execute({
-    interaction: interaction as never,
   })
 
-  assert.equal(replies.length, 1)
+  const interaction = {
+    commandName: "8ball",
+  } as ChatInputCommandInteraction
 
-  const reply = replies[0] as {
-    content: string
-  }
+  await command.execute({ interaction })
 
-  assert.match(reply.content, /Will Cleo take over the world\?/)
-
-  assert.ok(
-    eightBallResponses.some((response) => reply.content.includes(response))
-  )
+  assert.deepEqual(handledInteractions, [interaction])
 })
