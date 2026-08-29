@@ -46,15 +46,47 @@ test("a new user without guilds sees the add-server onboarding state", () => {
   )
 })
 
-test("an empty guild list is not final before successful hydration", () => {
+test("onboarding can render while account sync is still finishing", () => {
+  assert.equal(
+    getOnboardingExperienceState({
+      guildCount: undefined,
+      onboarding: undefined,
+      syncStatus: "syncing",
+    }),
+    "syncing-account"
+  )
+
+  assert.equal(
+    getOnboardingExperienceState({
+      guildCount: undefined,
+      onboarding: { status: "accountSyncPending" },
+      syncStatus: "syncing",
+    }),
+    "syncing-account"
+  )
+})
+
+test("server discovery stays inside onboarding instead of blocking the page", () => {
   assert.equal(
     getOnboardingExperienceState({
       guildCount: 0,
       onboarding: newAccount(),
       syncStatus: "syncing",
     }),
-    "loading"
+    "syncing-guilds"
   )
+})
+
+test("failed account or guild hydration exposes a retry state", () => {
+  assert.equal(
+    getOnboardingExperienceState({
+      guildCount: undefined,
+      onboarding: undefined,
+      syncStatus: "error",
+    }),
+    "error"
+  )
+
   assert.equal(
     getOnboardingExperienceState({
       guildCount: 0,
@@ -87,15 +119,22 @@ test("a completed returning user bypasses onboarding", () => {
 })
 
 test("an unclassified account requires durable provenance resolution", () => {
+  const onboarding: OnboardingQueryState = {
+    status: "ready",
+    account: {
+      onboardingCompletedAt: null,
+      onboardingProvenance: null,
+      onboardingVersion: null,
+    },
+  }
+
+  assert.equal(getOnboardingGuardDecision(onboarding), "resolve-provenance")
   assert.equal(
-    getOnboardingGuardDecision({
-      status: "ready",
-      account: {
-        onboardingCompletedAt: null,
-        onboardingProvenance: null,
-        onboardingVersion: null,
-      },
+    getOnboardingExperienceState({
+      guildCount: undefined,
+      onboarding,
+      syncStatus: "syncing",
     }),
-    "resolve-provenance"
+    "syncing-account"
   )
 })

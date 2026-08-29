@@ -33,7 +33,8 @@ export function getOnboardingGuardDecision(
 }
 
 export type OnboardingExperienceState =
-  | "loading"
+  | "syncing-account"
+  | "syncing-guilds"
   | "error"
   | "redirect-dashboard"
   | "ready-with-guilds"
@@ -53,11 +54,11 @@ export function getOnboardingExperienceState({
   }
 
   if (!onboarding || onboarding.status !== "ready") {
-    return "loading"
+    return "syncing-account"
   }
 
   if (onboarding.account.onboardingProvenance === null) {
-    return "loading"
+    return "syncing-account"
   }
 
   if (isCurrentOnboardingComplete(onboarding.account)) {
@@ -65,7 +66,7 @@ export function getOnboardingExperienceState({
   }
 
   if (syncStatus !== "ready" || guildCount === undefined) {
-    return "loading"
+    return "syncing-guilds"
   }
 
   return guildCount > 0 ? "ready-with-guilds" : "ready-without-guilds"

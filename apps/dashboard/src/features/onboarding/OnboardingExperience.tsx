@@ -18,18 +18,30 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
+import { DotGrid } from "@/components/backgrounds/DotGrid"
 import {
   DashboardDiscordHydrator,
   type DashboardDiscordSyncStatus,
 } from "@/features/app-shell/DashboardDiscordHydrator"
-import { DotGrid } from "@/components/backgrounds/DotGrid"
-import { getOnboardingExperienceState } from "@/features/onboarding/onboardingState"
+import {
+  getOnboardingExperienceState,
+  type OnboardingExperienceState,
+} from "@/features/onboarding/onboardingState"
 
 type ManageableGuild = {
   discordGuildId: string
   iconUrl?: string
   name: string
 }
+
+type ReadyOnboarding = Extract<
+  NonNullable<
+    ReturnType<
+      typeof useQuery<typeof api.queries.dashboard.account.onboarding.get>
+    >
+  >,
+  { status: "ready" }
+>
 
 export function OnboardingExperience() {
   const router = useRouter()
@@ -52,9 +64,14 @@ export function OnboardingExperience() {
     (status: DashboardDiscordSyncStatus) => setSyncStatus(status),
     []
   )
-  const isAlreadyComplete =
+  const readyOnboarding =
     onboarding?.status === "ready" &&
-    isCurrentOnboardingComplete(onboarding.account)
+    onboarding.account.onboardingProvenance !== null
+      ? onboarding
+      : null
+  const isAlreadyComplete =
+    readyOnboarding !== null &&
+    isCurrentOnboardingComplete(readyOnboarding.account)
   const experienceState = getOnboardingExperienceState({
     guildCount: guilds?.length,
     onboarding,
@@ -82,25 +99,31 @@ export function OnboardingExperience() {
   }, [isAlreadyComplete, router])
 
   async function continueTo(path: string) {
+    if (!readyOnboarding || isAlreadyComplete) {
+      return
+    }
+
     setDestination(path)
     setErrorMessage(null)
 
     try {
       await completeOnboarding({})
-      router.push(path)
+      router.replace(path)
     } catch {
       setDestination(null)
       setErrorMessage("Cleo could not save your onboarding status. Try again.")
     }
   }
 
-  const isReady =
-    experienceState === "ready-with-guilds" ||
-    experienceState === "ready-without-guilds"
-  const readyData =
-    isReady && onboarding?.status === "ready" && guilds !== undefined
-      ? { guilds, onboarding }
-      : null
+  function retrySync() {
+    provenanceResolutionStarted.current = false
+    setSyncStatus("idle")
+    setRetryToken((value) => value + 1)
+  }
+
+  if (isAlreadyComplete) {
+    return null
+  }
 
   return (
     <main className="dark cleo-atmosphere relative min-h-svh overflow-hidden bg-background text-foreground">
@@ -143,27 +166,17 @@ export function OnboardingExperience() {
           <span className="font-heading text-xl font-semibold">Cleo</span>
         </Link>
 
-        {!readyData ? (
-          <OnboardingLoading
-            canRetry={experienceState === "error"}
-            isRedirecting={isAlreadyComplete}
-            onRetry={() => {
-              provenanceResolutionStarted.current = false
-              setSyncStatus("idle")
-              setRetryToken((value) => value + 1)
-            }}
-          />
-        ) : (
-          <OnboardingReady
-            destination={destination}
-            errorMessage={errorMessage}
-            guilds={readyData.guilds}
-            onContinue={continueTo}
-            onboarding={readyData.onboarding}
-            userImageUrl={user?.imageUrl}
-            userName={user?.fullName ?? user?.firstName ?? undefined}
-          />
-        )}
+        <OnboardingReady
+          destination={destination}
+          errorMessage={errorMessage}
+          experienceState={experienceState}
+          guilds={guilds}
+          onContinue={continueTo}
+          onboarding={readyOnboarding}
+          onRetry={retrySync}
+          userImageUrl={user?.imageUrl}
+          userName={user?.fullName ?? user?.firstName ?? undefined}
+        />
       </div>
     </main>
   )
@@ -172,37 +185,55 @@ export function OnboardingExperience() {
 function OnboardingReady({
   destination,
   errorMessage,
+  experienceState,
   guilds,
   onContinue,
   onboarding,
+  onRetry,
   userImageUrl,
   userName,
 }: {
   destination: string | null
   errorMessage: string | null
-  guilds: ManageableGuild[]
+  experienceState: OnboardingExperienceState
+  guilds: ManageableGuild[] | undefined
   onContinue: (path: string) => Promise<void>
-  onboarding: Extract<
-    NonNullable<
-      ReturnType<
-        typeof useQuery<typeof api.queries.dashboard.account.onboarding.get>
-      >
-    >,
-    { status: "ready" }
-  >
+  onboarding: ReadyOnboarding | null
+  onRetry: () => void
   userImageUrl?: string
   userName?: string
 }) {
-  const identity = onboarding.discordIdentity
+  const identity = onboarding?.discordIdentity
   const displayName =
     identity?.displayName ??
     identity?.username ??
-    onboarding.account.displayName ??
+    onboarding?.account.displayName ??
     userName ??
     "there"
   const avatarUrl =
-    identity?.avatarUrl ?? onboarding.account.imageUrl ?? userImageUrl
-  const hasGuilds = guilds.length > 0
+    identity?.avatarUrl ?? onboarding?.account.imageUrl ?? userImageUrl
+  const guildList = guilds ?? []
+  const hasGuilds = experienceState === "ready-with-guilds"
+  const panelTitle =
+    experienceState === "syncing-account"
+      ? "Finishing your setup"
+      : experienceState === "syncing-guilds"
+        ? "Finding your servers"
+        : experienceState === "error"
+          ? "Connection needs another try"
+          : hasGuilds
+            ? "Choose a server"
+            : "Add your first server"
+  const intro =
+    experienceState === "syncing-account"
+      ? "Your Discord sign-up is complete. Cleo is finishing the account setup needed for your dashboard."
+      : experienceState === "syncing-guilds"
+        ? "Your Cleo account is ready. We’re checking Discord for the servers you can manage."
+        : experienceState === "error"
+          ? "Your Discord account is connected, but Cleo could not finish loading your dashboard access."
+          : hasGuilds
+            ? "Cleo found servers you can manage. Choose where you want to start."
+            : "Your account is ready. Add Cleo to a Discord server to open its workspace."
 
   return (
     <div className="grid flex-1 items-center gap-14 py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-24 lg:py-20">
@@ -236,20 +267,32 @@ function OnboardingReady({
           </div>
         </div>
         <p className="mt-8 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-          {hasGuilds
-            ? "Cleo found servers you can manage. Choose where you want to start."
-            : "Your account is ready. Add Cleo to a Discord server to open its workspace."}
+          {intro}
         </p>
       </section>
 
       <section className="border-t border-white/12 pt-7 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-16">
         <h2 className="font-heading text-2xl font-medium sm:text-3xl">
-          {hasGuilds ? "Choose a server" : "Add your first server"}
+          {panelTitle}
         </h2>
 
-        {hasGuilds ? (
+        {experienceState === "syncing-account" ? (
+          <OnboardingProgress message="Creating your Cleo profile and linking your Discord identity." />
+        ) : experienceState === "syncing-guilds" ? (
+          <OnboardingProgress message="Checking Discord for servers where you have management access." />
+        ) : experienceState === "error" ? (
+          <div className="mt-6 max-w-md" role="alert">
+            <p className="text-sm leading-6 text-muted-foreground">
+              Nothing needs to be restarted. Retry the account and server sync from here.
+            </p>
+            <Button className="mt-5" onClick={onRetry} variant="outline">
+              <IconRefresh aria-hidden data-icon="inline-start" />
+              Try again
+            </Button>
+          </div>
+        ) : hasGuilds ? (
           <div className="mt-6 divide-y divide-white/10 border-y border-white/10">
-            {guilds.map((guild) => {
+            {guildList.map((guild) => {
               const path = `/dashboard/${guild.discordGuildId}`
               const isLoading = destination === path
 
@@ -327,37 +370,14 @@ function OnboardingReady({
   )
 }
 
-function OnboardingLoading({
-  canRetry,
-  isRedirecting,
-  onRetry,
-}: {
-  canRetry: boolean
-  isRedirecting: boolean
-  onRetry: () => void
-}) {
+function OnboardingProgress({ message }: { message: string }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 py-20 text-center">
-      {canRetry ? (
-        <>
-          <p className="max-w-sm text-sm leading-6 text-muted-foreground">
-            Cleo could not finish connecting your Discord account.
-          </p>
-          <Button onClick={onRetry} variant="outline">
-            <IconRefresh aria-hidden data-icon="inline-start" />
-            Try again
-          </Button>
-        </>
-      ) : (
-        <>
-          <Spinner className="size-6 text-cleo-cyan" />
-          <p className="text-sm text-muted-foreground">
-            {isRedirecting
-              ? "Opening your dashboard…"
-              : "Connecting your Cleo account…"}
-          </p>
-        </>
-      )}
+    <div
+      aria-live="polite"
+      className="mt-6 flex max-w-md items-start gap-3 border-y border-white/10 py-5"
+    >
+      <Spinner className="mt-0.5 size-5 shrink-0 text-cleo-cyan" />
+      <p className="text-sm leading-6 text-muted-foreground">{message}</p>
     </div>
   )
 }
