@@ -4651,6 +4651,12 @@ export declare const internal: {
         };
         installSessions: {
           upsert: {
+            botJoined: FunctionReference<
+              "mutation",
+              "internal",
+              { discordGuildId: string },
+              number
+            >;
             configured: FunctionReference<
               "mutation",
               "internal",

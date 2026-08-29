@@ -20,6 +20,7 @@ export const sync = action({
   returns: v.null(),
   handler: async (ctx, args) => {
     assertValidBotSecret(args.secret)
+
     const now = Date.now()
     const syncedAt = args.syncedAt
 
@@ -37,6 +38,13 @@ export const sync = action({
     await ctx.runMutation(
       internal.mutations.bot.discord.guildConfigs.ensure.forGuild,
       { guildId }
+    )
+
+    await ctx.runMutation(
+      internal.mutations.dashboard.discord.installSessions.upsert.botJoined,
+      {
+        discordGuildId: args.guild.discordGuildId,
+      }
     )
 
     return null
