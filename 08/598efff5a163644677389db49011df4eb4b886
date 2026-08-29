@@ -1,0 +1,48 @@
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_698e40acaff600::t_9e9a0f6d40ab0b 4,15,30-31,34-39,42-43,83-90
+apps/dashboard/src/app/(app)/dashboard/[discordGuildId]/page.tsx
+  s_698e40acaff600::t_9e9a0f6d40ab0b 2-3,6,22-27,29-33
+apps/dashboard/src/components/providers/theme-provider.tsx
+  s_698e40acaff600::t_14e2d1aab7c0c0 25-27
+  s_698e40acaff600::t_62cb4644d96e49 46-47
+apps/dashboard/src/app/(app)/dashboard/[discordGuildId]/[section]/page.tsx
+  s_698e40acaff600::t_9e9a0f6d40ab0b 3-4,11,50-56,59
+apps/dashboard/src/lib/convex-auth.ts
+  s_698e40acaff600::t_9e9a0f6d40ab0b 1-18
+apps/dashboard/src/features/app-shell/AppTopbar.tsx
+  s_698e40acaff600::t_fd80f14df580a3 4-5,66-81,83-92,104-110
+apps/dashboard/src/components/ThemeToggle.tsx
+  s_698e40acaff600::t_02684541672ff6 22
+apps/dashboard/src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell.tsx
+  s_698e40acaff600::t_3cf82042e5b8d7 13,50,57,72
+  s_698e40acaff600::t_9e9a0f6d40ab0b 12,14-16,39-41,46,49
+  s_698e40acaff600::t_e3f169d394ab06 11
+apps/dashboard/src/app/layout.tsx
+  s_698e40acaff600::t_62cb4644d96e49 23
+  s_698e40acaff600::t_1c1e9516c5accc 24
+  s_698e40acaff600::t_3cf82042e5b8d7 111-113
+apps/dashboard/src/features/onboarding/OnboardingGuard.tsx
+  s_698e40acaff600::t_443f557c1b1f31 7,26,36,46
+  s_698e40acaff600::t_9e9a0f6d40ab0b 5-6,8-11,16-25,48-50
+  s_698e40acaff600::t_840f3f22cb84af 47
+apps/dashboard/src/features/app-shell/AppTopbar.test.ts
+  s_698e40acaff600::t_fd80f14df580a3 11-13,26-30,34,58,67-77,98-99,101,106-113
+apps/dashboard/src/app/(app)/layout.tsx
+  s_698e40acaff600::t_9e9a0f6d40ab0b 2-3,7,21-35,37-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "08598efff5a163644677389db49011df4eb4b886",
+  "prompts": {},
+  "sessions": {
+    "s_698e40acaff600": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a04f0e-f671-7641-bb42-df32515a50ec",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
