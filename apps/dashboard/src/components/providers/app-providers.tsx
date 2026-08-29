@@ -17,10 +17,6 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <ClerkProvider
-      signInFallbackRedirectUrl="/dashboard"
-      signInUrl="/sign-in"
-      signUpFallbackRedirectUrl="/onboarding"
-      signUpUrl="/sign-up"
       appearance={{
         theme: resolvedTheme === "dark" ? [dark, shadcn] : [shadcn],
       }}

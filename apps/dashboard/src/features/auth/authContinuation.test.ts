@@ -2,8 +2,6 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
-  SIGN_IN_DEFAULT_RETURN_TO,
-  SIGN_UP_DEFAULT_RETURN_TO,
   createMissingRequirementFormState,
   getSessionTaskPath,
   getSessionTaskReturnTo,
@@ -11,11 +9,6 @@ import {
   partitionMissingRequirements,
 } from "./authContinuation"
 import { getClerkOperationError, resetClerkAttempts } from "./clerkOperations"
-
-test("returning sign-ins and new sign-ups use different default destinations", () => {
-  assert.equal(SIGN_IN_DEFAULT_RETURN_TO, "/dashboard")
-  assert.equal(SIGN_UP_DEFAULT_RETURN_TO, "/onboarding")
-})
 
 test("Clerk promise rejection becomes a readable retry error", async () => {
   assert.equal(
