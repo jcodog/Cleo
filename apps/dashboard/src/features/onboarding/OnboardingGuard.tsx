@@ -2,15 +2,28 @@
 
 import { useEffect, useRef } from "react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import { useMutation, useQuery } from "convex/react"
-import { useRouter } from "next/navigation"
+import {
+  type Preloaded,
+  useConvexAuth,
+  useMutation,
+  usePreloadedQuery,
+} from "convex/react"
+import { redirect } from "next/navigation"
 
 import { DashboardDiscordHydrator } from "@/features/app-shell/DashboardDiscordHydrator"
 import { getOnboardingGuardDecision } from "@/features/onboarding/onboardingState"
 
-export function OnboardingGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const onboarding = useQuery(api.queries.dashboard.account.onboarding.get)
+export function OnboardingGuard({
+  children,
+  preloadedOnboarding,
+}: {
+  children: React.ReactNode
+  preloadedOnboarding: Preloaded<
+    typeof api.queries.dashboard.account.onboarding.get
+  >
+}) {
+  const onboarding = usePreloadedQuery(preloadedOnboarding)
+  const { isAuthenticated } = useConvexAuth()
   const resolveProvenance = useMutation(
     api.mutations.dashboard.account.onboarding.resolveProvenance
   )
@@ -18,13 +31,9 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const decision = getOnboardingGuardDecision(onboarding)
 
   useEffect(() => {
-    if (decision === "show-onboarding") {
-      router.replace("/onboarding")
-      return
-    }
-
     if (
       decision !== "resolve-provenance" ||
+      !isAuthenticated ||
       provenanceResolutionStarted.current
     ) {
       return
@@ -34,7 +43,11 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
     void resolveProvenance({}).catch(() => {
       provenanceResolutionStarted.current = false
     })
-  }, [decision, resolveProvenance, router])
+  }, [decision, isAuthenticated, resolveProvenance])
+
+  if (decision === "show-onboarding") {
+    redirect("/onboarding")
+  }
 
   return (
     <>

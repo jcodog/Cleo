@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { useAuth } from "@clerk/nextjs"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, redirect } from "next/navigation"
 import {
   IconHome,
   IconLogs,
@@ -13,7 +12,7 @@ import {
   IconSparkles,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import { useQuery } from "convex/react"
+import { type Preloaded, usePreloadedQuery } from "convex/react"
 
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { AppShell } from "@/features/app-shell/AppShell"
@@ -28,16 +27,20 @@ import type { AppShellNavSection } from "@/features/app-shell/types"
 
 export function DashboardShellClient({
   children,
+  preloadedManageableGuilds,
+  preloadedStaffAccess,
 }: {
   children: React.ReactNode
+  preloadedManageableGuilds: Preloaded<
+    typeof api.queries.dashboard.discord.guilds.manageable.list
+  >
+  preloadedStaffAccess: Preloaded<
+    typeof api.queries.dashboard.staff.access.get
+  >
 }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const { isLoaded: isClerkLoaded, isSignedIn } = useAuth()
-  const staffAccess = useQuery(api.queries.dashboard.staff.access.get)
-  const manageableGuilds = useQuery(
-    api.queries.dashboard.discord.guilds.manageable.list
-  )
+  const staffAccess = usePreloadedQuery(preloadedStaffAccess)
+  const manageableGuilds = usePreloadedQuery(preloadedManageableGuilds)
   const currentArea = getAppShellAreaFromPathname(pathname)
   const staffEntry = getStaffTopbarEntry(currentArea, staffAccess)
   const storedDiscordGuildId = useAppShellStore(
@@ -54,9 +57,6 @@ export function DashboardShellClient({
       storedDiscordGuildId,
     })
   const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
-  const isResolvingDashboardEntry =
-    pathname === "/dashboard" &&
-    (manageableGuilds === undefined || activeDiscordGuildId !== undefined)
   const discordOverviewHref = activeDiscordGuildId
     ? `/dashboard/${activeDiscordGuildId}`
     : "/dashboard"
@@ -73,24 +73,20 @@ export function DashboardShellClient({
       setSelectedDiscordGuildId(activeDiscordGuildId)
     }
 
-    if (invalidRouteGuildId) {
-      router.replace(safeDashboardPath)
-      return
-    }
-
-    if (pathname === "/dashboard" && activeDiscordGuildId) {
-      router.replace(`/dashboard/${activeDiscordGuildId}`)
-    }
   }, [
     activeDiscordGuildId,
-    invalidRouteGuildId,
     manageableGuilds,
-    pathname,
-    router,
-    safeDashboardPath,
     setSelectedDiscordGuildId,
     storedDiscordGuildId,
   ])
+
+  if (invalidRouteGuildId) {
+    redirect(safeDashboardPath)
+  }
+
+  if (pathname === "/dashboard" && activeDiscordGuildId) {
+    redirect(`/dashboard/${activeDiscordGuildId}`)
+  }
 
   const discordNavSections: AppShellNavSection[] = [
     {
@@ -181,10 +177,6 @@ export function DashboardShellClient({
     staff: staffNavSections,
     kick: [],
     twitch: [],
-  }
-
-  if ((isClerkLoaded && !isSignedIn) || isResolvingDashboardEntry) {
-    return null
   }
 
   return (

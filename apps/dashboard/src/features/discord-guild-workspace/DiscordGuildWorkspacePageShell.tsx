@@ -8,7 +8,12 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@workspace/ui/components/alert"
-import { useMutation, useQuery } from "convex/react"
+import {
+  type Preloaded,
+  useConvexAuth,
+  useMutation,
+  usePreloadedQuery,
+} from "convex/react"
 
 import {
   BotStatusBadge,
@@ -31,25 +36,25 @@ import {
 import type { GuildOverview } from "./types"
 
 type DiscordGuildWorkspacePageShellProps = {
-  discordGuildId: string
+  preloadedOverview: Preloaded<
+    typeof api.queries.dashboard.discord.guilds.overview.get
+  >
   section?: DiscordGuildSection
 }
 
 export function DiscordGuildWorkspacePageShell({
-  discordGuildId,
+  preloadedOverview,
   section = "overview",
 }: DiscordGuildWorkspacePageShellProps) {
-  const overviewResult = useQuery(
-    api.queries.dashboard.discord.guilds.overview.get,
-    { discordGuildId }
-  )
+  const overviewResult = usePreloadedQuery(preloadedOverview)
+  const { isAuthenticated } = useConvexAuth()
   const markOpened = useMutation(
     api.mutations.dashboard.discord.guilds.markOpened.markOpened
   )
   const markedGuildIdsRef = useRef(new Set<Id<"guilds">>())
 
   useEffect(() => {
-    if (overviewResult?.status !== "ready") {
+    if (!isAuthenticated || overviewResult?.status !== "ready") {
       return
     }
 
@@ -64,7 +69,7 @@ export function DiscordGuildWorkspacePageShell({
     void markOpened({ guildId }).catch(() => {
       markedGuildIdsRef.current.delete(guildId)
     })
-  }, [markOpened, overviewResult])
+  }, [isAuthenticated, markOpened, overviewResult])
 
   if (overviewResult === undefined) {
     return <WorkspaceSkeleton />

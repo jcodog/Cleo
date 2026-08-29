@@ -20,6 +20,8 @@ const metadataBase = new URL(
   dashboardEnv.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 )
 
+const themeScript = `try{const storedTheme=localStorage.getItem("theme");const isDark=storedTheme==="dark"||(storedTheme!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);const root=document.documentElement;root.classList.toggle("dark",isDark);root.style.colorScheme=isDark?"dark":"light";root.style.backgroundColor=isDark?"#0a0a0b":"#fafafa"}catch{}`
+
 const description =
   "Cleo is a Discord-first AI assistant for community management, moderation, automation, creator accounts, and real-time tools."
 
@@ -106,6 +108,9 @@ export default function RootLayout({
         outfitHeading.variable
       )}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="flex h-full min-h-screen w-full min-w-full flex-col overflow-x-hidden scroll-smooth bg-background text-foreground antialiased">
         <ThemeProvider>
           <AppProviders>{children}</AppProviders>

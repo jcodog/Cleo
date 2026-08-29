@@ -22,16 +22,12 @@ const STORAGE_KEY = "theme"
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system")
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>("light")
+  const [theme, setThemeState] = useState<Theme>(getStoredTheme)
+  const [systemTheme, setSystemTheme] =
+    useState<ResolvedTheme>(getSystemTheme)
   const resolvedTheme = theme === "system" ? systemTheme : theme
 
   useEffect(() => {
-    window.requestAnimationFrame(() => {
-      setThemeState(getStoredTheme())
-      setSystemTheme(getSystemTheme())
-    })
-
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
     const updateSystemTheme = () => setSystemTheme(getSystemTheme())
 
@@ -47,6 +43,8 @@ function ThemeProvider({ children }: { children: ReactNode }) {
 
     root.classList.toggle("dark", resolvedTheme === "dark")
     root.style.colorScheme = resolvedTheme
+    root.style.backgroundColor =
+      resolvedTheme === "dark" ? "#0a0a0b" : "#fafafa"
   }, [resolvedTheme])
 
   const value = useMemo<ThemeContextValue>(

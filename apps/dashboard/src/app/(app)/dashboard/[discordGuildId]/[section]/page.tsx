@@ -1,12 +1,14 @@
-import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { api } from "@workspace/backend/convex/_generated/api.js"
+import { preloadQuery } from "convex/nextjs"
 
 import {
   DiscordGuildWorkspacePageShell,
   type DiscordGuildSection,
 } from "@/features/discord-guild-workspace"
 import { DISCORD_GUILD_SECTIONS } from "@/features/discord-guild-workspace/sections"
+import { getConvexAuthToken } from "@/lib/convex-auth"
 
 const DISCORD_SECTIONS = new Set<string>(DISCORD_GUILD_SECTIONS)
 
@@ -39,17 +41,22 @@ export async function generateMetadata({
 export default async function DiscordGuildSectionPage({
   params,
 }: DiscordGuildSectionPageProps) {
-  await auth.protect()
-
   const { discordGuildId, section } = await params
 
   if (!DISCORD_SECTIONS.has(section)) {
     notFound()
   }
 
+  const token = await getConvexAuthToken()
+  const preloadedOverview = await preloadQuery(
+    api.queries.dashboard.discord.guilds.overview.get,
+    { discordGuildId },
+    { token }
+  )
+
   return (
     <DiscordGuildWorkspacePageShell
-      discordGuildId={discordGuildId}
+      preloadedOverview={preloadedOverview}
       section={section as DiscordGuildSection}
     />
   )
