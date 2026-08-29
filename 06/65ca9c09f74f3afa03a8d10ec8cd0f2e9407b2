@@ -1,0 +1,16 @@
+apps/dashboard/AGENTS.md
+  h_2bc691fceb4fe5 1-9
+apps/dashboard/CLAUDE.md
+  h_2bc691fceb4fe5 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "0665ca9c09f74f3afa03a8d10ec8cd0f2e9407b2",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
