@@ -72,6 +72,10 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     }
 
     if (syncResult.status === "unavailable") {
+      dashboardDiscordLog.warn("Clerk user sync unavailable for guild discovery.", {
+        reason: syncResult.reason,
+      })
+
       return {
         status: "discordGuildDiscoveryUnavailable" as const,
         reason: getClerkSyncUnavailableReason(syncResult.reason),
@@ -97,6 +101,14 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     const syncResult = await syncClerkUser(ctx, context.user.clerkUserId)
 
     if (syncResult.status === "unavailable") {
+      dashboardDiscordLog.warn(
+        "Discord identity sync unavailable for guild discovery.",
+        {
+          reason: syncResult.reason,
+          knownGuildCount: context.guilds.length,
+        }
+      )
+
       return {
         status: "discordGuildDiscoveryUnavailable" as const,
         reason: getClerkSyncUnavailableReason(syncResult.reason),
@@ -118,6 +130,13 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     }
 
     if (!context.discordAccount) {
+      dashboardDiscordLog.warn(
+        "Discord identity still missing after guild discovery sync.",
+        {
+          knownGuildCount: context.guilds.length,
+        }
+      )
+
       return { status: "missingDiscordIdentity" as const }
     }
   }
@@ -155,14 +174,6 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
   }
 
   const liveGuilds = userGuildsResult.guilds
-
-  dashboardDiscordLog.info("Discord OAuth guild discovery completed.", {
-    guildCount: liveGuilds.length,
-    manageableGuildCount: liveGuilds.filter((guild) => guild.canManage).length,
-    installableGuildCount: liveGuilds.filter((guild) => guild.canInstall).length,
-    knownGuildCount: context.guilds.length,
-    activeInstallCount: context.installSessions.length,
-  })
 
   return {
     status: "ready" as const,
