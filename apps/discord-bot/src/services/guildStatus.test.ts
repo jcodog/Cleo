@@ -11,7 +11,7 @@ const discordGuildId = "123456789012345678"
 test("buildCleoGuildDashboardUrl creates the current guild management route", () => {
   assert.equal(
     buildCleoGuildDashboardUrl(discordGuildId),
-    "https://beta.cleoai.cloud/dashboard/123456789012345678"
+    "https://cleoai.cloud/dashboard/123456789012345678"
   )
   assert.equal(
     buildCleoGuildDashboardUrl(
@@ -58,10 +58,7 @@ test("buildCleoGuildStatusView formats active and incomplete modules", () => {
   assert.match(view.content, /Cleo status · Cleo \\\*HQ\\\*/)
   assert.match(view.content, /Configuration is connected/)
   assert.match(view.content, /✅ \*\*Moderation\*\* · On/)
-  assert.match(
-    view.content,
-    /✅ \*\*Welcome\*\* · On · <#223456789012345678>/
-  )
+  assert.match(view.content, /✅ \*\*Welcome\*\* · On · <#223456789012345678>/)
   assert.match(view.content, /✅ \*\*Logging\*\* · On · Maximum detail/)
   assert.match(view.content, /⚠️ \*\*Support\*\* · On, setup incomplete/)
 })
@@ -126,8 +123,14 @@ test("buildCleoGuildStatusView covers alternate module setup branches", () => {
     configured.content,
     /✅ \*\*Support\*\* · On · <#423456789012345678>/
   )
-  assert.match(partialSupport.content, /⚠️ \*\*Logging\*\* · On, setup incomplete/)
-  assert.match(partialSupport.content, /⚠️ \*\*Support\*\* · On, setup incomplete/)
+  assert.match(
+    partialSupport.content,
+    /⚠️ \*\*Logging\*\* · On, setup incomplete/
+  )
+  assert.match(
+    partialSupport.content,
+    /⚠️ \*\*Support\*\* · On, setup incomplete/
+  )
   assert.match(
     missingSupportRoles.content,
     /⚠️ \*\*Support\*\* · On, setup incomplete/

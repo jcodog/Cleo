@@ -7,20 +7,19 @@ Cleo v3 replaces the legacy collection of standalone services with one typed Bun
 ## Product links
 
 - Website: [cleoai.cloud](https://cleoai.cloud)
-- Dashboard beta: [beta.cleoai.cloud](https://beta.cleoai.cloud)
 - Browsable coverage: [jcodog.github.io/Cleo](https://jcodog.github.io/Cleo/)
 - Company: [JCoNet LTD](https://jconet.co.uk)
 
 ## Current product state
 
-| Surface | State | Purpose |
-| --- | --- | --- |
-| Discord bot | v3.0.0 production | Guild lifecycle, welcome messages, moderation, support, logging, runtime incidents, and focused utility commands |
-| Dashboard | Public beta | Discord installation, guild configuration, audit visibility, support routing, and staff operations |
-| Cleo Profiles and Pets | Foundation in development | Account identity, pet progression, public cards, battles, and future Discord widget surfaces |
-| Twitch bot | Planned migration | Creator chat automation, linked accounts, and EventSub lifecycle |
-| Kick bot | Planned migration | OAuth, webhooks, creator chat automation, and linked accounts |
-| Real-time relay | Planned migration | Typed live events, overlays, and cross-platform delivery |
+| Surface                | State                     | Purpose                                                                                                          |
+| ---------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Discord bot            | v3.0.0 production         | Guild lifecycle, welcome messages, moderation, support, logging, runtime incidents, and focused utility commands |
+| Dashboard              | Public beta               | Discord installation, guild configuration, audit visibility, support routing, and staff operations               |
+| Cleo Profiles and Pets | Foundation in development | Account identity, pet progression, public cards, battles, and future Discord widget surfaces                     |
+| Twitch bot             | Planned migration         | Creator chat automation, linked accounts, and EventSub lifecycle                                                 |
+| Kick bot               | Planned migration         | OAuth, webhooks, creator chat automation, and linked accounts                                                    |
+| Real-time relay        | Planned migration         | Typed live events, overlays, and cross-platform delivery                                                         |
 
 The v3.1 workstream adds product-connected Discord features that were deliberately left out of the stability-first v3.0.0 release. It does not restore legacy CoD Stats, Prisma premium tables, the old free-AI quota system, or generic commands that do not justify permanent command-surface space.
 
