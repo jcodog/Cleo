@@ -108,7 +108,13 @@ export default function RootLayout({
     >
       <body className="flex h-full min-h-screen w-full min-w-full flex-col overflow-x-hidden scroll-smooth bg-background text-foreground antialiased">
         <ThemeProvider>
-          <AppProviders>{children}</AppProviders>
+          <AppProviders
+            afterSignOutUrl={
+              dashboardEnv.NEXT_PUBLIC_APP_AFTER_SIGN_OUT_URL ?? "/"
+            }
+          >
+            {children}
+          </AppProviders>
         </ThemeProvider>
       </body>
     </html>

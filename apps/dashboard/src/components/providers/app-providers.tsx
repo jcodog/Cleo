@@ -8,7 +8,15 @@ import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { useTheme } from "@/components/providers/theme-provider"
 import { convexClient } from "@/lib/convexClient"
 
-export function AppProviders({ children }: { children: ReactNode }) {
+type AppProvidersProps = {
+  afterSignOutUrl: string
+  children: ReactNode
+}
+
+export function AppProviders({
+  afterSignOutUrl,
+  children,
+}: AppProvidersProps) {
   const { resolvedTheme } = useTheme()
 
   if (!convexClient) {
@@ -17,6 +25,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <ClerkProvider
+      afterSignOutUrl={afterSignOutUrl}
       appearance={{
         theme: resolvedTheme === "dark" ? [dark, shadcn] : [shadcn],
       }}

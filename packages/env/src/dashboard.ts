@@ -11,6 +11,7 @@ export const dashboardEnv = createEnv({
   client: {
     NEXT_PUBLIC_CONVEX_URL: optionalUrl,
     NEXT_PUBLIC_APP_URL: optionalUrl,
+    NEXT_PUBLIC_APP_AFTER_SIGN_OUT_URL: optionalString,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: optionalString,
     NEXT_PUBLIC_CLERK_SIGN_UP_URL: optionalString,
@@ -22,6 +23,8 @@ export const dashboardEnv = createEnv({
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_APP_AFTER_SIGN_OUT_URL:
+      process.env.NEXT_PUBLIC_APP_AFTER_SIGN_OUT_URL,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL,
