@@ -1,0 +1,18 @@
+README.md
+  h_2bc691fceb4fe5 15-22
+apps/discord-bot/src/services/guildStatus.test.ts
+  h_2bc691fceb4fe5 14,61,126-133
+apps/discord-bot/src/services/guildStatus.ts
+  h_2bc691fceb4fe5 9,93-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "287d4de10e82533c7323ca92b3247aac4632bacd",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
