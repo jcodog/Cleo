@@ -1,5 +1,8 @@
 import { getSafeInternalPath, withReturnTo } from "@/features/auth/safeRedirect"
 
+export const SIGN_IN_DEFAULT_RETURN_TO = "/dashboard"
+export const SIGN_UP_DEFAULT_RETURN_TO = "/onboarding"
+
 export const SUPPORTED_MISSING_REQUIREMENTS = [
   "first_name",
   "last_name",
