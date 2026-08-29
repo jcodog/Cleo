@@ -2141,6 +2141,30 @@ export declare const api: {
             >;
           };
         };
+        install: {
+          context: {
+            getInstallSessionStatus: FunctionReference<
+              "query",
+              "public",
+              { installSessionId: Id<"discordGuildInstallSessions"> },
+              | { status: "missingUser" }
+              | { status: "missingDiscordIdentity" }
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  session: {
+                    completedAt?: number;
+                    discordGuildId: string;
+                    expiresAt: number;
+                    installSessionId: Id<"discordGuildInstallSessions">;
+                    selectedUpdatesChannelId?: string;
+                    status: "pending" | "bot_joined" | "configured" | "expired";
+                  };
+                  status: "ready";
+                }
+            >;
+          };
+        };
         runtimeIncidents: {
           access: {
             get: FunctionReference<

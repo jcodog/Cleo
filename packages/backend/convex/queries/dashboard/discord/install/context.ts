@@ -1,10 +1,11 @@
 import { v } from "convex/values"
 import type { Doc, Id } from "../../../../_generated/dataModel"
-import { internalQuery } from "../../../../_generated/server"
+import { internalQuery, query } from "../../../../_generated/server"
 import { getCurrentUser } from "../../../../lib/auth"
 import { shouldReplaceMembership } from "../../../../lib/discordGuildMemberships"
 import {
   dashboardDiscordInstallableGuildViewModel,
+  dashboardDiscordInstallSessionViewModel,
   discordGuildInstallSessionDoc,
   linkedAccountDoc,
   userDoc,
@@ -75,6 +76,25 @@ const installSessionContextResult = v.union(
       }),
       v.null()
     ),
+  })
+)
+
+const installSessionStatusResult = v.union(
+  v.object({
+    status: v.literal("missingUser"),
+  }),
+  v.object({
+    status: v.literal("missingDiscordIdentity"),
+  }),
+  v.object({
+    status: v.literal("notFound"),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+  }),
+  v.object({
+    status: v.literal("ready"),
+    session: dashboardDiscordInstallSessionViewModel,
   })
 )
 
@@ -167,6 +187,66 @@ export const getCreateServerInstallContext = internalQuery({
       user,
       discordAccount,
       discordGuildId: guild.discordGuildId,
+    }
+  },
+})
+
+export const getInstallSessionStatus = query({
+  args: {
+    installSessionId: v.id("discordGuildInstallSessions"),
+  },
+  returns: installSessionStatusResult,
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx)
+
+    if (!user) {
+      return { status: "missingUser" as const }
+    }
+
+    const discordAccount = await getDiscordAccount(ctx, user._id)
+
+    if (!discordAccount) {
+      return { status: "missingDiscordIdentity" as const }
+    }
+
+    const session = await getInstallSession(
+      ctx,
+      user._id,
+      discordAccount.providerAccountId,
+      {
+        installSessionId: args.installSessionId,
+      }
+    )
+
+    if (!session) {
+      return { status: "notFound" as const }
+    }
+
+    if (
+      session.userId !== user._id ||
+      session.discordUserId !== discordAccount.providerAccountId
+    ) {
+      return { status: "forbidden" as const }
+    }
+
+    if (session.status === "expired" || session.expiresAt <= Date.now()) {
+      return { status: "notFound" as const }
+    }
+
+    return {
+      status: "ready" as const,
+      session: {
+        installSessionId: session._id,
+        discordGuildId: session.discordGuildId,
+        status: session.status,
+        ...(session.selectedUpdatesChannelId !== undefined
+          ? { selectedUpdatesChannelId: session.selectedUpdatesChannelId }
+          : {}),
+        expiresAt: session.expiresAt,
+        ...(session.completedAt !== undefined
+          ? { completedAt: session.completedAt }
+          : {}),
+      },
     }
   },
 })
