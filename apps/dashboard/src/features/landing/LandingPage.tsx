@@ -93,8 +93,8 @@ function Hero() {
             <span className="block text-cleo-cyan">easier to manage.</span>
           </h1>
           <p className="max-w-xl text-base leading-7 text-pretty text-foreground/76 sm:text-lg sm:leading-8">
-            Set up welcomes, moderation, logs, support, and automations from
-            one dashboard, with help from Cleo when you need it.
+            Set up welcomes, moderation, logs, support, and automations from one
+            dashboard, with help from Cleo when you need it.
           </p>
         </div>
 
@@ -201,8 +201,7 @@ const VALUE_AREAS = [
   {
     icon: IconAdjustments,
     title: "Automate the routine",
-    description:
-      "Handle welcomes, logs, support, and repeatable server tasks.",
+    description: "Handle welcomes, logs, support, and repeatable server tasks.",
   },
   {
     icon: IconMessageChatbot,
@@ -218,8 +217,8 @@ function ValueSummary() {
       className="relative scroll-mt-20 border-t border-white/10"
       id="features"
     >
-      <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
-        <div className="max-w-3xl">
+      <div className="mx-auto grid w-full max-w-7xl gap-12 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-20 lg:px-10 lg:py-28">
+        <div className="max-w-xl lg:sticky lg:top-28 lg:self-start">
           <h2 className="font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             Less time chasing settings and bot commands.
           </h2>
@@ -229,10 +228,10 @@ function ValueSummary() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="border-t border-white/12">
           {VALUE_AREAS.map(({ description, icon: Icon, title }) => (
             <article
-              className="group min-h-56 bg-neutral-950/92 p-6 transition-colors duration-200 hover:bg-neutral-900/94 sm:p-7"
+              className="group grid gap-4 border-b border-white/10 py-7 sm:grid-cols-[2.5rem_minmax(0,0.82fr)_minmax(0,1.18fr)] sm:items-start sm:gap-6 sm:py-8"
               key={title}
             >
               <Icon
@@ -240,10 +239,10 @@ function ValueSummary() {
                 className="size-6 text-cleo-cyan transition-colors duration-200 group-hover:text-white"
                 stroke={1.5}
               />
-              <h3 className="mt-8 font-heading text-xl font-semibold tracking-[-0.02em]">
+              <h3 className="font-heading text-xl font-semibold tracking-[-0.02em]">
                 {title}
               </h3>
-              <p className="mt-3 text-base leading-7 text-muted-foreground">
+              <p className="text-base leading-7 text-muted-foreground">
                 {description}
               </p>
             </article>
@@ -310,7 +309,6 @@ const CAPABILITY_PANELS = [
       "Moderation, logging, and support modules",
       "Access based on verified Discord permissions",
     ],
-    lead: true,
   },
   {
     icon: IconShieldCheck,
@@ -322,7 +320,6 @@ const CAPABILITY_PANELS = [
       "Clear results when an action succeeds or fails",
       "Owners and moderators make the decisions",
     ],
-    lead: false,
   },
   {
     icon: IconSparkles,
@@ -334,50 +331,42 @@ const CAPABILITY_PANELS = [
       "Suggestions you can review before acting",
       "People always make the final call",
     ],
-    lead: false,
   },
 ] as const
 
 function CoreCapabilities() {
   return (
     <section className="relative" aria-labelledby="capabilities-heading">
-      <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
+      <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10 lg:py-32">
         <h2
-          className="max-w-4xl font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl"
+          className="max-w-3xl font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl"
           id="capabilities-heading"
         >
           Set up the parts of your server people rely on.
         </h2>
 
-        <div className="mt-12 grid gap-4 lg:grid-cols-12">
+        <div className="mt-12 border-t border-white/12 sm:mt-16">
           {CAPABILITY_PANELS.map(
-            ({ bullets, description, icon: Icon, lead, title }) => (
+            ({ bullets, description, icon: Icon, title }) => (
               <article
-                className={cn(
-                  "relative overflow-hidden rounded-xl border border-white/10 bg-neutral-950/78 p-7 sm:p-8",
-                  "lg:col-span-4"
-                )}
+                className="grid gap-7 border-b border-white/10 py-9 sm:py-11 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20 lg:py-14"
                 key={title}
               >
-                {lead ? (
-                  <div
-                    aria-hidden
-                    className="absolute right-[-8rem] bottom-[-9rem] size-72 rounded-full border border-primary/16 shadow-[0_0_80px_color-mix(in_oklab,var(--primary)_10%,transparent)]"
-                  />
-                ) : null}
-                <div className="relative">
+                <div className="flex items-start gap-5 sm:gap-7">
                   <Icon
                     aria-hidden
-                    className="size-6 text-cleo-cyan"
+                    className="mt-1 size-6 shrink-0 text-cleo-cyan"
                     stroke={1.5}
                   />
-                  <h3 className="mt-7 max-w-xl font-heading text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
+                  <h3 className="max-w-xl font-heading text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
                     {title}
                   </h3>
+                </div>
+                <div className="lg:pt-0.5">
                   <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
                     {description}
                   </p>
-                  <ul className="mt-7 space-y-3">
+                  <ul className="mt-6 grid gap-x-8 gap-y-3 sm:grid-cols-2">
                     {bullets.map((bullet) => (
                       <li
                         className="flex items-start gap-3 text-sm leading-6 text-foreground/82 sm:text-base"
@@ -408,8 +397,8 @@ function PlatformEcosystem() {
       className="relative scroll-mt-20 overflow-hidden border-y border-white/10 bg-neutral-950/58"
       id="platforms"
     >
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[0.82fr_1.18fr] lg:gap-20 lg:px-10 lg:py-32">
-        <div className="max-w-2xl">
+      <div className="mx-auto grid w-full max-w-7xl items-start gap-14 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-24 lg:px-10 lg:py-32">
+        <div className="max-w-2xl lg:sticky lg:top-28">
           <h2 className="font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
             Start with Discord. Connect more when you need to.
           </h2>
@@ -417,100 +406,63 @@ function PlatformEcosystem() {
             Discord is where you set up Cleo and manage your server. Twitch and
             Kick link the creator accounts used by their related bot tools.
           </p>
-        </div>
-
-        <div>
-          <div className="space-y-3 sm:hidden">
-            <div className="relative mx-auto mb-6 size-40 overflow-hidden rounded-full border border-white/14 bg-neutral-950 shadow-[0_0_60px_color-mix(in_oklab,var(--primary)_12%,transparent)]">
-              <Image
-                alt="Cleo"
-                className="size-full object-cover"
-                height={160}
-                loading="eager"
-                src="/android-chrome-512x512.png"
-                unoptimized
-                width={160}
-              />
-            </div>
-            <PlatformCard
-              description="The main dashboard for server configuration, moderation, support, welcome, and logs."
-              icon={IconBrandDiscord}
-              label="Start here"
-              name="Discord"
-              tone="cyan"
-            />
-            <PlatformCard
-              description="Connect your Twitch account to Cleo's Twitch bot and related tools."
-              icon={IconBrandTwitch}
-              label="Linked creator account"
-              name="Twitch"
-              tone="indigo"
-            />
-            <PlatformCard
-              description="Connect your Kick account to Cleo's Kick bot and related tools."
-              icon={IconBrandKick}
-              label="Linked creator account"
-              name="Kick"
-              tone="emerald"
-            />
-          </div>
-
-          <div className="relative hidden min-h-[31rem] sm:block">
+          <div className="relative mt-10 hidden h-52 sm:block">
             <div
               aria-hidden
-              className="absolute top-1/2 left-1/2 size-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_68%)] blur-xl"
+              className="absolute top-1/2 left-24 size-52 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_70%)] blur-xl"
             />
-            <div className="absolute top-1/2 left-1/2 z-0 size-60 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border border-white/14 bg-neutral-950 shadow-[0_0_70px_color-mix(in_oklab,var(--primary)_12%,transparent)]">
+            <div className="absolute inset-y-0 left-0 size-52 overflow-hidden rounded-full border border-white/14 bg-neutral-950 shadow-[0_0_70px_color-mix(in_oklab,var(--primary)_12%,transparent)]">
               <Image
                 alt="Cleo"
                 className="size-full object-cover"
-                height={240}
-                sizes="15rem"
+                height={208}
+                sizes="13rem"
                 src="/android-chrome-512x512.png"
-                width={240}
+                width={208}
               />
             </div>
-
-            <PlatformCard
-              className="absolute inset-x-0 right-auto bottom-0 z-10 w-[58%]"
-              description="The main dashboard for server configuration, moderation, support, welcome, and logs."
-              icon={IconBrandDiscord}
-              label="Start here"
-              name="Discord"
-              tone="cyan"
-            />
-            <PlatformCard
-              className="absolute top-0 right-0 z-10 w-[48%]"
-              description="Connect your Twitch account to Cleo's Twitch bot and related tools."
-              icon={IconBrandTwitch}
-              label="Linked creator account"
-              name="Twitch"
-              tone="indigo"
-            />
-            <PlatformCard
-              className="absolute right-0 bottom-4 z-10 w-[42%]"
-              description="Connect your Kick account to Cleo's Kick bot and related tools."
-              icon={IconBrandKick}
-              label="Linked creator account"
-              name="Kick"
-              tone="emerald"
+            <div
+              aria-hidden
+              className="absolute top-1/2 right-0 left-48 h-px bg-gradient-to-r from-cleo-cyan/50 to-transparent"
             />
           </div>
+        </div>
+
+        <div className="border-t border-white/12">
+          <PlatformRow
+            description="The main dashboard for server configuration, moderation, support, welcome, and logs."
+            icon={IconBrandDiscord}
+            label="Start here"
+            name="Discord"
+            tone="cyan"
+          />
+          <PlatformRow
+            description="Connect your Twitch account to Cleo's Twitch bot and related tools."
+            icon={IconBrandTwitch}
+            label="Linked creator account"
+            name="Twitch"
+            tone="indigo"
+          />
+          <PlatformRow
+            description="Connect your Kick account to Cleo's Kick bot and related tools."
+            icon={IconBrandKick}
+            label="Linked creator account"
+            name="Kick"
+            tone="emerald"
+          />
         </div>
       </div>
     </section>
   )
 }
 
-function PlatformCard({
-  className,
+function PlatformRow({
   description,
   icon: Icon,
   label,
   name,
   tone,
 }: {
-  className?: string
   description: string
   icon: typeof IconBrandDiscord
   label: string
@@ -518,30 +470,23 @@ function PlatformCard({
   tone: "cyan" | "emerald" | "indigo"
 }) {
   return (
-    <article
-      className={cn(
-        "border border-white/12 bg-neutral-950/96 p-5 shadow-xl shadow-black/30 backdrop-blur-sm sm:p-6",
-        className
-      )}
-    >
-      <div className="flex items-start gap-4">
-        <Icon
-          aria-hidden
-          className={cn(
-            "mt-0.5 size-7 shrink-0",
-            tone === "cyan" && "text-cleo-cyan",
-            tone === "indigo" && "text-cleo-indigo",
-            tone === "emerald" && "text-emerald-400"
-          )}
-        />
-        <div>
-          <h3 className="font-heading text-xl font-semibold">{name}</h3>
-          <p className="mt-1 text-sm text-foreground/72">{label}</p>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-            {description}
-          </p>
-        </div>
+    <article className="group grid gap-4 border-b border-white/10 py-8 sm:grid-cols-[2.75rem_minmax(0,0.65fr)_minmax(0,1.35fr)] sm:gap-6 sm:py-10">
+      <Icon
+        aria-hidden
+        className={cn(
+          "size-7 transition-colors duration-200 group-hover:text-white",
+          tone === "cyan" && "text-cleo-cyan",
+          tone === "indigo" && "text-cleo-indigo",
+          tone === "emerald" && "text-emerald-400"
+        )}
+      />
+      <div>
+        <h3 className="font-heading text-xl font-semibold">{name}</h3>
+        <p className="mt-1 text-sm text-foreground/72">{label}</p>
       </div>
+      <p className="text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
+        {description}
+      </p>
     </article>
   )
 }
