@@ -1,0 +1,28 @@
+apps/dashboard/package.json
+  h_2bc691fceb4fe5 7
+packages/backend/convex/_generated/api.d.ts
+  h_2bc691fceb4fe5 4654-4659
+packages/backend/convex/_generated/server.d.ts
+  h_2bc691fceb4fe5 24-34,109-116
+packages/backend/convex/_generated/server.js
+  h_2bc691fceb4fe5 94-101
+packages/backend/convex/actions/bot/discord/gateway/guildJoined.test.ts
+  h_2bc691fceb4fe5 13-15,18,21-23,26-28,30-53,56,82,90-96,100,102-103
+packages/backend/convex/actions/bot/discord/gateway/guildJoined.ts
+  h_2bc691fceb4fe5 23,43-49
+packages/backend/convex/mutations/dashboard/discord/installSessions/upsert.test.ts
+  h_2bc691fceb4fe5 1-143
+packages/backend/convex/mutations/dashboard/discord/installSessions/upsert.ts
+  h_2bc691fceb4fe5 2,4-7,44-56,68-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "40a4432c8e126f556a5fe020617db62adb198d7a",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
