@@ -1,0 +1,14 @@
+apps/dashboard/src/app/(app)/layout.tsx
+  h_2bc691fceb4fe5 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "49707d7bd8ef2a470dc056b9fff98e5c8de7e63b",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
