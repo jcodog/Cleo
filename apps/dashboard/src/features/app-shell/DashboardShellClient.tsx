@@ -41,6 +41,9 @@ export function DashboardShellClient({
   const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
+  const setSelectedDiscordGuildId = useAppShellStore(
+    (state) => state.setSelectedDiscordGuildId
+  )
   const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
   const { activeDiscordGuildId, invalidRouteGuildId, safeDashboardPath } =
     getDashboardGuildSelection({
@@ -58,6 +61,13 @@ export function DashboardShellClient({
       : "/dashboard"
 
   useEffect(() => {
+    if (
+      manageableGuilds !== undefined &&
+      storedDiscordGuildId !== activeDiscordGuildId
+    ) {
+      setSelectedDiscordGuildId(activeDiscordGuildId)
+    }
+
     if (invalidRouteGuildId) {
       router.replace(safeDashboardPath)
       return
@@ -69,9 +79,12 @@ export function DashboardShellClient({
   }, [
     activeDiscordGuildId,
     invalidRouteGuildId,
+    manageableGuilds,
     pathname,
     router,
     safeDashboardPath,
+    setSelectedDiscordGuildId,
+    storedDiscordGuildId,
   ])
 
   const discordNavSections: AppShellNavSection[] = [
