@@ -25,12 +25,6 @@ import {
 } from "@/features/app-shell/routes"
 import { getStaffTopbarEntry } from "@/features/app-shell/staffAccess"
 import type { AppShellNavSection } from "@/features/app-shell/types"
-import {
-  LAST_DISCORD_GUILD_COOKIE,
-  serializeLastDiscordGuildPreference,
-} from "@/features/auth/lastGuildPreference"
-
-const LAST_GUILD_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 
 export function DashboardShellClient({
   children,
@@ -39,7 +33,7 @@ export function DashboardShellClient({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isLoaded: isClerkLoaded, isSignedIn, userId } = useAuth()
+  const { isLoaded: isClerkLoaded, isSignedIn } = useAuth()
   const staffAccess = useQuery(api.queries.dashboard.staff.access.get)
   const manageableGuilds = useQuery(
     api.queries.dashboard.discord.guilds.manageable.list
@@ -60,6 +54,9 @@ export function DashboardShellClient({
       storedDiscordGuildId,
     })
   const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
+  const isResolvingDashboardEntry =
+    pathname === "/dashboard" &&
+    (manageableGuilds === undefined || activeDiscordGuildId !== undefined)
   const discordOverviewHref = activeDiscordGuildId
     ? `/dashboard/${activeDiscordGuildId}`
     : "/dashboard"
@@ -74,10 +71,6 @@ export function DashboardShellClient({
       storedDiscordGuildId !== activeDiscordGuildId
     ) {
       setSelectedDiscordGuildId(activeDiscordGuildId)
-    }
-
-    if (userId && activeDiscordGuildId) {
-      persistLastDiscordGuildCookie(userId, activeDiscordGuildId)
     }
 
     if (invalidRouteGuildId) {
@@ -97,7 +90,6 @@ export function DashboardShellClient({
     safeDashboardPath,
     setSelectedDiscordGuildId,
     storedDiscordGuildId,
-    userId,
   ])
 
   const discordNavSections: AppShellNavSection[] = [
@@ -191,7 +183,7 @@ export function DashboardShellClient({
     twitch: [],
   }
 
-  if (isClerkLoaded && !isSignedIn) {
+  if ((isClerkLoaded && !isSignedIn) || isResolvingDashboardEntry) {
     return null
   }
 
@@ -206,12 +198,4 @@ export function DashboardShellClient({
       {children}
     </AppShell>
   )
-}
-
-function persistLastDiscordGuildCookie(userId: string, guildId: string) {
-  const value = serializeLastDiscordGuildPreference({ guildId, userId })
-  const secureAttribute =
-    window.location.protocol === "https:" ? "; Secure" : ""
-
-  document.cookie = `${LAST_DISCORD_GUILD_COOKIE}=${value}; Path=/; Max-Age=${LAST_GUILD_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secureAttribute}`
 }
