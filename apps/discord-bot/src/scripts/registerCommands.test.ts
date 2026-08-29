@@ -7,27 +7,34 @@ import {
   Routes,
 } from "discord.js"
 
-import type { CommandData } from "@/classes/Command"
+import { Command, type CommandData } from "@/classes/Command"
 import { loadCommands } from "@/loaders/loadCommands"
 
 import {
-  prepareCommandDataForTarget,
+  prepareCommandsForTarget,
   registerCommands,
   resolveRegisterTarget,
-  validateCommandData,
+  validateCommands,
 } from "./registerCommands"
 
 const guildId = "123456789012345678"
 const applicationId = "987654321098765432"
 
-function commandData(overrides: Partial<CommandData> = {}): CommandData {
-  return {
+function makeCommand(overrides: Partial<CommandData> = {}): Command {
+  const data: CommandData = {
     name: "ping",
     description: "Check whether Cleo is responding",
     contexts: [InteractionContextType.Guild],
     integration_types: [ApplicationIntegrationType.GuildInstall],
     ...overrides,
   }
+
+  return new Command({
+    data,
+    execute() {
+      return undefined
+    },
+  })
 }
 
 function createRecordingRest(options: { failOnCall?: number } = {}) {
@@ -60,39 +67,52 @@ function createRecordingRest(options: { failOnCall?: number } = {}) {
   }
 }
 
-test("loaded command metadata is valid and unique", async () => {
+test("loaded commands are valid Command instances with unique deployment metadata", async () => {
   const commands = await loadCommands()
-  const loadedCommandData = commands.map((command) => command.data)
 
-  assert.deepEqual(loadedCommandData.map((command) => command.name).sort(), [
+  assert.deepEqual(commands.map((command) => command.data.name).sort(), [
     "ban",
     "cleo",
     "help",
     "kick",
     "ping",
   ])
+  assert.ok(commands.every((command) => command instanceof Command))
+  assert.doesNotThrow(() => validateCommands(commands))
 
-  assert.doesNotThrow(() => validateCommandData(loadedCommandData))
-
-  for (const command of loadedCommandData) {
-    assert.ok(command.name.length > 0)
-    assert.ok(command.description.length > 0)
-    assert.ok(command.contexts?.length)
-    assert.ok(command.integration_types?.length)
+  for (const command of commands) {
+    assert.ok(command.data.name.length > 0)
+    assert.ok(command.data.description.length > 0)
+    assert.ok(command.data.contexts?.length)
+    assert.ok(command.data.integration_types?.length)
+    assert.equal(typeof command.execute, "function")
   }
 })
 
+test("command validation rejects entries that bypass the Command class", () => {
+  const fakeCommand = {
+    data: makeCommand().data,
+    execute() {
+      return undefined
+    },
+  } as Command
+
+  assert.throws(
+    () => validateCommands([fakeCommand]),
+    /not a Command instance/
+  )
+})
+
 test("command validation rejects duplicate command names", () => {
-  const command = commandData()
+  const command = makeCommand()
 
   assert.throws(
     () =>
-      validateCommandData([
+      validateCommands([
         command,
-        {
-          ...command,
+        makeCommand({
           description: "Duplicate ping command",
-        },
+        }),
       ]),
     /Duplicate command name found: \/ping/
   )
@@ -100,19 +120,19 @@ test("command validation rejects duplicate command names", () => {
 
 test("command validation rejects incomplete or mismatched metadata", () => {
   assert.throws(
-    () => validateCommandData([commandData({ contexts: [] })]),
+    () => validateCommands([makeCommand({ contexts: [] })]),
     /does not declare any interaction contexts/
   )
 
   assert.throws(
-    () => validateCommandData([commandData({ integration_types: [] })]),
+    () => validateCommands([makeCommand({ integration_types: [] })]),
     /does not declare any installation types/
   )
 
   assert.throws(
     () =>
-      validateCommandData([
-        commandData({
+      validateCommands([
+        makeCommand({
           contexts: [InteractionContextType.PrivateChannel],
           integration_types: [ApplicationIntegrationType.GuildInstall],
         }),
@@ -144,10 +164,10 @@ test("registration target resolution is deterministic", () => {
   )
 })
 
-test("global registration keeps the full command payload", () => {
+test("global registration uses the full data from Command instances", () => {
   const commands = [
-    commandData(),
-    commandData({
+    makeCommand(),
+    makeCommand({
       name: "private",
       contexts: [
         InteractionContextType.BotDM,
@@ -158,17 +178,17 @@ test("global registration keeps the full command payload", () => {
   ]
 
   assert.deepEqual(
-    prepareCommandDataForTarget(commands, {
+    prepareCommandsForTarget(commands, {
       type: "global",
     }),
-    commands
+    commands.map((command) => command.data)
   )
 })
 
 test("guild registration filters unsupported commands and strips global metadata", (t) => {
   t.mock.method(console, "log", () => undefined)
 
-  const guildCommand = commandData({
+  const guildCommand = makeCommand({
     name: "help",
     contexts: [InteractionContextType.Guild, InteractionContextType.BotDM],
     integration_types: [
@@ -177,7 +197,7 @@ test("guild registration filters unsupported commands and strips global metadata
     ],
   })
 
-  const userOnlyCommand = commandData({
+  const userOnlyCommand = makeCommand({
     name: "private",
     contexts: [
       InteractionContextType.BotDM,
@@ -187,7 +207,7 @@ test("guild registration filters unsupported commands and strips global metadata
   })
 
   assert.deepEqual(
-    prepareCommandDataForTarget([guildCommand, userOnlyCommand], {
+    prepareCommandsForTarget([guildCommand, userOnlyCommand], {
       type: "guild",
       guildId,
     }),
@@ -199,22 +219,22 @@ test("guild registration filters unsupported commands and strips global metadata
     ]
   )
 
-  assert.deepEqual(guildCommand.contexts, [
+  assert.deepEqual(guildCommand.data.contexts, [
     InteractionContextType.Guild,
     InteractionContextType.BotDM,
   ])
-  assert.deepEqual(guildCommand.integration_types, [
+  assert.deepEqual(guildCommand.data.integration_types, [
     ApplicationIntegrationType.GuildInstall,
     ApplicationIntegrationType.UserInstall,
   ])
 })
 
-test("global registration makes one complete overwrite request", async (t) => {
+test("global registration makes one complete overwrite request from Command instances", async (t) => {
   t.mock.method(console, "log", () => undefined)
 
   const commands = [
-    commandData(),
-    commandData({
+    makeCommand(),
+    makeCommand({
       name: "private",
       contexts: [
         InteractionContextType.BotDM,
@@ -230,13 +250,13 @@ test("global registration makes one complete overwrite request", async (t) => {
     token: "token",
     applicationId,
     rest,
-    commandData: commands,
+    commands,
   })
 
   assert.deepEqual(calls, [
     {
       route: Routes.applicationCommands(applicationId),
-      body: commands,
+      body: commands.map((command) => command.data),
     },
   ])
 })
@@ -244,7 +264,7 @@ test("global registration makes one complete overwrite request", async (t) => {
 test("global registration does not issue an empty overwrite before replacement", async (t) => {
   t.mock.method(console, "log", () => undefined)
 
-  const commands = [commandData()]
+  const commands = [makeCommand()]
   const { calls, rest } = createRecordingRest()
 
   await registerCommands({
@@ -252,18 +272,21 @@ test("global registration does not issue an empty overwrite before replacement",
     token: "token",
     applicationId,
     rest,
-    commandData: commands,
+    commands,
   })
 
   assert.equal(calls.length, 1)
-  assert.deepEqual(calls[0]?.body, commands)
+  assert.deepEqual(
+    calls[0]?.body,
+    commands.map((command) => command.data)
+  )
   assert.notDeepEqual(calls[0]?.body, [])
 })
 
 test("failed global replacement is not preceded by a destructive clear", async (t) => {
   t.mock.method(console, "log", () => undefined)
 
-  const commands = [commandData()]
+  const commands = [makeCommand()]
   const { calls, rest } = createRecordingRest({ failOnCall: 1 })
 
   await assert.rejects(
@@ -272,7 +295,7 @@ test("failed global replacement is not preceded by a destructive clear", async (
       token: "token",
       applicationId,
       rest,
-      commandData: commands,
+      commands,
     }),
     /Discord REST overwrite failed/
   )
@@ -280,7 +303,7 @@ test("failed global replacement is not preceded by a destructive clear", async (
   assert.deepEqual(calls, [
     {
       route: Routes.applicationCommands(applicationId),
-      body: commands,
+      body: commands.map((command) => command.data),
     },
   ])
 })
@@ -288,7 +311,7 @@ test("failed global replacement is not preceded by a destructive clear", async (
 test("guild registration preserves global commands by default", async (t) => {
   t.mock.method(console, "log", () => undefined)
 
-  const guildCommand = commandData({
+  const guildCommand = makeCommand({
     name: "help",
     contexts: [InteractionContextType.Guild, InteractionContextType.BotDM],
     integration_types: [
@@ -296,7 +319,7 @@ test("guild registration preserves global commands by default", async (t) => {
       ApplicationIntegrationType.UserInstall,
     ],
   })
-  const userOnlyCommand = commandData({
+  const userOnlyCommand = makeCommand({
     name: "private",
     contexts: [
       InteractionContextType.BotDM,
@@ -311,7 +334,7 @@ test("guild registration preserves global commands by default", async (t) => {
     token: "token",
     applicationId,
     rest,
-    commandData: [guildCommand, userOnlyCommand],
+    commands: [guildCommand, userOnlyCommand],
   })
 
   assert.deepEqual(calls, [
@@ -330,7 +353,7 @@ test("guild registration preserves global commands by default", async (t) => {
 test("guild registration performs explicit global cleanup after install", async (t) => {
   t.mock.method(console, "log", () => undefined)
 
-  const guildCommand = commandData({
+  const guildCommand = makeCommand({
     name: "help",
     contexts: [InteractionContextType.Guild, InteractionContextType.BotDM],
     integration_types: [
@@ -345,7 +368,7 @@ test("guild registration performs explicit global cleanup after install", async 
     token: "token",
     applicationId,
     rest,
-    commandData: [guildCommand],
+    commands: [guildCommand],
     cleanupGlobalCommandsAfterGuildRegistration: true,
   })
 
@@ -366,7 +389,7 @@ test("guild registration performs explicit global cleanup after install", async 
   ])
 })
 
-test("invalid payloads fail before any REST request", async (t) => {
+test("invalid commands fail before any REST request", async (t) => {
   t.mock.method(console, "log", () => undefined)
 
   const invalidPayload = createRecordingRest()
@@ -377,12 +400,33 @@ test("invalid payloads fail before any REST request", async (t) => {
       token: "token",
       applicationId,
       rest: invalidPayload.rest,
-      commandData: [commandData({ contexts: [] })],
+      commands: [makeCommand({ contexts: [] })],
     }),
     /does not declare any interaction contexts/
   )
 
   assert.deepEqual(invalidPayload.calls, [])
+
+  const bypassedClass = createRecordingRest()
+  const fakeCommand = {
+    data: makeCommand().data,
+    execute() {
+      return undefined
+    },
+  } as Command
+
+  await assert.rejects(
+    registerCommands({
+      args: ["node", "register", "--global"],
+      token: "token",
+      applicationId,
+      rest: bypassedClass.rest,
+      commands: [fakeCommand],
+    }),
+    /not a Command instance/
+  )
+
+  assert.deepEqual(bypassedClass.calls, [])
 
   const emptyPreparedPayload = createRecordingRest()
 
@@ -392,8 +436,8 @@ test("invalid payloads fail before any REST request", async (t) => {
       token: "token",
       applicationId,
       rest: emptyPreparedPayload.rest,
-      commandData: [
-        commandData({
+      commands: [
+        makeCommand({
           contexts: [
             InteractionContextType.BotDM,
             InteractionContextType.PrivateChannel,
