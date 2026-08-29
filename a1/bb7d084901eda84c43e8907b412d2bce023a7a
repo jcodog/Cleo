@@ -1,0 +1,14 @@
+apps/dashboard/src/components/providers/app-providers.tsx
+  h_2bc691fceb4fe5 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "a1bb7d084901eda84c43e8907b412d2bce023a7a",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
