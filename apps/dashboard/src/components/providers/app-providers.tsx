@@ -20,6 +20,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       appearance={{
         theme: resolvedTheme === "dark" ? [dark, shadcn] : [shadcn],
       }}
+      afterSignOutUrl="/"
     >
       <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
         {children}
