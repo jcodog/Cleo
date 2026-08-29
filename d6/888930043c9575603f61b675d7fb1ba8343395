@@ -1,0 +1,21 @@
+apps/dashboard/src/features/landing/LandingPage.tsx
+  s_8b5253b3ea608a::t_ff98ba8ff299c8 220-221,231,234,242,245,340,342,348,352,355,358,364-365,369,400-401,409,412,414,418-419,421,430-453,459,473-485,487-489
+  s_8b5253b3ea608a::t_1b0f3c346f6722 96-97,204,424-426
+  s_8b5253b3ea608a::t_2fe8bdf5e184d8 350,361
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "d6888930043c9575603f61b675d7fb1ba8343395",
+  "prompts": {},
+  "sessions": {
+    "s_8b5253b3ea608a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a04f3f-c84f-7502-84df-ded10174dc0a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
