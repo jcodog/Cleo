@@ -9,7 +9,7 @@ import { getConvexAuthToken } from "@/lib/convex-auth"
 export const metadata: Metadata = {
   title: {
     default: "Dashboard",
-    template: "%s | Cleo Dashboard",
+    template: "%s | Cleo",
   },
   robots: {
     index: false,
