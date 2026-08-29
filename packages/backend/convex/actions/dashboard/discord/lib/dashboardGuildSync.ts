@@ -1,6 +1,6 @@
 "use node"
 
-import { discordEnv } from "@workspace/env/discord"
+import { createLogger } from "@workspace/logger"
 import { ConvexError } from "convex/values"
 
 import { internal } from "../../../../_generated/api"
@@ -11,12 +11,9 @@ import {
   getClerkUser,
 } from "../../../../lib/clerkOAuth"
 import {
-  fetchDiscordBotGuilds,
   fetchDiscordCurrentUserGuilds,
-  type DiscordBotGuildSummary,
   type DiscordManageableGuild,
 } from "../../../../lib/discordRest"
-import { buildRestVerifiedGuildInput } from "./restAccess"
 
 type KnownGuild = {
   discordGuildId: string
@@ -55,18 +52,7 @@ type ActiveInstallSession = {
   expiresAt: number
 }
 
-type BotGuildDiscovery =
-  | {
-      status: "ready"
-      guildsByDiscordId: Map<string, DiscordBotGuildSummary>
-    }
-  | {
-      status: "unavailable"
-      reason:
-        | "discordBotTokenUnavailable"
-        | "discordApiUnavailable"
-        | "discordRestDeniedAccess"
-    }
+const dashboardDiscordLog = createLogger("backend.dashboard.discord")
 
 export async function syncDashboardGuilds(ctx: ActionCtx) {
   let context = await ctx.runQuery(
@@ -139,6 +125,11 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
   const tokenResult = await getClerkDiscordAccessToken(context.user.clerkUserId)
 
   if (tokenResult.status === "unavailable") {
+    dashboardDiscordLog.warn("Discord OAuth guild discovery could not start.", {
+      reason: tokenResult.reason,
+      knownGuildCount: context.guilds.length,
+    })
+
     return {
       status: "discordGuildDiscoveryUnavailable" as const,
       reason: tokenResult.reason,
@@ -151,6 +142,11 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
   )
 
   if (userGuildsResult.status === "unavailable") {
+    dashboardDiscordLog.warn("Discord OAuth guild discovery failed.", {
+      reason: userGuildsResult.reason,
+      knownGuildCount: context.guilds.length,
+    })
+
     return {
       status: "discordGuildDiscoveryUnavailable" as const,
       reason: userGuildsResult.reason,
@@ -158,122 +154,51 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     }
   }
 
-  const botGuildDiscovery = await getBotGuildDiscovery()
+  const liveGuilds = userGuildsResult.guilds
 
-  if (botGuildDiscovery.status === "ready") {
-    const verifiedAt = Date.now()
-
-    for (const userGuild of userGuildsResult.guilds) {
-      const botGuild = botGuildDiscovery.guildsByDiscordId.get(
-        userGuild.discordGuildId
-      )
-
-      if (!userGuild.canManage || !botGuild) {
-        continue
-      }
-
-      await ctx.runMutation(
-        internal.mutations.dashboard.discord.guilds.upsertRestVerified.upsert,
-        buildRestVerifiedGuildInput({
-          botGuild,
-          discordAccount: context.discordAccount,
-          user: context.user,
-          userGuild,
-          verifiedAt,
-        })
-      )
-    }
-
-    for (const knownGuild of context.guilds) {
-      if (
-        knownGuild.state !== "installed" ||
-        botGuildDiscovery.guildsByDiscordId.has(knownGuild.discordGuildId)
-      ) {
-        continue
-      }
-
-      await ctx.runMutation(
-        internal.mutations.dashboard.discord.guilds.markBotMissing.mark,
-        {
-          discordGuildId: knownGuild.discordGuildId,
-          verifiedAt,
-        }
-      )
-    }
-  }
-
-  if (botGuildDiscovery.status === "unavailable") {
-    return {
-      status: "discordGuildDiscoveryUnavailable" as const,
-      reason: botGuildDiscovery.reason,
-      guilds: context.guilds,
-    }
-  }
-
-  const knownInstalledGuildIds = new Set(
-    context.guilds
-      .filter((guild) => guild.state === "installed")
-      .map((guild) => guild.discordGuildId)
-  )
+  dashboardDiscordLog.info("Discord OAuth guild discovery completed.", {
+    guildCount: liveGuilds.length,
+    manageableGuildCount: liveGuilds.filter((guild) => guild.canManage).length,
+    installableGuildCount: liveGuilds.filter((guild) => guild.canInstall).length,
+    knownGuildCount: context.guilds.length,
+    activeInstallCount: context.installSessions.length,
+  })
 
   return {
     status: "ready" as const,
     guilds: mergeInstallableGuilds({
       activeSessions: context.installSessions,
-      botGuildDiscovery,
       knownGuilds: context.guilds,
-      knownInstalledGuildIds,
-      liveGuilds: userGuildsResult.guilds,
+      liveGuilds,
     }),
   }
 }
 
 function mergeInstallableGuilds({
   activeSessions,
-  botGuildDiscovery,
-  knownInstalledGuildIds,
   knownGuilds,
   liveGuilds,
 }: {
   activeSessions: ActiveInstallSession[]
-  botGuildDiscovery: BotGuildDiscovery
-  knownInstalledGuildIds: Set<string>
   knownGuilds: KnownGuild[]
   liveGuilds: DiscordManageableGuild[]
 }): KnownGuild[] {
-  const guildsByDiscordId = new Map<string, KnownGuild>()
   const sessionsByDiscordId = new Map(
     activeSessions.map((session) => [session.discordGuildId, session])
   )
   const knownGuildsByDiscordId = new Map(
     knownGuilds.map((guild) => [guild.discordGuildId, guild])
   )
+  const guilds: KnownGuild[] = []
 
+  // Discord's OAuth `guilds` scope is the source of truth for which servers
+  // this user currently belongs to and can manage. Convex only overlays Cleo's
+  // already-known installed/pending state for those live Discord guilds.
   for (const liveGuild of liveGuilds) {
     const knownGuild = knownGuildsByDiscordId.get(liveGuild.discordGuildId)
-    const botGuild =
-      botGuildDiscovery.status === "ready"
-        ? botGuildDiscovery.guildsByDiscordId.get(liveGuild.discordGuildId)
-        : undefined
-
-    if (!liveGuild.canManage) {
-      if (knownGuild !== undefined) {
-        guildsByDiscordId.set(liveGuild.discordGuildId, {
-          ...knownGuild,
-          state: "forbidden",
-          unavailableReason: "missingManageGuildPermission",
-        })
-      }
-
-      continue
-    }
-
     const session = sessionsByDiscordId.get(liveGuild.discordGuildId)
     const state = getLiveGuildState({
-      botGuild,
-      hasKnownInstalledRecord: knownInstalledGuildIds.has(
-        liveGuild.discordGuildId
-      ),
+      knownGuild,
       session,
       userGuild: liveGuild,
     })
@@ -282,16 +207,14 @@ function mergeInstallableGuilds({
       continue
     }
 
-    const iconUrl = botGuild?.iconUrl ?? liveGuild.iconUrl
-    const iconHash = botGuild?.iconHash ?? liveGuild.iconHash
-    const memberCount = botGuild?.memberCount ?? liveGuild.memberCount
-    const presenceCount = botGuild?.presenceCount ?? liveGuild.presenceCount
-    const unavailableReason =
-      state === "unavailable" ? ("botLeft" as const) : undefined
+    const iconUrl = liveGuild.iconUrl ?? knownGuild?.iconUrl
+    const iconHash = liveGuild.iconHash ?? knownGuild?.iconHash
+    const memberCount = liveGuild.memberCount ?? knownGuild?.memberCount
+    const presenceCount = liveGuild.presenceCount ?? knownGuild?.presenceCount
 
-    guildsByDiscordId.set(liveGuild.discordGuildId, {
+    guilds.push({
       discordGuildId: liveGuild.discordGuildId,
-      name: botGuild?.name ?? liveGuild.name,
+      name: liveGuild.name,
       ...(iconUrl !== undefined ? { iconUrl } : {}),
       ...(iconHash !== undefined ? { iconHash } : {}),
       ...(memberCount !== undefined ? { memberCount } : {}),
@@ -303,7 +226,6 @@ function mergeInstallableGuilds({
         ? { permissions: liveGuild.permissions }
         : {}),
       state,
-      ...(unavailableReason !== undefined ? { unavailableReason } : {}),
       ...(session !== undefined && state === "pending"
         ? {
             installSessionId: session._id,
@@ -317,43 +239,7 @@ function mergeInstallableGuilds({
     })
   }
 
-  for (const knownGuild of knownGuilds) {
-    const liveGuild = guildsByDiscordId.get(knownGuild.discordGuildId)
-
-    if (!liveGuild) {
-      guildsByDiscordId.set(knownGuild.discordGuildId, {
-        ...knownGuild,
-        state: "forbidden",
-        unavailableReason: "missingManageGuildPermission",
-      })
-      continue
-    }
-
-    if (liveGuild.state === "unavailable" || liveGuild.state === "forbidden") {
-      guildsByDiscordId.set(knownGuild.discordGuildId, liveGuild)
-      continue
-    }
-
-    guildsByDiscordId.set(knownGuild.discordGuildId, {
-      ...liveGuild,
-      ...(liveGuild.iconUrl === undefined && knownGuild.iconUrl !== undefined
-        ? { iconUrl: knownGuild.iconUrl }
-        : {}),
-      ...(liveGuild.iconHash === undefined && knownGuild.iconHash !== undefined
-        ? { iconHash: knownGuild.iconHash }
-        : {}),
-      ...(liveGuild.memberCount === undefined &&
-      knownGuild.memberCount !== undefined
-        ? { memberCount: knownGuild.memberCount }
-        : {}),
-      ...(liveGuild.presenceCount === undefined &&
-      knownGuild.presenceCount !== undefined
-        ? { presenceCount: knownGuild.presenceCount }
-        : {}),
-    })
-  }
-
-  return Array.from(guildsByDiscordId.values()).sort((left, right) => {
+  return guilds.sort((left, right) => {
     const stateDelta =
       getStateSortOrder(left.state) - getStateSortOrder(right.state)
 
@@ -366,17 +252,15 @@ function mergeInstallableGuilds({
 }
 
 function getLiveGuildState({
-  botGuild,
-  hasKnownInstalledRecord,
+  knownGuild,
   session,
   userGuild,
 }: {
-  botGuild: DiscordBotGuildSummary | undefined
-  hasKnownInstalledRecord: boolean
+  knownGuild: KnownGuild | undefined
   session: ActiveInstallSession | undefined
   userGuild: DiscordManageableGuild
 }): KnownGuild["state"] | null {
-  if (botGuild !== undefined) {
+  if (knownGuild?.state === "installed" && userGuild.canManage) {
     return "installed"
   }
 
@@ -388,38 +272,7 @@ function getLiveGuildState({
     return "installable"
   }
 
-  if (hasKnownInstalledRecord) {
-    return "unavailable"
-  }
-
   return null
-}
-
-async function getBotGuildDiscovery(): Promise<BotGuildDiscovery> {
-  if (!discordEnv.DISCORD_BOT_TOKEN) {
-    return {
-      status: "unavailable",
-      reason: "discordBotTokenUnavailable",
-    }
-  }
-
-  const botGuildsResult = await fetchDiscordBotGuilds(
-    discordEnv.DISCORD_BOT_TOKEN
-  )
-
-  if (botGuildsResult.status === "unavailable") {
-    return {
-      status: "unavailable",
-      reason: botGuildsResult.reason,
-    }
-  }
-
-  return {
-    status: "ready",
-    guildsByDiscordId: new Map(
-      botGuildsResult.guilds.map((guild) => [guild.discordGuildId, guild])
-    ),
-  }
 }
 
 async function syncCurrentClerkUser(ctx: ActionCtx) {

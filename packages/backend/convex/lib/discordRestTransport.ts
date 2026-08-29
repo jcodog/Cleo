@@ -1,6 +1,9 @@
+import { createLogger } from "@workspace/logger"
+
 const DISCORD_FETCH_TIMEOUT_MS = 10_000
 const DISCORD_RATE_LIMIT_MAX_RETRIES = 2
 const DISCORD_RATE_LIMIT_WAIT_BUDGET_MS = 5_000
+const discordRestLog = createLogger("backend.discord-rest")
 
 export type DiscordJsonResponse = {
   ok: boolean
@@ -52,6 +55,15 @@ export async function fetchDiscordJson(
           retries >= maxRateLimitRetries ||
           retryDelayMs > rateLimitWaitBudgetMs - waitedMs
         ) {
+          discordRestLog.warn("Discord REST rate-limit retry exhausted.", {
+            ...getDiscordRequestLogContext(url, init),
+            status: response.status,
+            retryDelayMs,
+            retries,
+            waitedMs,
+            waitBudgetMs: rateLimitWaitBudgetMs,
+          })
+
           return { ok: false, status: response.status }
         }
 
@@ -63,6 +75,12 @@ export async function fetchDiscordJson(
 
       if (!response.ok) {
         await discardResponseBody(response)
+        discordRestLog.warn("Discord REST request failed.", {
+          ...getDiscordRequestLogContext(url, init),
+          status: response.status,
+          retries,
+          waitedMs,
+        })
         return { ok: false, status: response.status }
       }
 
@@ -76,8 +94,45 @@ export async function fetchDiscordJson(
         json: await response.json(),
       }
     }
-  } catch {
+  } catch (error) {
+    discordRestLog.error("Discord REST request failed before a response.", {
+      ...getDiscordRequestLogContext(url, init),
+      errorType: error instanceof Error ? error.name : typeof error,
+      retries,
+      waitedMs,
+    })
     return null
+  }
+}
+
+function getDiscordRequestLogContext(url: string, init: RequestInit) {
+  let endpoint = "<invalid-url>"
+
+  try {
+    endpoint = new URL(url).pathname
+  } catch {
+    // The transport will surface the actual request failure separately.
+  }
+
+  let authScheme = "none"
+
+  try {
+    const authorization = new Headers(init.headers).get("Authorization")
+    const scheme = authorization?.split(/\s+/, 1)[0]?.toLowerCase()
+
+    if (scheme === "bot" || scheme === "bearer") {
+      authScheme = scheme
+    } else if (scheme) {
+      authScheme = "other"
+    }
+  } catch {
+    authScheme = "unreadable"
+  }
+
+  return {
+    method: init.method?.toUpperCase() ?? "GET",
+    endpoint,
+    authScheme,
   }
 }
 
