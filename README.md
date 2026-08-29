@@ -6,7 +6,7 @@
 
 Cleo brings moderation, support, configuration, operational visibility and community tooling into one typed platform, with Discord as the first production integration and a path toward broader creator and workplace communication surfaces.
 
-[Website](https://cleoai.cloud) · [Dashboard](https://beta.cleoai.cloud) · [Coverage](https://jcodog.github.io/Cleo/) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+[Website](https://cleoai.cloud) · [Coverage](https://jcodog.github.io/Cleo/) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 [![Regression Tests and Coverage](https://github.com/jcodog/Cleo/actions/workflows/regression.yml/badge.svg)](https://github.com/jcodog/Cleo/actions/workflows/regression.yml)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-blue.svg)](LICENSE)
@@ -36,16 +36,16 @@ Cleo reached this point without paid advertising or promotion through major Disc
 
 ## What works today
 
-| Surface | Status | Purpose |
-| --- | --- | --- |
-| Discord runtime | Production | Guild lifecycle, moderation, welcome flows, support, logging, runtime incidents and focused utility commands |
-| Cleo dashboard | Public beta | Installation, guild configuration, audit visibility, support routing and staff operations |
-| Convex control plane | Production foundation | Configuration, operational state, moderation, support, identity and product data |
-| Cleo Profiles and Pets | In development | Account identity, progression, public cards, battles and future Discord-native surfaces |
-| Twitch integration | Planned migration | Creator chat automation, linked accounts and EventSub lifecycle |
-| Kick integration | Planned migration | OAuth, webhooks, creator chat automation and linked accounts |
-| Realtime relay | Planned migration | Typed live events, overlays and cross-platform delivery |
-| Cleo Work | Long-term direction | Workplace and customer communication surfaces such as Teams, Slack and website live chat |
+| Surface                | Status                | Purpose                                                                                                      |
+| ---------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Discord runtime        | Production            | Guild lifecycle, moderation, welcome flows, support, logging, runtime incidents and focused utility commands |
+| Cleo dashboard         | Public beta           | Installation, guild configuration, audit visibility, support routing and staff operations                    |
+| Convex control plane   | Production foundation | Configuration, operational state, moderation, support, identity and product data                             |
+| Cleo Profiles and Pets | In development        | Account identity, progression, public cards, battles and future Discord-native surfaces                      |
+| Twitch integration     | Planned migration     | Creator chat automation, linked accounts and EventSub lifecycle                                              |
+| Kick integration       | Planned migration     | OAuth, webhooks, creator chat automation and linked accounts                                                 |
+| Realtime relay         | Planned migration     | Typed live events, overlays and cross-platform delivery                                                      |
+| Cleo Work              | Long-term direction   | Workplace and customer communication surfaces such as Teams, Slack and website live chat                     |
 
 Planned features are deliberately labelled as planned. A feature being present in a legacy Cleo repository does not mean it is shipped or supported in the current product.
 
@@ -264,7 +264,6 @@ See [`LICENSE`](LICENSE) for the complete licence terms.
 ## Project links
 
 - Website: [cleoai.cloud](https://cleoai.cloud)
-- Dashboard: [beta.cleoai.cloud](https://beta.cleoai.cloud)
 - Coverage: [jcodog.github.io/Cleo](https://jcodog.github.io/Cleo/)
 - Company: [JCoNet LTD](https://jconet.co.uk)
 
