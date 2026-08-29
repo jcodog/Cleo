@@ -1,0 +1,16 @@
+packages/backend/convex/_generated/api.d.ts
+  h_2bc691fceb4fe5 2144-2167
+packages/backend/convex/queries/dashboard/discord/install/context.ts
+  h_2bc691fceb4fe5 3,8,82-100,191-250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e31f5d15c55f329c33aa7d4a447ff84a955acf31",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
