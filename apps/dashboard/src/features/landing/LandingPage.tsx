@@ -84,17 +84,17 @@ function Hero() {
       <div className="cleo-enter relative z-10 flex max-w-2xl flex-col items-start gap-5 sm:gap-7 lg:pb-8">
         <p className="flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-cleo-cyan uppercase sm:text-sm">
           <IconBrandDiscord aria-hidden className="size-4" />
-          Discord-first community assistant
+          Manage your Discord community with Cleo
         </p>
 
         <div className="flex flex-col gap-5">
           <h1 className="font-heading text-[clamp(3.25rem,4.5vw,4.25rem)] leading-[0.94] font-semibold tracking-[-0.045em] text-balance">
-            Run your communities
-            <span className="block text-cleo-cyan">with Cleo beside you.</span>
+            Your Discord server,
+            <span className="block text-cleo-cyan">easier to manage.</span>
           </h1>
           <p className="max-w-xl text-base leading-7 text-pretty text-foreground/76 sm:text-lg sm:leading-8">
-            Manage Discord, protect your members, automate routine work, and
-            connect the creator platforms around your community.
+            Set up welcomes, moderation, logs, support, and automations from
+            one dashboard, with help from Cleo when you need it.
           </p>
         </div>
 
@@ -190,25 +190,25 @@ const VALUE_AREAS = [
     icon: IconServer,
     title: "Manage your server",
     description:
-      "Configure Cleo's useful Discord features from one clear dashboard.",
+      "Set up Cleo's Discord features without hunting through bot commands.",
   },
   {
     icon: IconShieldCheck,
     title: "Protect your members",
     description:
-      "Give moderators clear controls and keep important decisions visible.",
+      "Give moderators clear settings and keep important outcomes easy to find.",
   },
   {
     icon: IconAdjustments,
     title: "Automate the routine",
     description:
-      "Set up welcome, logging, support, and repeatable server behaviour.",
+      "Handle welcomes, logs, support, and repeatable server tasks.",
   },
   {
     icon: IconMessageChatbot,
-    title: "Get useful assistance",
+    title: "Ask Cleo for help",
     description:
-      "Bring relevant context to the team without handing over final control.",
+      "Use the context your team chooses while people make the final call.",
   },
 ] as const
 
@@ -221,10 +221,11 @@ function ValueSummary() {
       <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
         <div className="max-w-3xl">
           <h2 className="font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            Everything you need to run a better community.
+            Less time chasing settings and bot commands.
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-            Practical tools for the work community teams handle every day.
+            Cleo keeps the everyday work of running a Discord server in one
+            place.
           </p>
         </div>
 
@@ -266,11 +267,11 @@ function ProductShowcase() {
       <div className="relative mx-auto w-full max-w-7xl px-5 py-24 sm:px-8 sm:py-28 lg:px-10 lg:py-32">
         <div className="grid items-end gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <h2 className="max-w-3xl font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            Built to be used, not figured out.
+            See what is happening. Change what matters.
           </h2>
           <p className="max-w-xl text-base leading-7 text-muted-foreground sm:justify-self-end sm:text-lg sm:leading-8">
-            The real Cleo dashboard keeps server status, configuration, and
-            recent changes close together.
+            Check Cleo's status, open a feature, and update your server without
+            digging through commands or scattered settings.
           </p>
         </div>
 
@@ -301,37 +302,37 @@ function ProductShowcase() {
 const CAPABILITY_PANELS = [
   {
     icon: IconAdjustments,
-    title: "Server management and automation",
+    title: "Server setup and automation",
     description:
-      "Choose the Discord features your server needs and configure them without memorising bot commands.",
+      "Choose the Cleo features your server needs and configure them from the dashboard.",
     bullets: [
       "Welcome cards and channel destinations",
       "Moderation, logging, and support modules",
-      "Server access based on verified permissions",
+      "Access based on verified Discord permissions",
     ],
     lead: true,
   },
   {
     icon: IconShieldCheck,
-    title: "Moderation and user protection",
+    title: "Moderation and logs",
     description:
-      "Cleo records ban and kick outcomes and keeps moderation settings visible to authorised managers.",
+      "Cleo records ban and kick results and keeps moderation settings visible to authorised managers.",
     bullets: [
       "Configured moderation controls",
-      "Visible outcomes and failure states",
-      "Owners and moderators retain control",
+      "Clear results when an action succeeds or fails",
+      "Owners and moderators make the decisions",
     ],
     lead: false,
   },
   {
     icon: IconSparkles,
-    title: "AI assistance with human control",
+    title: "AI help when it makes sense",
     description:
-      "Cleo is built to organise useful community context while people decide what should happen next.",
+      "Use Cleo with the community context your team chooses. People still decide what happens next.",
     bullets: [
       "Context chosen by the community team",
-      "Clear assistance rather than hidden action",
-      "Human judgement remains final",
+      "Suggestions you can review before acting",
+      "People always make the final call",
     ],
     lead: false,
   },
@@ -345,7 +346,7 @@ function CoreCapabilities() {
           className="max-w-4xl font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl"
           id="capabilities-heading"
         >
-          Cleo handles the work around your community.
+          Set up the parts of your server people rely on.
         </h2>
 
         <div className="mt-12 grid gap-4 lg:grid-cols-12">
@@ -410,11 +411,11 @@ function PlatformEcosystem() {
       <div className="mx-auto grid w-full max-w-7xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[0.82fr_1.18fr] lg:gap-20 lg:px-10 lg:py-32">
         <div className="max-w-2xl">
           <h2 className="font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            One community, across the places your people gather.
+            Start with Discord. Connect more when you need to.
           </h2>
           <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-            Discord is Cleo's core workspace. Twitch and Kick connect the
-            creator accounts and bot services around it.
+            Discord is where you set up Cleo and manage your server. Twitch and
+            Kick link the creator accounts used by their related bot tools.
           </p>
         </div>
 
@@ -434,21 +435,21 @@ function PlatformEcosystem() {
             <PlatformCard
               description="The main dashboard for server configuration, moderation, support, welcome, and logs."
               icon={IconBrandDiscord}
-              label="Core platform"
+              label="Start here"
               name="Discord"
               tone="cyan"
             />
             <PlatformCard
-              description="A linked creator account for Cleo's Twitch bot and tools."
+              description="Connect your Twitch account to Cleo's Twitch bot and related tools."
               icon={IconBrandTwitch}
-              label="Connected creator platform"
+              label="Linked creator account"
               name="Twitch"
               tone="indigo"
             />
             <PlatformCard
-              description="A linked creator account for Cleo's Kick bot and tools."
+              description="Connect your Kick account to Cleo's Kick bot and related tools."
               icon={IconBrandKick}
-              label="Connected creator platform"
+              label="Linked creator account"
               name="Kick"
               tone="emerald"
             />
@@ -474,23 +475,23 @@ function PlatformEcosystem() {
               className="absolute inset-x-0 right-auto bottom-0 z-10 w-[58%]"
               description="The main dashboard for server configuration, moderation, support, welcome, and logs."
               icon={IconBrandDiscord}
-              label="Core platform"
+              label="Start here"
               name="Discord"
               tone="cyan"
             />
             <PlatformCard
               className="absolute top-0 right-0 z-10 w-[48%]"
-              description="A linked creator account for Cleo's Twitch bot and tools."
+              description="Connect your Twitch account to Cleo's Twitch bot and related tools."
               icon={IconBrandTwitch}
-              label="Connected creator platform"
+              label="Linked creator account"
               name="Twitch"
               tone="indigo"
             />
             <PlatformCard
               className="absolute right-0 bottom-4 z-10 w-[42%]"
-              description="A linked creator account for Cleo's Kick bot and tools."
+              description="Connect your Kick account to Cleo's Kick bot and related tools."
               icon={IconBrandKick}
-              label="Connected creator platform"
+              label="Linked creator account"
               name="Kick"
               tone="emerald"
             />
@@ -548,19 +549,19 @@ function PlatformCard({
 const TRUST_ITEMS = [
   {
     icon: IconBrandDiscord,
-    title: "Discord-backed identity",
+    title: "Sign in with Discord",
     description:
       "Your Discord account is the primary identity Cleo uses for dashboard access.",
   },
   {
     icon: IconEye,
-    title: "Real server permissions",
+    title: "Verified server access",
     description:
       "Server data is limited to owners and people with verified management access.",
   },
   {
     icon: IconHeartHandshake,
-    title: "People keep control",
+    title: "Decisions stay with people",
     description:
       "Configuration and moderation outcomes remain visible to the people responsible.",
   },
@@ -571,7 +572,7 @@ function TrustAndControl() {
     <section className="relative scroll-mt-20" id="safety">
       <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
         <h2 className="font-heading text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
-          Clear controls. No mystery.
+          You can see who can do what.
         </h2>
         <div className="mt-10 grid border-y border-white/10 md:grid-cols-3 md:divide-x md:divide-white/10">
           {TRUST_ITEMS.map(({ description, icon: Icon, title }) => (
@@ -612,7 +613,8 @@ function CleoPersonality() {
           width={80}
         />
         <p className="max-w-2xl font-heading text-xl leading-7 font-medium tracking-[-0.02em] text-foreground/90 sm:text-2xl sm:leading-8">
-          Cleo keeps the routine tidy. You keep the community human.
+          Cleo handles the repeatable parts, so your team has more time for
+          people.
         </p>
       </div>
     </aside>
@@ -629,10 +631,10 @@ function FinalCallToAction() {
       <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-7 px-5 py-20 sm:px-8 sm:py-24 lg:flex-row lg:items-end lg:justify-between lg:px-10">
         <div>
           <h2 className="font-heading text-4xl leading-none font-semibold tracking-[-0.035em] sm:text-6xl">
-            Ready when your community is.
+            Want Cleo in your server?
           </h2>
           <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg">
-            Bring Cleo into the work your community already does.
+            Sign in with Discord and set up the features your community needs.
           </p>
         </div>
         <LandingAuthActions placement="hero" />

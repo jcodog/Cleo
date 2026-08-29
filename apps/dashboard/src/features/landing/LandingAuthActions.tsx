@@ -21,7 +21,7 @@ export function LandingAuthActions({
       return (
         <span
           aria-hidden
-          className="h-5 w-14 animate-pulse rounded-sm bg-white/6 motion-reduce:animate-none"
+          className="invisible h-5 w-14"
         />
       )
     }
@@ -41,7 +41,7 @@ export function LandingAuthActions({
       return (
         <span
           aria-hidden
-          className="h-8 w-40 animate-pulse rounded-md bg-white/6 motion-reduce:animate-none"
+          className="invisible h-8 w-40"
         />
       )
     }
@@ -73,7 +73,7 @@ export function LandingAuthActions({
     return (
       <div
         aria-hidden
-        className="h-11 w-full max-w-sm animate-pulse rounded-md bg-white/6 motion-reduce:animate-none"
+        className="invisible h-11 w-full max-w-sm"
       />
     )
   }
