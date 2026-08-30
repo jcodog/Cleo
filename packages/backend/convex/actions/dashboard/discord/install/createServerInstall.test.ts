@@ -8,7 +8,7 @@ import {
 } from "./createServerInstall"
 
 test("uses the reviewed Cleo Discord permission envelope", () => {
-  assert.equal(DEFAULT_DISCORD_BOT_PERMISSIONS, "1494917311718")
+  assert.equal(DEFAULT_DISCORD_BOT_PERMISSIONS, "5068182071536887")
 })
 
 test("builds a callback-free Discord guild install URL", () => {
