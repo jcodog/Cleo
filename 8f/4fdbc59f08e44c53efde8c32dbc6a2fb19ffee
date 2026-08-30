@@ -1,0 +1,18 @@
+AGENTS.md
+  h_2bc691fceb4fe5 86-100,102,104,107-123,126,129,132,150-152,154,158-160,164,166
+CONTRIBUTING.md
+  h_2bc691fceb4fe5 16-18,31-74,114-116,119-123,126-129,148-149
+README.md
+  h_2bc691fceb4fe5 165-166,171-187,193-199,202-214,217-221,224-226,228,231-233,286-287
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "8f4fdbc59f08e44c53efde8c32dbc6a2fb19ffee",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
