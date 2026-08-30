@@ -1,0 +1,20 @@
+packages/backend/convex/actions/dashboard/discord/install/createServerInstall.test.ts
+  h_2bc691fceb4fe5 5,10-43,49-52,60-63
+packages/backend/convex/actions/dashboard/discord/install/createServerInstall.ts
+  h_2bc691fceb4fe5 18,115,117,145-152,165-166,202,226-228
+packages/backend/convex/lib/discordRest.test.ts
+  h_2bc691fceb4fe5 4,12-53
+packages/backend/convex/lib/discordRest.ts
+  h_2bc691fceb4fe5 22,119,637-638,646-649
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "2eff2d10ebd3bfb7435242e8154b23e32f4d7f5a",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
