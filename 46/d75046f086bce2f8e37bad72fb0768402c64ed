@@ -1,0 +1,14 @@
+apps/dashboard/src/features/add-server/DiscordAddServerPageShell.tsx
+  h_2bc691fceb4fe5 476-477
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "46d75046f086bce2f8e37bad72fb0768402c64ed",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
