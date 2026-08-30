@@ -4707,7 +4707,6 @@ export declare const internal: {
                 discordGuildId: string;
                 discordUserId: string;
                 expiresAt: number;
-                oauthState: string;
                 userId: Id<"users">;
               },
               {

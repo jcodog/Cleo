@@ -26,7 +26,6 @@ export const discordEnv = createEnv({
     DISCORD_CLIENT_ID: optionalString,
     DISCORD_APPLICATION_ID: optionalString,
     DISCORD_TEST_GUILD_ID: optionalString,
-    DISCORD_INSTALL_REDIRECT_URI: optionalUrl,
     // OPENAI_API_KEY: optionalString,
   },
   runtimeEnv: process.env,

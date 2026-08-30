@@ -12,7 +12,6 @@ export const pending = internalMutation({
     userId: v.id("users"),
     discordUserId: v.string(),
     discordGuildId: v.string(),
-    oauthState: v.string(),
     expiresAt: v.number(),
   },
   returns: discordGuildInstallSessionDoc,
@@ -27,7 +26,6 @@ export const pending = internalMutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         discordUserId: args.discordUserId,
-        oauthState: args.oauthState,
         expiresAt: args.expiresAt,
         updatedAt: now,
       })
@@ -48,7 +46,6 @@ export const pending = internalMutation({
         discordUserId: args.discordUserId,
         discordGuildId: args.discordGuildId,
         status: "pending",
-        oauthState: args.oauthState,
         createdAt: now,
         updatedAt: now,
         expiresAt: args.expiresAt,

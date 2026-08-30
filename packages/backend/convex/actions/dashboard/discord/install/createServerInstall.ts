@@ -15,7 +15,7 @@ import {
 import type { DiscordManageableGuild } from "../../../../lib/discordRest"
 
 const DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
-export const DEFAULT_DISCORD_BOT_PERMISSIONS = "309237894150"
+export const DEFAULT_DISCORD_BOT_PERMISSIONS = "5068182071536887"
 const GUILD_INSTALL_INTEGRATION_TYPE = "0"
 const INSTALL_SESSION_TTL_MS = 30 * 60 * 1000
 
@@ -112,15 +112,15 @@ export const create = action({
     const discordBotPermissions = resolveDiscordBotPermissions(
       discordEnv.DISCORD_BOT_PERMISSIONS
     )
-    const oauthState = createOauthState()
+
     const expiresAt = Date.now() + INSTALL_SESSION_TTL_MS
+
     const session = await ctx.runMutation(
       internal.mutations.dashboard.discord.installSessions.upsert.pending,
       {
         userId: installContextResult.user._id,
         discordUserId: installContextResult.discordAccount.providerAccountId,
         discordGuildId: installContextResult.discordGuildId,
-        oauthState,
         expiresAt,
       }
     )
@@ -134,7 +134,6 @@ export const create = action({
         discordApplicationId,
         discordBotPermissions,
         discordGuildId: installContextResult.discordGuildId,
-        oauthState,
       }),
     }
   },
@@ -143,13 +142,14 @@ export const create = action({
 async function getRestVerifiedInstallContext(
   ctx: ActionCtx,
   discordGuildId: string
-): Promise<{
-  status: "ready"
-  user: Doc<"users">
-  discordAccount: Doc<"linkedAccounts">
-  discordGuildId: string
-  userGuild: DiscordManageableGuild
-}
+): Promise<
+  | {
+      status: "ready"
+      user: Doc<"users">
+      discordAccount: Doc<"linkedAccounts">
+      discordGuildId: string
+      userGuild: DiscordManageableGuild
+    }
   | {
       status: "unavailable"
       reason:
@@ -162,7 +162,8 @@ async function getRestVerifiedInstallContext(
   | {
       status: "forbidden"
       reason: "guildNotFoundForUser" | "missingManageGuildPermission"
-    }> {
+    }
+> {
   const context = await ctx.runQuery(
     internal.queries.dashboard.discord.install.context
       .getInstallableGuildsContext,
@@ -198,16 +199,14 @@ async function getRestVerifiedInstallContext(
   }
 }
 
-function buildDiscordInstallUrl({
+export function buildDiscordInstallUrl({
   discordApplicationId,
   discordBotPermissions,
   discordGuildId,
-  oauthState,
 }: {
   discordApplicationId: string
   discordBotPermissions: string
   discordGuildId: string
-  oauthState: string
 }) {
   const installUrl = new URL(DISCORD_AUTHORIZE_URL)
 
@@ -220,19 +219,13 @@ function buildDiscordInstallUrl({
     "integration_type",
     GUILD_INSTALL_INTEGRATION_TYPE
   )
-  installUrl.searchParams.set("state", oauthState)
-
-  if (discordEnv.DISCORD_INSTALL_REDIRECT_URI) {
-    installUrl.searchParams.set(
-      "redirect_uri",
-      discordEnv.DISCORD_INSTALL_REDIRECT_URI
-    )
-  }
 
   return installUrl.toString()
 }
 
-export function resolveDiscordBotPermissions(value: string | undefined): string {
+export function resolveDiscordBotPermissions(
+  value: string | undefined
+): string {
   const normalizedValue = value?.trim()
 
   if (!normalizedValue || !/^\d+$/.test(normalizedValue)) {
@@ -244,13 +237,4 @@ export function resolveDiscordBotPermissions(value: string | undefined): string 
   } catch {
     return DEFAULT_DISCORD_BOT_PERMISSIONS
   }
-}
-
-function createOauthState() {
-  const bytes = new Uint8Array(24)
-  crypto.getRandomValues(bytes)
-
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  )
 }
