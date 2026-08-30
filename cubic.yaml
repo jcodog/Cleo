@@ -3,9 +3,9 @@
 version: 1
 reviews:
   # Keep cloud capacity for deliberate release reviews such as PR 172.
-  enabled: false
+  enabled: true
   incremental_commits: false
-  check_drafts: false
+  check_drafts: true
   ignore:
     files:
       - "**/*.test.*"
