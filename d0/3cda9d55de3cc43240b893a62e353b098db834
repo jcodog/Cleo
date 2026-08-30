@@ -1,0 +1,16 @@
+ops/convex/production.env.example
+  h_2bc691fceb4fe5 17
+packages/backend/convex/actions/dashboard/discord/install/createServerInstall.test.ts
+  h_2bc691fceb4fe5 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "d03cda9d55de3cc43240b893a62e353b098db834",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
