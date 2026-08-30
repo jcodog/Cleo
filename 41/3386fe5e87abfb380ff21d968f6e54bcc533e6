@@ -1,0 +1,22 @@
+apps/dashboard/src/features/add-server/DiscordAddServerPageShell.tsx
+  h_2bc691fceb4fe5 433,441-442,446,474-475
+packages/backend/convex/_generated/api.d.ts
+  h_2bc691fceb4fe5 1243,1294,1338,1416,1481
+packages/backend/convex/lib/validators.ts
+  h_2bc691fceb4fe5 130-137,382,448,483,678
+packages/backend/convex/queries/dashboard/discord/install/context.test.ts
+  h_2bc691fceb4fe5 1-58
+packages/backend/convex/queries/dashboard/discord/install/context.ts
+  h_2bc691fceb4fe5 160,171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "413386fe5e87abfb380ff21d968f6e54bcc533e6",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
