@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useAuth } from "@clerk/nextjs"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
 import {
@@ -48,14 +49,26 @@ export function DiscordGuildWorkspacePageShell({
   preloadedOverview,
   section = "overview",
 }: DiscordGuildWorkspacePageShellProps) {
+  const { sessionId } = useAuth()
+  const { isAuthenticated, isLoading } = useConvexAuth()
   const liveOverviewResult = usePreloadedQuery(preloadedOverview)
-  const { isAuthenticated } = useConvexAuth()
+
+  const [initialClerkSessionId] = useState(sessionId)
   const [initialOverviewResult] = useState(liveOverviewResult)
+
+  const preloadBelongsToCurrentSession = sessionId === initialClerkSessionId
+
+  const hasAuthenticationResolved =
+    !isLoading || !preloadBelongsToCurrentSession
+
   const overviewResult = getConvexAuthHydrationResult({
+    hasAuthenticationResolved,
     isAuthenticated,
+    isLoading,
     liveResult: liveOverviewResult,
     preloadedResult: initialOverviewResult,
   })
+
   const markOpened = useMutation(
     api.mutations.dashboard.discord.guilds.markOpened.markOpened
   )

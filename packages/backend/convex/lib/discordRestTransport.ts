@@ -17,6 +17,7 @@ type DiscordRestTransportOptions = {
   requestTimeoutMs?: number
   maxRateLimitRetries?: number
   rateLimitWaitBudgetMs?: number
+  expectedErrorStatuses?: readonly number[]
 }
 
 export async function fetchDiscordJson(
@@ -26,8 +27,7 @@ export async function fetchDiscordJson(
 ): Promise<DiscordJsonResponse | null> {
   const fetchImpl = options.fetch ?? fetch
   const sleep = options.sleep ?? wait
-  const requestTimeoutMs =
-    options.requestTimeoutMs ?? DISCORD_FETCH_TIMEOUT_MS
+  const requestTimeoutMs = options.requestTimeoutMs ?? DISCORD_FETCH_TIMEOUT_MS
   const maxRateLimitRetries =
     options.maxRateLimitRetries ?? DISCORD_RATE_LIMIT_MAX_RETRIES
   const rateLimitWaitBudgetMs =
@@ -75,12 +75,16 @@ export async function fetchDiscordJson(
 
       if (!response.ok) {
         await discardResponseBody(response)
-        discordRestLog.warn("Discord REST request failed.", {
-          ...getDiscordRequestLogContext(url, init),
-          status: response.status,
-          retries,
-          waitedMs,
-        })
+
+        if (options.expectedErrorStatuses?.includes(response.status) !== true) {
+          discordRestLog.warn("Discord REST request failed.", {
+            ...getDiscordRequestLogContext(url, init),
+            status: response.status,
+            retries,
+            waitedMs,
+          })
+        }
+
         return { ok: false, status: response.status }
       }
 

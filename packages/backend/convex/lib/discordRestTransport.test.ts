@@ -13,15 +13,19 @@ test("Discord transport retries a 429 using Retry-After and succeeds", async () 
   const delays: number[] = []
   const fetchCalls: RequestInit[] = []
 
-  const result = await fetchDiscordJson("https://discord.test/resource", request, {
-    fetch: async (_url, init) => {
-      fetchCalls.push(init ?? {})
-      return responses.shift() ?? jsonResponse(500, {})
-    },
-    sleep: async (delayMs) => {
-      delays.push(delayMs)
-    },
-  })
+  const result = await fetchDiscordJson(
+    "https://discord.test/resource",
+    request,
+    {
+      fetch: async (_url, init) => {
+        fetchCalls.push(init ?? {})
+        return responses.shift() ?? jsonResponse(500, {})
+      },
+      sleep: async (delayMs) => {
+        delays.push(delayMs)
+      },
+    }
+  )
 
   assert.deepEqual(result, { ok: true, status: 200, json: { ok: true } })
   assert.deepEqual(delays, [25])
@@ -36,12 +40,16 @@ test("Discord transport falls back to JSON retry_after", async () => {
   ]
   const delays: number[] = []
 
-  const result = await fetchDiscordJson("https://discord.test/resource", {}, {
-    fetch: async () => responses.shift() ?? jsonResponse(500, {}),
-    sleep: async (delayMs) => {
-      delays.push(delayMs)
-    },
-  })
+  const result = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () => responses.shift() ?? jsonResponse(500, {}),
+      sleep: async (delayMs) => {
+        delays.push(delayMs)
+      },
+    }
+  )
 
   assert.deepEqual(result, { ok: true, status: 200, json: null })
   assert.deepEqual(delays, [10])
@@ -61,13 +69,18 @@ test("Discord transport rejects malformed rate-limit metadata", async () => {
 
   for (const response of malformedValues) {
     let calls = 0
-    const result = await fetchDiscordJson("https://discord.test/resource", {}, {
-      fetch: async () => {
-        calls += 1
-        return response
-      },
-      sleep: async () => assert.fail("Malformed metadata must not be retried"),
-    })
+    const result = await fetchDiscordJson(
+      "https://discord.test/resource",
+      {},
+      {
+        fetch: async () => {
+          calls += 1
+          return response
+        },
+        sleep: async () =>
+          assert.fail("Malformed metadata must not be retried"),
+      }
+    )
     assert.deepEqual(result, { ok: false, status: 429 })
     assert.equal(calls, 1)
   }
@@ -76,16 +89,20 @@ test("Discord transport rejects malformed rate-limit metadata", async () => {
 test("Discord transport bounds retry attempts and total waiting", async () => {
   const delays: number[] = []
   let exhaustionCalls = 0
-  const exhausted = await fetchDiscordJson("https://discord.test/resource", {}, {
-    fetch: async () => {
-      exhaustionCalls += 1
-      return jsonResponse(429, { retry_after: 0 }, { "Retry-After": "0" })
-    },
-    sleep: async (delayMs) => {
-      delays.push(delayMs)
-    },
-    maxRateLimitRetries: 2,
-  })
+  const exhausted = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () => {
+        exhaustionCalls += 1
+        return jsonResponse(429, { retry_after: 0 }, { "Retry-After": "0" })
+      },
+      sleep: async (delayMs) => {
+        delays.push(delayMs)
+      },
+      maxRateLimitRetries: 2,
+    }
+  )
 
   assert.deepEqual(exhausted, { ok: false, status: 429 })
   assert.equal(exhaustionCalls, 3)
@@ -111,15 +128,37 @@ test("Discord transport bounds retry attempts and total waiting", async () => {
 test("Discord transport does not retry authentication or permission failures", async () => {
   for (const status of [401, 403, 404]) {
     let calls = 0
-    const result = await fetchDiscordJson("https://discord.test/resource", {}, {
-      fetch: async () => {
-        calls += 1
-        return jsonResponse(status, { message: "denied" })
-      },
-      sleep: async () => assert.fail(`${status} must not be retried`),
-    })
+    const result = await fetchDiscordJson(
+      "https://discord.test/resource",
+      {},
+      {
+        fetch: async () => {
+          calls += 1
+          return jsonResponse(status, { message: "denied" })
+        },
+        sleep: async () => assert.fail(`${status} must not be retried`),
+      }
+    )
     assert.deepEqual(result, { ok: false, status })
     assert.equal(calls, 1)
+  }
+})
+
+test("Discord transport keeps explicitly expected error statuses quiet", async () => {
+  for (const status of [403, 404]) {
+    const { result, logs } = await captureWarnings(() =>
+      fetchDiscordJson(
+        "https://discord.test/resource",
+        {},
+        {
+          fetch: async () => new Response(null, { status }),
+          expectedErrorStatuses: [403, 404],
+        }
+      )
+    )
+
+    assert.deepEqual(result, { ok: false, status })
+    assert.deepEqual(logs, [])
   }
 })
 
@@ -190,9 +229,13 @@ test("Discord transport degrades invalid URL and unreadable header log context s
   const malformedHeaders: HeadersInit = [["bad\nheader", "secret-value"]]
 
   const { result, logs } = await captureWarnings(() =>
-    fetchDiscordJson("not a valid Discord URL", { headers: malformedHeaders }, {
-      fetch: async () => new Response(null, { status: 403 }),
-    })
+    fetchDiscordJson(
+      "not a valid Discord URL",
+      { headers: malformedHeaders },
+      {
+        fetch: async () => new Response(null, { status: 403 }),
+      }
+    )
   )
 
   assert.deepEqual(result, { ok: false, status: 403 })
@@ -224,9 +267,13 @@ test("Discord transport cancels unused error response bodies", async () => {
     },
   })
 
-  const result = await fetchDiscordJson("https://discord.test/resource", {}, {
-    fetch: async () => new Response(body, { status: 403 }),
-  })
+  const result = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () => new Response(body, { status: 403 }),
+    }
+  )
 
   assert.deepEqual(result, { ok: false, status: 403 })
   assert.equal(cancelled, true)
@@ -237,9 +284,13 @@ test("Discord transport leaves already-consumed error response bodies alone", as
   await response.text()
   assert.equal(response.bodyUsed, true)
 
-  const result = await fetchDiscordJson("https://discord.test/resource", {}, {
-    fetch: async () => response,
-  })
+  const result = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () => response,
+    }
+  )
 
   assert.deepEqual(result, { ok: false, status: 403 })
   assert.equal(response.bodyUsed, true)
@@ -266,9 +317,13 @@ test("Discord transport preserves errors when body cancellation fails", async ()
 })
 
 test("Discord transport accepts successful responses without a body", async () => {
-  const result = await fetchDiscordJson("https://discord.test/resource", {}, {
-    fetch: async () => new Response(null, { status: 204 }),
-  })
+  const result = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () => new Response(null, { status: 204 }),
+    }
+  )
 
   assert.deepEqual(result, { ok: true, status: 204 })
 })
@@ -298,21 +353,29 @@ test("Discord transport uses the global fetch boundary when no override is provi
 })
 
 test("Discord transport handles success and network failure", async () => {
-  const success = await fetchDiscordJson("https://discord.test/resource", {}, {
-    fetch: async () => jsonResponse(200, { guild: "ready" }),
-    requestTimeoutMs: 25,
-  })
+  const success = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () => jsonResponse(200, { guild: "ready" }),
+      requestTimeoutMs: 25,
+    }
+  )
   assert.deepEqual(success, {
     ok: true,
     status: 200,
     json: { guild: "ready" },
   })
 
-  const failure = await fetchDiscordJson("https://discord.test/resource", {}, {
-    fetch: async () => {
-      throw new Error("network unavailable with Bot test-secret")
-    },
-  })
+  const failure = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () => {
+        throw new Error("network unavailable with Bot test-secret")
+      },
+    }
+  )
   assert.equal(failure, null)
 })
 
@@ -398,9 +461,13 @@ test("Discord transport uses its production wait boundary", async () => {
     jsonResponse(200, { ready: true }),
   ]
 
-  const result = await fetchDiscordJson("https://discord.test/resource", {}, {
-    fetch: async () => responses.shift() ?? jsonResponse(500, {}),
-  })
+  const result = await fetchDiscordJson(
+    "https://discord.test/resource",
+    {},
+    {
+      fetch: async () => responses.shift() ?? jsonResponse(500, {}),
+    }
+  )
 
   assert.deepEqual(result, {
     ok: true,

@@ -17,6 +17,7 @@ const DISCORD_GUILD_FORUM_CHANNEL = 15
 const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
 const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
 const DISCORD_EPOCH = 1420070400000n
+const DISCORD_NOT_INSTALLED_STATUSES = [403, 404] as const
 
 type DiscordApiUnavailableReason =
   "discordApiUnavailable" | "discordGuildScopeUnavailable"
@@ -353,6 +354,9 @@ export async function fetchDiscordGuildChannels(
       headers: {
         Authorization: `Bot ${botToken}`,
       },
+    },
+    {
+      expectedErrorStatuses: DISCORD_NOT_INSTALLED_STATUSES,
     }
   )
 
@@ -458,6 +462,9 @@ export async function fetchDiscordBotGuild(
       headers: {
         Authorization: `Bot ${botToken}`,
       },
+    },
+    {
+      expectedErrorStatuses: DISCORD_NOT_INSTALLED_STATUSES,
     }
   )
 

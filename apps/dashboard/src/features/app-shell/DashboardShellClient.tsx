@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useAuth } from "@clerk/nextjs"
 import { usePathname, redirect } from "next/navigation"
 import {
   IconHome,
@@ -38,15 +39,36 @@ export function DashboardShellClient({
   preloadedStaffAccess: Preloaded<typeof api.queries.dashboard.staff.access.get>
 }) {
   const pathname = usePathname()
-  const staffAccess = usePreloadedQuery(preloadedStaffAccess)
+  const { sessionId } = useAuth()
+  const { isAuthenticated, isLoading } = useConvexAuth()
+  const liveStaffAccess = usePreloadedQuery(preloadedStaffAccess)
   const liveManageableGuilds = usePreloadedQuery(preloadedManageableGuilds)
-  const { isAuthenticated } = useConvexAuth()
+
+  const [initialClerkSessionId] = useState(sessionId)
+  const [initialStaffAccess] = useState(liveStaffAccess)
   const [initialManageableGuilds] = useState(liveManageableGuilds)
-  const manageableGuilds = getConvexAuthHydrationResult({
+
+  const preloadBelongsToCurrentSession = sessionId === initialClerkSessionId
+
+  const hasAuthenticationResolved =
+    !isLoading || !preloadBelongsToCurrentSession
+
+  const staffAccess = getConvexAuthHydrationResult({
+    hasAuthenticationResolved,
     isAuthenticated,
+    isLoading,
+    liveResult: liveStaffAccess,
+    preloadedResult: initialStaffAccess,
+  })
+
+  const manageableGuilds = getConvexAuthHydrationResult({
+    hasAuthenticationResolved,
+    isAuthenticated,
+    isLoading,
     liveResult: liveManageableGuilds,
     preloadedResult: initialManageableGuilds,
   })
+
   const currentArea = getAppShellAreaFromPathname(pathname)
   const staffEntry = getStaffTopbarEntry(currentArea, staffAccess)
   const storedDiscordGuildId = useAppShellStore(
