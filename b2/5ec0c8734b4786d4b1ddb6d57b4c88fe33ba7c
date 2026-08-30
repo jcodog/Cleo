@@ -1,0 +1,22 @@
+apps/discord-bot/package.json
+  h_2bc691fceb4fe5 42
+bun.lock
+  h_2bc691fceb4fe5 68,93,144,182,1927,2021
+package.json
+  h_2bc691fceb4fe5 53
+packages/env/package.json
+  h_2bc691fceb4fe5 14
+packages/ui/package.json
+  h_2bc691fceb4fe5 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "b25ec0c8734b4786d4b1ddb6d57b4c88fe33ba7c",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
