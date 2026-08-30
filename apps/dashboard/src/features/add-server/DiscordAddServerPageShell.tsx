@@ -473,8 +473,8 @@ export function DiscordAddServerPageShell() {
           Add Discord Server
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Install Cleo into a Discord server where this account has Owner or
-          Administrator permission.
+          Install Cleo into a Discord server where this account has Owner,
+          Administrator or Manage Server permissions.
         </p>
       </header>
 
