@@ -1,0 +1,16 @@
+CONTRIBUTING.md
+  h_2bc691fceb4fe5 76-83
+package.json
+  h_2bc691fceb4fe5 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "080108d09c9cd164b8e7170bd8c86807f5b926c2",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
