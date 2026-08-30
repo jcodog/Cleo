@@ -202,9 +202,7 @@ function mergeInstallableGuilds({
   )
   const guilds: KnownGuild[] = []
 
-  // Discord's OAuth `guilds` scope is the source of truth for which servers
-  // this user currently belongs to and can manage. Convex only overlays Cleo's
-  // already-known installed/pending state for those live Discord guilds.
+  // Omit known Convex guilds that Discord no longer returns for this user.
   for (const liveGuild of liveGuilds) {
     const knownGuild = knownGuildsByDiscordId.get(liveGuild.discordGuildId)
     const session = sessionsByDiscordId.get(liveGuild.discordGuildId)

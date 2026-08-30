@@ -1,26 +1,10 @@
 import { httpRouter } from "convex/server"
-import { Webhook } from "svix"
 
 import { internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
 import { backendEnv } from "@workspace/env/backend"
 import { normalizeClerkUserData } from "./lib/clerkUserData"
-
-type ClerkWebhookEvent =
-  | {
-      type: "user.created" | "user.updated"
-      data: unknown
-    }
-  | {
-      type: "user.deleted"
-      data: {
-        id?: string
-      }
-    }
-  | {
-      type: string
-      data: unknown
-    }
+import { type ClerkWebhookEvent, verifyClerkWebhook } from "./lib/clerkWebhook"
 
 const http = httpRouter()
 
@@ -76,27 +60,15 @@ async function validateClerkWebhook(
   }
 
   const payload = await request.text()
-  const webhook = new Webhook(webhookSecret)
-
-  try {
-    const event = webhook.verify(payload, {
+  return verifyClerkWebhook({
+    payload,
+    secret: webhookSecret,
+    headers: {
       "svix-id": request.headers.get("svix-id") ?? "",
       "svix-timestamp": request.headers.get("svix-timestamp") ?? "",
       "svix-signature": request.headers.get("svix-signature") ?? "",
-    })
-
-    return isClerkWebhookEvent(event) ? event : null
-  } catch {
-    return null
-  }
-}
-
-function isClerkWebhookEvent(value: unknown): value is ClerkWebhookEvent {
-  return (
-    isObjectRecord(value) &&
-    typeof value.type === "string" &&
-    "data" in value
-  )
+    },
+  })
 }
 
 function getDeletedClerkUserId(data: unknown): string | null {

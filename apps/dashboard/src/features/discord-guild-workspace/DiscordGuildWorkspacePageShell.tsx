@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
 import {
@@ -14,6 +14,8 @@ import {
   useMutation,
   usePreloadedQuery,
 } from "convex/react"
+
+import { getConvexAuthHydrationResult } from "@/features/app-shell/convexAuthHydration"
 
 import {
   BotStatusBadge,
@@ -46,8 +48,14 @@ export function DiscordGuildWorkspacePageShell({
   preloadedOverview,
   section = "overview",
 }: DiscordGuildWorkspacePageShellProps) {
-  const overviewResult = usePreloadedQuery(preloadedOverview)
+  const liveOverviewResult = usePreloadedQuery(preloadedOverview)
   const { isAuthenticated } = useConvexAuth()
+  const [initialOverviewResult] = useState(liveOverviewResult)
+  const overviewResult = getConvexAuthHydrationResult({
+    isAuthenticated,
+    liveResult: liveOverviewResult,
+    preloadedResult: initialOverviewResult,
+  })
   const markOpened = useMutation(
     api.mutations.dashboard.discord.guilds.markOpened.markOpened
   )

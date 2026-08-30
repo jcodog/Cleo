@@ -97,3 +97,85 @@ test("Clerk re-sync preserves returning-user onboarding state without duplicatin
   assert.equal(stored.linkedAccounts[0]?.provider, "discord")
   assert.equal(stored.linkedAccounts[0]?.providerAccountId, discordUserId)
 })
+
+test("Clerk re-sync updates an existing Discord account and adds a new provider", async () => {
+  const t = convexTest({ schema, modules })
+  const now = 1_800_000_000_000
+
+  const userId = await t.run(async (ctx) => {
+    const id = await ctx.db.insert("users", {
+      clerkUserId,
+      email: "returning@example.com",
+      role: "user",
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    await ctx.db.insert("linkedAccounts", {
+      userId: id,
+      provider: "discord",
+      providerAccountId: discordUserId,
+      scopes: ["identify"],
+      username: "old-discord-name",
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    return id
+  })
+
+  await t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        ...clerkUserData,
+        external_accounts: [
+          {
+            id: "external_discord",
+            provider: "oauth_discord",
+            provider_user_id: discordUserId,
+            username: "current-discord-name",
+            approved_scopes: "identify guilds",
+          },
+          {
+            id: "external_twitch",
+            provider: "oauth_twitch",
+            provider_user_id: "twitch-user-id",
+            username: "twitch-name",
+            approved_scopes: "user:read:email",
+          },
+        ],
+      },
+    }
+  )
+
+  const linkedAccounts = await t.run(async (ctx) => {
+    return await ctx.db
+      .query("linkedAccounts")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .collect()
+  })
+
+  assert.equal(linkedAccounts.length, 2)
+  assert.deepEqual(
+    linkedAccounts
+      .map((account) => ({
+        provider: account.provider,
+        providerAccountId: account.providerAccountId,
+        username: account.username,
+      }))
+      .sort((left, right) => left.provider.localeCompare(right.provider)),
+    [
+      {
+        provider: "discord",
+        providerAccountId: discordUserId,
+        username: "current-discord-name",
+      },
+      {
+        provider: "twitch",
+        providerAccountId: "twitch-user-id",
+        username: "twitch-name",
+      },
+    ]
+  )
+})

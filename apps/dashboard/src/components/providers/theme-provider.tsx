@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -22,10 +23,18 @@ const STORAGE_KEY = "theme"
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(getStoredTheme)
-  const [systemTheme, setSystemTheme] =
-    useState<ResolvedTheme>(getSystemTheme)
+  const [theme, setThemeState] = useState<Theme>("system")
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>("light")
+  const [isHydrated, setIsHydrated] = useState(false)
   const resolvedTheme = theme === "system" ? systemTheme : theme
+
+  useLayoutEffect(() => {
+    queueMicrotask(() => {
+      setThemeState(getStoredTheme())
+      setSystemTheme(getSystemTheme())
+      setIsHydrated(true)
+    })
+  }, [])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
@@ -39,13 +48,17 @@ function ThemeProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (!isHydrated) {
+      return
+    }
+
     const root = document.documentElement
 
     root.classList.toggle("dark", resolvedTheme === "dark")
     root.style.colorScheme = resolvedTheme
     root.style.backgroundColor =
-      resolvedTheme === "dark" ? "#0a0a0b" : "#fafafa"
-  }, [resolvedTheme])
+      resolvedTheme === "dark" ? "#0a0a0b" : "#ffffff"
+  }, [isHydrated, resolvedTheme])
 
   const value = useMemo<ThemeContextValue>(
     () => ({
@@ -54,10 +67,14 @@ function ThemeProvider({ children }: { children: ReactNode }) {
       setTheme(nextTheme) {
         setThemeState(nextTheme)
 
-        if (nextTheme === "system") {
-          window.localStorage.removeItem(STORAGE_KEY)
-        } else {
-          window.localStorage.setItem(STORAGE_KEY, nextTheme)
+        try {
+          if (nextTheme === "system") {
+            window.localStorage.removeItem(STORAGE_KEY)
+          } else {
+            window.localStorage.setItem(STORAGE_KEY, nextTheme)
+          }
+        } catch {
+          // The in-memory preference still works when browser storage is blocked.
         }
       },
     }),
@@ -91,9 +108,13 @@ function getStoredTheme(): Theme {
     return "system"
   }
 
-  const storedTheme = window.localStorage.getItem(STORAGE_KEY)
+  try {
+    const storedTheme = window.localStorage.getItem(STORAGE_KEY)
 
-  return isTheme(storedTheme) ? storedTheme : "system"
+    return isTheme(storedTheme) ? storedTheme : "system"
+  } catch {
+    return "system"
+  }
 }
 
 function getSystemTheme(): ResolvedTheme {

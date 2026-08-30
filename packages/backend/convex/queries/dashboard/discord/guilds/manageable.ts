@@ -107,8 +107,8 @@ export const list = query({
           ...(membership.permissions !== undefined
             ? { permissions: membership.permissions }
             : {}),
-          ...(guild.lastOpenedAt !== undefined
-            ? { lastOpenedAt: guild.lastOpenedAt }
+          ...(membership.lastOpenedAt !== undefined
+            ? { lastOpenedAt: membership.lastOpenedAt }
             : {}),
           ...(lastSyncedAt !== undefined ? { lastSyncedAt } : {}),
         }

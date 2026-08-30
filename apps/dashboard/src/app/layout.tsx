@@ -20,7 +20,8 @@ const metadataBase = new URL(
   dashboardEnv.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 )
 
-const themeScript = `try{const storedTheme=localStorage.getItem("theme");const isDark=storedTheme==="dark"||(storedTheme!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);const root=document.documentElement;root.classList.toggle("dark",isDark);root.style.colorScheme=isDark?"dark":"light";root.style.backgroundColor=isDark?"#0a0a0b":"#fafafa"}catch{}`
+// Keep this pre-paint resolver aligned with ThemeProvider's storage and system rules.
+const themeScript = `try{const storedTheme=localStorage.getItem("theme");const isDark=storedTheme==="dark"||(storedTheme!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);const root=document.documentElement;root.classList.toggle("dark",isDark);root.style.colorScheme=isDark?"dark":"light";root.style.backgroundColor=isDark?"#0a0a0b":"#ffffff"}catch{}`
 
 const description =
   "Manage your Discord server with Cleo's moderation, welcome, logs, support, automation, and AI-assisted tools."
@@ -88,7 +89,7 @@ export const viewport: Viewport = {
   colorScheme: "dark light",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
   ],
 }
 

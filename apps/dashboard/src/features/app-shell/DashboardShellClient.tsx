@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { usePathname, redirect } from "next/navigation"
 import {
   IconHome,
@@ -12,10 +12,11 @@ import {
   IconSparkles,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import { type Preloaded, usePreloadedQuery } from "convex/react"
+import { type Preloaded, useConvexAuth, usePreloadedQuery } from "convex/react"
 
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { AppShell } from "@/features/app-shell/AppShell"
+import { getConvexAuthHydrationResult } from "@/features/app-shell/convexAuthHydration"
 import { getDashboardGuildSelection } from "@/features/app-shell/dashboardGuildSelection"
 import {
   getAppShellAreaFromPathname,
@@ -34,13 +35,18 @@ export function DashboardShellClient({
   preloadedManageableGuilds: Preloaded<
     typeof api.queries.dashboard.discord.guilds.manageable.list
   >
-  preloadedStaffAccess: Preloaded<
-    typeof api.queries.dashboard.staff.access.get
-  >
+  preloadedStaffAccess: Preloaded<typeof api.queries.dashboard.staff.access.get>
 }) {
   const pathname = usePathname()
   const staffAccess = usePreloadedQuery(preloadedStaffAccess)
-  const manageableGuilds = usePreloadedQuery(preloadedManageableGuilds)
+  const liveManageableGuilds = usePreloadedQuery(preloadedManageableGuilds)
+  const { isAuthenticated } = useConvexAuth()
+  const [initialManageableGuilds] = useState(liveManageableGuilds)
+  const manageableGuilds = getConvexAuthHydrationResult({
+    isAuthenticated,
+    liveResult: liveManageableGuilds,
+    preloadedResult: initialManageableGuilds,
+  })
   const currentArea = getAppShellAreaFromPathname(pathname)
   const staffEntry = getStaffTopbarEntry(currentArea, staffAccess)
   const storedDiscordGuildId = useAppShellStore(
@@ -72,7 +78,6 @@ export function DashboardShellClient({
     ) {
       setSelectedDiscordGuildId(activeDiscordGuildId)
     }
-
   }, [
     activeDiscordGuildId,
     manageableGuilds,

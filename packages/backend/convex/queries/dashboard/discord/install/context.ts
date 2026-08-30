@@ -32,10 +32,6 @@ const createInstallContextResult = v.union(
     status: v.literal("missingDiscordIdentity"),
   }),
   v.object({
-    status: v.literal("alreadyInstalled"),
-    discordGuildId: v.string(),
-  }),
-  v.object({
     status: v.literal("ready"),
     user: userDoc,
     discordAccount: linkedAccountDoc,
@@ -148,20 +144,6 @@ export const getCreateServerInstallContext = internalQuery({
 
     if (!discordAccount) {
       return { status: "missingDiscordIdentity" as const }
-    }
-
-    const guild = await ctx.db
-      .query("guilds")
-      .withIndex("by_discord_guild_id", (q) =>
-        q.eq("discordGuildId", args.discordGuildId)
-      )
-      .unique()
-
-    if (guild && isGuildInstalled(guild)) {
-      return {
-        status: "alreadyInstalled" as const,
-        discordGuildId: guild.discordGuildId,
-      }
     }
 
     return {

@@ -42,14 +42,6 @@ export const create = action({
       return { status: "missingDiscordIdentity" as const }
     }
 
-    if (context.status === "alreadyInstalled") {
-      return {
-        status: "alreadyInstalled" as const,
-        discordGuildId: context.discordGuildId,
-        targetPath: `/dashboard/${context.discordGuildId}`,
-      }
-    }
-
     const installContextResult = await getRestVerifiedInstallContext(
       ctx,
       args.discordGuildId

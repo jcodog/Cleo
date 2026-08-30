@@ -5204,7 +5204,6 @@ export declare const internal: {
               { discordGuildId: string },
               | { status: "missingUser" }
               | { status: "missingDiscordIdentity" }
-              | { discordGuildId: string; status: "alreadyInstalled" }
               | {
                   discordAccount: {
                     _creationTime: number;

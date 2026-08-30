@@ -15,6 +15,7 @@ export const discordGuildMemberships = defineTable({
 
   revokedAt: v.optional(v.number()),
 
+  lastOpenedAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
   createdAt: v.number(),
   updatedAt: v.number(),

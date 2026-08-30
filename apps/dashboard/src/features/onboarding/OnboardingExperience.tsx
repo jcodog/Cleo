@@ -26,6 +26,7 @@ import {
 import {
   getOnboardingExperienceState,
   type OnboardingExperienceState,
+  type ProvenanceResolutionStatus,
 } from "@/features/onboarding/onboardingState"
 
 type ManageableGuild = {
@@ -56,6 +57,8 @@ export function OnboardingExperience() {
   )
   const [syncStatus, setSyncStatus] =
     useState<DashboardDiscordSyncStatus>("idle")
+  const [provenanceResolutionStatus, setProvenanceResolutionStatus] =
+    useState<ProvenanceResolutionStatus>("idle")
   const [retryToken, setRetryToken] = useState(0)
   const [destination, setDestination] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -75,22 +78,37 @@ export function OnboardingExperience() {
   const experienceState = getOnboardingExperienceState({
     guildCount: guilds?.length,
     onboarding,
+    provenanceResolutionStatus:
+      onboarding?.status === "ready" &&
+      onboarding.account.onboardingProvenance !== null
+        ? "idle"
+        : provenanceResolutionStatus,
     syncStatus,
   })
 
   useEffect(() => {
     if (
       onboarding?.status === "ready" &&
+      onboarding.account.onboardingProvenance !== null
+    ) {
+      provenanceResolutionStarted.current = false
+      return
+    }
+
+    if (
+      onboarding?.status === "ready" &&
       onboarding.account.onboardingProvenance === null &&
+      provenanceResolutionStatus === "idle" &&
       !provenanceResolutionStarted.current
     ) {
       provenanceResolutionStarted.current = true
+      setProvenanceResolutionStatus("resolving")
       void resolveProvenance({}).catch(() => {
         provenanceResolutionStarted.current = false
-        setSyncStatus("error")
+        setProvenanceResolutionStatus("error")
       })
     }
-  }, [onboarding, resolveProvenance, retryToken])
+  }, [onboarding, provenanceResolutionStatus, resolveProvenance, retryToken])
 
   useEffect(() => {
     if (isAlreadyComplete) {
@@ -117,6 +135,7 @@ export function OnboardingExperience() {
 
   function retrySync() {
     provenanceResolutionStarted.current = false
+    setProvenanceResolutionStatus("idle")
     setSyncStatus("idle")
     setRetryToken((value) => value + 1)
   }
@@ -283,7 +302,8 @@ function OnboardingReady({
         ) : experienceState === "error" ? (
           <div className="mt-6 max-w-md" role="alert">
             <p className="text-sm leading-6 text-muted-foreground">
-              Nothing needs to be restarted. Retry the account and server sync from here.
+              Nothing needs to be restarted. Retry the account and server sync
+              from here.
             </p>
             <Button className="mt-5" onClick={onRetry} variant="outline">
               <IconRefresh aria-hidden data-icon="inline-start" />

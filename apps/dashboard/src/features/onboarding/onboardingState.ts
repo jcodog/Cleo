@@ -16,6 +16,11 @@ export type OnboardingQueryState =
 export type OnboardingGuardDecision =
   "loading" | "resolve-provenance" | "allow-dashboard" | "show-onboarding"
 
+export type ProvenanceResolutionStatus = "idle" | "resolving" | "error"
+
+export type OnboardingGuardView =
+  "pending" | "retry-provenance" | "allow-dashboard" | "redirect-onboarding"
+
 export function getOnboardingGuardDecision(
   onboarding: OnboardingQueryState
 ): OnboardingGuardDecision {
@@ -32,6 +37,24 @@ export function getOnboardingGuardDecision(
     : "show-onboarding"
 }
 
+export function getOnboardingGuardView({
+  decision,
+  provenanceResolutionStatus,
+}: {
+  decision: OnboardingGuardDecision
+  provenanceResolutionStatus: ProvenanceResolutionStatus
+}): OnboardingGuardView {
+  if (decision === "allow-dashboard") {
+    return "allow-dashboard"
+  }
+
+  if (decision === "show-onboarding") {
+    return "redirect-onboarding"
+  }
+
+  return provenanceResolutionStatus === "error" ? "retry-provenance" : "pending"
+}
+
 export type OnboardingExperienceState =
   | "syncing-account"
   | "syncing-guilds"
@@ -43,12 +66,18 @@ export type OnboardingExperienceState =
 export function getOnboardingExperienceState({
   guildCount,
   onboarding,
+  provenanceResolutionStatus,
   syncStatus,
 }: {
   guildCount: number | undefined
   onboarding: OnboardingQueryState
+  provenanceResolutionStatus: ProvenanceResolutionStatus
   syncStatus: DashboardDiscordSyncStatus
 }): OnboardingExperienceState {
+  if (provenanceResolutionStatus === "error") {
+    return "error"
+  }
+
   if (syncStatus === "error") {
     return "error"
   }

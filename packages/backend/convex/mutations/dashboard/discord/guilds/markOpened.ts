@@ -8,11 +8,11 @@ export const markOpened = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireDiscordGuildManager(ctx, args.guildId)
+    const membership = await requireDiscordGuildManager(ctx, args.guildId)
 
     const now = Date.now()
 
-    await ctx.db.patch(args.guildId, {
+    await ctx.db.patch(membership._id, {
       lastOpenedAt: now,
     })
 
