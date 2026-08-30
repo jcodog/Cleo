@@ -73,6 +73,14 @@ bun run --filter <workspace> typecheck
 bun run --filter <workspace> build
 ```
 
+## Licensing
+
+Cleo is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).
+
+By submitting a contribution to this repository, you agree that your contribution may be distributed as part of Cleo under that licence.
+
+See [LICENSE](LICENSE) for the full licence terms.
+
 ## Friday dependency updates
 
 Keep routine dependency updates current without accepting unsupported release toolchains:
