@@ -36,9 +36,6 @@ const createInstallContextResult = v.union(
     discordGuildId: v.string(),
   }),
   v.object({
-    status: v.literal("verificationUnavailable"),
-  }),
-  v.object({
     status: v.literal("ready"),
     user: userDoc,
     discordAccount: linkedAccountDoc,
@@ -160,22 +157,7 @@ export const getCreateServerInstallContext = internalQuery({
       )
       .unique()
 
-    if (!guild) {
-      return { status: "verificationUnavailable" as const }
-    }
-
-    const membership = await getVerifiedManagerMembership(
-      ctx,
-      user,
-      discordAccount,
-      guild._id
-    )
-
-    if (!membership) {
-      return { status: "verificationUnavailable" as const }
-    }
-
-    if (isGuildInstalled(guild)) {
+    if (guild && isGuildInstalled(guild)) {
       return {
         status: "alreadyInstalled" as const,
         discordGuildId: guild.discordGuildId,
@@ -186,7 +168,7 @@ export const getCreateServerInstallContext = internalQuery({
       status: "ready" as const,
       user,
       discordAccount,
-      discordGuildId: guild.discordGuildId,
+      discordGuildId: args.discordGuildId,
     }
   },
 })
@@ -457,37 +439,6 @@ function isGuildInstalled(guild: {
     (guild.botJoinedAt !== undefined ||
       guild.botInstallationVerifiedAt !== undefined)
   )
-}
-
-async function getVerifiedManagerMembership(
-  ctx: Parameters<typeof getCurrentUser>[0],
-  user: Doc<"users">,
-  discordAccount: Doc<"linkedAccounts">,
-  guildId: Id<"guilds">
-) {
-  const directMembership = await ctx.db
-    .query("discordGuildMemberships")
-    .withIndex("by_user_id_and_guild_id", (q) =>
-      q.eq("userId", user._id).eq("guildId", guildId)
-    )
-    .unique()
-
-  if (isVerifiedManagerMembership(directMembership)) {
-    return directMembership
-  }
-
-  const discordMembership = await ctx.db
-    .query("discordGuildMemberships")
-    .withIndex("by_guild_id_and_discord_user_id", (q) =>
-      q
-        .eq("guildId", guildId)
-        .eq("discordUserId", discordAccount.providerAccountId)
-    )
-    .unique()
-
-  return isVerifiedManagerMembership(discordMembership)
-    ? discordMembership
-    : null
 }
 
 function isVerifiedManagerMembership(

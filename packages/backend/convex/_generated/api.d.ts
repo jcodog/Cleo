@@ -1240,9 +1240,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "discordGuildDiscoveryUnavailable";
                 }
               | {
@@ -1293,9 +1291,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -1339,9 +1335,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -1419,9 +1413,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -1486,9 +1478,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "discordGuildDiscoveryUnavailable";
                 }
               | {
@@ -5215,7 +5205,6 @@ export declare const internal: {
               | { status: "missingUser" }
               | { status: "missingDiscordIdentity" }
               | { discordGuildId: string; status: "alreadyInstalled" }
-              | { status: "verificationUnavailable" }
               | {
                   discordAccount: {
                     _creationTime: number;

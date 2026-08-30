@@ -127,6 +127,14 @@ export const discordGuildInstallSessionStatus = v.union(
   v.literal("expired")
 )
 
+export const dashboardDiscordUserGuildDiscoveryUnavailableReason = v.union(
+  v.literal("clerkSecretUnavailable"),
+  v.literal("discordAccessTokenUnavailable"),
+  v.literal("discordTokenResolutionUnavailable"),
+  v.literal("discordGuildScopeUnavailable"),
+  v.literal("discordApiUnavailable")
+)
+
 export const dashboardDiscordGuildDiscoveryUnavailableReason = v.union(
   v.literal("clerkSecretUnavailable"),
   v.literal("discordAccessTokenUnavailable"),
@@ -371,7 +379,7 @@ export const dashboardDiscordInstallableGuildsResult = v.union(
   }),
   v.object({
     status: v.literal("discordGuildDiscoveryUnavailable"),
-    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
+    reason: dashboardDiscordUserGuildDiscoveryUnavailableReason,
     guilds: v.array(dashboardDiscordInstallableGuildViewModel),
   }),
   v.object({
@@ -437,7 +445,7 @@ export const dashboardDiscordPendingChannelsResult = v.union(
   }),
   v.object({
     status: v.literal("userGuildDiscoveryUnavailable"),
-    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
+    reason: dashboardDiscordUserGuildDiscoveryUnavailableReason,
     discordGuildId: v.string(),
   }),
   v.object({
@@ -472,7 +480,7 @@ export const dashboardDiscordCompleteServerInstallResult = v.union(
   }),
   v.object({
     status: v.literal("userGuildDiscoveryUnavailable"),
-    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
+    reason: dashboardDiscordUserGuildDiscoveryUnavailableReason,
     discordGuildId: v.string(),
   }),
   v.object({
@@ -667,7 +675,7 @@ export const dashboardDiscordVerifyInstalledGuildResult = v.union(
   }),
   v.object({
     status: v.literal("userGuildDiscoveryUnavailable"),
-    reason: dashboardDiscordGuildDiscoveryUnavailableReason,
+    reason: dashboardDiscordUserGuildDiscoveryUnavailableReason,
     discordGuildId: v.string(),
   }),
   v.object({

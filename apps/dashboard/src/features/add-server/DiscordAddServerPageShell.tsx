@@ -80,8 +80,6 @@ type InstallableGuildsResult =
         | "discordTokenResolutionUnavailable"
         | "discordGuildScopeUnavailable"
         | "discordApiUnavailable"
-        | "discordBotTokenUnavailable"
-        | "discordRestDeniedAccess"
       guilds: InstallableGuild[]
     }
   | {
@@ -432,7 +430,7 @@ function DiscordAddServerState() {
           }}
           title="Servers you can add"
         />
-      ) : (
+      ) : guildResult.status === "ready" ? (
         <Empty className="min-h-64 border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -440,12 +438,12 @@ function DiscordAddServerState() {
             </EmptyMedia>
             <EmptyTitle>No servers to add</EmptyTitle>
             <EmptyDescription>
-              Discord did not return any servers where this account has Owner or
-              Administrator permission and Cleo is not already installed.
+              Discord did not return any servers where this account has Manage
+              Server permission and Cleo is not already installed.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
-      )}
+      ) : null}
 
       {installedGuilds.length > 0 ? (
         <GuildList
@@ -473,8 +471,8 @@ export function DiscordAddServerPageShell() {
           Add Discord Server
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Install Cleo into a Discord server where this account has Owner,
-          Administrator or Manage Server permissions.
+          Install Cleo into a Discord server where this account has Manage
+          Server permission.
         </p>
       </header>
 
@@ -760,10 +758,6 @@ function getGuildDiscoveryUnavailableCopy(
       return "Discord REST guild discovery is temporarily unavailable. Cleo can still show servers already verified in Convex."
     case "discordTokenResolutionUnavailable":
       return "Cleo could not resolve the Discord OAuth token server-side, so only previously verified servers are shown."
-    case "discordBotTokenUnavailable":
-      return "The server-side Discord bot token is not configured, so Cleo cannot separate installed servers from servers that can be added."
-    case "discordRestDeniedAccess":
-      return "Discord REST rejected the configured bot token, so Cleo cannot separate installed servers from servers that can be added."
   }
 }
 
