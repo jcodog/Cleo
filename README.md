@@ -162,31 +162,75 @@ Use the Node.js version declared in `.nvmrc` and the Bun version declared in the
 
 ### Install dependencies
 
+Install dependencies from the repository root:
+
 ```bash
 bun install
 ```
 
-### Start development
+### Focused development
+
+For normal development, prefer running the workspace you are actively changing. From the repository root:
+
+```bash
+bun run --filter @workspace/dashboard dev
+bun run --filter @workspace/backend dev
+bun run --filter @workspace/discord-bot dev
+```
+
+You can also change into a workspace and run its script directly with `bun run <script>`.
+
+This keeps feedback focused and avoids starting unrelated applications and services.
+
+### Run the whole development stack
+
+When you intentionally need the complete monorepo development graph, run:
 
 ```bash
 bun run dev
 ```
 
-### Validate the workspace
+The root script uses Turborepo and may start multiple workspace development processes. It is supported and useful for integration work, but it is not necessary for every focused change.
+
+Avoid starting duplicate dev servers, watchers, bots, workers, or tunnels when an equivalent process is already running.
+
+### Validate while developing
+
+Prefer targeted validation for the workspace you are changing:
+
+```bash
+bun run --filter @workspace/dashboard typecheck
+bun run --filter @workspace/dashboard lint
+bun run --filter @workspace/dashboard test
+
+bun run --filter @workspace/backend typecheck
+bun run --filter @workspace/backend lint
+bun run --filter @workspace/backend test
+bun run --filter @workspace/backend test:coverage
+
+bun run --filter @workspace/discord-bot typecheck
+bun run --filter @workspace/discord-bot lint
+bun run --filter @workspace/discord-bot test
+bun run --filter @workspace/discord-bot test:coverage
+```
+
+Only run a workspace script when that workspace exposes it.
+
+### Final validation before a pull request
+
+Before opening or finalising a pull request, strongly prefer running the full repository validation suite from the root:
 
 ```bash
 bun run typecheck
 bun run lint
 bun run test
-```
-
-For full regression coverage:
-
-```bash
 bun run test:coverage
+bun run build
 ```
 
-Workspace-specific scripts are available in each package when you only need to validate an affected surface.
+These root commands intentionally exercise the Turborepo workspace graph and provide the strongest check for cross-workspace regressions.
+
+If an environment prevents a full-root command from running, run all relevant workspace checks instead and report exactly what was not run and why. Do not claim validation that did not actually execute.
 
 ## Deployment
 
@@ -239,7 +283,8 @@ Good contributions should:
 - Reference a relevant issue where practical
 - Keep related implementation work focused and reviewable
 - Add meaningful behavioural tests for changed behaviour
-- Run validation for affected workspaces
+- Run validation for affected workspaces while developing
+- Run the full repository validation suite before opening or finalising a PR when practical
 - Avoid unrelated formatting churn and speculative abstractions
 - Clearly distinguish generated or agent-assisted work when that context helps reviewers
 
