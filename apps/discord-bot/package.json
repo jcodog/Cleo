@@ -24,7 +24,7 @@
     "commands:register:production": "node --enable-source-maps dist/scripts/registerCommands.js --global"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.6",
+    "@napi-rs/canvas": "^1.0.8",
     "discord.js": "^14.27.0"
   },
   "devDependencies": {
@@ -34,11 +34,11 @@
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "convex": "^1.44.0",
+    "convex": "^1.45.0",
     "esbuild": "^0.28.2",
     "prettier": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   }
 }

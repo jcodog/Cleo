@@ -1,190 +1,315 @@
+<div align="center">
+
 # Cleo
 
-Cleo is a Discord-first community operations SaaS platform by JCoNet LTD. It combines a production Discord bot, a web dashboard, Convex-backed configuration, moderation and support tooling, operational visibility, and foundations for creator-platform automation.
+**Open source, Discord-first community operations and automation platform.**
 
-Cleo v3 replaces the legacy collection of standalone services with one typed Bun and Turborepo monorepo. The current release prioritises a reliable Discord service and an honest, minimal dashboard instead of shipping disconnected settings, generic bot filler, or vanity features.
+Cleo brings moderation, support, configuration, operational visibility and community tooling into one typed platform, with Discord as the first production integration and a path toward broader creator and workplace communication surfaces.
 
-## Product links
+[Website](https://cleoai.cloud) · [Coverage](https://jcodog.github.io/Cleo/) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-- Website: [cleoai.cloud](https://cleoai.cloud)
-- Dashboard beta: [beta.cleoai.cloud](https://beta.cleoai.cloud)
-- Browsable coverage: [jcodog.github.io/Cleo](https://jcodog.github.io/Cleo/)
-- Company: [JCoNet LTD](https://jconet.co.uk)
+[![Regression Tests and Coverage](https://github.com/jcodog/Cleo/actions/workflows/regression.yml/badge.svg)](https://github.com/jcodog/Cleo/actions/workflows/regression.yml)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-blue.svg)](LICENSE)
 
-## Current product state
+</div>
 
-| Surface | State | Purpose |
-| --- | --- | --- |
-| Discord bot | v3.0.0 production | Guild lifecycle, welcome messages, moderation, support, logging, runtime incidents, and focused utility commands |
-| Dashboard | Public beta | Discord installation, guild configuration, audit visibility, support routing, and staff operations |
-| Cleo Profiles and Pets | Foundation in development | Account identity, pet progression, public cards, battles, and future Discord widget surfaces |
-| Twitch bot | Planned migration | Creator chat automation, linked accounts, and EventSub lifecycle |
-| Kick bot | Planned migration | OAuth, webhooks, creator chat automation, and linked accounts |
-| Real-time relay | Planned migration | Typed live events, overlays, and cross-platform delivery |
+## What is Cleo?
 
-The v3.1 workstream adds product-connected Discord features that were deliberately left out of the stability-first v3.0.0 release. It does not restore legacy CoD Stats, Prisma premium tables, the old free-AI quota system, or generic commands that do not justify permanent command-surface space.
+Cleo is a community operations platform built by [JCoNet LTD](https://jconet.co.uk).
 
-## What Cleo does today
+It started with Discord, where Cleo already provides a production bot, web dashboard and shared backend for server configuration, moderation, support, logging and operational state. The long-term goal is broader than a single bot or platform: one control plane with platform-specific runtimes for the places communities, creators, teams and customers already communicate.
 
-### Discord community operations
+**Cleo is Discord-first, not Discord-only.**
 
-- Synchronises guild install, join, leave, reconnect, and shard-aware READY state with Convex.
-- Loads validated guild runtime configuration through a cache-backed bot service.
-- Sends configured welcome messages and rendered welcome cards.
-- Provides safe `/ban` and `/kick` moderation actions with permission and hierarchy checks.
-- Records moderation outcomes for dashboard visibility.
-- Captures selected live guild events and mirrors configured logs without storing deleted message content.
-- Routes `/help` into private Cleo support or guild modmail flows.
-- Reports actionable runtime incidents without treating normal user mistakes as production alerts.
+The repository is designed around shared contracts and platform adapters so future Discord, Twitch, Kick, realtime, workplace and web surfaces can reuse the same underlying product model without becoming disconnected services.
 
-### Dashboard and backend
+## Current reach
 
-- Uses Clerk for authenticated account access and Discord as the primary identity.
-- Uses Convex as the source of truth for configuration, operational state, support, moderation, and product foundations.
-- Provides a focused Discord workspace for Overview, Welcome, Moderation, Support, Logs, and Settings.
-- Uses shared schemas and packages so dashboard and bot behaviour do not drift.
+Discord currently reports:
 
-### Engineering and operations
+- **44 server installs**
+- **352 individual user installs**
 
-- Uses targeted TypeScript, Oxlint, test, coverage, build, packaging, and deployment checks.
-- Publishes browsable coverage from successful `main` regression runs.
-- Packages exact-SHA Discord releases and activates them through a dedicated production runner.
-- Keeps production environment files outside repository checkouts.
-- Supports controlled restart and rollback through the documented VPS deployment contract.
+These figures are from the Discord Developer Portal as of 29 August 2026. They are install counts, not monthly active-user figures.
+
+Cleo reached this point without paid advertising or promotion through major Discord bot directories. Public distribution and discovery are still early.
+
+## What works today
+
+| Surface                | Status                | Purpose                                                                                                      |
+| ---------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Discord runtime        | Production            | Guild lifecycle, moderation, welcome flows, support, logging, runtime incidents and focused utility commands |
+| Cleo dashboard         | Public beta           | Installation, guild configuration, audit visibility, support routing and staff operations                    |
+| Convex control plane   | Production foundation | Configuration, operational state, moderation, support, identity and product data                             |
+| Cleo Profiles and Pets | In development        | Account identity, progression, public cards, battles and future Discord-native surfaces                      |
+| Twitch integration     | Planned migration     | Creator chat automation, linked accounts and EventSub lifecycle                                              |
+| Kick integration       | Planned migration     | OAuth, webhooks, creator chat automation and linked accounts                                                 |
+| Realtime relay         | Planned migration     | Typed live events, overlays and cross-platform delivery                                                      |
+| Cleo Work              | Long-term direction   | Workplace and customer communication surfaces such as Teams, Slack and website live chat                     |
+
+Planned features are deliberately labelled as planned. A feature being present in a legacy Cleo repository does not mean it is shipped or supported in the current product.
+
+## Discord community operations
+
+The production Discord runtime currently includes:
+
+- Guild install, join, leave, reconnect and shard-aware READY lifecycle synchronisation
+- Validated, cache-backed guild runtime configuration
+- Configurable welcome messages and rendered welcome cards
+- Permission-aware moderation actions
+- Moderation outcome recording for dashboard visibility
+- Selected guild event logging with privacy-conscious handling of deleted content
+- Private Cleo support and guild modmail flows
+- Runtime incident reporting that distinguishes production failures from normal user mistakes
+- Dashboard-connected guild status and setup visibility
+
+## Dashboard and backend
+
+Cleo uses a shared backend and contracts so the web dashboard and platform runtimes do not drift apart.
+
+Current foundations include:
+
+- Clerk authentication with Discord as the primary identity
+- Convex as the source of truth for backend data and business logic
+- Discord guild installation and lifecycle state
+- Guild configuration and membership data
+- Moderation records and audit events
+- Support configuration, tickets and ticket messages
+- Runtime error and incident state
+- Cleo Profiles and Pets data models
+- Shared validation and TypeScript contracts across applications
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   DiscordUsers[Discord users and moderators] --> Discord[Discord]
-  Discord --> Bot[apps/discord-bot]
-  DashboardUsers[Server owners and staff] --> Dashboard[apps/dashboard]
-  Dashboard --> Clerk[Clerk]
-  Clerk --> Convex[packages/backend on Convex]
-  Bot --> Convex
+  Discord --> DiscordBot[Discord runtime]
+
+  DashboardUsers[Server owners and staff] --> Dashboard[Cleo dashboard]
+  Dashboard --> Clerk[Clerk authentication]
+
+  DiscordBot --> Convex[Convex control plane]
+  Clerk --> Convex
   Convex --> Dashboard
-  GitHub[GitHub Actions] --> VPS[Dedicated production runner and VPS]
-  VPS --> Bot
+
+  FuturePlatforms[Future platform adapters] --> Convex
+
+  GitHub[GitHub Actions] --> Release[Validated release artifacts]
+  Release --> Runtime[Production runtime]
 ```
 
-## Repository map
+The architectural direction is a shared Cleo control plane with independent platform runtimes at the edges.
 
-### Apps
+## Repository layout
+
+### Applications
 
 - `apps/dashboard` contains the authenticated Next.js dashboard and public product surfaces.
-- `apps/discord-bot` contains the Discord runtime, command registry, gateway events, services, and production scripts.
-- `apps/twitch-bot`, `apps/kick-bot`, `apps/ws-relay`, and `apps/web` are planned workspaces and must not be represented as shipped until they exist and are validated.
+- `apps/discord-bot` contains the Discord gateway runtime, commands, events, services and production tooling.
+- Future Twitch, Kick, realtime and other platform runtimes are added as dedicated workspaces when they are ready to be rebuilt and validated.
 
 ### Shared packages
 
-- `packages/backend` contains the Convex schema, functions, validators, and protected bot and dashboard operations.
-- `packages/env` contains typed server and client-safe environment entry points.
-- `packages/logger` contains structured logging, error serialisation, and redaction helpers.
-- `packages/shared` contains app-safe contracts, constants, schemas, entitlements, and Cleo Profile and Pet models.
-- `packages/ui` contains shared shadcn/ui primitives and Cleo design-system components.
-- `packages/typescript-config` contains shared TypeScript engineering configuration.
+- `packages/backend` contains the Convex schema, queries, mutations, actions and protected operations.
+- `packages/env` contains typed environment entry points.
+- `packages/logger` contains structured logging, error serialisation and redaction helpers.
+- `packages/shared` contains shared contracts, constants, schemas, entitlements and product models.
+- `packages/ui` contains shared UI primitives and Cleo design-system components.
+- `packages/typescript-config` contains shared TypeScript configuration.
 
-## Product boundary
+## Engineering principles
 
-CoD Stats and ranked-stat tracking are separate JCoNet products and are not part of Cleo.
+Cleo is maintained as production software rather than a collection of disconnected bot commands.
 
-Do not add ranked sessions, game logging, BO6 or BO7 analytics, stat cards, stats dashboards, stats commands, stats AI tools, or stats migration code to this repository.
+The repository prioritises:
 
-Do not reintroduce Prisma or duplicate backend APIs. New product state belongs in Convex and shared contracts.
+- Strict TypeScript contracts
+- Shared schemas instead of duplicated application logic
+- Behavioural tests around important runtime paths
+- Zero-warning linting
+- Automated typechecking and coverage
+- Exact-SHA production release artifacts
+- Deployment validation and rollback
+- Secret and environment separation
+- Explicit product boundaries
+- Honest distinction between shipped and planned functionality
+
+The main regression workflow validates TypeScript, linting, tests, coverage, production operations scripts and Discord release packaging before publishing browsable coverage.
+
+## Technology
+
+Cleo currently uses:
+
+- TypeScript
+- Bun
+- Turborepo
+- Next.js
+- React
+- Discord.js
+- Convex
+- Clerk
+- Tailwind CSS
+- GitHub Actions
+
+Production runtime services are deployed separately from the web frontend so persistent gateway and worker processes are not coupled to serverless web hosting.
 
 ## Local development
 
 ### Requirements
 
-- Node.js version from `.nvmrc` and the root `engines` field
-- The Bun version declared by the root `packageManager` field
+Use the Node.js version declared in `.nvmrc` and the Bun version declared in the root `package.json`.
 
-### Install
+### Install dependencies
+
+Install dependencies from the repository root:
 
 ```bash
 bun install
 ```
 
-### Run development tasks
+### Focused development
+
+For normal development, prefer running the workspace you are actively changing. From the repository root:
+
+```bash
+bun run --filter @workspace/dashboard dev
+bun run --filter @workspace/backend dev
+bun run --filter @workspace/discord-bot dev
+```
+
+You can also change into a workspace and run its script directly with `bun run <script>`.
+
+This keeps feedback focused and avoids starting unrelated applications and services.
+
+### Run the whole development stack
+
+When you intentionally need the complete monorepo development graph, run:
 
 ```bash
 bun run dev
 ```
 
-### Targeted validation
+The root script uses Turborepo and may start multiple workspace development processes. It is supported and useful for integration work, but it is not necessary for every focused change.
 
-Run checks only for the workspaces affected by a change:
+Avoid starting duplicate dev servers, watchers, bots, workers, or tunnels when an equivalent process is already running.
+
+### Validate while developing
+
+Prefer targeted validation for the workspace you are changing:
 
 ```bash
-bun run --filter @workspace/discord-bot test
-bun run --filter @workspace/discord-bot typecheck
-bun run --filter @workspace/discord-bot lint
-
-bun run --filter @workspace/backend test
-bun run --filter @workspace/backend typecheck
-bun run --filter @workspace/backend codegen
-
-bun run --filter @workspace/dashboard test
 bun run --filter @workspace/dashboard typecheck
 bun run --filter @workspace/dashboard lint
+bun run --filter @workspace/dashboard test
+
+bun run --filter @workspace/backend typecheck
+bun run --filter @workspace/backend lint
+bun run --filter @workspace/backend test
+bun run --filter @workspace/backend test:coverage
+
+bun run --filter @workspace/discord-bot typecheck
+bun run --filter @workspace/discord-bot lint
+bun run --filter @workspace/discord-bot test
+bun run --filter @workspace/discord-bot test:coverage
 ```
 
-Use `bun run test:coverage` only when the affected scope needs the full regression and coverage path.
+Only run a workspace script when that workspace exposes it.
 
-### Discord command registration
+### Final validation before a pull request
+
+Before opening or finalising a pull request, strongly prefer running the full repository validation suite from the root:
 
 ```bash
-bun run --filter @workspace/discord-bot commands:register:guild
-bun run --filter @workspace/discord-bot commands:register:global
+bun run typecheck
+bun run lint
+bun run test
+bun run test:coverage
+bun run build
 ```
 
-Global command replacement uses Discord's bulk overwrite endpoint and must remain non-destructive.
+These root commands intentionally exercise the Turborepo workspace graph and provide the strongest check for cross-workspace regressions.
 
-## Configuration and deployment
+If an environment prevents a full-root command from running, run all relevant workspace checks instead and report exactly what was not run and why. Do not claim validation that did not actually execute.
 
-- Copy only the relevant example environment file for the workspace being run.
-- Never commit credentials, production environment values, user content, or generated secret files.
-- Discord production setup, ownership, packaging, activation, command registration, restart, and rollback are documented in [`docs/discord-production-deployment.md`](docs/discord-production-deployment.md).
-- Product decisions and migration boundaries are documented under `docs/product`.
+## Deployment
 
-## Roadmap
+Cleo's Discord runtime is packaged as an exact-commit production artifact and activated through a dedicated deployment contract.
 
-The active Cleo project is tracked in Linear. The main post-v3.0 Discord tracks are:
+Production environment files stay outside repository checkouts. Release packaging, host bootstrap, validation, activation, restart and rollback are documented in [`docs/discord-production-deployment.md`](docs/discord-production-deployment.md).
 
-- v3.0.1 production artifact and readiness hardening
-- v3.1 guild-manager `/cleo status` control-plane visibility
-- Cleo Profiles, Pets, battles, cards, and widget adapters
-- A redesigned entitlement-backed AI assistant
-- Discord-native purchase and entitlement synchronisation
-- Expanded high-value audit event coverage
-- Twitch, Kick, and real-time relay migrations
+Do not commit production credentials, user content, environment secrets or generated secret material.
 
-A feature appearing in an old repository does not automatically make it part of the current product. Legacy ideas are reviewed and explicitly marked as rebuild, defer, replace, or reject before implementation.
+## Product direction
+
+The immediate focus is making the Discord product reliable, useful and commercially sustainable before expanding the number of supported platforms.
+
+Current priorities include:
+
+1. Production reliability and release hardening
+2. Higher-value Discord community operations
+3. Cleo Profiles, Pets and Discord-native product surfaces
+4. Entitlement-backed premium features
+5. A redesigned AI assistant with clear product value and usage controls
+6. Broader audit and operational visibility
+7. Twitch, Kick and realtime platform migrations
+8. A reusable platform-adapter model for future communication surfaces
+
+### Cleo Work
+
+Cleo Work is a longer-term product direction for teams and businesses.
+
+The goal is to reuse Cleo's shared control plane, automation, identity and operational foundations across workplace and customer communication surfaces such as Microsoft Teams, Slack and website live chat.
+
+Cleo Work is not currently a shipped product and should not be represented as one.
+
+## Product boundary
+
+Game-stat tracking is not part of Cleo.
+
+CoD Stats and ranked-stat tracking are maintained as a separate JCoNet product. Do not add ranked sessions, BO6 or BO7 analytics, stat cards, game-stat dashboards, stat commands or related migration code to this repository.
+
+New Cleo product state belongs in Convex and shared contracts. Do not reintroduce Prisma or duplicate backend APIs.
 
 ## Contributing
 
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`AGENTS.md`](AGENTS.md) before making changes.
+Contributions are welcome.
 
-High-quality contributions should:
+Please read [`CONTRIBUTING.md`](CONTRIBUTING.md), [`AGENTS.md`](AGENTS.md) and the repository's product documentation before making a change.
 
-- stay inside the documented product boundary;
-- reference a Linear or GitHub issue;
-- keep changes focused and reviewable;
-- add meaningful behavioural tests rather than assertion-free test files;
-- run targeted validation for every affected workspace;
-- disclose material use of coding agents in the pull request when it helps reviewers understand the change;
-- avoid generated churn, unrelated formatting, fake data, and speculative abstractions.
+Good contributions should:
+
+- Stay inside the documented product boundary
+- Reference a relevant issue where practical
+- Keep related implementation work focused and reviewable
+- Add meaningful behavioural tests for changed behaviour
+- Run validation for affected workspaces while developing
+- Run the full repository validation suite before opening or finalising a PR when practical
+- Avoid unrelated formatting churn and speculative abstractions
+- Clearly distinguish generated or agent-assisted work when that context helps reviewers
 
 ## Security
 
-Report vulnerabilities privately. See [`SECURITY.md`](SECURITY.md) for supported versions, reporting routes, and disclosure expectations.
+Please report security vulnerabilities privately rather than opening a public issue containing exploit details, credentials, personal data, private messages or production configuration.
 
-Do not open a public issue containing exploit details, credentials, personal data, private messages, or production configuration.
+See [`SECURITY.md`](SECURITY.md) for supported versions and reporting guidance.
 
-## Source and licence
+## License
 
-This repository is publicly visible, but it is currently proprietary software under the included [`LICENSE`](LICENSE). It is not presently licensed as open source and must not be described as OSI-approved open-source software.
+Cleo is open source under the **GNU Affero General Public License v3.0 only (`AGPL-3.0-only`)**.
 
-JCoNet LTD is reviewing which code can be released under an open-source licence while keeping hosted infrastructure, secrets, user data, brand assets, and commercial service operations protected. Until the licence changes, copying, modification, distribution, sublicensing, and use require prior written permission.
+You may use, study, modify, self-host and redistribute Cleo subject to the terms of the AGPL. If you modify the AGPL-covered software and make that modified version available for users to interact with over a network, the licence includes source-availability obligations described in the full licence text.
 
-Copyright © 2026 JCoNet LTD. All rights reserved.
+Copyright © 2026 JCoNet LTD. JCoNet LTD retains its copyright ownership. The AGPL grants permissions under copyright; it does not grant rights to Cleo or JCoNet LTD trademarks, names, logos or other brand identifiers.
+
+JCoNet LTD may separately offer commercial licensing where appropriate.
+
+See [`LICENSE`](LICENSE) for the complete licence terms.
+
+## Project links
+
+- Website: [cleoai.cloud](https://cleoai.cloud)
+- Coverage: [jcodog.github.io/Cleo](https://jcodog.github.io/Cleo/)
+- Company: [JCoNet LTD](https://jconet.co.uk)
+
+Cleo is developed and maintained by JCoNet LTD.

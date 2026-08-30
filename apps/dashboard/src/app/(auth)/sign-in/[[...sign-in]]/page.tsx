@@ -12,14 +12,7 @@ export const metadata: Metadata = {
 export default function SignInPage() {
   return (
     <AuthShell>
-      <SignIn
-        appearance={clerkAuthAppearance}
-        fallbackRedirectUrl="/onboarding"
-        path="/sign-in"
-        routing="path"
-        signUpFallbackRedirectUrl="/onboarding"
-        signUpUrl="/sign-up"
-      />
+      <SignIn appearance={clerkAuthAppearance} />
     </AuthShell>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   IconAlertCircle,
   IconBrandDiscord,
@@ -36,6 +36,11 @@ import {
 } from "convex/react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+
+import {
+  getNextInstallSessionExpiry,
+  hasPendingInstall,
+} from "./installSessionExpiry"
 
 type InstallableGuild = {
   discordGuildId: string
@@ -79,8 +84,6 @@ type InstallableGuildsResult =
         | "discordTokenResolutionUnavailable"
         | "discordGuildScopeUnavailable"
         | "discordApiUnavailable"
-        | "discordBotTokenUnavailable"
-        | "discordRestDeniedAccess"
       guilds: InstallableGuild[]
     }
   | {
@@ -92,6 +95,12 @@ type FlowNotice = {
   tone: "default" | "destructive"
   title: string
   description: string
+}
+
+type ActiveInstall = {
+  discordGuildId: string
+  installSessionId: Id<"discordGuildInstallSessions">
+  expiresAt: number
 }
 
 function DiscordAddServerState() {
@@ -110,7 +119,21 @@ function DiscordAddServerState() {
   const [guildResult, setGuildResult] =
     useState<InstallableGuildsResult | null>(null)
   const [activeGuildId, setActiveGuildId] = useState<string | null>(null)
+  const [activeInstall, setActiveInstall] = useState<ActiveInstall | null>(null)
   const [notice, setNotice] = useState<FlowNotice | null>(null)
+
+  const activeInstallSession = useQuery(
+    api.queries.dashboard.discord.install.context.getInstallSessionStatus,
+    activeInstall === null
+      ? "skip"
+      : {
+          installSessionId: activeInstall.installSessionId,
+        }
+  )
+
+  const autoCompletingInstallSessionRef =
+    useRef<Id<"discordGuildInstallSessions"> | null>(null)
+
   const discoveryAuthState = isConvexAuthLoading
     ? "loading"
     : isAuthenticated
@@ -149,6 +172,166 @@ function DiscordAddServerState() {
       cancelled = true
     }
   }, [discoveryAuthState, listInstallableGuilds])
+
+  useEffect(() => {
+    if (
+      activeInstall === null ||
+      activeInstallSession === undefined ||
+      activeInstallSession.status !== "ready" ||
+      activeInstallSession.session.status !== "bot_joined"
+    ) {
+      return
+    }
+
+    const installSessionId = activeInstall.installSessionId
+
+    if (autoCompletingInstallSessionRef.current === installSessionId) {
+      return
+    }
+
+    autoCompletingInstallSessionRef.current = installSessionId
+
+    setActiveGuildId(activeInstall.discordGuildId)
+    setNotice(null)
+
+    void completeServerInstall({
+      installSessionId,
+    })
+      .then((result) => {
+        if (result.status === "completed") {
+          router.push(result.targetPath)
+          return
+        }
+
+        setNotice(
+          toCompleteNotice(
+            result.status,
+            "reason" in result ? result.reason : undefined
+          )
+        )
+      })
+      .catch(() => {
+        setNotice({
+          tone: "destructive",
+          title: "Server install could not be completed",
+          description:
+            "Cleo could not finish verifying this server. Use Recheck to try again.",
+        })
+      })
+      .finally(() => {
+        setActiveGuildId((currentGuildId) =>
+          currentGuildId === activeInstall.discordGuildId
+            ? null
+            : currentGuildId
+        )
+      })
+  }, [activeInstall, activeInstallSession, completeServerInstall, router])
+
+  const discoveredGuilds =
+    guildResult !== null && "guilds" in guildResult ? guildResult.guilds : []
+
+  const nextInstallSessionExpiry = getNextInstallSessionExpiry({
+    activeInstallExpiresAt: activeInstall?.expiresAt,
+    guilds: discoveredGuilds,
+  })
+
+  useEffect(() => {
+    if (nextInstallSessionExpiry === null) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(
+      () => {
+        const now = Date.now()
+
+        setActiveInstall((current) =>
+          current !== null && current.expiresAt <= now ? null : current
+        )
+        setGuildResult((current) => {
+          if (current === null || !("guilds" in current)) {
+            return current
+          }
+
+          return {
+            ...current,
+            guilds: current.guilds.map((guild) =>
+              guild.state === "pending" &&
+              guild.installSessionExpiresAt !== undefined &&
+              guild.installSessionExpiresAt <= now
+                ? { ...guild, state: "installable" as const }
+                : guild
+            ),
+          }
+        })
+      },
+      Math.max(0, nextInstallSessionExpiry - Date.now()) + 1
+    )
+
+    return () => window.clearTimeout(timeoutId)
+  }, [nextInstallSessionExpiry])
+
+  async function startOrReopenInstall(guild: InstallableGuild) {
+    setActiveGuildId(guild.discordGuildId)
+    setNotice(null)
+
+    const discordWindow = window.open("", "_blank")
+
+    if (discordWindow) {
+      discordWindow.opener = null
+    }
+
+    try {
+      const result = await createServerInstall({
+        discordGuildId: guild.discordGuildId,
+      })
+
+      if (result.status === "created") {
+        setActiveInstall({
+          discordGuildId: result.discordGuildId,
+          installSessionId: result.installSessionId,
+          expiresAt: result.expiresAt,
+        })
+
+        if (discordWindow && !discordWindow.closed) {
+          discordWindow.location.replace(result.installUrl)
+        } else {
+          setNotice({
+            tone: "default",
+            title: "Open Discord to continue",
+            description:
+              "Your browser did not keep the Discord window open. Use Open Discord again to continue the installation.",
+          })
+        }
+
+        return
+      }
+
+      discordWindow?.close()
+
+      if (result.status === "alreadyInstalled") {
+        router.push(result.targetPath)
+        return
+      }
+
+      setNotice(
+        toCreateNotice(
+          result.status,
+          "reason" in result ? result.reason : undefined
+        )
+      )
+    } catch {
+      discordWindow?.close()
+
+      setNotice({
+        tone: "destructive",
+        title: "Discord install could not be started",
+        description:
+          "Cleo could not start the Discord installation. Try again.",
+      })
+    } finally {
+      setActiveGuildId(null)
+    }
+  }
 
   if (
     currentUser === undefined ||
@@ -189,11 +372,39 @@ function DiscordAddServerState() {
     )
   }
 
-  const guilds = guildResult.guilds
+  const guilds = guildResult.guilds.map((guild) => {
+    if (
+      activeInstall !== null &&
+      guild.discordGuildId === activeInstall.discordGuildId &&
+      activeInstallSession?.status === "notFound"
+    ) {
+      return { ...guild, state: "installable" as const }
+    }
+
+    if (
+      activeInstall === null ||
+      guild.discordGuildId !== activeInstall.discordGuildId ||
+      guild.state === "installed"
+    ) {
+      return guild
+    }
+
+    return {
+      ...guild,
+      state: "pending" as const,
+      installSessionId: activeInstall.installSessionId,
+      installSessionStatus:
+        activeInstallSession?.status === "ready"
+          ? activeInstallSession.session.status
+          : ("pending" as const),
+      installSessionExpiresAt: activeInstall.expiresAt,
+    }
+  })
   const installFlowGuilds = guilds.filter(
     (guild) => guild.state === "installable" || guild.state === "pending"
   )
   const installedGuilds = guilds.filter((guild) => guild.state === "installed")
+  const newInstallDisabled = hasPendingInstall(guilds)
 
   return (
     <div className="flex flex-col gap-4">
@@ -219,6 +430,7 @@ function DiscordAddServerState() {
         <GuildList
           activeGuildId={activeGuildId}
           guilds={installFlowGuilds}
+          newInstallDisabled={newInstallDisabled}
           onCheckInstall={async (guild) => {
             if (!guild.installSessionId) {
               return
@@ -247,43 +459,16 @@ function DiscordAddServerState() {
               setActiveGuildId(null)
             }
           }}
-          onCreateInstall={async (guild) => {
-            setActiveGuildId(guild.discordGuildId)
-            setNotice(null)
-
-            try {
-              const result = await createServerInstall({
-                discordGuildId: guild.discordGuildId,
-              })
-
-              if (result.status === "created") {
-                window.location.assign(result.installUrl)
-                return
-              }
-
-              if (result.status === "alreadyInstalled") {
-                router.push(result.targetPath)
-                return
-              }
-
-              setNotice(
-                toCreateNotice(
-                  result.status,
-                  "reason" in result ? result.reason : undefined
-                )
-              )
-            } finally {
-              setActiveGuildId(null)
-            }
-          }}
+          onCreateInstall={startOrReopenInstall}
           onOpenInstalled={(guild) => {
             router.push(
               guild.dashboardHref ?? `/dashboard/${guild.discordGuildId}`
             )
           }}
+          onOpenInstall={startOrReopenInstall}
           title="Servers you can add"
         />
-      ) : (
+      ) : guildResult.status === "ready" ? (
         <Empty className="min-h-64 border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -291,17 +476,18 @@ function DiscordAddServerState() {
             </EmptyMedia>
             <EmptyTitle>No servers to add</EmptyTitle>
             <EmptyDescription>
-              Discord did not return any servers where this account has Owner
-              or Administrator permission and Cleo is not already installed.
+              Discord did not return any servers where this account has Manage
+              Server permission and Cleo is not already installed.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
-      )}
+      ) : null}
 
       {installedGuilds.length > 0 ? (
         <GuildList
           activeGuildId={activeGuildId}
           guilds={installedGuilds}
+          newInstallDisabled={false}
           onCheckInstall={noopGuildAction}
           onCreateInstall={noopGuildAction}
           onOpenInstalled={(guild) => {
@@ -324,8 +510,8 @@ export function DiscordAddServerPageShell() {
           Add Discord Server
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Install Cleo into a Discord server where this account has Owner or
-          Administrator permission.
+          Install Cleo into a Discord server where this account has Manage
+          Server permission.
         </p>
       </header>
 
@@ -382,7 +568,14 @@ function GuildStateBadge({ guild }: { guild: InstallableGuild }) {
   }
 
   if (guild.state === "pending") {
-    return <Badge variant="outline">Pending</Badge>
+    if (
+      guild.installSessionStatus === "bot_joined" ||
+      guild.installSessionStatus === "configured"
+    ) {
+      return <Badge variant="outline">Finishing</Badge>
+    }
+
+    return <Badge variant="outline">Waiting for Discord</Badge>
   }
 
   return null
@@ -391,15 +584,19 @@ function GuildStateBadge({ guild }: { guild: InstallableGuild }) {
 function GuildList({
   activeGuildId,
   guilds,
+  newInstallDisabled,
   onCheckInstall,
   onCreateInstall,
+  onOpenInstall,
   onOpenInstalled,
   title,
 }: {
   activeGuildId: string | null
   guilds: InstallableGuild[]
+  newInstallDisabled: boolean
   onCheckInstall: (guild: InstallableGuild) => Promise<void>
   onCreateInstall: (guild: InstallableGuild) => Promise<void>
+  onOpenInstall?: (guild: InstallableGuild) => void
   onOpenInstalled: (guild: InstallableGuild) => void
   title: string
 }) {
@@ -430,8 +627,12 @@ function GuildList({
             <GuildAction
               activeGuildId={activeGuildId}
               guild={guild}
+              newInstallDisabled={newInstallDisabled}
               onCheckInstall={() => onCheckInstall(guild)}
               onCreateInstall={() => onCreateInstall(guild)}
+              onOpenInstall={
+                onOpenInstall ? () => onOpenInstall(guild) : undefined
+              }
               onOpenInstalled={() => onOpenInstalled(guild)}
             />
           </div>
@@ -444,14 +645,18 @@ function GuildList({
 function GuildAction({
   activeGuildId,
   guild,
+  newInstallDisabled,
   onCheckInstall,
   onCreateInstall,
+  onOpenInstall,
   onOpenInstalled,
 }: {
   activeGuildId: string | null
   guild: InstallableGuild
+  newInstallDisabled: boolean
   onCheckInstall: () => Promise<void>
   onCreateInstall: () => Promise<void>
+  onOpenInstall?: () => void
   onOpenInstalled: () => void
 }) {
   const isActive = activeGuildId === guild.discordGuildId
@@ -467,21 +672,34 @@ function GuildAction({
 
   if (guild.state === "pending" && guild.installSessionId) {
     return (
-      <Button
-        disabled={isActive}
-        onClick={onCheckInstall}
-        size="sm"
-        variant="outline"
-      >
-        <IconClock aria-hidden data-icon="inline-start" />
-        {isActive ? "Checking" : "Recheck"}
-      </Button>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {onOpenInstall ? (
+          <Button onClick={onOpenInstall} size="sm" variant="outline">
+            <IconExternalLink aria-hidden data-icon="inline-start" />
+            Open Discord again
+          </Button>
+        ) : null}
+
+        <Button
+          disabled={isActive}
+          onClick={onCheckInstall}
+          size="sm"
+          variant="outline"
+        >
+          <IconClock aria-hidden data-icon="inline-start" />
+          {isActive ? "Checking" : "Recheck"}
+        </Button>
+      </div>
     )
   }
 
   if (guild.state === "installable") {
     return (
-      <Button disabled={isActive} onClick={onCreateInstall} size="sm">
+      <Button
+        disabled={isActive || newInstallDisabled}
+        onClick={onCreateInstall}
+        size="sm"
+      >
         <IconExternalLink aria-hidden data-icon="inline-start" />
         {isActive ? "Starting" : "Install"}
       </Button>
@@ -586,10 +804,6 @@ function getGuildDiscoveryUnavailableCopy(
       return "Discord REST guild discovery is temporarily unavailable. Cleo can still show servers already verified in Convex."
     case "discordTokenResolutionUnavailable":
       return "Cleo could not resolve the Discord OAuth token server-side, so only previously verified servers are shown."
-    case "discordBotTokenUnavailable":
-      return "The server-side Discord bot token is not configured, so Cleo cannot separate installed servers from servers that can be added."
-    case "discordRestDeniedAccess":
-      return "Discord REST rejected the configured bot token, so Cleo cannot separate installed servers from servers that can be added."
   }
 }
 

@@ -10,7 +10,7 @@ import {
 
 import { discordEnv } from "@workspace/env/discord"
 
-import type { CommandData } from "@/classes/Command"
+import { Command, type CommandData } from "@/classes/Command"
 import { loadCommands } from "@/loaders/loadCommands"
 import { botLog, botLogError } from "@/utils/botLog"
 
@@ -38,7 +38,7 @@ type RegisterCommandsOptions = {
   token?: string
   applicationId?: string
   rest?: CommandRegistrationRest
-  commandData?: CommandData[]
+  commands?: readonly Command[]
   cleanupGlobalCommandsAfterGuildRegistration?: boolean
 }
 
@@ -104,36 +104,31 @@ export function resolveRegisterTarget(
   )
 }
 
-export async function loadCommandData(): Promise<CommandData[]> {
-  const commands = await loadCommands()
-
-  return commands.map((command) => command.data)
-}
-
-export function prepareCommandDataForTarget(
-  commandData: CommandData[],
+export function prepareCommandsForTarget(
+  commands: readonly Command[],
   target: RegisterTarget
 ): CommandData[] {
   if (target.type === "global") {
-    return commandData
+    return commands.map((command) => command.data)
   }
 
   const guildCommandData: CommandData[] = []
 
-  for (const command of commandData) {
+  for (const command of commands) {
+    const commandData = command.data
     const supportsGuild =
-      command.contexts?.includes(InteractionContextType.Guild) ?? true
+      commandData.contexts?.includes(InteractionContextType.Guild) ?? true
 
     if (!supportsGuild) {
       logInfo(
-        `Skipping /${command.name} for guild registration because it does not support guild interactions.`
+        `Skipping /${commandData.name} for guild registration because it does not support guild interactions.`
       )
 
       continue
     }
 
     const guildCommand = {
-      ...command,
+      ...commandData,
     }
 
     delete guildCommand.contexts
@@ -172,39 +167,51 @@ async function overwriteCommandScope(
   logSuccess(`Registered ${registeredCount} command(s) to ${scopeLabel}.`)
 }
 
-export function validateCommandData(commandData: CommandData[]) {
+export function validateCommands(commands: readonly Command[]): void {
   const commandNames = new Set<string>()
 
-  for (const command of commandData) {
-    if (commandNames.has(command.name)) {
-      throw new Error(`Duplicate command name found: /${command.name}`)
-    }
-
-    commandNames.add(command.name)
-
-    if (!command.contexts?.length) {
+  for (const command of commands) {
+    if (!(command instanceof Command)) {
       throw new Error(
-        `Command /${command.name} does not declare any interaction contexts.`
+        "Command registry contains an entry that is not a Command instance."
       )
     }
 
-    if (!command.integration_types?.length) {
+    if (typeof command.execute !== "function") {
+      throw new Error(`Command /${command.data.name} does not define execute().`)
+    }
+
+    const commandData = command.data
+
+    if (commandNames.has(commandData.name)) {
+      throw new Error(`Duplicate command name found: /${commandData.name}`)
+    }
+
+    commandNames.add(commandData.name)
+
+    if (!commandData.contexts?.length) {
       throw new Error(
-        `Command /${command.name} does not declare any installation types.`
+        `Command /${commandData.name} does not declare any interaction contexts.`
       )
     }
 
-    const supportsPrivateChannels = command.contexts.includes(
+    if (!commandData.integration_types?.length) {
+      throw new Error(
+        `Command /${commandData.name} does not declare any installation types.`
+      )
+    }
+
+    const supportsPrivateChannels = commandData.contexts.includes(
       InteractionContextType.PrivateChannel
     )
 
-    const supportsUserInstall = command.integration_types.includes(
+    const supportsUserInstall = commandData.integration_types.includes(
       ApplicationIntegrationType.UserInstall
     )
 
     if (supportsPrivateChannels && !supportsUserInstall) {
       throw new Error(
-        `Command /${command.name} supports private channels but does not support user installation.`
+        `Command /${commandData.name} supports private channels but does not support user installation.`
       )
     }
   }
@@ -225,10 +232,11 @@ export async function registerCommands(options: RegisterCommandsOptions = {}) {
 
   const target = resolveRegisterTarget(options.args, options.testGuildId)
 
-  // Load and validate first, so we do not wipe Discord commands if local files are broken.
-  const loadedCommandData = options.commandData ?? (await loadCommandData())
-  validateCommandData(loadedCommandData)
-  const commandData = prepareCommandDataForTarget(loadedCommandData, target)
+  // Load and validate Command instances first, so a malformed registry cannot
+  // wipe Discord's command surface during an overwrite.
+  const commands = options.commands ?? (await loadCommands())
+  validateCommands(commands)
+  const commandData = prepareCommandsForTarget(commands, target)
 
   if (commandData.length === 0) {
     throw new Error(

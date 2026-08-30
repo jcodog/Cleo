@@ -1,5 +1,6 @@
 export type ManageableGuildIdentity = {
   discordGuildId: string
+  lastOpenedAt?: number
 }
 
 export type DashboardGuildSelection = {
@@ -33,11 +34,27 @@ export function getDashboardGuildSelection({
   const storedGuildIsManageable =
     storedDiscordGuildId !== undefined &&
     manageableIds.has(storedDiscordGuildId)
+  const mostRecentlyOpenedGuild = manageableGuilds.reduce<
+    ManageableGuildIdentity | undefined
+  >((mostRecent, guild) => {
+    if (guild.lastOpenedAt === undefined) {
+      return mostRecent
+    }
+
+    if (
+      mostRecent?.lastOpenedAt === undefined ||
+      guild.lastOpenedAt > mostRecent.lastOpenedAt
+    ) {
+      return guild
+    }
+
+    return mostRecent
+  }, undefined)
   const activeDiscordGuildId = routeGuildIsManageable
     ? routeDiscordGuildId
     : storedGuildIsManageable
       ? storedDiscordGuildId
-      : undefined
+      : mostRecentlyOpenedGuild?.discordGuildId
 
   return {
     activeDiscordGuildId,

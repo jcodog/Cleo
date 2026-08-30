@@ -17,10 +17,10 @@ const DISCORD_GUILD_FORUM_CHANNEL = 15
 const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
 const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
 const DISCORD_EPOCH = 1420070400000n
+const DISCORD_NOT_INSTALLED_STATUSES = [403, 404] as const
 
 type DiscordApiUnavailableReason =
-  | "discordApiUnavailable"
-  | "discordGuildScopeUnavailable"
+  "discordApiUnavailable" | "discordGuildScopeUnavailable"
 
 type DiscordUserGuild = {
   id: string
@@ -117,8 +117,7 @@ export type DiscordBotGuildSummary = {
 }
 
 export type DiscordBotRestUnavailableReason =
-  | "discordApiUnavailable"
-  | "discordRestDeniedAccess"
+  "discordApiUnavailable" | "discordRestDeniedAccess"
 
 export type DiscordGuildRole = {
   discordRoleId: string
@@ -355,6 +354,9 @@ export async function fetchDiscordGuildChannels(
       headers: {
         Authorization: `Bot ${botToken}`,
       },
+    },
+    {
+      expectedErrorStatuses: DISCORD_NOT_INSTALLED_STATUSES,
     }
   )
 
@@ -460,6 +462,9 @@ export async function fetchDiscordBotGuild(
       headers: {
         Authorization: `Bot ${botToken}`,
       },
+    },
+    {
+      expectedErrorStatuses: DISCORD_NOT_INSTALLED_STATUSES,
     }
   )
 
@@ -636,9 +641,8 @@ export function canManageInstalledGuild({
   return Boolean(isOwner) || hasManageGuildPermission(permissions)
 }
 
-// Discord bot installs are intentionally stricter than dashboard visibility:
-// owners/admins can install Cleo, while Manage Server is enough to manage an
-// already-installed Cleo workspace.
+// Discord requires Manage Server to authorize a guild install. Owners and
+// administrators satisfy that requirement through their effective permissions.
 export function canInstallBotToGuild({
   isOwner,
   permissions,
@@ -646,7 +650,10 @@ export function canInstallBotToGuild({
   isOwner?: boolean
   permissions?: string
 }) {
-  return Boolean(isOwner) || hasAdministratorPermission(permissions)
+  return canManageInstalledGuild({
+    isOwner,
+    permissions,
+  })
 }
 
 export function hasAdministratorPermission(permissions: string | undefined) {

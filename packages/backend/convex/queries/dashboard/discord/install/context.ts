@@ -1,10 +1,11 @@
 import { v } from "convex/values"
 import type { Doc, Id } from "../../../../_generated/dataModel"
-import { internalQuery } from "../../../../_generated/server"
+import { internalQuery, query } from "../../../../_generated/server"
 import { getCurrentUser } from "../../../../lib/auth"
 import { shouldReplaceMembership } from "../../../../lib/discordGuildMemberships"
 import {
   dashboardDiscordInstallableGuildViewModel,
+  dashboardDiscordInstallSessionViewModel,
   discordGuildInstallSessionDoc,
   linkedAccountDoc,
   userDoc,
@@ -29,13 +30,6 @@ const createInstallContextResult = v.union(
   }),
   v.object({
     status: v.literal("missingDiscordIdentity"),
-  }),
-  v.object({
-    status: v.literal("alreadyInstalled"),
-    discordGuildId: v.string(),
-  }),
-  v.object({
-    status: v.literal("verificationUnavailable"),
   }),
   v.object({
     status: v.literal("ready"),
@@ -75,6 +69,25 @@ const installSessionContextResult = v.union(
       }),
       v.null()
     ),
+  })
+)
+
+const installSessionStatusResult = v.union(
+  v.object({
+    status: v.literal("missingUser"),
+  }),
+  v.object({
+    status: v.literal("missingDiscordIdentity"),
+  }),
+  v.object({
+    status: v.literal("notFound"),
+  }),
+  v.object({
+    status: v.literal("forbidden"),
+  }),
+  v.object({
+    status: v.literal("ready"),
+    session: dashboardDiscordInstallSessionViewModel,
   })
 )
 
@@ -133,40 +146,71 @@ export const getCreateServerInstallContext = internalQuery({
       return { status: "missingDiscordIdentity" as const }
     }
 
-    const guild = await ctx.db
-      .query("guilds")
-      .withIndex("by_discord_guild_id", (q) =>
-        q.eq("discordGuildId", args.discordGuildId)
-      )
-      .unique()
-
-    if (!guild) {
-      return { status: "verificationUnavailable" as const }
-    }
-
-    const membership = await getVerifiedManagerMembership(
-      ctx,
-      user,
-      discordAccount,
-      guild._id
-    )
-
-    if (!membership) {
-      return { status: "verificationUnavailable" as const }
-    }
-
-    if (isGuildInstalled(guild)) {
-      return {
-        status: "alreadyInstalled" as const,
-        discordGuildId: guild.discordGuildId,
-      }
-    }
-
     return {
       status: "ready" as const,
       user,
       discordAccount,
-      discordGuildId: guild.discordGuildId,
+      discordGuildId: args.discordGuildId,
+    }
+  },
+})
+
+export const getInstallSessionStatus = query({
+  args: {
+    installSessionId: v.id("discordGuildInstallSessions"),
+  },
+  returns: installSessionStatusResult,
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx)
+
+    if (!user) {
+      return { status: "missingUser" as const }
+    }
+
+    const discordAccount = await getDiscordAccount(ctx, user._id)
+
+    if (!discordAccount) {
+      return { status: "missingDiscordIdentity" as const }
+    }
+
+    const session = await getInstallSession(
+      ctx,
+      user._id,
+      discordAccount.providerAccountId,
+      {
+        installSessionId: args.installSessionId,
+      }
+    )
+
+    if (!session) {
+      return { status: "notFound" as const }
+    }
+
+    if (
+      session.userId !== user._id ||
+      session.discordUserId !== discordAccount.providerAccountId
+    ) {
+      return { status: "forbidden" as const }
+    }
+
+    if (session.status === "expired" || session.expiresAt <= Date.now()) {
+      return { status: "notFound" as const }
+    }
+
+    return {
+      status: "ready" as const,
+      session: {
+        installSessionId: session._id,
+        discordGuildId: session.discordGuildId,
+        status: session.status,
+        ...(session.selectedUpdatesChannelId !== undefined
+          ? { selectedUpdatesChannelId: session.selectedUpdatesChannelId }
+          : {}),
+        expiresAt: session.expiresAt,
+        ...(session.completedAt !== undefined
+          ? { completedAt: session.completedAt }
+          : {}),
+      },
     }
   },
 })
@@ -377,37 +421,6 @@ function isGuildInstalled(guild: {
     (guild.botJoinedAt !== undefined ||
       guild.botInstallationVerifiedAt !== undefined)
   )
-}
-
-async function getVerifiedManagerMembership(
-  ctx: Parameters<typeof getCurrentUser>[0],
-  user: Doc<"users">,
-  discordAccount: Doc<"linkedAccounts">,
-  guildId: Id<"guilds">
-) {
-  const directMembership = await ctx.db
-    .query("discordGuildMemberships")
-    .withIndex("by_user_id_and_guild_id", (q) =>
-      q.eq("userId", user._id).eq("guildId", guildId)
-    )
-    .unique()
-
-  if (isVerifiedManagerMembership(directMembership)) {
-    return directMembership
-  }
-
-  const discordMembership = await ctx.db
-    .query("discordGuildMemberships")
-    .withIndex("by_guild_id_and_discord_user_id", (q) =>
-      q
-        .eq("guildId", guildId)
-        .eq("discordUserId", discordAccount.providerAccountId)
-    )
-    .unique()
-
-  return isVerifiedManagerMembership(discordMembership)
-    ? discordMembership
-    : null
 }
 
 function isVerifiedManagerMembership(

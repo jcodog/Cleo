@@ -16,6 +16,11 @@ export type OnboardingQueryState =
 export type OnboardingGuardDecision =
   "loading" | "resolve-provenance" | "allow-dashboard" | "show-onboarding"
 
+export type ProvenanceResolutionStatus = "idle" | "resolving" | "error"
+
+export type OnboardingGuardView =
+  "pending" | "retry-provenance" | "allow-dashboard" | "redirect-onboarding"
+
 export function getOnboardingGuardDecision(
   onboarding: OnboardingQueryState
 ): OnboardingGuardDecision {
@@ -32,8 +37,27 @@ export function getOnboardingGuardDecision(
     : "show-onboarding"
 }
 
+export function getOnboardingGuardView({
+  decision,
+  provenanceResolutionStatus,
+}: {
+  decision: OnboardingGuardDecision
+  provenanceResolutionStatus: ProvenanceResolutionStatus
+}): OnboardingGuardView {
+  if (decision === "allow-dashboard") {
+    return "allow-dashboard"
+  }
+
+  if (decision === "show-onboarding") {
+    return "redirect-onboarding"
+  }
+
+  return provenanceResolutionStatus === "error" ? "retry-provenance" : "pending"
+}
+
 export type OnboardingExperienceState =
-  | "loading"
+  | "syncing-account"
+  | "syncing-guilds"
   | "error"
   | "redirect-dashboard"
   | "ready-with-guilds"
@@ -42,22 +66,28 @@ export type OnboardingExperienceState =
 export function getOnboardingExperienceState({
   guildCount,
   onboarding,
+  provenanceResolutionStatus,
   syncStatus,
 }: {
   guildCount: number | undefined
   onboarding: OnboardingQueryState
+  provenanceResolutionStatus: ProvenanceResolutionStatus
   syncStatus: DashboardDiscordSyncStatus
 }): OnboardingExperienceState {
+  if (provenanceResolutionStatus === "error") {
+    return "error"
+  }
+
   if (syncStatus === "error") {
     return "error"
   }
 
   if (!onboarding || onboarding.status !== "ready") {
-    return "loading"
+    return "syncing-account"
   }
 
   if (onboarding.account.onboardingProvenance === null) {
-    return "loading"
+    return "syncing-account"
   }
 
   if (isCurrentOnboardingComplete(onboarding.account)) {
@@ -65,7 +95,7 @@ export function getOnboardingExperienceState({
   }
 
   if (syncStatus !== "ready" || guildCount === undefined) {
-    return "loading"
+    return "syncing-guilds"
   }
 
   return guildCount > 0 ? "ready-with-guilds" : "ready-without-guilds"

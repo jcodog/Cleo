@@ -83,38 +83,53 @@ General UI direction:
 - Do not redesign major dashboard pages until the backend and auth foundations are stable.
 - Use relevant skills and MCPs selectively when they improve accuracy; do not invoke every available tool blindly.
 
-## Terminal rules
-
-Development may already be running in WezTerm.
-
-Before starting any dev server, watcher, tunnel, broad validation command, or log tail, inspect existing WezTerm panes first:
-
-```bash
-wezterm cli list --format json
-```
-
-If a Cleo dev pane is already running, read its recent output instead of starting another process:
-
-```bash
-wezterm cli get-text --pane-id <PANE_ID> --start-line -300
-```
-
-Do not start duplicate `bun run dev`, `turbo dev`, `next dev`, `convex dev`, workers, websocket, bot, or tunnel processes.
-
-Use existing WezTerm output as the first source of truth for dev server errors, route errors, compile errors, runtime errors, and browser-triggered logs.
-
-Do not use `wezterm cli send-text`, `spawn`, `split-pane`, `kill-pane`, or `activate-pane` unless Jason explicitly asks.
-
-If the correct pane is unclear, ask Jason which pane ID to inspect.
-
 ## Package manager and command runner
 
 - This repo uses the pinned Bun version from `package.json`.
-- Use package scripts for project commands: `bun run <script>` from a workspace, or `bun run --filter <workspace> <script>` from the repo root.
+- Use package scripts for project commands.
+- From the repository root, use `bun run --filter <workspace> <script>` when working on one app or package.
+- From inside a workspace, `bun run <script>` is equivalent and is also supported.
+- Root scripts such as `bun run dev`, `bun run typecheck`, `bun run lint`, `bun run test`, `bun run test:coverage`, and `bun run build` are allowed when intentionally operating across the monorepo.
+- Prefer workspace-targeted commands while iterating on a focused change. This keeps feedback fast and avoids running unrelated workspaces unnecessarily.
+- Use root-wide commands when the work genuinely spans multiple workspaces, when cross-workspace behavior needs to be exercised, or during final pre-PR validation.
+- Only run a workspace script when that workspace defines it.
 - Use `bunx --no-install <command>` for locally installed CLIs such as Convex, Next.js, Oxlint, Prettier, and shadcn.
-- Use plain `bunx <package>` only when a one-off CLI is not already installed in the workspace.
+- Use plain `bunx <package>` only when a deliberate one-off CLI is not already installed in the workspace.
 - Do not use another package manager for repo scripts, validation, codegen, package installs, or local CLIs.
 - Do not add or update dependencies with another package manager. Keep `bun.lock` as the only package-manager lockfile.
+- Do not start duplicate dev servers, watchers, workers, bots, tunnels, or other long-running processes when an equivalent process is already running.
+
+### Common development commands
+
+Prefer targeted commands for the surface being changed:
+
+```bash
+bun run --filter @workspace/dashboard dev
+bun run --filter @workspace/dashboard typecheck
+bun run --filter @workspace/dashboard lint
+bun run --filter @workspace/dashboard test
+
+bun run --filter @workspace/backend dev
+bun run --filter @workspace/backend codegen
+bun run --filter @workspace/backend typecheck
+bun run --filter @workspace/backend lint
+bun run --filter @workspace/backend test
+bun run --filter @workspace/backend test:coverage
+
+bun run --filter @workspace/discord-bot dev
+bun run --filter @workspace/discord-bot typecheck
+bun run --filter @workspace/discord-bot lint
+bun run --filter @workspace/discord-bot test
+bun run --filter @workspace/discord-bot test:coverage
+```
+
+When intentionally running the whole development stack from the repository root:
+
+```bash
+bun run dev
+```
+
+This uses the root Turborepo development script and may start multiple workspace development processes. Use it when that is actually useful rather than as the default for every focused change.
 
 ## Apps
 
@@ -132,35 +147,23 @@ If the correct pane is unclear, ask Jason which pane ID to inspect.
 - `packages/env`: typed server and client-safe env entrypoints
 - `packages/ui`: shared shadcn UI primitives using Tabler Icons by default
 
-## Before finishing work
+## Validation and finishing work
 
-Do not run repo-root validation commands:
+During development, run the checks that cover the workspace or workspaces you changed. Do not repeatedly run the entire monorepo for a small isolated edit unless broad validation is useful.
+
+Before opening or finalising a pull request, strongly prefer the full repository validation suite from the root:
 
 ```bash
-bun run lint
 bun run typecheck
+bun run lint
+bun run test
+bun run test:coverage
 bun run build
-turbo lint
-turbo typecheck
-turbo build
 ```
 
-Run only targeted package/app checks from the relevant workspace when they exist:
+These root commands intentionally exercise the Turborepo workspace graph and are the best final check for cross-workspace regressions.
 
-- `packages/backend`
-- `packages/shared`
-- `packages/logger`
-- `packages/env`
-- `apps/dashboard`
-
-Use Bun scripts for workspace commands. For example:
-
-```bash
-bun run --filter @workspace/dashboard lint
-bun run --filter @workspace/dashboard typecheck
-bun run --filter @workspace/backend typecheck
-bun run --filter @workspace/backend codegen
-```
+If a full-root command is impractical because of an environment limitation, run all relevant workspace checks instead and clearly report what was not run and why. Do not claim validation that did not actually execute.
 
 Report:
 

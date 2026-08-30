@@ -1,6 +1,10 @@
 import { v } from "convex/values"
+
 import type { Id } from "../../../../_generated/dataModel"
-import { internalMutation, type MutationCtx } from "../../../../_generated/server"
+import {
+  internalMutation,
+  type MutationCtx,
+} from "../../../../_generated/server"
 import { discordGuildInstallSessionDoc } from "../../../../lib/validators"
 
 export const pending = internalMutation({
@@ -8,7 +12,6 @@ export const pending = internalMutation({
     userId: v.id("users"),
     discordUserId: v.string(),
     discordGuildId: v.string(),
-    oauthState: v.string(),
     expiresAt: v.number(),
   },
   returns: discordGuildInstallSessionDoc,
@@ -23,7 +26,6 @@ export const pending = internalMutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         discordUserId: args.discordUserId,
-        oauthState: args.oauthState,
         expiresAt: args.expiresAt,
         updatedAt: now,
       })
@@ -37,16 +39,18 @@ export const pending = internalMutation({
       return updated
     }
 
-    const installSessionId = await ctx.db.insert("discordGuildInstallSessions", {
-      userId: args.userId,
-      discordUserId: args.discordUserId,
-      discordGuildId: args.discordGuildId,
-      status: "pending",
-      oauthState: args.oauthState,
-      createdAt: now,
-      updatedAt: now,
-      expiresAt: args.expiresAt,
-    })
+    const installSessionId = await ctx.db.insert(
+      "discordGuildInstallSessions",
+      {
+        userId: args.userId,
+        discordUserId: args.discordUserId,
+        discordGuildId: args.discordGuildId,
+        status: "pending",
+        createdAt: now,
+        updatedAt: now,
+        expiresAt: args.expiresAt,
+      }
+    )
 
     const session = await ctx.db.get(installSessionId)
 
@@ -55,6 +59,36 @@ export const pending = internalMutation({
     }
 
     return session
+  },
+})
+
+export const botJoined = internalMutation({
+  args: {
+    discordGuildId: v.string(),
+  },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const now = Date.now()
+
+    const sessions = await ctx.db
+      .query("discordGuildInstallSessions")
+      .withIndex("by_discord_guild_id", (q) =>
+        q.eq("discordGuildId", args.discordGuildId)
+      )
+      .collect()
+
+    const activePendingSessions = sessions.filter(
+      (session) => session.status === "pending" && session.expiresAt > now
+    )
+
+    for (const session of activePendingSessions) {
+      await ctx.db.patch(session._id, {
+        status: "bot_joined",
+        updatedAt: now,
+      })
+    }
+
+    return activePendingSessions.length
   },
 })
 

@@ -1240,9 +1240,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "discordGuildDiscoveryUnavailable";
                 }
               | {
@@ -1293,9 +1291,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -1339,9 +1335,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -1419,9 +1413,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "userGuildDiscoveryUnavailable";
                 }
               | {
@@ -1486,9 +1478,7 @@ export declare const api: {
                     | "discordAccessTokenUnavailable"
                     | "discordTokenResolutionUnavailable"
                     | "discordGuildScopeUnavailable"
-                    | "discordApiUnavailable"
-                    | "discordBotTokenUnavailable"
-                    | "discordRestDeniedAccess";
+                    | "discordApiUnavailable";
                   status: "discordGuildDiscoveryUnavailable";
                 }
               | {
@@ -2136,6 +2126,30 @@ export declare const api: {
                       | "ws-relay"
                       | "backend";
                   }>;
+                  status: "ready";
+                }
+            >;
+          };
+        };
+        install: {
+          context: {
+            getInstallSessionStatus: FunctionReference<
+              "query",
+              "public",
+              { installSessionId: Id<"discordGuildInstallSessions"> },
+              | { status: "missingUser" }
+              | { status: "missingDiscordIdentity" }
+              | { status: "notFound" }
+              | { status: "forbidden" }
+              | {
+                  session: {
+                    completedAt?: number;
+                    discordGuildId: string;
+                    expiresAt: number;
+                    installSessionId: Id<"discordGuildInstallSessions">;
+                    selectedUpdatesChannelId?: string;
+                    status: "pending" | "bot_joined" | "configured" | "expired";
+                  };
                   status: "ready";
                 }
             >;
@@ -4651,6 +4665,12 @@ export declare const internal: {
         };
         installSessions: {
           upsert: {
+            botJoined: FunctionReference<
+              "mutation",
+              "internal",
+              { discordGuildId: string },
+              number
+            >;
             configured: FunctionReference<
               "mutation",
               "internal",
@@ -4677,7 +4697,6 @@ export declare const internal: {
                 discordGuildId: string;
                 discordUserId: string;
                 expiresAt: number;
-                oauthState: string;
                 userId: Id<"users">;
               },
               {
@@ -5185,8 +5204,6 @@ export declare const internal: {
               { discordGuildId: string },
               | { status: "missingUser" }
               | { status: "missingDiscordIdentity" }
-              | { discordGuildId: string; status: "alreadyInstalled" }
-              | { status: "verificationUnavailable" }
               | {
                   discordAccount: {
                     _creationTime: number;

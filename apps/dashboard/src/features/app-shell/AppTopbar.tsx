@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { UserButton } from "@clerk/nextjs"
-import { IconHome, IconShieldLock } from "@tabler/icons-react"
+import { UserButton, useClerk } from "@clerk/nextjs"
+import { IconHome, IconLogout, IconShieldLock } from "@tabler/icons-react"
 
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 import { Separator } from "@workspace/ui/components/separator"
@@ -63,10 +63,33 @@ export function StaffUserButton({
 }: {
   staffLink: StaffUserButtonLink | null
 }) {
+  const clerk = useClerk()
+
+  const handleSignOut = () => {
+    const signOut = () => clerk.signOut()
+    const viewTransitionDocument = document as Document & {
+      startViewTransition?: (update: () => Promise<void>) => void
+    }
+
+    if (viewTransitionDocument.startViewTransition) {
+      viewTransitionDocument.startViewTransition(signOut)
+      return
+    }
+
+    void signOut()
+  }
+
   return (
-    <UserButton showName>
-      {staffLink ? (
-        <UserButton.MenuItems>
+    <UserButton
+      appearance={{
+        elements: {
+          userButtonPopoverActionButton__signOut: { display: "none" },
+        },
+      }}
+      showName
+    >
+      <UserButton.MenuItems>
+        {staffLink ? (
           <UserButton.Link
             href={staffLink.href}
             label={staffLink.label}
@@ -78,8 +101,13 @@ export function StaffUserButton({
               )
             }
           />
-        </UserButton.MenuItems>
-      ) : null}
+        ) : null}
+        <UserButton.Action
+          label="Sign out"
+          labelIcon={<IconLogout aria-hidden size={16} />}
+          onClick={handleSignOut}
+        />
+      </UserButton.MenuItems>
     </UserButton>
   )
 }

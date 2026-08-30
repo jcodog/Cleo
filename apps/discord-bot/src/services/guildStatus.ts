@@ -6,7 +6,7 @@ import type {
   DiscordGuildRuntimeConfigResult,
 } from "@/services/guildRuntimeConfig"
 
-export const CLEO_DASHBOARD_BASE_URL = "https://beta.cleoai.cloud"
+export const CLEO_DASHBOARD_BASE_URL = "https://cleoai.cloud"
 
 export type CleoGuildStatusView = {
   content: string
@@ -90,8 +90,8 @@ function formatReadyStatus(
       config.supportEnabled,
       Boolean(
         config.supportTargetId &&
-          config.supportTargetType &&
-          config.supportStaffRoleIds?.length
+        config.supportTargetType &&
+        config.supportStaffRoleIds?.length
       ),
       config.supportTargetId ? `<#${config.supportTargetId}>` : undefined
     ),

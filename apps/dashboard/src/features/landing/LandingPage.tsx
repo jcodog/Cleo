@@ -84,17 +84,17 @@ function Hero() {
       <div className="cleo-enter relative z-10 flex max-w-2xl flex-col items-start gap-5 sm:gap-7 lg:pb-8">
         <p className="flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-cleo-cyan uppercase sm:text-sm">
           <IconBrandDiscord aria-hidden className="size-4" />
-          Discord-first community assistant
+          Manage your Discord community with Cleo
         </p>
 
         <div className="flex flex-col gap-5">
           <h1 className="font-heading text-[clamp(3.25rem,4.5vw,4.25rem)] leading-[0.94] font-semibold tracking-[-0.045em] text-balance">
-            Run your communities
-            <span className="block text-cleo-cyan">with Cleo beside you.</span>
+            Your Discord server,
+            <span className="block text-cleo-cyan">easier to manage.</span>
           </h1>
           <p className="max-w-xl text-base leading-7 text-pretty text-foreground/76 sm:text-lg sm:leading-8">
-            Manage Discord, protect your members, automate routine work, and
-            connect the creator platforms around your community.
+            Set up welcomes, moderation, logs, support, and automations from one
+            dashboard, with help from Cleo when you need it.
           </p>
         </div>
 
@@ -190,25 +190,24 @@ const VALUE_AREAS = [
     icon: IconServer,
     title: "Manage your server",
     description:
-      "Configure Cleo's useful Discord features from one clear dashboard.",
+      "Set up Cleo's Discord features without hunting through bot commands.",
   },
   {
     icon: IconShieldCheck,
     title: "Protect your members",
     description:
-      "Give moderators clear controls and keep important decisions visible.",
+      "Give moderators clear settings and keep important outcomes easy to find.",
   },
   {
     icon: IconAdjustments,
     title: "Automate the routine",
-    description:
-      "Set up welcome, logging, support, and repeatable server behaviour.",
+    description: "Handle welcomes, logs, support, and repeatable server tasks.",
   },
   {
     icon: IconMessageChatbot,
-    title: "Get useful assistance",
+    title: "Ask Cleo for help",
     description:
-      "Bring relevant context to the team without handing over final control.",
+      "Use the context your team chooses while people make the final call.",
   },
 ] as const
 
@@ -218,20 +217,21 @@ function ValueSummary() {
       className="relative scroll-mt-20 border-t border-white/10"
       id="features"
     >
-      <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
-        <div className="max-w-3xl">
+      <div className="mx-auto grid w-full max-w-7xl gap-12 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-20 lg:px-10 lg:py-28">
+        <div className="max-w-xl lg:sticky lg:top-28 lg:self-start">
           <h2 className="font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            Everything you need to run a better community.
+            Less time chasing settings and bot commands.
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-            Practical tools for the work community teams handle every day.
+            Cleo keeps the everyday work of running a Discord server in one
+            place.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="border-t border-white/12">
           {VALUE_AREAS.map(({ description, icon: Icon, title }) => (
             <article
-              className="group min-h-56 bg-neutral-950/92 p-6 transition-colors duration-200 hover:bg-neutral-900/94 sm:p-7"
+              className="group grid gap-4 border-b border-white/10 py-7 sm:grid-cols-[2.5rem_minmax(0,0.82fr)_minmax(0,1.18fr)] sm:items-start sm:gap-6 sm:py-8"
               key={title}
             >
               <Icon
@@ -239,10 +239,10 @@ function ValueSummary() {
                 className="size-6 text-cleo-cyan transition-colors duration-200 group-hover:text-white"
                 stroke={1.5}
               />
-              <h3 className="mt-8 font-heading text-xl font-semibold tracking-[-0.02em]">
+              <h3 className="font-heading text-xl font-semibold tracking-[-0.02em]">
                 {title}
               </h3>
-              <p className="mt-3 text-base leading-7 text-muted-foreground">
+              <p className="text-base leading-7 text-muted-foreground">
                 {description}
               </p>
             </article>
@@ -266,11 +266,11 @@ function ProductShowcase() {
       <div className="relative mx-auto w-full max-w-7xl px-5 py-24 sm:px-8 sm:py-28 lg:px-10 lg:py-32">
         <div className="grid items-end gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <h2 className="max-w-3xl font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            Built to be used, not figured out.
+            See what is happening. Change what matters.
           </h2>
           <p className="max-w-xl text-base leading-7 text-muted-foreground sm:justify-self-end sm:text-lg sm:leading-8">
-            The real Cleo dashboard keeps server status, configuration, and
-            recent changes close together.
+            Check Cleo's status, open a feature, and update your server without
+            digging through commands or scattered settings.
           </p>
         </div>
 
@@ -301,82 +301,72 @@ function ProductShowcase() {
 const CAPABILITY_PANELS = [
   {
     icon: IconAdjustments,
-    title: "Server management and automation",
+    title: "Server setup and automation",
     description:
-      "Choose the Discord features your server needs and configure them without memorising bot commands.",
+      "Choose the Cleo features your server needs and configure them from the dashboard.",
     bullets: [
       "Welcome cards and channel destinations",
       "Moderation, logging, and support modules",
-      "Server access based on verified permissions",
+      "Access based on verified Discord permissions",
     ],
-    lead: true,
   },
   {
     icon: IconShieldCheck,
-    title: "Moderation and user protection",
+    title: "Moderation and logs",
     description:
-      "Cleo records ban and kick outcomes and keeps moderation settings visible to authorised managers.",
+      "Cleo records ban and kick results and keeps moderation settings visible to authorised managers.",
     bullets: [
       "Configured moderation controls",
-      "Visible outcomes and failure states",
-      "Owners and moderators retain control",
+      "Clear results when an action succeeds or fails",
+      "Owners and moderators make the decisions",
     ],
-    lead: false,
   },
   {
     icon: IconSparkles,
-    title: "AI assistance with human control",
+    title: "AI help when it makes sense",
     description:
-      "Cleo is built to organise useful community context while people decide what should happen next.",
+      "Use Cleo with the community context your team chooses. People still decide what happens next.",
     bullets: [
       "Context chosen by the community team",
-      "Clear assistance rather than hidden action",
-      "Human judgement remains final",
+      "Suggestions you can review before acting",
+      "People always make the final call",
     ],
-    lead: false,
   },
 ] as const
 
 function CoreCapabilities() {
   return (
     <section className="relative" aria-labelledby="capabilities-heading">
-      <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
+      <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10 lg:py-32">
         <h2
-          className="max-w-4xl font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl"
+          className="max-w-3xl font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl"
           id="capabilities-heading"
         >
-          Cleo handles the work around your community.
+          Set up the parts of your server people rely on.
         </h2>
 
-        <div className="mt-12 grid gap-4 lg:grid-cols-12">
+        <div className="mt-12 border-t border-white/12 sm:mt-16">
           {CAPABILITY_PANELS.map(
-            ({ bullets, description, icon: Icon, lead, title }) => (
+            ({ bullets, description, icon: Icon, title }) => (
               <article
-                className={cn(
-                  "relative overflow-hidden rounded-xl border border-white/10 bg-neutral-950/78 p-7 sm:p-8",
-                  "lg:col-span-4"
-                )}
+                className="grid gap-7 border-b border-white/10 py-9 sm:py-11 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20 lg:py-14"
                 key={title}
               >
-                {lead ? (
-                  <div
-                    aria-hidden
-                    className="absolute right-[-8rem] bottom-[-9rem] size-72 rounded-full border border-primary/16 shadow-[0_0_80px_color-mix(in_oklab,var(--primary)_10%,transparent)]"
-                  />
-                ) : null}
-                <div className="relative">
+                <div className="flex items-start gap-5 sm:gap-7">
                   <Icon
                     aria-hidden
-                    className="size-6 text-cleo-cyan"
+                    className="mt-1 size-6 shrink-0 text-cleo-cyan"
                     stroke={1.5}
                   />
-                  <h3 className="mt-7 max-w-xl font-heading text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
+                  <h3 className="max-w-xl font-heading text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
                     {title}
                   </h3>
+                </div>
+                <div className="lg:pt-0.5">
                   <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
                     {description}
                   </p>
-                  <ul className="mt-7 space-y-3">
+                  <ul className="mt-6 grid gap-x-8 gap-y-3 sm:grid-cols-2">
                     {bullets.map((bullet) => (
                       <li
                         className="flex items-start gap-3 text-sm leading-6 text-foreground/82 sm:text-base"
@@ -407,109 +397,72 @@ function PlatformEcosystem() {
       className="relative scroll-mt-20 overflow-hidden border-y border-white/10 bg-neutral-950/58"
       id="platforms"
     >
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[0.82fr_1.18fr] lg:gap-20 lg:px-10 lg:py-32">
-        <div className="max-w-2xl">
+      <div className="mx-auto grid w-full max-w-7xl items-start gap-14 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-24 lg:px-10 lg:py-32">
+        <div className="max-w-2xl lg:sticky lg:top-28">
           <h2 className="font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            One community, across the places your people gather.
+            Start with Discord. Connect more when you need to.
           </h2>
           <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-            Discord is Cleo's core workspace. Twitch and Kick connect the
-            creator accounts and bot services around it.
+            Discord is where you set up Cleo and manage your server. Twitch and
+            Kick link the creator accounts used by their related bot tools.
           </p>
-        </div>
-
-        <div>
-          <div className="space-y-3 sm:hidden">
-            <div className="relative mx-auto mb-6 size-40 overflow-hidden rounded-full border border-white/14 bg-neutral-950 shadow-[0_0_60px_color-mix(in_oklab,var(--primary)_12%,transparent)]">
-              <Image
-                alt="Cleo"
-                className="size-full object-cover"
-                height={160}
-                loading="eager"
-                src="/android-chrome-512x512.png"
-                unoptimized
-                width={160}
-              />
-            </div>
-            <PlatformCard
-              description="The main dashboard for server configuration, moderation, support, welcome, and logs."
-              icon={IconBrandDiscord}
-              label="Core platform"
-              name="Discord"
-              tone="cyan"
-            />
-            <PlatformCard
-              description="A linked creator account for Cleo's Twitch bot and tools."
-              icon={IconBrandTwitch}
-              label="Connected creator platform"
-              name="Twitch"
-              tone="indigo"
-            />
-            <PlatformCard
-              description="A linked creator account for Cleo's Kick bot and tools."
-              icon={IconBrandKick}
-              label="Connected creator platform"
-              name="Kick"
-              tone="emerald"
-            />
-          </div>
-
-          <div className="relative hidden min-h-[31rem] sm:block">
+          <div className="relative mt-10 hidden h-52 sm:block">
             <div
               aria-hidden
-              className="absolute top-1/2 left-1/2 size-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_68%)] blur-xl"
+              className="absolute top-1/2 left-24 size-52 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_70%)] blur-xl"
             />
-            <div className="absolute top-1/2 left-1/2 z-0 size-60 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border border-white/14 bg-neutral-950 shadow-[0_0_70px_color-mix(in_oklab,var(--primary)_12%,transparent)]">
+            <div className="absolute inset-y-0 left-0 size-52 overflow-hidden rounded-full border border-white/14 bg-neutral-950 shadow-[0_0_70px_color-mix(in_oklab,var(--primary)_12%,transparent)]">
               <Image
                 alt="Cleo"
                 className="size-full object-cover"
-                height={240}
-                sizes="15rem"
+                height={208}
+                sizes="13rem"
                 src="/android-chrome-512x512.png"
-                width={240}
+                width={208}
               />
             </div>
-
-            <PlatformCard
-              className="absolute inset-x-0 right-auto bottom-0 z-10 w-[58%]"
-              description="The main dashboard for server configuration, moderation, support, welcome, and logs."
-              icon={IconBrandDiscord}
-              label="Core platform"
-              name="Discord"
-              tone="cyan"
-            />
-            <PlatformCard
-              className="absolute top-0 right-0 z-10 w-[48%]"
-              description="A linked creator account for Cleo's Twitch bot and tools."
-              icon={IconBrandTwitch}
-              label="Connected creator platform"
-              name="Twitch"
-              tone="indigo"
-            />
-            <PlatformCard
-              className="absolute right-0 bottom-4 z-10 w-[42%]"
-              description="A linked creator account for Cleo's Kick bot and tools."
-              icon={IconBrandKick}
-              label="Connected creator platform"
-              name="Kick"
-              tone="emerald"
+            <div
+              aria-hidden
+              className="absolute top-1/2 right-0 left-48 h-px bg-gradient-to-r from-cleo-cyan/50 to-transparent"
             />
           </div>
+        </div>
+
+        <div className="border-t border-white/12">
+          <PlatformRow
+            description="The main dashboard for server configuration, moderation, support, welcome, and logs."
+            icon={IconBrandDiscord}
+            label="Start here"
+            name="Discord"
+            tone="cyan"
+          />
+          <PlatformRow
+            description="Connect your Twitch account to Cleo's Twitch bot and related tools."
+            icon={IconBrandTwitch}
+            label="Linked creator account"
+            name="Twitch"
+            tone="indigo"
+          />
+          <PlatformRow
+            description="Connect your Kick account to Cleo's Kick bot and related tools."
+            icon={IconBrandKick}
+            label="Linked creator account"
+            name="Kick"
+            tone="emerald"
+          />
         </div>
       </div>
     </section>
   )
 }
 
-function PlatformCard({
-  className,
+function PlatformRow({
   description,
   icon: Icon,
   label,
   name,
   tone,
 }: {
-  className?: string
   description: string
   icon: typeof IconBrandDiscord
   label: string
@@ -517,30 +470,23 @@ function PlatformCard({
   tone: "cyan" | "emerald" | "indigo"
 }) {
   return (
-    <article
-      className={cn(
-        "border border-white/12 bg-neutral-950/96 p-5 shadow-xl shadow-black/30 backdrop-blur-sm sm:p-6",
-        className
-      )}
-    >
-      <div className="flex items-start gap-4">
-        <Icon
-          aria-hidden
-          className={cn(
-            "mt-0.5 size-7 shrink-0",
-            tone === "cyan" && "text-cleo-cyan",
-            tone === "indigo" && "text-cleo-indigo",
-            tone === "emerald" && "text-emerald-400"
-          )}
-        />
-        <div>
-          <h3 className="font-heading text-xl font-semibold">{name}</h3>
-          <p className="mt-1 text-sm text-foreground/72">{label}</p>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-            {description}
-          </p>
-        </div>
+    <article className="group grid gap-4 border-b border-white/10 py-8 sm:grid-cols-[2.75rem_minmax(0,0.65fr)_minmax(0,1.35fr)] sm:gap-6 sm:py-10">
+      <Icon
+        aria-hidden
+        className={cn(
+          "size-7 transition-colors duration-200 group-hover:text-white",
+          tone === "cyan" && "text-cleo-cyan",
+          tone === "indigo" && "text-cleo-indigo",
+          tone === "emerald" && "text-emerald-400"
+        )}
+      />
+      <div>
+        <h3 className="font-heading text-xl font-semibold">{name}</h3>
+        <p className="mt-1 text-sm text-foreground/72">{label}</p>
       </div>
+      <p className="text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
+        {description}
+      </p>
     </article>
   )
 }
@@ -548,19 +494,19 @@ function PlatformCard({
 const TRUST_ITEMS = [
   {
     icon: IconBrandDiscord,
-    title: "Discord-backed identity",
+    title: "Sign in with Discord",
     description:
       "Your Discord account is the primary identity Cleo uses for dashboard access.",
   },
   {
     icon: IconEye,
-    title: "Real server permissions",
+    title: "Verified server access",
     description:
       "Server data is limited to owners and people with verified management access.",
   },
   {
     icon: IconHeartHandshake,
-    title: "People keep control",
+    title: "Decisions stay with people",
     description:
       "Configuration and moderation outcomes remain visible to the people responsible.",
   },
@@ -571,7 +517,7 @@ function TrustAndControl() {
     <section className="relative scroll-mt-20" id="safety">
       <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
         <h2 className="font-heading text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
-          Clear controls. No mystery.
+          You can see who can do what.
         </h2>
         <div className="mt-10 grid border-y border-white/10 md:grid-cols-3 md:divide-x md:divide-white/10">
           {TRUST_ITEMS.map(({ description, icon: Icon, title }) => (
@@ -612,7 +558,8 @@ function CleoPersonality() {
           width={80}
         />
         <p className="max-w-2xl font-heading text-xl leading-7 font-medium tracking-[-0.02em] text-foreground/90 sm:text-2xl sm:leading-8">
-          Cleo keeps the routine tidy. You keep the community human.
+          Cleo handles the repeatable parts, so your team has more time for
+          people.
         </p>
       </div>
     </aside>
@@ -629,10 +576,10 @@ function FinalCallToAction() {
       <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-7 px-5 py-20 sm:px-8 sm:py-24 lg:flex-row lg:items-end lg:justify-between lg:px-10">
         <div>
           <h2 className="font-heading text-4xl leading-none font-semibold tracking-[-0.035em] sm:text-6xl">
-            Ready when your community is.
+            Want Cleo in your server?
           </h2>
           <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg">
-            Bring Cleo into the work your community already does.
+            Sign in with Discord and set up the features your community needs.
           </p>
         </div>
         <LandingAuthActions placement="hero" />

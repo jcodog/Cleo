@@ -1000,6 +1000,7 @@ export type DataModel = {
       discordUserId: string;
       guildId: Id<"guilds">;
       isOwner?: boolean;
+      lastOpenedAt?: number;
       lastSyncedAt?: number;
       managementVerificationSource?: "discord-bot" | "discord-oauth" | "manual";
       managementVerifiedAt?: number;
@@ -1018,6 +1019,7 @@ export type DataModel = {
       | "discordUserId"
       | "guildId"
       | "isOwner"
+      | "lastOpenedAt"
       | "lastSyncedAt"
       | "managementVerificationSource"
       | "managementVerifiedAt"
