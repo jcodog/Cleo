@@ -5,7 +5,9 @@ import { Webhook } from "svix"
 
 import { verifyClerkWebhook } from "./clerkWebhook"
 
-const secret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"
+const secret = `whsec_${Buffer.from(
+  "cleo-clerk-webhook-test-secret-only"
+).toString("base64")}`
 
 test("accepts a correctly signed Clerk event verified from its raw body", () => {
   const payload = JSON.stringify({
