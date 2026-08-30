@@ -1,0 +1,87 @@
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_427f4960eead5e::t_d94e6ac37a9033 3,44,48
+  s_427f4960eead5e::t_545fa8e1b74f8d 19,42-43,45-47,49
+  s_427f4960eead5e::t_a7b6d655c68f0d 15,38
+packages/backend/convex/mutations/dashboard/discord/guilds/markOpened.ts
+  s_427f4960eead5e::t_cbd6c719cb310f 11,15
+packages/backend/convex/dbTables/discordGuildMemberships.ts
+  s_427f4960eead5e::t_cbd6c719cb310f 18
+apps/dashboard/src/features/onboarding/OnboardingExperience.tsx
+  s_427f4960eead5e::t_a7b6d655c68f0d 111,305-306
+  s_427f4960eead5e::t_d94e6ac37a9033 81-85
+  s_427f4960eead5e::t_2fead1b0b6e8da 29,60-61,90-97,101,105,108,138
+apps/dashboard/src/features/add-server/installSessionExpiry.ts
+  s_427f4960eead5e::t_d94e6ac37a9033 7,31
+  s_427f4960eead5e::t_fefe754c51c1a4 6
+  s_427f4960eead5e::t_fb72ba069361b5 1-5,8-30,32
+packages/backend/convex/_generated/dataModel.d.ts
+  s_427f4960eead5e::t_b6b3fa5a680647 1003,1022
+apps/dashboard/src/features/onboarding/onboardingState.ts
+  s_427f4960eead5e::t_2fead1b0b6e8da 19-21,40-52,69,74,77
+  s_427f4960eead5e::t_a7b6d655c68f0d 22-23,53,55-57,78-80
+  s_427f4960eead5e::t_ca70c1c8c26558 54
+packages/backend/convex/http.ts
+  s_427f4960eead5e::t_60cea3d8adeeb5 7
+  s_427f4960eead5e::t_15ea7d7e747e44 63-66,70-71
+packages/backend/convex/queries/dashboard/discord/install/context.test.ts
+  s_427f4960eead5e::t_6700954cd177f3 59-101
+  s_427f4960eead5e::t_076447de59a6c4 102
+apps/dashboard/src/features/app-shell/convexAuthHydration.test.ts
+  s_427f4960eead5e::t_545fa8e1b74f8d 1-30
+packages/backend/convex/lib/clerkWebhook.ts
+  s_427f4960eead5e::t_15ea7d7e747e44 1-47
+apps/dashboard/src/components/providers/theme-provider.tsx
+  s_427f4960eead5e::t_d94e6ac37a9033 32-36,112,114
+  s_427f4960eead5e::t_e56176a1a8f04e 7,26-28,31,37-38,51-54,60-61,70-77,111,115
+  s_427f4960eead5e::t_ce7b017db3b4fc 116-117
+packages/backend/convex/actions/dashboard/discord/lib/dashboardGuildSync.ts
+  s_427f4960eead5e::t_e56176a1a8f04e 205
+apps/dashboard/src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell.tsx
+  s_427f4960eead5e::t_d94e6ac37a9033 3,53,57
+  s_427f4960eead5e::t_545fa8e1b74f8d 18-19,51,54-56,58
+packages/typescript-config/package.json
+  s_427f4960eead5e::t_e56176a1a8f04e 5
+packages/backend/convex/queries/dashboard/discord/guilds/manageable.ts
+  s_427f4960eead5e::t_cbd6c719cb310f 110-111
+apps/dashboard/src/features/app-shell/convexAuthHydration.ts
+  s_427f4960eead5e::t_545fa8e1b74f8d 1-11
+apps/dashboard/src/features/onboarding/onboardingState.test.ts
+  s_427f4960eead5e::t_2fead1b0b6e8da 7,30,45,57,67,79,91,101,123,145,151-192
+  s_427f4960eead5e::t_024eba87e0adcc 193
+apps/dashboard/src/features/add-server/DiscordAddServerPageShell.tsx
+  s_427f4960eead5e::t_fb72ba069361b5 40-41,43,232-234,236-250,252-327,330-333,433,462,468,490,587,596,630,634,648,656,698-702
+  s_427f4960eead5e::t_a7b6d655c68f0d 44,328-329,334-335
+  s_427f4960eead5e::t_33197adb7f55ba 42,230-231,235,251,376-383,407
+packages/backend/convex/mutations/integrations/clerk/users.test.ts
+  s_427f4960eead5e::t_723bed73abe47f 100-180
+  s_427f4960eead5e::t_ee43a1f5ca07e8 181
+packages/backend/convex/lib/clerkWebhook.test.ts
+  s_427f4960eead5e::t_15ea7d7e747e44 1-52
+packages/backend/convex/queries/dashboard/discord/guilds/manageable.test.ts
+  s_427f4960eead5e::t_a7b6d655c68f0d 23-24,46-55,71-72
+  s_427f4960eead5e::t_cbd6c719cb310f 1-22,25-45,56-70,73-100
+apps/dashboard/src/features/onboarding/OnboardingGuard.tsx
+  s_427f4960eead5e::t_2fead1b0b6e8da 3,12,15-19,36-37,39-42,48,55,58,62,66-70,74-90
+  s_427f4960eead5e::t_a7b6d655c68f0d 60
+apps/dashboard/src/features/add-server/installSessionExpiry.test.ts
+  s_427f4960eead5e::t_d94e6ac37a9033 6,28,32,34,37
+  s_427f4960eead5e::t_fb72ba069361b5 1-5,7-27,29-31,33,35-36,38
+apps/dashboard/src/app/layout.tsx
+  s_427f4960eead5e::t_e56176a1a8f04e 23-24,92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e7b6a933e1d1fca169d2c71bafc8814d7774d8ff",
+  "prompts": {},
+  "sessions": {
+    "s_427f4960eead5e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0534f-6be8-7be2-89da-4a457f468188",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
