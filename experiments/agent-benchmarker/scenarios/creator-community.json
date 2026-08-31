@@ -1,0 +1,35 @@
+{
+  "id": "creator-community",
+  "title": "Content creator community with a private streamer area",
+  "ownerContext": {
+    "communityType": "content-creator",
+    "creatorPlatforms": ["Twitch", "YouTube"],
+    "primaryContent": "gaming",
+    "priorities": [
+      "keep the server simple and active",
+      "official announcements",
+      "general community chat",
+      "clips",
+      "suggestions",
+      "somewhere members can ask for help"
+    ],
+    "voice": {
+      "wanted": true,
+      "publicVoiceChannels": 2
+    },
+    "privateStreamerArea": {
+      "wanted": true,
+      "privateTextChannel": true,
+      "privateVoiceChannel": true,
+      "normalMembersMustNotSeeIt": true,
+      "reuseAnExistingStreamerRoleIfPossible": true
+    },
+    "constraints": {
+      "avoidChannelBloat": true,
+      "preserveUsefulExistingChannels": true,
+      "doNotRedesignUnrelatedModeration": true
+    }
+  },
+  "firstMessage": "Use the information I already gave you about what this community is for. Inspect my Discord server as it exists now, then recommend a clean setup for it. I don't want you to change anything yet. Explain what you would keep, what you would add or reorganise, and why.",
+  "approvalMessage": "Yeah, that setup looks good. Apply the setup you just recommended."
+}
