@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
 import { IconLifebuoy } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
@@ -42,21 +41,20 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table"
-import { useMutation, useQuery } from "convex/react"
+import { useQuery } from "convex/react"
 
 import {
   DiscordChannelSelect,
   DiscordRoleMultiSelect,
   useDiscordConfigOptions,
 } from "../components/ConfigSelectors"
-import { getErrorMessage, toTitleCase } from "../lib/format"
+import { toTitleCase } from "../lib/format"
 import {
   IconAlertTriangle,
   IconInfoCircle,
-  SaveStatus,
   WorkspaceState,
 } from "../components/workspace-ui"
-import type { GuildOverview, SaveState } from "../types"
+import type { GuildOverview } from "../types"
 
 type SupportTargetType = "channel" | "thread" | "forum"
 type TranscriptPolicy = "metadata-only" | "explicit-messages"
@@ -117,7 +115,7 @@ export function SupportSection({
   if (result.status === "forbidden") {
     return (
       <WorkspaceState
-        description="Verified server management access is required to configure support."
+        description="Verified server management access is required to view support."
         icon={IconAlertTriangle}
         title="Access Not Available"
       />
@@ -126,7 +124,6 @@ export function SupportSection({
 
   return (
     <SupportWorkspace
-      key={result.config?.updatedAt ?? "new"}
       config={result.config}
       discordGuildId={overview.discordGuildId}
       isBotLeft={isBotLeft}
@@ -146,209 +143,131 @@ function SupportWorkspace({
   isBotLeft: boolean
   tickets: GuildSupportTicket[]
 }) {
-  const updateSupport = useMutation(
-    api.mutations.dashboard.discord.guildSupportConfigs.update.update
-  )
   const optionsState = useDiscordConfigOptions(discordGuildId)
-  const [enabled, setEnabled] = useState(config?.enabled ?? false)
-  const [targetId, setTargetId] = useState(config?.targetId ?? "")
-  const [targetType, setTargetType] = useState<SupportTargetType>(
-    config?.targetType ?? "channel"
-  )
-  const [staffRoleIds, setStaffRoleIds] = useState(config?.staffRoleIds ?? [])
-  const [transcriptPolicy, setTranscriptPolicy] = useState<TranscriptPolicy>(
-    config?.transcriptPolicy ?? "explicit-messages"
-  )
-  const [escalationPolicy, setEscalationPolicy] = useState<EscalationPolicy>(
-    config?.escalationPolicy ?? "jcn-product-only"
-  )
-  const [saveState, setSaveState] = useState<SaveState>("idle")
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const disabled = isBotLeft || saveState === "saving"
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    if (disabled) {
-      return
-    }
-
-    setSaveState("saving")
-    setErrorMessage(null)
-
-    try {
-      await updateSupport({
-        discordGuildId,
-        enabled,
-        targetId: targetId.trim() || null,
-        targetType,
-        staffRoleIds,
-        transcriptPolicy,
-        escalationPolicy,
-      })
-      setSaveState("success")
-    } catch (error) {
-      setSaveState("error")
-      setErrorMessage(getErrorMessage(error))
-    }
-  }
-
-  function markDirty() {
-    setSaveState("idle")
-    setErrorMessage(null)
-  }
+  const disabled = true
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
-      <form onSubmit={handleSubmit}>
-        <Card>
-          <CardHeader>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center gap-2">
             <CardTitle>Guild Support Routing</CardTitle>
-            <CardDescription>
-              Route `/help` requests from this server to a private Discord
-              destination managed by your support team.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FieldGroup>
-              <Field orientation="horizontal" data-disabled={disabled}>
-                <FieldContent>
-                  <FieldTitle>Enable guild support</FieldTitle>
-                  <FieldDescription>
-                    When disabled, `/help` directs members to ask an admin to
-                    configure support.
-                  </FieldDescription>
-                </FieldContent>
-                <Switch
-                  aria-label="Enable guild support"
-                  checked={enabled}
-                  disabled={disabled}
-                  onCheckedChange={(checked) => {
-                    setEnabled(checked)
-                    markDirty()
-                  }}
-                />
-              </Field>
-
-              <DiscordChannelSelect
-                description="Cleo posts new and resumed requests only to this destination."
-                disabled={disabled}
-                label="Destination"
-                onChange={(value) => {
-                  setTargetId(value)
-                  const option = optionsState.options?.channels.find(
-                    (channel) => channel.id === value
-                  )
-                  if (option) {
-                    setTargetType(
-                      option.type === "forum" || option.type === "thread"
-                        ? option.type
-                        : "channel"
-                    )
-                  }
-                  markDirty()
-                }}
-                optionsState={optionsState}
-                value={targetId}
-              />
-
-              <Field data-disabled={disabled}>
-                <FieldLabel htmlFor="support-target-type">
-                  Destination type
-                </FieldLabel>
-                <NativeSelect
-                  className="w-full"
-                  disabled={disabled}
-                  id="support-target-type"
-                  onChange={(event) => {
-                    setTargetType(event.target.value as SupportTargetType)
-                    markDirty()
-                  }}
-                  value={targetType}
-                >
-                  <NativeSelectOption value="channel">
-                    Text channel
-                  </NativeSelectOption>
-                  <NativeSelectOption value="thread">Thread</NativeSelectOption>
-                  <NativeSelectOption value="forum">Forum</NativeSelectOption>
-                </NativeSelect>
-              </Field>
-
-              <DiscordRoleMultiSelect
-                disabled={disabled}
-                onChange={(value) => {
-                  setStaffRoleIds(value)
-                  markDirty()
-                }}
-                optionsState={optionsState}
-                value={staffRoleIds}
-              />
-
-              <Field data-disabled={disabled}>
-                <FieldLabel htmlFor="support-transcript">
-                  Transcript policy
-                </FieldLabel>
-                <NativeSelect
-                  className="w-full"
-                  disabled={disabled}
-                  id="support-transcript"
-                  onChange={(event) => {
-                    setTranscriptPolicy(event.target.value as TranscriptPolicy)
-                    markDirty()
-                  }}
-                  value={transcriptPolicy}
-                >
-                  <NativeSelectOption value="explicit-messages">
-                    Store messages submitted through /help
-                  </NativeSelectOption>
-                  <NativeSelectOption value="metadata-only">
-                    Metadata only
-                  </NativeSelectOption>
-                </NativeSelect>
-              </Field>
-
-              <Field data-disabled={disabled}>
-                <FieldLabel htmlFor="support-escalation">
-                  JCN escalation
-                </FieldLabel>
-                <NativeSelect
-                  className="w-full"
-                  disabled={disabled}
-                  id="support-escalation"
-                  onChange={(event) => {
-                    setEscalationPolicy(event.target.value as EscalationPolicy)
-                    markDirty()
-                  }}
-                  value={escalationPolicy}
-                >
-                  <NativeSelectOption value="jcn-product-only">
-                    Cleo product issues only
-                  </NativeSelectOption>
-                  <NativeSelectOption value="none">
-                    No escalation
-                  </NativeSelectOption>
-                </NativeSelect>
+            <Badge variant="secondary">Temporarily disabled</Badge>
+          </div>
+          <CardDescription>
+            Support tickets are temporarily unavailable while the feature is
+            being rebuilt and tested. Existing configuration is shown read-only
+            and cannot be changed or enabled.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FieldGroup>
+            <Field orientation="horizontal" data-disabled={disabled}>
+              <FieldContent>
+                <FieldTitle>Enable guild support</FieldTitle>
                 <FieldDescription>
-                  Server moderation disputes are never routed to JCN support.
+                  `/help` support is disabled for guilds and direct messages.
                 </FieldDescription>
-              </Field>
+              </FieldContent>
+              <Switch
+                aria-label="Enable guild support"
+                checked={false}
+                disabled
+              />
+            </Field>
 
-              <SaveStatus errorMessage={errorMessage} state={saveState} />
-            </FieldGroup>
-          </CardContent>
-          <CardFooter>
-            <Button disabled={disabled} type="submit">
-              {saveState === "saving" ? "Saving…" : "Save Support Routing"}
+            <DiscordChannelSelect
+              description="Saved destination. Support routing is currently disabled."
+              disabled
+              label="Destination"
+              onChange={() => undefined}
+              optionsState={optionsState}
+              value={config?.targetId ?? ""}
+            />
+
+            <Field data-disabled={disabled}>
+              <FieldLabel htmlFor="support-target-type">
+                Destination type
+              </FieldLabel>
+              <NativeSelect
+                className="w-full"
+                disabled
+                id="support-target-type"
+                value={config?.targetType ?? "channel"}
+              >
+                <NativeSelectOption value="channel">Text channel</NativeSelectOption>
+                <NativeSelectOption value="thread">Thread</NativeSelectOption>
+                <NativeSelectOption value="forum">Forum</NativeSelectOption>
+              </NativeSelect>
+            </Field>
+
+            <DiscordRoleMultiSelect
+              disabled
+              onChange={() => undefined}
+              optionsState={optionsState}
+              value={config?.staffRoleIds ?? []}
+            />
+
+            <Field data-disabled={disabled}>
+              <FieldLabel htmlFor="support-transcript">
+                Transcript policy
+              </FieldLabel>
+              <NativeSelect
+                className="w-full"
+                disabled
+                id="support-transcript"
+                value={config?.transcriptPolicy ?? "explicit-messages"}
+              >
+                <NativeSelectOption value="explicit-messages">
+                  Store messages submitted through /help
+                </NativeSelectOption>
+                <NativeSelectOption value="metadata-only">
+                  Metadata only
+                </NativeSelectOption>
+              </NativeSelect>
+            </Field>
+
+            <Field data-disabled={disabled}>
+              <FieldLabel htmlFor="support-escalation">
+                JCN escalation
+              </FieldLabel>
+              <NativeSelect
+                className="w-full"
+                disabled
+                id="support-escalation"
+                value={config?.escalationPolicy ?? "jcn-product-only"}
+              >
+                <NativeSelectOption value="jcn-product-only">
+                  Cleo product issues only
+                </NativeSelectOption>
+                <NativeSelectOption value="none">No escalation</NativeSelectOption>
+              </NativeSelect>
+              <FieldDescription>
+                Server moderation disputes are never routed to JCN support.
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
+        </CardContent>
+        <CardFooter>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button disabled type="button">
+              Save Support Routing
             </Button>
-          </CardFooter>
-        </Card>
-      </form>
+            <p className="text-sm text-muted-foreground">
+              Configuration changes are disabled until the replacement support
+              flow has been fully implemented and tested.
+            </p>
+          </div>
+        </CardFooter>
+      </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Guild Support Tickets</CardTitle>
           <CardDescription>
-            Private requests routed from this server through `/help`.
+            Existing support records remain available for review while new
+            `/help` requests are disabled.
+            {isBotLeft ? " Cleo is no longer in this server." : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -373,7 +292,7 @@ function GuildSupportTicketList({
           </EmptyMedia>
           <EmptyTitle>No Support Tickets</EmptyTitle>
           <EmptyDescription>
-            Member requests submitted through `/help` will appear here.
+            New `/help` requests are temporarily disabled.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

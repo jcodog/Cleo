@@ -13,7 +13,7 @@ test("runtime command loading uses the shared Command instance registry", async 
   assert.ok(commands.every((command) => command instanceof Command))
   assert.deepEqual(
     commands.map((command) => command.data.name),
-    ["ping", "help", "cleo", "ban", "kick"]
+    ["ping", "cleo", "ban", "kick"]
   )
 })
 

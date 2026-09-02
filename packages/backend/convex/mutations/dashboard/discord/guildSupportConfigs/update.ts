@@ -7,11 +7,7 @@ import {
   guildSupportTargetType,
   guildSupportTranscriptPolicy,
 } from "../../../../dbTables/guildSupportConfigs"
-import {
-  getCurrentUser,
-  requireDiscordGuildManager,
-} from "../../../../lib/auth"
-import { insertDashboardGuildAuditEvent } from "../../../../lib/guildAudit"
+import { requireDiscordGuildManager } from "../../../../lib/auth"
 
 const MAX_STAFF_ROLES = 20
 
@@ -54,72 +50,11 @@ export const update = mutation({
 
     await requireDiscordGuildManager(ctx, guild._id)
 
-    if (guild.botLeftAt !== undefined) {
-      throw new ConvexError({
-        code: "BOT_LEFT",
-        message: "Cleo is not currently in this Discord server.",
-      })
-    }
-
-    const staffRoleIds = normalizeSupportStaffRoleIds(args.staffRoleIds)
-    const targetId = normalizeSupportTargetId(args.targetId)
-
-    if (args.enabled && (!targetId || staffRoleIds.length === 0)) {
-      throw new ConvexError({
-        code: "INCOMPLETE_SUPPORT_ROUTING",
-        message:
-          "Enabled guild support requires a destination and at least one staff role.",
-      })
-    }
-
-    const existing = await ctx.db
-      .query("guildSupportConfigs")
-      .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
-      .unique()
-    const now = Date.now()
-    const next = {
-      guildId: guild._id,
-      enabled: args.enabled,
-      staffRoleIds,
-      ...(targetId ? { targetId } : {}),
-      targetType: args.targetType,
-      transcriptPolicy: args.transcriptPolicy,
-      escalationPolicy: args.escalationPolicy,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    }
-    const supportConfigId = existing
-      ? (await ctx.db.replace(existing._id, next), existing._id)
-      : await ctx.db.insert("guildSupportConfigs", next)
-    const user = await getCurrentUser(ctx)
-
-    await insertDashboardGuildAuditEvent(ctx, {
-      guild,
-      user,
-      eventType: "dashboard.guild_support.updated",
-      summary: args.enabled
-        ? "Guild support routing enabled"
-        : "Guild support routing disabled",
-      metadata: {
-        enabled: args.enabled,
-        targetId: targetId ?? null,
-        targetType: args.targetType,
-        staffRoleIds,
-        transcriptPolicy: args.transcriptPolicy,
-        escalationPolicy: args.escalationPolicy,
-      },
+    throw new ConvexError({
+      code: "SUPPORT_CONFIGURATION_DISABLED",
+      message:
+        "Guild support configuration is temporarily disabled while support tickets are being rebuilt and tested.",
     })
-
-    return {
-      supportConfigId,
-      enabled: args.enabled,
-      staffRoleIds,
-      ...(targetId ? { targetId } : {}),
-      targetType: args.targetType,
-      transcriptPolicy: args.transcriptPolicy,
-      escalationPolicy: args.escalationPolicy,
-      updatedAt: now,
-    }
   },
 })
 
