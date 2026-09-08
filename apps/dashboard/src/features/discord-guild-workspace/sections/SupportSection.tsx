@@ -56,6 +56,12 @@ import {
 } from "../components/workspace-ui"
 import type { GuildOverview } from "../types"
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@workspace/ui/components/alert"
+
 type SupportTargetType = "channel" | "thread" | "forum"
 type TranscriptPolicy = "metadata-only" | "explicit-messages"
 type EscalationPolicy = "none" | "jcn-product-only"
@@ -148,6 +154,18 @@ function SupportWorkspace({
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
+      <Alert>
+        <IconInfoCircle aria-hidden />
+        <AlertTitle>Support is temporarily unavailable</AlertTitle>
+        <AlertDescription>
+          We&apos;ve temporarily disabled new `/help` requests and support
+          configuration while we rebuild the feature. Support will return in a
+          future Cleo update once the replacement flow has been fully
+          implemented and tested. Existing ticket records remain available
+          below.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
@@ -155,9 +173,8 @@ function SupportWorkspace({
             <Badge variant="secondary">Temporarily disabled</Badge>
           </div>
           <CardDescription>
-            Support tickets are temporarily unavailable while the feature is
-            being rebuilt and tested. Existing configuration is shown read-only
-            and cannot be changed or enabled.
+            Review the server&apos;s saved support routing configuration.
+            Configuration changes cannot currently be made.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -195,7 +212,9 @@ function SupportWorkspace({
                 id="support-target-type"
                 value={config?.targetType ?? "channel"}
               >
-                <NativeSelectOption value="channel">Text channel</NativeSelectOption>
+                <NativeSelectOption value="channel">
+                  Text channel
+                </NativeSelectOption>
                 <NativeSelectOption value="thread">Thread</NativeSelectOption>
                 <NativeSelectOption value="forum">Forum</NativeSelectOption>
               </NativeSelect>
@@ -240,7 +259,9 @@ function SupportWorkspace({
                 <NativeSelectOption value="jcn-product-only">
                   Cleo product issues only
                 </NativeSelectOption>
-                <NativeSelectOption value="none">No escalation</NativeSelectOption>
+                <NativeSelectOption value="none">
+                  No escalation
+                </NativeSelectOption>
               </NativeSelect>
               <FieldDescription>
                 Server moderation disputes are never routed to JCN support.
