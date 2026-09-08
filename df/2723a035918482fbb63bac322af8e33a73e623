@@ -1,0 +1,16 @@
+.gitignore
+  h_2bc691fceb4fe5 41-43
+apps/dashboard/src/features/discord-guild-workspace/sections/SupportSection.tsx
+  h_2bc691fceb4fe5 59-64,157-168,176-177,215-217,262-264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "df2723a035918482fbb63bac322af8e33a73e623",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
