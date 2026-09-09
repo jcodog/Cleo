@@ -8,6 +8,8 @@ import schema from "./schema"
 process.env.DISCORD_BOT_CONVEX_SECRET = "test-bot-secret"
 
 const modules = {
+  "./queries/bot/discord/guildConfigs/runtimeConfigByDiscordId.ts": () =>
+    import("./queries/bot/discord/guildConfigs/runtimeConfigByDiscordId"),
   "./_generated/server.js": () => import("./_generated/server.js"),
   "./actions/bot/discord/supportTickets/openOrResume.ts": () =>
     import("./actions/bot/discord/supportTickets/openOrResume"),
@@ -26,300 +28,226 @@ const REQUESTER_ID = "234567890123456789"
 const TARGET_ID = "345678901234567890"
 const ROLE_ID = "456789012345678901"
 
-test("support config update authorizes, inserts, replaces, and audits", async () => {
+const disabledTickets = {
+  code: "SUPPORT_TICKETS_DISABLED",
+  message:
+    "Support tickets are temporarily disabled while they are being rebuilt and tested.",
+}
+const disabledConfig = {
+  code: "SUPPORT_CONFIGURATION_DISABLED",
+  message:
+    "Guild support configuration is temporarily disabled while support tickets are being rebuilt and tested.",
+}
+
+// convex-test serializes ConvexError data across function boundaries.
+function hasContract(expected: { code: string; message: string }) {
+  return (error: unknown): boolean => {
+    assert.ok(error instanceof Error && "data" in error)
+    assert.deepEqual(
+      typeof error.data === "string" ? JSON.parse(error.data) : error.data,
+      expected
+    )
+    return true
+  }
+}
+
+const configArgs = {
+  discordGuildId: GUILD_ID,
+  enabled: true,
+  staffRoleIds: [ROLE_ID],
+  targetId: TARGET_ID,
+  targetType: "channel" as const,
+  transcriptPolicy: "explicit-messages" as const,
+  escalationPolicy: "jcn-product-only" as const,
+}
+
+async function snapshot(t: TestConvex<typeof schema>) {
+  return t.run(async (ctx) => ({
+    configs: await ctx.db.query("guildSupportConfigs").collect(),
+    tickets: await ctx.db.query("supportTickets").collect(),
+    messages: await ctx.db.query("supportTicketMessages").collect(),
+    audits: await ctx.db.query("guildAuditEvents").collect(),
+  }))
+}
+
+test("support configuration rejects enabling and all changes without writing or auditing", async () => {
   const t = convexTest({ schema, modules })
   const { guildId } = await seedManagedGuild(t)
-  const args = {
-    discordGuildId: GUILD_ID,
-    enabled: true,
-    staffRoleIds: [ROLE_ID],
-    targetId: TARGET_ID,
-    targetType: "channel" as const,
-    transcriptPolicy: "explicit-messages" as const,
-    escalationPolicy: "jcn-product-only" as const,
-  }
-
+  const asManager = t.withIdentity({ subject: "clerk-manager" })
   await assert.rejects(
     t.mutation(
       api.mutations.dashboard.discord.guildSupportConfigs.update.update,
-      args
+      configArgs
     )
   )
-
-  const asManager = t.withIdentity({ subject: "clerk-manager" })
-  const inserted = await asManager.mutation(
-    api.mutations.dashboard.discord.guildSupportConfigs.update.update,
-    args
+  await assert.rejects(
+    asManager.mutation(
+      api.mutations.dashboard.discord.guildSupportConfigs.update.update,
+      { ...configArgs, discordGuildId: "999999999999999999" }
+    ),
+    /GUILD_NOT_FOUND/
   )
-  const replaced = await asManager.mutation(
-    api.mutations.dashboard.discord.guildSupportConfigs.update.update,
-    {
-      ...args,
-      transcriptPolicy: "metadata-only",
-      escalationPolicy: "none",
-    }
+  await assert.rejects(
+    asManager.mutation(
+      api.mutations.dashboard.discord.guildSupportConfigs.update.update,
+      configArgs
+    ),
+    hasContract(disabledConfig)
   )
-
-  assert.equal(replaced.supportConfigId, inserted.supportConfigId)
-  assert.equal(replaced.transcriptPolicy, "metadata-only")
-  const disabled = await asManager.mutation(
-    api.mutations.dashboard.discord.guildSupportConfigs.update.update,
-    {
-      ...args,
-      enabled: false,
-      staffRoleIds: [],
-      targetId: null,
-    }
-  )
-  assert.equal(disabled.supportConfigId, inserted.supportConfigId)
-  assert.equal(disabled.enabled, false)
-
-  const stored = await t.run(async (ctx) => {
-    const configs = await ctx.db.query("guildSupportConfigs").collect()
-    const audits = await ctx.db
-      .query("guildAuditEvents")
-      .withIndex("by_guild_id_and_occurred_at", (q) => q.eq("guildId", guildId))
-      .collect()
-    return { configs, audits }
+  assert.deepEqual(await snapshot(t), {
+    configs: [],
+    tickets: [],
+    messages: [],
+    audits: [],
   })
 
-  assert.equal(stored.configs.length, 1)
-  assert.equal(stored.audits.length, 3)
-  assert.ok(
-    stored.audits.every(
-      (audit) => audit.eventType === "dashboard.guild_support.updated"
+  await seedSupportConfig(t, "explicit-messages")
+  const before = await snapshot(t)
+  for (const changes of [
+    {},
+    { enabled: false, staffRoleIds: [], targetId: null },
+    {
+      transcriptPolicy: "metadata-only" as const,
+      escalationPolicy: "none" as const,
+    },
+  ]) {
+    await assert.rejects(
+      asManager.mutation(
+        api.mutations.dashboard.discord.guildSupportConfigs.update.update,
+        { ...configArgs, ...changes }
+      ),
+      hasContract(disabledConfig)
     )
+  }
+  await t.run((ctx) => ctx.db.patch(guildId, { botLeftAt: 2 }))
+  await assert.rejects(
+    asManager.mutation(
+      api.mutations.dashboard.discord.guildSupportConfigs.update.update,
+      configArgs
+    ),
+    hasContract(disabledConfig)
   )
+  assert.deepEqual(await snapshot(t), before)
 })
 
-test("support config update rejects incomplete routing and a departed bot", async () => {
+test("mixed-version bot actions and internal mutations cannot open, resume, or route DM and guild tickets", async () => {
   const t = convexTest({ schema, modules })
   const { guildId } = await seedManagedGuild(t)
-  const asManager = t.withIdentity({ subject: "clerk-manager" })
-
-  await assert.rejects(
-    asManager.mutation(
-      api.mutations.dashboard.discord.guildSupportConfigs.update.update,
-      {
-        discordGuildId: "999999999999999999",
-        enabled: false,
-        staffRoleIds: [],
-        targetId: null,
-        targetType: "channel",
-        transcriptPolicy: "metadata-only",
-        escalationPolicy: "none",
-      }
-    )
-  )
-
-  await assert.rejects(
-    asManager.mutation(
-      api.mutations.dashboard.discord.guildSupportConfigs.update.update,
-      {
-        discordGuildId: GUILD_ID,
-        enabled: true,
-        staffRoleIds: [],
-        targetId: null,
-        targetType: "channel",
-        transcriptPolicy: "explicit-messages",
-        escalationPolicy: "none",
-      }
-    )
-  )
-  await assert.rejects(
-    asManager.mutation(
-      api.mutations.dashboard.discord.guildSupportConfigs.update.update,
-      {
-        discordGuildId: GUILD_ID,
-        enabled: true,
-        staffRoleIds: [],
-        targetId: TARGET_ID,
-        targetType: "channel",
-        transcriptPolicy: "explicit-messages",
-        escalationPolicy: "none",
-      }
-    )
-  )
-
-  await t.run(async (ctx) => {
-    await ctx.db.patch(guildId, { botLeftAt: Date.now() })
+  await seedSupportConfig(t, "explicit-messages")
+  const ticketId = await t.run(async (ctx) => {
+    const id = await ctx.db.insert("supportTickets", {
+      scope: "guild",
+      status: "closed",
+      activeKey: `guild:${GUILD_ID}:${REQUESTER_ID}`,
+      guildId,
+      discordGuildId: GUILD_ID,
+      requesterDiscordUserId: REQUESTER_ID,
+      routingTargetId: TARGET_ID,
+      routingTargetType: "forum",
+      routingThreadId: ROLE_ID,
+      transcriptPolicy: "explicit-messages",
+      escalationPolicy: "jcn-product-only",
+      source: "discord-help",
+      openCount: 1,
+      lastOpenedAt: 1,
+      lastActivityAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      closedAt: 1,
+    })
+    await ctx.db.insert("supportTicketMessages", {
+      ticketId: id,
+      authorType: "requester",
+      authorDiscordUserId: REQUESTER_ID,
+      body: "Retained history",
+      createdAt: 1,
+    })
+    return id
   })
-
-  await assert.rejects(
-    asManager.mutation(
-      api.mutations.dashboard.discord.guildSupportConfigs.update.update,
-      {
-        discordGuildId: GUILD_ID,
-        enabled: false,
-        staffRoleIds: [],
-        targetId: null,
-        targetType: "channel",
-        transcriptPolicy: "metadata-only",
-        escalationPolicy: "none",
+  const before = await snapshot(t)
+  for (const secret of ["wrong", "test-bot-secret"]) {
+    const check =
+      secret === "wrong"
+        ? /Invalid Discord bot Convex secret/
+        : hasContract(disabledTickets)
+    for (const discordGuildId of [undefined, GUILD_ID]) {
+      for (const requesterDiscordUserId of [
+        REQUESTER_ID,
+        "567890123456789012",
+      ]) {
+        const input = {
+          requesterDiscordUserId,
+          ...(discordGuildId ? { discordGuildId } : {}),
+          message: "Do not store",
+        }
+        await assert.rejects(
+          t.action(
+            api.actions.bot.discord.supportTickets.openOrResume.openOrResume,
+            { secret, input }
+          ),
+          check
+        )
+        await assert.rejects(
+          t.mutation(
+            internal.mutations.bot.discord.supportTickets.openOrResume
+              .openOrResume,
+            input
+          ),
+          hasContract(disabledTickets)
+        )
       }
+    }
+    await assert.rejects(
+      t.action(api.actions.bot.discord.supportTickets.setRoutingThread.set, {
+        secret,
+        ticketId,
+        threadId: TARGET_ID,
+      }),
+      check
     )
+  }
+  await assert.rejects(
+    t.mutation(
+      internal.mutations.bot.discord.supportTickets.setRoutingThread.set,
+      { ticketId, threadId: TARGET_ID }
+    ),
+    hasContract(disabledTickets)
   )
+  assert.deepEqual(await snapshot(t), before)
 })
 
-test("ticket mutation opens, persists, links the requester, and resumes", async () => {
+test("runtime configuration suppresses stored enabled support and routing without erasing it", async () => {
   const t = convexTest({ schema, modules })
-  const { userId } = await seedManagedGuild(t)
+  const { guildId } = await seedManagedGuild(t)
   await seedSupportConfig(t, "explicit-messages")
-  await t.run(async (ctx) => {
-    await ctx.db.insert("linkedAccounts", {
-      userId,
-      provider: "discord",
-      providerAccountId: REQUESTER_ID,
-      scopes: [],
+  await t.run((ctx) =>
+    ctx.db.insert("guildConfigs", {
+      guildId,
+      aiEnabled: false,
+      moderationEnabled: true,
+      welcomeEnabled: false,
+      loggingEnabled: false,
       createdAt: 1,
       updatedAt: 1,
     })
-  })
-
-  const input = {
-    discordGuildId: GUILD_ID,
-    requesterDiscordUserId: REQUESTER_ID,
-    message: "I need help",
-  }
-  const opened = await t.mutation(
-    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
-    input
   )
-  assert.equal(opened.status, "opened")
-
-  if (opened.status !== "opened") {
-    throw new Error("Expected support ticket to open")
-  }
-
-  await t.run(async (ctx) => {
-    await ctx.db.patch(opened.ticketId, {
-      status: "closed",
-      resolvedAt: 2,
-      closedAt: 3,
-      routingThreadId: "678901234567890123",
-    })
-  })
-  const resumed = await t.mutation(
-    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
-    input
+  const before = await snapshot(t)
+  const result = await t.query(
+    internal.queries.bot.discord.guildConfigs.runtimeConfigByDiscordId.get,
+    { discordGuildId: GUILD_ID }
   )
-
-  assert.equal(resumed.status, "resumed")
-  assert.equal(resumed.ticketId, opened.ticketId)
-  assert.equal(resumed.messageStored, true)
-  assert.deepEqual(resumed.route, {
-    targetId: TARGET_ID,
-    targetType: "channel",
-    staffRoleIds: [ROLE_ID],
-    threadId: "678901234567890123",
-  })
-
-  const alreadyOpen = await t.mutation(
-    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
-    {
+  assert.deepEqual(result, {
+    status: "ready",
+    config: {
       discordGuildId: GUILD_ID,
-      requesterDiscordUserId: REQUESTER_ID,
-    }
-  )
-  assert.equal(alreadyOpen.status, "resumed")
-  assert.equal(alreadyOpen.messageStored, false)
-
-  const stored = await t.run(async (ctx) => ({
-    ticket: await ctx.db.get(opened.ticketId),
-    messages: await ctx.db
-      .query("supportTicketMessages")
-      .withIndex("by_ticket_id_and_created_at", (q) =>
-        q.eq("ticketId", opened.ticketId)
-      )
-      .collect(),
-  }))
-
-  assert.equal(stored.ticket?.requesterUserId, userId)
-  assert.equal(stored.ticket?.openCount, 2)
-  assert.equal(stored.ticket?.resolvedAt, undefined)
-  assert.equal(stored.ticket?.closedAt, undefined)
-  assert.equal(stored.messages.length, 2)
+      moderationEnabled: true,
+      welcomeEnabled: false,
+      loggingEnabled: false,
+      supportEnabled: false,
+    },
+  })
+  assert.deepEqual(await snapshot(t), before)
 })
-
-test("ticket mutation enforces transcript policy and unavailable guild paths", async () => {
-  const t = convexTest({ schema, modules })
-  const { guildId } = await seedManagedGuild(t)
-  const input = {
-    discordGuildId: GUILD_ID,
-    requesterDiscordUserId: REQUESTER_ID,
-    message: "Do not persist this",
-  }
-
-  const missingConfig = await t.mutation(
-    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
-    input
-  )
-  assert.deepEqual(missingConfig, {
-    status: "guildSupportUnavailable",
-    reason: "notConfigured",
-  })
-
-  const unknownGuild = await t.mutation(
-    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
-    {
-      ...input,
-      discordGuildId: "999999999999999999",
-    }
-  )
-  assert.deepEqual(unknownGuild, {
-    status: "guildSupportUnavailable",
-    reason: "unknownGuild",
-  })
-
-  await seedSupportConfig(t, "metadata-only")
-  const opened = await t.mutation(
-    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
-    input
-  )
-  assert.equal(opened.status, "opened")
-  assert.equal(opened.messageStored, false)
-
-  await t.run(async (ctx) => {
-    await ctx.db.patch(guildId, { botLeftAt: Date.now() })
-  })
-  const botLeft = await t.mutation(
-    internal.mutations.bot.discord.supportTickets.openOrResume.openOrResume,
-    {
-      ...input,
-      requesterDiscordUserId: "567890123456789012",
-    }
-  )
-  assert.deepEqual(botLeft, {
-    status: "guildSupportUnavailable",
-    reason: "botLeft",
-  })
-})
-
-test("ticket action validates the bot secret and executes the mutation", async () => {
-  const t = convexTest({ schema, modules })
-
-  await assert.rejects(
-    t.action(api.actions.bot.discord.supportTickets.openOrResume.openOrResume, {
-      secret: "wrong",
-      input: { requesterDiscordUserId: REQUESTER_ID },
-    })
-  )
-
-  const result = await t.action(
-    api.actions.bot.discord.supportTickets.openOrResume.openOrResume,
-    {
-      secret: "test-bot-secret",
-      input: {
-        requesterDiscordUserId: REQUESTER_ID,
-      },
-    }
-  )
-
-  assert.equal(result.status, "opened")
-  assert.equal(result.scope, "jcn")
-  assert.equal(result.messageStored, false)
-})
-
 async function seedManagedGuild(t: TestConvex<typeof schema>) {
   return await t.run(async (ctx) => {
     const userId = await ctx.db.insert("users", {

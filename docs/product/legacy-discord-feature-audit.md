@@ -18,7 +18,7 @@ The purpose is not to port old files. It is to preserve useful product intent wh
 | Legacy or proposed command | Decision | Current position | Tracking |
 | --- | --- | --- | --- |
 | `/ping` | Rebuilt | v3 reports gateway dispatch, REST reply, total interaction, and heartbeat latency | JCN-26, JCN-91 |
-| `/help` | Rebuilt | v3 opens or resumes private Cleo support or guild modmail instead of listing static commands | JCN-113 |
+| `/help` | Temporarily disabled | Removed from runtime/deployment; support creation and configuration are quarantined pending the private-thread rebuild | JCN-113, JCN-214, JCN-210 |
 | `/ban` | Rebuilt | v3 validates permissions, bot hierarchy, targets, reasons, replies, and Convex records | JCN-41, JCN-83, JCN-89 |
 | `/kick` | Rebuilt | v3 validates permissions, bot hierarchy, targets, reasons, replies, and Convex records | JCN-41, JCN-84, JCN-89 |
 | `/cleo status` | Build | First accepted v3.1 command surface: real guild configuration state and a direct SaaS management route for server managers | JCN-198 |

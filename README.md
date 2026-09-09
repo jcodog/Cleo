@@ -4,7 +4,7 @@
 
 **Open source, Discord-first community operations and automation platform.**
 
-Cleo brings moderation, support, configuration, operational visibility and community tooling into one typed platform, with Discord as the first production integration and a path toward broader creator and workplace communication surfaces.
+Cleo brings moderation, configuration, operational visibility and community tooling into one typed platform, with Discord as the first production integration and a path toward broader creator and workplace communication surfaces.
 
 [Website](https://cleoai.cloud) · [Coverage](https://jcodog.github.io/Cleo/) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
@@ -17,7 +17,7 @@ Cleo brings moderation, support, configuration, operational visibility and commu
 
 Cleo is a community operations platform built by [JCoNet LTD](https://jconet.co.uk).
 
-It started with Discord, where Cleo already provides a production bot, web dashboard and shared backend for server configuration, moderation, support, logging and operational state. The long-term goal is broader than a single bot or platform: one control plane with platform-specific runtimes for the places communities, creators, teams and customers already communicate.
+It started with Discord, where Cleo already provides a production bot, web dashboard and shared backend for server configuration, moderation, logging and operational state. The long-term goal is broader than a single bot or platform: one control plane with platform-specific runtimes for the places communities, creators, teams and customers already communicate.
 
 **Cleo is Discord-first, not Discord-only.**
 
@@ -36,16 +36,16 @@ Cleo reached this point without paid advertising or promotion through major Disc
 
 ## What works today
 
-| Surface                | Status                | Purpose                                                                                                      |
-| ---------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Discord runtime        | Production            | Guild lifecycle, moderation, welcome flows, support, logging, runtime incidents and focused utility commands |
-| Cleo dashboard         | Public beta           | Installation, guild configuration, audit visibility, support routing and staff operations                    |
-| Convex control plane   | Production foundation | Configuration, operational state, moderation, support, identity and product data                             |
-| Cleo Profiles and Pets | In development        | Account identity, progression, public cards, battles and future Discord-native surfaces                      |
-| Twitch integration     | Planned migration     | Creator chat automation, linked accounts and EventSub lifecycle                                              |
-| Kick integration       | Planned migration     | OAuth, webhooks, creator chat automation and linked accounts                                                 |
-| Realtime relay         | Planned migration     | Typed live events, overlays and cross-platform delivery                                                      |
-| Cleo Work              | Long-term direction   | Workplace and customer communication surfaces such as Teams, Slack and website live chat                     |
+| Surface                | Status                | Purpose                                                                                             |
+| ---------------------- | --------------------- | --------------------------------------------------------------------------------------------------- |
+| Discord runtime        | Production            | Guild lifecycle, moderation, welcome flows, logging, runtime incidents and focused utility commands |
+| Cleo dashboard         | Public beta           | Installation, guild configuration, audit visibility, retained support records and staff operations  |
+| Convex control plane   | Production foundation | Configuration, operational state, moderation, identity and product data                             |
+| Cleo Profiles and Pets | In development        | Account identity, progression, public cards, battles and future Discord-native surfaces             |
+| Twitch integration     | Planned migration     | Creator chat automation, linked accounts and EventSub lifecycle                                     |
+| Kick integration       | Planned migration     | OAuth, webhooks, creator chat automation and linked accounts                                        |
+| Realtime relay         | Planned migration     | Typed live events, overlays and cross-platform delivery                                             |
+| Cleo Work              | Long-term direction   | Workplace and customer communication surfaces such as Teams, Slack and website live chat            |
 
 Planned features are deliberately labelled as planned. A feature being present in a legacy Cleo repository does not mean it is shipped or supported in the current product.
 
@@ -59,9 +59,10 @@ The production Discord runtime currently includes:
 - Permission-aware moderation actions
 - Moderation outcome recording for dashboard visibility
 - Selected guild event logging with privacy-conscious handling of deleted content
-- Private Cleo support and guild modmail flows
 - Runtime incident reporting that distinguishes production failures from normal user mistakes
 - Dashboard-connected guild status and setup visibility
+
+Support tickets and guild modmail are temporarily unavailable. `/help`, ticket creation and support configuration are disabled under JCN-214. Existing records are retained for migration and audit. The private-thread replacement remains separate work under JCN-210.
 
 ## Dashboard and backend
 
@@ -74,7 +75,7 @@ Current foundations include:
 - Discord guild installation and lifecycle state
 - Guild configuration and membership data
 - Moderation records and audit events
-- Support configuration, tickets and ticket messages
+- Retained support configuration, tickets and ticket messages, with support writes disabled
 - Runtime error and incident state
 - Cleo Profiles and Pets data models
 - Shared validation and TypeScript contracts across applications

@@ -73,7 +73,6 @@ test("loaded commands are valid Command instances with unique deployment metadat
   assert.deepEqual(commands.map((command) => command.data.name).sort(), [
     "ban",
     "cleo",
-    "help",
     "kick",
     "ping",
   ])
@@ -97,10 +96,7 @@ test("command validation rejects entries that bypass the Command class", () => {
     },
   } as Command
 
-  assert.throws(
-    () => validateCommands([fakeCommand]),
-    /not a Command instance/
-  )
+  assert.throws(() => validateCommands([fakeCommand]), /not a Command instance/)
 })
 
 test("command validation rejects duplicate command names", () => {
@@ -450,4 +446,29 @@ test("invalid commands fail before any REST request", async (t) => {
   )
 
   assert.deepEqual(emptyPreparedPayload.calls, [])
+})
+
+test("active global and guild deployment payloads exclude quarantined /help", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+  const commands = await loadCommands()
+  for (const args of [
+    ["node", "register", "--global"],
+    ["node", "register", "--guild", guildId],
+  ]) {
+    const { calls, rest } = createRecordingRest()
+    await registerCommands({
+      args,
+      token: "token",
+      applicationId,
+      rest,
+      commands,
+    })
+    assert.ok(calls.length > 0)
+    for (const call of calls) {
+      assert.equal(
+        call.body.some((command) => command.name === "help"),
+        false
+      )
+    }
+  }
 })
