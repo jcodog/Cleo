@@ -1,0 +1,41 @@
+packages/backend/convex/lib/supportTickets.ts
+  s_9c9600ee75309d::t_ec22efe5071265 13-20
+packages/backend/convex/actions/bot/discord/supportTickets/setRoutingThread.ts
+  s_9c9600ee75309d::t_ec22efe5071265 6,16,18
+packages/backend/convex/mutations/bot/discord/supportTickets/setRoutingThread.ts
+  s_9c9600ee75309d::t_ec22efe5071265 4,12
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  s_9c9600ee75309d::t_f31eeabe9c1be6 456
+  s_9c9600ee75309d::t_eb896e81eb84d3 99,450-455,457-474
+README.md
+  s_9c9600ee75309d::t_eb896e81eb84d3 7,20,39-48,65-66,78
+packages/backend/convex/queries/bot/discord/guildConfigs/runtimeConfigByDiscordId.ts
+  s_9c9600ee75309d::t_eb896e81eb84d3 33-36,52
+packages/backend/convex/supportHandlers.test.ts
+  s_9c9600ee75309d::t_eb896e81eb84d3 11-12,33-34,38-39,46-48,78,80,86-88,93-95,97-101,109-112,114-120,126-128,139-153,156,158-163,169,174-197,200-207,209-214,223-231,235-237,239-248
+  s_9c9600ee75309d::t_891b99c395f925 170-172
+  s_9c9600ee75309d::t_52f346491b6d68 31-32,35-37,40,42-45,50-52,54-62,64-71,73,104-108,113,122,130,133,135,137-138,165,167-168,173,198,216,219,221-222,234,249
+  s_9c9600ee75309d::t_9e29d273acbaee 121
+packages/backend/convex/mutations/bot/discord/supportTickets/openOrResume.ts
+  s_9c9600ee75309d::t_f4a9349e0fe37d 1,5,11
+docs/product/legacy-discord-feature-audit.md
+  s_9c9600ee75309d::t_c156775ed1fdd2 21
+packages/backend/convex/actions/bot/discord/supportTickets/openOrResume.ts
+  s_9c9600ee75309d::t_ec22efe5071265 8,18,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "819a888dc782a443ad61485c780c7aa2d23888f6",
+  "prompts": {},
+  "sessions": {
+    "s_9c9600ee75309d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a085dd-0541-78b0-b671-46dc05d519a7",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
