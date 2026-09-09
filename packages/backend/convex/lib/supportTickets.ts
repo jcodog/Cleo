@@ -10,6 +10,14 @@ import {
 
 export const SUPPORT_MESSAGE_MAX_LENGTH = 1_000
 
+export function rejectSupportTicketOperation(): never {
+  throw new ConvexError({
+    code: "SUPPORT_TICKETS_DISABLED",
+    message:
+      "Support tickets are temporarily disabled while they are being rebuilt and tested.",
+  })
+}
+
 export const openSupportTicketInput = v.object({
   requesterDiscordUserId: v.string(),
   discordGuildId: v.optional(v.string()),
