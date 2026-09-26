@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"
-import { redirect } from "next/navigation"
+
+import { StaffOverviewPageShell } from "@/features/staff/StaffOverviewPageShell"
 
 export const metadata: Metadata = {
   title: "Staff",
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
 export default async function StaffPage() {
   await auth.protect()
 
-  redirect("/staff/support-tickets")
+  return <StaffOverviewPageShell />
 }

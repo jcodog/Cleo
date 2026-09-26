@@ -2513,6 +2513,35 @@ export declare const api: {
             {},
             { status: "forbidden" | "ready" }
           >;
+          overview: FunctionReference<
+            "query",
+            "public",
+            {},
+            | { status: "forbidden" }
+            | {
+                activity: Array<{
+                  discordGuildId: string;
+                  eventType: string;
+                  guildName: string;
+                  id: string;
+                  occurredAt: number;
+                  summary: string;
+                }>;
+                guilds: Array<{
+                  botJoinedAt: number;
+                  discordGuildId: string;
+                  lastSyncedAt?: number;
+                  memberCount?: number;
+                  name: string;
+                }>;
+                metrics: {
+                  guildCount: number;
+                  registeredAccountCount: number;
+                  userCount: number;
+                };
+                status: "ready";
+              }
+          >;
         };
       };
       supportTickets: {
