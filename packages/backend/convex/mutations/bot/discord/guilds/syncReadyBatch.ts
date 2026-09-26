@@ -4,6 +4,7 @@ import {
   internalMutation,
   type MutationCtx,
 } from "../../../../_generated/server"
+import { applyGuildMetricsTransition } from "../../../../lib/staffDiscordMetrics"
 
 const readyGuild = v.object({
   discordGuildId: v.string(),
@@ -56,6 +57,7 @@ type ReadyGuildPatch = Partial<
     | "presenceCount"
     | "botJoinedAt"
     | "botLeftAt"
+    | "staffMetricsTracked"
     | "lastSyncedAt"
     | "readyShardId"
     | "readyShardCount"
@@ -111,6 +113,16 @@ export const sync = internalMutation({
           continue
         }
 
+        await applyGuildMetricsTransition(
+          ctx,
+          existing,
+          {
+            botLeftAt: undefined,
+            memberCount: guild.memberCount ?? existing.memberCount,
+          },
+          now
+        )
+
         if (patch === null) {
           stats.skippedUnchangedGuilds += 1
         } else {
@@ -138,6 +150,7 @@ export const sync = internalMutation({
           ...(guild.botJoinedAt !== undefined
             ? { botJoinedAt: guild.botJoinedAt }
             : {}),
+          staffMetricsTracked: true,
           lastSyncedAt: args.lastSyncedAt,
           readyShardId: guild.readyShardId,
           readyShardCount: guild.readyShardCount,
@@ -145,6 +158,12 @@ export const sync = internalMutation({
           createdAt: now,
           updatedAt: now,
         })
+        await applyGuildMetricsTransition(
+          ctx,
+          null,
+          { botLeftAt: undefined, memberCount: guild.memberCount },
+          now
+        )
         stats.insertedGuilds += 1
       }
 
@@ -171,6 +190,7 @@ export function getReadyGuildPatch(
     | "presenceCount"
     | "botJoinedAt"
     | "botLeftAt"
+    | "staffMetricsTracked"
     | "lastSyncedAt"
     | "readyShardId"
     | "readyShardCount"
@@ -228,6 +248,10 @@ export function getReadyGuildPatch(
 
   if (existing.botLeftAt !== undefined) {
     patch.botLeftAt = undefined
+  }
+
+  if (existing.staffMetricsTracked !== true) {
+    patch.staffMetricsTracked = true
   }
 
   assignIfChanged(patch, existing, "lastSyncedAt", options.lastSyncedAt)

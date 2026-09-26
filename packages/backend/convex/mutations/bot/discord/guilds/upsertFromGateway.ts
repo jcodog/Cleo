@@ -1,6 +1,7 @@
 import { v } from "convex/values"
 import type { Id } from "../../../../_generated/dataModel"
 import { internalMutation } from "../../../../_generated/server"
+import { applyGuildMetricsTransition } from "../../../../lib/staffDiscordMetrics"
 
 export const upsert = internalMutation({
   args: {
@@ -37,6 +38,14 @@ export const upsert = internalMutation({
         return existing._id
       }
 
+      const nextMemberCount = args.memberCount ?? existing.memberCount
+      const nextState = {
+        botLeftAt: undefined,
+        memberCount: nextMemberCount,
+      }
+
+      await applyGuildMetricsTransition(ctx, existing, nextState, now)
+
       await ctx.db.patch(existing._id, {
         name: args.name,
         ...(args.description !== undefined
@@ -57,6 +66,7 @@ export const upsert = internalMutation({
           ? { botJoinedAt: args.botJoinedAt }
           : {}),
         botLeftAt: undefined,
+        staffMetricsTracked: true,
         lastSyncedAt: incomingSyncedAt,
         updatedAt: now,
       })
@@ -64,7 +74,7 @@ export const upsert = internalMutation({
       return existing._id
     }
 
-    return await ctx.db.insert("guilds", {
+    const insertedGuild = {
       discordGuildId: args.discordGuildId,
       name: args.name,
       ...(args.description !== undefined
@@ -84,9 +94,24 @@ export const upsert = internalMutation({
       ...(args.botJoinedAt !== undefined
         ? { botJoinedAt: args.botJoinedAt }
         : {}),
+      staffMetricsTracked: true,
       lastSyncedAt: incomingSyncedAt,
       createdAt: now,
       updatedAt: now,
-    })
+    }
+
+    const guildId = await ctx.db.insert("guilds", insertedGuild)
+
+    await applyGuildMetricsTransition(
+      ctx,
+      null,
+      {
+        botLeftAt: undefined,
+        memberCount: args.memberCount,
+      },
+      now
+    )
+
+    return guildId
   },
 })

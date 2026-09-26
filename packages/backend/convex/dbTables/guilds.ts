@@ -15,6 +15,7 @@ export const guilds = defineTable({
   botJoinedAt: v.optional(v.number()),
   botInstallationVerifiedAt: v.optional(v.number()),
   botLeftAt: v.optional(v.number()),
+  staffMetricsTracked: v.optional(v.boolean()),
 
   lastOpenedAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
@@ -26,3 +27,7 @@ export const guilds = defineTable({
 })
   .index("by_discord_guild_id", ["discordGuildId"])
   .index("by_ready_shard_key", ["readyShardKey"])
+  .index("by_bot_left_at_and_member_count", ["botLeftAt", "memberCount"])
+  .index("by_bot_joined_at", ["botJoinedAt"])
+  .index("by_bot_installation_verified_at", ["botInstallationVerifiedAt"])
+  .index("by_bot_left_at", ["botLeftAt"])

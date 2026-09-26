@@ -15,6 +15,7 @@ const existingGuild = {
   memberCount: 10,
   presenceCount: 5,
   botJoinedAt: 1_000,
+  staffMetricsTracked: true,
   lastSyncedAt: 2_000,
   readyShardId: 1,
   readyShardCount: 16,
@@ -135,4 +136,20 @@ test("READY patch type remains aligned with the guild document", () => {
     lastSyncedAt: 2_001,
     updatedAt: 3_000,
   } satisfies Partial<Doc<"guilds">>)
+})
+
+
+test("READY patch initializes staff metrics tracking for legacy active guilds", () => {
+  const { staffMetricsTracked: _tracked, ...legacyGuild } = existingGuild
+
+  assert.deepEqual(
+    getReadyGuildPatch(legacyGuild, readyGuild, {
+      lastSyncedAt: existingGuild.lastSyncedAt,
+      now: 3_000,
+    }),
+    {
+      staffMetricsTracked: true,
+      updatedAt: 3_000,
+    }
+  )
 })

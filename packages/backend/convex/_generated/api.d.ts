@@ -2513,6 +2513,53 @@ export declare const api: {
             {},
             { status: "forbidden" | "ready" }
           >;
+          overview: FunctionReference<
+            "query",
+            "public",
+            {},
+            | { status: "forbidden" }
+            | {
+                activity: Array<{
+                  discordGuildId: string;
+                  eventType: string;
+                  guildName: string;
+                  id: string;
+                  occurredAt: number;
+                  summary: string;
+                }>;
+                metrics: { guildCount: number; userCount: number };
+                status: "ready";
+              }
+          >;
+        };
+        guilds: {
+          list: FunctionReference<
+            "query",
+            "public",
+            {
+              paginationOpts: {
+                cursor: string | null;
+                endCursor?: string | null;
+                id?: number;
+                maximumBytesRead?: number;
+                maximumRowsRead?: number;
+                numItems: number;
+              };
+            },
+            {
+              continueCursor: string;
+              isDone: boolean;
+              page: Array<{
+                discordGuildId: string;
+                installedAt?: number;
+                lastSyncedAt?: number;
+                memberCount?: number;
+                name: string;
+              }>;
+              pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+              splitCursor?: string | null;
+            }
+          >;
         };
       };
       supportTickets: {

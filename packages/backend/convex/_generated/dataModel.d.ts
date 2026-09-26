@@ -1987,6 +1987,7 @@ export type DataModel = {
       botInstallationVerifiedAt?: number;
       botJoinedAt?: number;
       botLeftAt?: number;
+      staffMetricsTracked?: boolean;
       createdAt: number;
       description?: string;
       discordGuildId: string;
@@ -2011,6 +2012,7 @@ export type DataModel = {
       | "botInstallationVerifiedAt"
       | "botJoinedAt"
       | "botLeftAt"
+      | "staffMetricsTracked"
       | "createdAt"
       | "description"
       | "discordGuildId"
@@ -2029,6 +2031,14 @@ export type DataModel = {
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
+      by_bot_installation_verified_at: ["botInstallationVerifiedAt", "_creationTime"];
+      by_bot_joined_at: ["botJoinedAt", "_creationTime"];
+      by_bot_left_at: ["botLeftAt", "_creationTime"];
+      by_bot_left_at_and_member_count: [
+        "botLeftAt",
+        "memberCount",
+        "_creationTime",
+      ];
       by_discord_guild_id: ["discordGuildId", "_creationTime"];
       by_ready_shard_key: ["readyShardKey", "_creationTime"];
     };
@@ -2112,6 +2122,30 @@ export type DataModel = {
         "_creationTime",
       ];
       by_user_id: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  staffDiscordMetrics: {
+    document: {
+      activeGuildCount: number;
+      key: "discord";
+      memberCount: number;
+      updatedAt: number;
+      _id: Id<"staffDiscordMetrics">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "activeGuildCount"
+      | "key"
+      | "memberCount"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_key: ["key", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

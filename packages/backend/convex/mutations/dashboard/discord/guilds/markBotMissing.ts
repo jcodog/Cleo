@@ -1,6 +1,7 @@
 import { v } from "convex/values"
 
 import { internalMutation } from "../../../../_generated/server"
+import { applyGuildMetricsTransition } from "../../../../lib/staffDiscordMetrics"
 
 export const mark = internalMutation({
   args: {
@@ -38,8 +39,16 @@ export const mark = internalMutation({
       return null
     }
 
+    await applyGuildMetricsTransition(
+      ctx,
+      guild,
+      { botLeftAt: args.verifiedAt, memberCount: guild.memberCount },
+      args.verifiedAt
+    )
+
     await ctx.db.patch(guild._id, {
       botLeftAt: args.verifiedAt,
+      staffMetricsTracked: true,
       lastSyncedAt: args.verifiedAt,
       updatedAt: args.verifiedAt,
     })
