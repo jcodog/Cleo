@@ -8,6 +8,7 @@ import {
 import { discordVerificationSource } from "../../../../dbTables/shared"
 import { insertDashboardGuildAuditEvent } from "../../../../lib/guildAudit"
 import { guildDoc } from "../../../../lib/validators"
+import { applyGuildMetricsTransition } from "../../../../lib/staffDiscordMetrics"
 
 const maybeString = v.optional(v.string())
 const maybeNumber = v.optional(v.number())
@@ -85,6 +86,13 @@ async function upsertGuild(
     .unique()
 
   if (existing) {
+    await applyGuildMetricsTransition(
+      ctx,
+      existing,
+      { botLeftAt: undefined, memberCount: args.memberCount },
+      now
+    )
+
     await ctx.db.patch(existing._id, {
       name: args.name,
       description: args.description,
@@ -95,6 +103,7 @@ async function upsertGuild(
       presenceCount: args.presenceCount,
       botInstallationVerifiedAt: args.botInstallationVerifiedAt,
       botLeftAt: undefined,
+      staffMetricsTracked: true,
       lastSyncedAt: args.lastSyncedAt,
       updatedAt: now,
     })
@@ -126,10 +135,18 @@ async function upsertGuild(
       ? { presenceCount: args.presenceCount }
       : {}),
     botInstallationVerifiedAt: args.botInstallationVerifiedAt,
+    staffMetricsTracked: true,
     lastSyncedAt: args.lastSyncedAt,
     createdAt: now,
     updatedAt: now,
   })
+
+  await applyGuildMetricsTransition(
+    ctx,
+    null,
+    { botLeftAt: undefined, memberCount: args.memberCount },
+    now
+  )
 
   const guild = await ctx.db.get(guildId)
 

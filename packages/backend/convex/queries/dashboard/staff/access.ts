@@ -1,19 +1,13 @@
+import { formatDiscordGuildEventType } from "@workspace/shared/discordGuildEventLabels"
 import { v } from "convex/values"
 
 import type { Doc } from "../../../_generated/dataModel"
 import { query } from "../../../_generated/server"
 import { getCurrentUser } from "../../../lib/auth"
+import { getStaffDiscordMetrics } from "../../../lib/staffDiscordMetrics"
 
 const staffAccessResult = v.object({
   status: v.union(v.literal("forbidden"), v.literal("ready")),
-})
-
-const staffOverviewGuild = v.object({
-  discordGuildId: v.string(),
-  name: v.string(),
-  memberCount: v.optional(v.number()),
-  botJoinedAt: v.number(),
-  lastSyncedAt: v.optional(v.number()),
 })
 
 const staffOverviewActivity = v.object({
@@ -32,9 +26,7 @@ const staffOverviewResult = v.union(
     metrics: v.object({
       guildCount: v.number(),
       userCount: v.number(),
-      registeredAccountCount: v.number(),
     }),
-    guilds: v.array(staffOverviewGuild),
     activity: v.array(staffOverviewActivity),
   })
 )
@@ -46,10 +38,6 @@ type StaffActivity = {
   discordGuildId: string
   guildName: string
   occurredAt: number
-}
-
-type ActiveGuild = Doc<"guilds"> & {
-  botJoinedAt: number
 }
 
 export const get = query({
@@ -75,32 +63,83 @@ export const overview = query({
       return { status: "forbidden" as const }
     }
 
-    const [users, guilds, recentGuildEvents] = await Promise.all([
-      ctx.db.query("users").collect(),
-      ctx.db.query("guilds").collect(),
-      ctx.db
-        .query("discordGuildEvents")
-        .withIndex("by_occurred_at")
-        .order("desc")
-        .take(150),
-    ])
+    const [metrics, recentGuildEvents, recentJoinedGuilds, recentLeftGuilds] =
+      await Promise.all([
+        getStaffDiscordMetrics(ctx),
+        ctx.db
+          .query("discordGuildEvents")
+          .withIndex("by_occurred_at")
+          .order("desc")
+          .take(100),
+        ctx.db
+          .query("guilds")
+          .withIndex("by_bot_joined_at")
+          .order("desc")
+          .take(50),
+        ctx.db
+          .query("guilds")
+          .withIndex("by_bot_left_at")
+          .order("desc")
+          .take(50),
+      ])
 
-    const activeGuilds = guilds.filter(isBotCurrentlyInGuild)
+    const eventGuildIds = Array.from(
+      new Set(recentGuildEvents.map((event) => event.discordGuildId))
+    )
+    const eventGuilds = await Promise.all(
+      eventGuildIds.map(async (discordGuildId) => {
+        return await ctx.db
+          .query("guilds")
+          .withIndex("by_discord_guild_id", (q) =>
+            q.eq("discordGuildId", discordGuildId)
+          )
+          .unique()
+      })
+    )
     const guildByDiscordId = new Map(
-      guilds.map((guild) => [guild.discordGuildId, guild] as const)
+      eventGuilds
+        .filter((guild): guild is Doc<"guilds"> => guild !== null)
+        .map((guild) => [guild.discordGuildId, guild] as const)
     )
 
     const activity: StaffActivity[] = [
       ...recentGuildEvents.map((event) => ({
         id: `event:${event._id}`,
         eventType: event.eventType,
-        summary: describeGuildEvent(event.eventType),
+        summary: formatDiscordGuildEventType(event.eventType),
         discordGuildId: event.discordGuildId,
         guildName:
           guildByDiscordId.get(event.discordGuildId)?.name ?? "Unknown server",
         occurredAt: event.occurredAt,
       })),
-      ...guilds.flatMap((guild) => buildGuildLifecycleActivity(guild)),
+      ...recentJoinedGuilds.flatMap((guild) =>
+        guild.botJoinedAt === undefined
+          ? []
+          : [
+              {
+                id: `guild:${guild.discordGuildId}:joined:${guild.botJoinedAt}`,
+                eventType: "botGuildJoin",
+                summary: "Cleo joined the server",
+                discordGuildId: guild.discordGuildId,
+                guildName: guild.name,
+                occurredAt: guild.botJoinedAt,
+              },
+            ]
+      ),
+      ...recentLeftGuilds.flatMap((guild) =>
+        guild.botLeftAt === undefined
+          ? []
+          : [
+              {
+                id: `guild:${guild.discordGuildId}:left:${guild.botLeftAt}`,
+                eventType: "botGuildLeave",
+                summary: "Cleo left the server",
+                discordGuildId: guild.discordGuildId,
+                guildName: guild.name,
+                occurredAt: guild.botLeftAt,
+              },
+            ]
+      ),
     ]
       .sort((left, right) => right.occurredAt - left.occurredAt)
       .slice(0, 100)
@@ -108,41 +147,15 @@ export const overview = query({
     return {
       status: "ready" as const,
       metrics: {
-        guildCount: activeGuilds.length,
-        userCount: activeGuilds.reduce(
-          (total, guild) => total + (guild.memberCount ?? 0),
-          0
-        ),
-        registeredAccountCount: users.filter(
-          (registeredUser) => registeredUser.status !== "disabled"
-        ).length,
+        guildCount: metrics?.activeGuildCount ?? 0,
+        userCount: metrics?.memberCount ?? 0,
       },
-      guilds: activeGuilds
-        .sort((left, right) => {
-          const memberDifference =
-            (right.memberCount ?? 0) - (left.memberCount ?? 0)
-
-          return memberDifference !== 0
-            ? memberDifference
-            : left.name.localeCompare(right.name)
-        })
-        .map((guild) => ({
-          discordGuildId: guild.discordGuildId,
-          name: guild.name,
-          ...(guild.memberCount !== undefined
-            ? { memberCount: guild.memberCount }
-            : {}),
-          botJoinedAt: guild.botJoinedAt,
-          ...(guild.lastSyncedAt !== undefined
-            ? { lastSyncedAt: guild.lastSyncedAt }
-            : {}),
-        })),
       activity,
     }
   },
 })
 
-function hasStaffAccess(
+export function hasStaffAccess(
   user: Pick<Doc<"users">, "role" | "status"> | null
 ): boolean {
   return Boolean(
@@ -150,66 +163,4 @@ function hasStaffAccess(
       user.status !== "disabled" &&
       ["staff", "admin", "superadmin"].includes(user.role)
   )
-}
-
-function isBotCurrentlyInGuild(guild: Doc<"guilds">): guild is ActiveGuild {
-  return Boolean(
-    guild.botJoinedAt !== undefined &&
-      (guild.botLeftAt === undefined || guild.botJoinedAt > guild.botLeftAt)
-  )
-}
-
-function buildGuildLifecycleActivity(
-  guild: Doc<"guilds">
-): StaffActivity[] {
-  const activity: StaffActivity[] = []
-
-  if (guild.botJoinedAt !== undefined) {
-    activity.push({
-      id: `guild:${guild.discordGuildId}:joined:${guild.botJoinedAt}`,
-      eventType: "botGuildJoin",
-      summary: "Cleo joined the server",
-      discordGuildId: guild.discordGuildId,
-      guildName: guild.name,
-      occurredAt: guild.botJoinedAt,
-    })
-  }
-
-  if (guild.botLeftAt !== undefined) {
-    activity.push({
-      id: `guild:${guild.discordGuildId}:left:${guild.botLeftAt}`,
-      eventType: "botGuildLeave",
-      summary: "Cleo left the server",
-      discordGuildId: guild.discordGuildId,
-      guildName: guild.name,
-      occurredAt: guild.botLeftAt,
-    })
-  }
-
-  return activity
-}
-
-function describeGuildEvent(
-  eventType: Doc<"discordGuildEvents">["eventType"]
-): string {
-  switch (eventType) {
-    case "guildMemberAdd":
-      return "Member joined"
-    case "guildMemberRemove":
-      return "Member left"
-    case "guildBanAdd":
-      return "Member banned"
-    case "guildBanRemove":
-      return "Member unbanned"
-    case "channelCreate":
-      return "Channel created"
-    case "channelDelete":
-      return "Channel deleted"
-    case "roleCreate":
-      return "Role created"
-    case "roleDelete":
-      return "Role deleted"
-    case "messageDelete":
-      return "Message deleted"
-  }
 }

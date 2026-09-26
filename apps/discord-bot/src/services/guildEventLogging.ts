@@ -28,6 +28,7 @@ import {
 } from "@/services/runtimeErrorReporter"
 import { botLogError } from "@/utils/botLog"
 import { redactLogText } from "@workspace/logger"
+import { formatDiscordGuildEventType } from "@workspace/shared/discordGuildEventLabels"
 import type { DiscordGuildRuntimeConfigLogLevel } from "@workspace/shared/discordRuntimeConfig"
 
 type RuntimeConfigFetcher = (
@@ -505,7 +506,7 @@ export function formatGuildEventLogMessage(
   event: DiscordGuildEventRecord
 ): MessageCreateOptions {
   const lines = [
-    `**${formatEventType(event.eventType)}**`,
+    `**${formatDiscordGuildEventType(event.eventType)}**`,
     `Target: ${formatTarget(event)}`,
     `Time: <t:${Math.floor(event.occurredAt / 1000)}:F>`,
     ...(event.actorDiscordUserId ? [`Actor: ${event.actorDiscordUserId}`] : []),
@@ -589,31 +590,6 @@ function buildDedupeKey(
 
 function getDedupeWindow(occurredAt: number): number {
   return Math.floor(occurredAt / 5_000)
-}
-
-function formatEventType(
-  eventType: DiscordGuildEventRecord["eventType"]
-): string {
-  switch (eventType) {
-    case "guildMemberAdd":
-      return "Member Joined"
-    case "guildMemberRemove":
-      return "Member Left"
-    case "guildBanAdd":
-      return "User Banned"
-    case "guildBanRemove":
-      return "User Unbanned"
-    case "channelCreate":
-      return "Channel Created"
-    case "channelDelete":
-      return "Channel Deleted"
-    case "roleCreate":
-      return "Role Created"
-    case "roleDelete":
-      return "Role Deleted"
-    case "messageDelete":
-      return "Message Deleted"
-  }
 }
 
 function formatTarget(event: DiscordGuildEventRecord): string {

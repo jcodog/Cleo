@@ -5,11 +5,11 @@ import {
   IconActivity,
   IconAlertTriangle,
   IconServer,
-  IconUser,
   IconUsers,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
+import { Button } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
@@ -33,11 +33,76 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table"
-import { useQuery } from "convex/react"
+import { usePaginatedQuery, useQuery } from "convex/react"
+
+type StaffOverviewResult =
+  | undefined
+  | { status: "forbidden" }
+  | {
+      status: "ready"
+      metrics: {
+        guildCount: number
+        userCount: number
+      }
+      activity: StaffActivity[]
+    }
+
+type StaffGuild = {
+  discordGuildId: string
+  name: string
+  memberCount?: number
+  installedAt?: number
+  lastSyncedAt?: number
+}
+
+type StaffActivity = {
+  id: string
+  eventType: string
+  summary: string
+  discordGuildId: string
+  guildName: string
+  occurredAt: number
+}
+
+type GuildPaginationStatus =
+  | "LoadingFirstPage"
+  | "CanLoadMore"
+  | "LoadingMore"
+  | "Exhausted"
 
 export function StaffOverviewPageShell() {
   const result = useQuery(api.queries.dashboard.staff.access.overview, {})
+  const {
+    results: guilds,
+    status: guildStatus,
+    loadMore,
+  } = usePaginatedQuery(
+    api.queries.dashboard.staff.guilds.list,
+    {},
+    { initialNumItems: 50 }
+  )
 
+  return (
+    <StaffOverviewContent
+      result={result}
+      guilds={guilds}
+      guildStatus={guildStatus}
+      loadMore={() => loadMore(50)}
+    />
+  )
+}
+
+export function StaffOverviewContent({
+  result,
+  guilds,
+  guildStatus,
+  loadMore,
+}: {
+  result: StaffOverviewResult
+  guilds: StaffGuild[]
+  guildStatus: GuildPaginationStatus
+  loadMore: () => void
+}) {
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
       <header className="flex flex-col gap-2 border-b pb-5">
@@ -66,7 +131,11 @@ export function StaffOverviewPageShell() {
       ) : (
         <>
           <MetricCards metrics={result.metrics} />
-          <GuildsCard guilds={result.guilds} />
+          <GuildsCard
+            guilds={guilds}
+            status={guildStatus}
+            loadMore={loadMore}
+          />
           <ActivityCard activity={result.activity} />
         </>
       )}
@@ -80,13 +149,12 @@ function MetricCards({
   metrics: {
     guildCount: number
     userCount: number
-    registeredAccountCount: number
   }
 }) {
   return (
     <section
       aria-label="Cleo operational totals"
-      className="grid gap-4 md:grid-cols-3"
+      className="grid gap-4 md:grid-cols-2"
     >
       <MetricCard
         description="Servers Cleo is currently installed in."
@@ -99,12 +167,6 @@ function MetricCards({
         icon={<IconUsers aria-hidden />}
         label="Users"
         value={metrics.userCount}
-      />
-      <MetricCard
-        description="Non-disabled Cleo dashboard accounts stored in Convex."
-        icon={<IconUser aria-hidden />}
-        label="Registered accounts"
-        value={metrics.registeredAccountCount}
       />
     </section>
   )
@@ -143,26 +205,27 @@ function MetricCard({
 
 function GuildsCard({
   guilds,
+  status,
+  loadMore,
 }: {
-  guilds: Array<{
-    discordGuildId: string
-    name: string
-    memberCount?: number
-    botJoinedAt: number
-    lastSyncedAt?: number
-  }>
+  guilds: StaffGuild[]
+  status: GuildPaginationStatus
+  loadMore: () => void
 }) {
+  const loadingFirstPage = status === "LoadingFirstPage"
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Discord Servers</CardTitle>
         <CardDescription>
-          Every server currently reporting Cleo as installed, ordered by member
-          count.
+          Active Cleo installations ordered by the latest member-count snapshot.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {guilds.length === 0 ? (
+      <CardContent className="space-y-4">
+        {loadingFirstPage ? (
+          <Skeleton className="h-56 w-full" />
+        ) : guilds.length === 0 ? (
           <Empty className="min-h-56 border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -182,7 +245,7 @@ function GuildsCard({
                   <TableHead>Server</TableHead>
                   <TableHead>Discord Guild ID</TableHead>
                   <TableHead className="text-right">Members</TableHead>
-                  <TableHead className="text-right">Cleo joined</TableHead>
+                  <TableHead className="text-right">Installed</TableHead>
                   <TableHead className="text-right">Last sync</TableHead>
                 </TableRow>
               </TableHeader>
@@ -197,7 +260,9 @@ function GuildsCard({
                       {guild.memberCount?.toLocaleString() ?? "Unknown"}
                     </TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">
-                      {formatDateTime(guild.botJoinedAt)}
+                      {guild.installedAt !== undefined
+                        ? formatDateTime(guild.installedAt)
+                        : "Unknown"}
                     </TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">
                       {guild.lastSyncedAt !== undefined
@@ -210,23 +275,27 @@ function GuildsCard({
             </Table>
           </div>
         )}
+
+        {status === "CanLoadMore" || status === "LoadingMore" ? (
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={loadMore}
+              disabled={status === "LoadingMore"}
+            >
+              {status === "LoadingMore"
+                ? "Loading servers..."
+                : "Load more servers"}
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   )
 }
 
-function ActivityCard({
-  activity,
-}: {
-  activity: Array<{
-    id: string
-    eventType: string
-    summary: string
-    discordGuildId: string
-    guildName: string
-    occurredAt: number
-  }>
-}) {
+function ActivityCard({ activity }: { activity: StaffActivity[] }) {
   return (
     <Card>
       <CardHeader>
@@ -298,8 +367,7 @@ function ActivityCard({
 function OverviewSkeleton() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <Skeleton className="h-36 w-full" />
+      <div className="grid gap-4 md:grid-cols-2">
         <Skeleton className="h-36 w-full" />
         <Skeleton className="h-36 w-full" />
       </div>

@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values"
 
 import { internalMutation } from "../../../../_generated/server"
+import { applyGuildMetricsTransition } from "../../../../lib/staffDiscordMetrics"
 
 const MAX_EVENT_CLOCK_SKEW_MS = 5 * 60 * 1000
 
@@ -35,9 +36,17 @@ export const mark = internalMutation({
       return null
     }
 
+    await applyGuildMetricsTransition(
+      ctx,
+      guild,
+      { botLeftAt: leftAt, memberCount: guild.memberCount },
+      now
+    )
+
     await ctx.db.patch(guild._id, {
       ...(args.name !== undefined ? { name: args.name } : {}),
       botLeftAt: leftAt,
+      staffMetricsTracked: true,
       lastSyncedAt: leftAt,
       updatedAt: now,
     })

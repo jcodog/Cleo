@@ -15,6 +15,7 @@ import { discordModerationActions } from "./dbTables/discordModerationActions"
 import { guildSupportConfigs } from "./dbTables/guildSupportConfigs"
 import { supportTicketMessages } from "./dbTables/supportTicketMessages"
 import { supportTickets } from "./dbTables/supportTickets"
+import { staffDiscordMetrics } from "./dbTables/staffDiscordMetrics"
 import {
   cleoPetBattleRecords,
   cleoPetInventories,
@@ -39,6 +40,7 @@ export default defineSchema({
   guildSupportConfigs,
   supportTickets,
   supportTicketMessages,
+  staffDiscordMetrics,
   cleoProfiles,
   cleoPets,
   cleoPetInventories,

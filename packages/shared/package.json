@@ -19,6 +19,7 @@
     "./cleoEntitlements": "./src/cleoEntitlements.ts",
     "./cleoPets": "./src/cleoPets.ts",
     "./discordRuntimeConfig": "./src/discordRuntimeConfig.ts",
-    "./providers": "./src/providers.ts"
+    "./providers": "./src/providers.ts",
+    "./discordGuildEventLabels": "./src/discordGuildEventLabels.ts"
   }
 }

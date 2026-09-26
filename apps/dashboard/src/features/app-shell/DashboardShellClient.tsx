@@ -184,6 +184,12 @@ export function DashboardShellClient({
       title: "Staff",
       items: [
         {
+          title: "Overview",
+          href: "/staff",
+          icon: IconHome,
+          isActive: pathname === "/staff",
+        },
+        {
           title: "Runtime Incidents",
           href: "/staff/discord-runtime-incidents",
           icon: IconShieldLock,

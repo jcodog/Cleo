@@ -2527,20 +2527,38 @@ export declare const api: {
                   occurredAt: number;
                   summary: string;
                 }>;
-                guilds: Array<{
-                  botJoinedAt: number;
-                  discordGuildId: string;
-                  lastSyncedAt?: number;
-                  memberCount?: number;
-                  name: string;
-                }>;
-                metrics: {
-                  guildCount: number;
-                  registeredAccountCount: number;
-                  userCount: number;
-                };
+                metrics: { guildCount: number; userCount: number };
                 status: "ready";
               }
+          >;
+        };
+        guilds: {
+          list: FunctionReference<
+            "query",
+            "public",
+            {
+              paginationOpts: {
+                cursor: string | null;
+                endCursor?: string | null;
+                id?: number;
+                maximumBytesRead?: number;
+                maximumRowsRead?: number;
+                numItems: number;
+              };
+            },
+            {
+              continueCursor: string;
+              isDone: boolean;
+              page: Array<{
+                discordGuildId: string;
+                installedAt?: number;
+                lastSyncedAt?: number;
+                memberCount?: number;
+                name: string;
+              }>;
+              pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+              splitCursor?: string | null;
+            }
           >;
         };
       };
