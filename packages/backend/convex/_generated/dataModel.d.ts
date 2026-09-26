@@ -1987,7 +1987,6 @@ export type DataModel = {
       botInstallationVerifiedAt?: number;
       botJoinedAt?: number;
       botLeftAt?: number;
-      staffMetricsTracked?: boolean;
       createdAt: number;
       description?: string;
       discordGuildId: string;
@@ -2002,6 +2001,7 @@ export type DataModel = {
       readyShardCount?: number;
       readyShardId?: number;
       readyShardKey?: string;
+      staffMetricsTracked?: boolean;
       updatedAt: number;
       _id: Id<"guilds">;
       _creationTime: number;
@@ -2012,7 +2012,6 @@ export type DataModel = {
       | "botInstallationVerifiedAt"
       | "botJoinedAt"
       | "botLeftAt"
-      | "staffMetricsTracked"
       | "createdAt"
       | "description"
       | "discordGuildId"
@@ -2027,11 +2026,15 @@ export type DataModel = {
       | "readyShardCount"
       | "readyShardId"
       | "readyShardKey"
+      | "staffMetricsTracked"
       | "updatedAt";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
-      by_bot_installation_verified_at: ["botInstallationVerifiedAt", "_creationTime"];
+      by_bot_installation_verified_at: [
+        "botInstallationVerifiedAt",
+        "_creationTime",
+      ];
       by_bot_joined_at: ["botJoinedAt", "_creationTime"];
       by_bot_left_at: ["botLeftAt", "_creationTime"];
       by_bot_left_at_and_member_count: [
