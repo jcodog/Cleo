@@ -10,6 +10,8 @@ packages/backend/convex/_generated/server.d.ts
   h_2bc691fceb4fe5 24-34,109-116
 packages/backend/convex/_generated/server.js
   h_2bc691fceb4fe5 94-101
+apps/discord-bot/src/loaders/loadCommands.test.ts
+  s_2f4eeec2f7c41d::t_8b3e3ea13208ad 16
 ---
 {
   "schema_version": "authorship/3.0.0",
@@ -22,6 +24,14 @@ packages/backend/convex/_generated/server.js
     }
   },
   "sessions": {
+    "s_2f4eeec2f7c41d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ef73-8029-7de2-9c2f-1d4a2f5d9bcc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
     "s_63061778308ebe": {
       "agent_id": {
         "tool": "codex",
