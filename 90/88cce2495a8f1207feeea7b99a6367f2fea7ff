@@ -1,0 +1,25 @@
+packages/backend/convex/guildConfiguration.test.ts
+  s_5e0fed9f6f22c1::t_fb0e4c480e3244 75
+  s_5e0fed9f6f22c1::t_a0a47c71087141 1-74,76-104,112-121,134-139,153-167,170-172,176-177,230-245,250,253-263,276-277,289,323-328
+  s_5e0fed9f6f22c1::t_1324398caec83f 105-111,122-133,140-152,168-169,173-175,178-229,246-249,251-252,264-275,278-288,290-322
+packages/backend/convex/lib/validators.ts
+  s_5e0fed9f6f22c1::t_4b13880ad7c441 2,237
+packages/backend/convex/_generated/api.d.ts
+  s_5e0fed9f6f22c1::t_19ef3e6c34e95c 1917,4709,5229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9088cce2495a8f1207feeea7b99a6367f2fea7ff",
+  "prompts": {},
+  "sessions": {
+    "s_5e0fed9f6f22c1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ed18-973c-79f2-9285-35af32492316",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
