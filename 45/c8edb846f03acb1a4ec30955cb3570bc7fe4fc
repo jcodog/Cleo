@@ -1,0 +1,34 @@
+apps/discord-bot/src/handlers/commands/fun/eightBall.test.ts
+  h_2bc691fceb4fe5 1-89
+apps/discord-bot/src/loaders/loadCommands.ts
+  h_2bc691fceb4fe5 2,10
+apps/discord-bot/src/handlers/commands/fun/eightBall.ts
+  h_2bc691fceb4fe5 1-72
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  h_2bc691fceb4fe5 74
+packages/backend/convex/_generated/server.d.ts
+  h_2bc691fceb4fe5 24-34,109-116
+packages/backend/convex/_generated/server.js
+  h_2bc691fceb4fe5 94-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "45c8edb846f03acb1a4ec30955cb3570bc7fe4fc",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_63061778308ebe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a01219-0c08-7521-a160-df3d7ce5bef9",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
