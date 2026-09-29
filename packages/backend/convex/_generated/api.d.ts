@@ -1914,6 +1914,7 @@ export declare const api: {
                 readyShardCount?: number;
                 readyShardId?: number;
                 readyShardKey?: string;
+                staffMetricsTracked?: boolean;
                 updatedAt: number;
               } | null
             >;
@@ -4705,6 +4706,7 @@ export declare const internal: {
                 readyShardCount?: number;
                 readyShardId?: number;
                 readyShardKey?: string;
+                staffMetricsTracked?: boolean;
                 updatedAt: number;
               }
             >;
@@ -5224,6 +5226,7 @@ export declare const internal: {
                     readyShardCount?: number;
                     readyShardId?: number;
                     readyShardKey?: string;
+                    staffMetricsTracked?: boolean;
                     updatedAt: number;
                   };
                   status: "ready";

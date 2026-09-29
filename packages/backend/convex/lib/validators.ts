@@ -1,4 +1,5 @@
 import { v, type Infer } from "convex/values"
+import { guilds } from "../dbTables/guilds"
 
 const jsonPrimitive = v.union(v.null(), v.boolean(), v.number(), v.string())
 const jsonValueLevel1 = v.union(
@@ -233,26 +234,9 @@ export const dashboardLinkedAccountsSyncResult = v.union(
 )
 
 export const guildDoc = v.object({
+  ...guilds.validator.fields,
   _id: v.id("guilds"),
   _creationTime: v.number(),
-  discordGuildId: v.string(),
-  name: v.string(),
-  description: v.optional(v.string()),
-  iconUrl: v.optional(v.string()),
-  iconHash: v.optional(v.string()),
-  ownerDiscordId: v.optional(v.string()),
-  memberCount: v.optional(v.number()),
-  presenceCount: v.optional(v.number()),
-  botJoinedAt: v.optional(v.number()),
-  botInstallationVerifiedAt: v.optional(v.number()),
-  botLeftAt: v.optional(v.number()),
-  lastOpenedAt: v.optional(v.number()),
-  lastSyncedAt: v.optional(v.number()),
-  readyShardId: v.optional(v.number()),
-  readyShardCount: v.optional(v.number()),
-  readyShardKey: v.optional(v.string()),
-  createdAt: v.number(),
-  updatedAt: v.number(),
 })
 
 export const guildConfigDoc = v.object({
