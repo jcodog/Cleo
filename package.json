@@ -37,21 +37,21 @@
       "packages/*"
     ],
     "catalog": {
-      "@next/eslint-plugin-next": "^16.3.3",
+      "@next/eslint-plugin-next": "^16.3.7",
       "@tailwindcss/postcss": "^4.3.3",
-      "@turbo/gen": "^2.10.12",
-      "@types/node": "^26.4.0",
-      "@types/react": "^19.2.18",
-      "@types/react-dom": "^19.2.5",
+      "@turbo/gen": "^2.11.5",
+      "@types/node": "^26.6.3",
+      "@types/react": "^19.3.0",
+      "@types/react-dom": "^19.3.0",
       "eslint-plugin-react-hooks": "^7.1.1",
-      "eslint-plugin-turbo": "^2.10.12",
-      "prettier": "^3.9.6",
+      "eslint-plugin-turbo": "^2.11.5",
+      "prettier": "^3.9.9",
       "prettier-plugin-tailwindcss": "^0.8.1",
       "tailwindcss": "^4.3.3",
-      "turbo": "^2.10.12",
+      "turbo": "^2.11.5",
       "typescript": "^7.0.2",
-      "tsx": "^4.23.13",
-      "oxlint": "1.80.0"
+      "tsx": "^4.23.15",
+      "oxlint": "1.86.0"
     }
   },
   "trustedDependencies": [

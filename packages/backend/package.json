@@ -17,13 +17,13 @@
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
-    "convex": "^1.45.0",
-    "svix": "^2.1.0"
+    "convex": "^1.46.0",
+    "svix": "^2.6.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "@workspace/typescript-config": "workspace:*",
-    "convex-test": "^0.0.56",
+    "convex-test": "^0.0.60",
     "typescript": "catalog:"
   },
   "exports": {
