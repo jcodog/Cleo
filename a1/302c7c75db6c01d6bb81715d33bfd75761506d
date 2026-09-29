@@ -1,0 +1,64 @@
+apps/discord-bot/src/services/eightBallView.test.ts
+  h_2bc691fceb4fe5 1-119
+  h_2bc691fceb4fe5 120-137
+apps/discord-bot/src/loaders/loadCommands.ts
+  h_2bc691fceb4fe5 2,10
+apps/discord-bot/src/services/eightBall.test.ts
+  h_2bc691fceb4fe5 1-69
+  h_2bc691fceb4fe5 70-246
+apps/discord-bot/src/services/eightBallView.ts
+  h_2bc691fceb4fe5 1-68
+  h_2bc691fceb4fe5 69-71
+apps/discord-bot/src/loaders/loadCommands.test.ts
+  s_2f4eeec2f7c41d::t_8b3e3ea13208ad 16
+apps/discord-bot/src/handlers/commands/fun/eightBall.ts
+  h_2bc691fceb4fe5 1-52
+apps/discord-bot/src/services/eightBallImage.test.ts
+  h_2bc691fceb4fe5 1-23
+  h_2bc691fceb4fe5 24-54
+apps/discord-bot/src/handlers/commands/fun/eightBall.test.ts
+  h_2bc691fceb4fe5 1-60
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  h_2bc691fceb4fe5 74
+  h_2bc691fceb4fe5 103-139
+apps/discord-bot/src/services/eightBall.ts
+  h_2bc691fceb4fe5 1-70
+  h_2bc691fceb4fe5 71-80
+apps/discord-bot/src/services/eightBallImage.ts
+  h_2bc691fceb4fe5 1-270
+apps/dashboard/package.json
+  h_2bc691fceb4fe5 17-19,23,25,27-28
+apps/discord-bot/package.json
+  h_2bc691fceb4fe5 27,37,42
+bun.lock
+  h_2bc691fceb4fe5 26-28,32,34,36-37,53,63,68,78-79,84,93,128-129,138,141,144,153-155,160-161,170,172-175,177-179,182-183,247,249,253,255,257,259,261,263,377,399,401,403,405,407,409,411,413,415,417,419,421,423,425,427,429,431,433,435,437,439,441,443,445,447,449,505,507,509,511,513,515,517,519,521,523,525,527,529,531,533,535,537,539,541,543,545,547,559,561,563,565,567,569,571,573,575,577,579,581,583,585,587,589,591,593,595,791,793,829,831,833,835,837,839,841,875,879,881,1073-1074,1093,1095,1233,1463,1621,1657,1705,1735,1741,1755,1797,1813,1815,1851,1881,1887,1923,1925,1939,2017,2329-2330,2377-2378,2455-2458,2463-2466,2537-2538,2543-2544,2593-2594
+package.json
+  h_2bc691fceb4fe5 40,42-45,47-48,51,53-54
+packages/backend/package.json
+  h_2bc691fceb4fe5 20-21,26
+packages/env/package.json
+  h_2bc691fceb4fe5 14
+packages/ui/package.json
+  h_2bc691fceb4fe5 14-15,24,27,30,39-41,46-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a1302c7c75db6c01d6bb81715d33bfd75761506d",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  },
+  "sessions": {
+    "s_2f4eeec2f7c41d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ef73-8029-7de2-9c2f-1d4a2f5d9bcc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
