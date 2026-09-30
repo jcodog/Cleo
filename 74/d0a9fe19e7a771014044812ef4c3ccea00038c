@@ -1,0 +1,24 @@
+apps/discord-bot/package.json
+  s_967632eda2728f::t_dd0fb4305ac062 3
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_967632eda2728f::t_88daac9b78c172 53-65,91-100,221,233,453-464,470-472,476-490,493,521
+  s_967632eda2728f::t_429b343d148f19 101-103,522-542,545-546,550
+bun.lock
+  s_967632eda2728f::t_b0de5e9f17dacd 51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "74d0a9fe19e7a771014044812ef4c3ccea00038c",
+  "prompts": {},
+  "sessions": {
+    "s_967632eda2728f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0efde-f710-7d01-9057-e97e806dafdf",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
