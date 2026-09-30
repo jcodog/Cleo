@@ -57,6 +57,7 @@ jobs:
           bash ops/discord/bin/migrate-discord-deployment-state.test.sh
           bash ops/discord/bin/deploy-discord-release.test.sh
           bash ops/discord/bin/deploy-discord-release.validation.test.sh
+          bash ops/twitch/test.sh
 
       - name: Typecheck workspace
         run: bun run typecheck
@@ -82,6 +83,7 @@ jobs:
           reports=(
             "coverage/apps/dashboard/cobertura-coverage.xml"
             "coverage/apps/discord-bot/cobertura-coverage.xml"
+            "coverage/apps/twitch-bot/cobertura-coverage.xml"
             "coverage/packages/backend/cobertura-coverage.xml"
             "coverage/packages/env/cobertura-coverage.xml"
             "coverage/packages/logger/cobertura-coverage.xml"
@@ -89,6 +91,7 @@ jobs:
             "coverage/packages/ui/cobertura-coverage.xml"
             "coverage/apps/dashboard/index.html"
             "coverage/apps/discord-bot/index.html"
+            "coverage/apps/twitch-bot/index.html"
             "coverage/packages/backend/index.html"
             "coverage/packages/env/index.html"
             "coverage/packages/logger/index.html"

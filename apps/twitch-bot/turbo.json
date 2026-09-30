@@ -1,0 +1,7 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": { "outputs": ["dist/**"] },
+    "dev": { "passThroughEnv": ["TWITCH_*"] }
+  }
+}

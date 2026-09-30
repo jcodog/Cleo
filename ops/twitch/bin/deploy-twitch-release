@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 027
+if [[ "${1:-}" == contract-version && $# == 1 ]]; then echo 1; exit 0; fi
+root="${CLEO_TWITCH_DEPLOY_ROOT:-/srv/cleo/twitch-bot}"
+tools="${CLEO_TWITCH_TOOLS:-/usr/local/libexec/cleo/twitch}"
+node="$tools/node"
+service=cleo-twitch.service
+state="$root/shared/deployment-state.json"
+timeout="${CLEO_TWITCH_READINESS_TIMEOUT:-120}"
+[[ "$timeout" =~ ^[1-9][0-9]*$ && "$timeout" -le 180 ]] || exit 1
+fail() { echo "Twitch deployment failed: $*" >&2; exit 1; }
+[[ -d "$root/releases" && ! -L "$root/releases" && -d "$root/shared" && ! -L "$root/shared" ]] || fail 'invalid host directories'
+[[ -f "$root/shared/deployment.lock" && ! -L "$root/shared/deployment.lock" ]] || fail 'invalid lock'
+exec 9<>"$root/shared/deployment.lock"
+flock -w 180 9 || fail 'another deployment holds the lock'
+stage=""
+cleanup() { [[ -z "$stage" ]] || rm -rf -- "$stage"; }
+trap cleanup EXIT
+validate() {
+  [[ "$1" =~ ^[a-f0-9]{40}$ && -d "$root/releases/$1" && ! -L "$root/releases/$1" ]] || return 1
+  "$node" "$tools/validate-twitch-artifact.mjs" "$root/releases/$1" "$1"
+}
+current_sha() {
+  if [[ -L "$root/current" ]]; then
+    local target
+    target="$(readlink -f "$root/current")"
+    [[ "$target" == "$root/releases/"* && "${target##*/}" =~ ^[a-f0-9]{40}$ ]] || return 1
+    [[ "$target" == "$root/releases/${target##*/}" ]] || return 1
+    printf '%s' "${target##*/}"
+  elif [[ -e "$root/current" ]]; then return 1
+  fi
+}
+activate() {
+  local sha="$1" started pid attempt
+  validate "$sha" || return 1
+  started="$(date +%s%3N)"
+  local link
+  link="$(mktemp -u "$root/.current.XXXXXXXX")"
+  ln -s -- "$root/releases/$sha" "$link" || return 1
+  mv -fT -- "$link" "$root/current" || return 1
+  sudo -n /usr/bin/systemctl restart "$service" || return 1
+  attempt="$SECONDS"
+  while (( SECONDS - attempt < timeout )); do
+    if systemctl is-active --quiet "$service"; then
+      pid="$(systemctl show "$service" --property MainPID --value)"
+      if [[ "$pid" =~ ^[1-9][0-9]*$ ]] && sudo -n -u cleo "$tools/check-twitch-readiness" "$pid" "$started"; then return 0; fi
+    fi
+    sleep 2
+  done
+  return 1
+}
+save_state() {
+  local tmp
+  tmp="$(mktemp "$root/shared/.state.XXXXXXXX")"
+  printf '{"contractVersion":1,"currentSha":"%s","previousSha":"%s","result":"%s","updatedAt":"%s"}\n' "$1" "$2" "$3" "$(date -u +%FT%TZ)" > "$tmp"
+  chmod 0640 "$tmp"
+  mv -fT -- "$tmp" "$state"
+}
+previous="$(current_sha)" || fail 'invalid current release link'
+case "${1:-}" in
+  deploy)
+    [[ $# == 4 && "$2" =~ ^[a-f0-9]{40}$ ]] || fail 'expected deploy SHA archive checksum'
+    sha="$2" archive="$3" checksum="$4"
+    [[ -f "$archive" && ! -L "$archive" && -f "$checksum" && ! -L "$checksum" ]] || fail 'invalid archive/checksum files'
+    [[ "$(stat -c %s "$archive")" -le 20000000 && "$(stat -c %s "$checksum")" -le 256 ]] || fail 'oversized archive/checksum'
+    read -r expected filename extra < "$checksum" || fail 'missing checksum'
+    [[ "$expected" =~ ^[a-f0-9]{64}$ && "$filename" == "cleo-twitch-$sha.tar.gz" && -z "${extra:-}" ]] || fail 'invalid checksum format'
+    [[ "$(sha256sum "$archive" | cut -d ' ' -f 1)" == "$expected" ]] || fail 'archive checksum mismatch'
+    # Check exact member types and names before extraction, including hardlinks.
+    members="$(tar -tzf "$archive")" || fail 'invalid archive'
+    expected_members=$'dist/index.js\ndist/scripts/authorizeBot.js\ndist/scripts/checkReadiness.js\ndist/scripts/sendSmokeMessage.js\nmanifest.json\npackage.json\nruntime-artifact.json'
+    [[ "$(printf '%s\n' "$members" | LC_ALL=C sort)" == "$expected_members" ]] || fail 'unexpected archive members'
+    [[ "$(tar -tvzf "$archive" | cut -c1 | LC_ALL=C sort -u)" == '-' ]] || fail 'archive contains non-regular files'
+    stage="$(mktemp -d "$root/releases/.incoming.XXXXXXXX")"
+    tar --no-same-owner --no-same-permissions -xzf "$archive" -C "$stage"
+    "$node" "$tools/validate-twitch-artifact.mjs" "$stage" "$sha" || fail 'invalid release artifact'
+    chgrp -R cleo-runtime "$stage"
+    find "$stage" -type d -exec chmod a-s,a-t {} +
+    find "$stage" -type d -exec chmod 0750 {} +
+    find "$stage" -type f -exec chmod 0640 {} +
+    if [[ -e "$root/releases/$sha" || -L "$root/releases/$sha" ]]; then
+      validate "$sha" || fail 'existing immutable release is invalid'
+      cmp "$stage/manifest.json" "$root/releases/$sha/manifest.json" || fail 'immutable SHA already has different contents'
+      rm -rf -- "$stage"; stage=""
+    else mv -T -- "$stage" "$root/releases/$sha"; stage=""; fi
+    ;;
+  rollback)
+    [[ $# == 1 && -f "$state" && ! -L "$state" && "$(stat -c %s "$state")" -le 4096 ]] || fail 'no valid deployment state'
+    sha="$("$node" --input-type=module - "$state" <<'NODE'
+import { readFileSync } from "node:fs"
+const state = JSON.parse(readFileSync(process.argv[2], "utf8"))
+if (state.contractVersion !== 1 || !/^[a-f0-9]{40}$/.test(state.previousSha)) process.exit(1)
+console.log(state.previousSha)
+NODE
+    )" || fail 'no previous release recorded'
+    validate "$sha" || fail 'previous release is missing or invalid'
+    ;;
+  *) fail 'unknown operation' ;;
+esac
+if [[ "$sha" == "$previous" && -f "$state" && ! -L "$state" && "$(stat -c %s "$state")" -le 4096 ]]; then
+  # Redeploying the same SHA must retain the previous distinct rollback target.
+  previous="$("$node" --input-type=module - "$state" "$sha" <<'NODE'
+import { readFileSync } from "node:fs"
+const state = JSON.parse(readFileSync(process.argv[2], "utf8"))
+if (state.contractVersion !== 1 || state.currentSha !== process.argv[3] || (state.previousSha !== "" && !/^[a-f0-9]{40}$/.test(state.previousSha))) process.exit(1)
+console.log(state.previousSha)
+NODE
+  )" || fail 'invalid previous deployment state'
+fi
+if activate "$sha"; then
+  save_state "$sha" "$previous" ready
+  echo "Twitch release ready: $sha"
+  exit 0
+fi
+echo 'Twitch activation/readiness failed; attempting previous verified release.' >&2
+if [[ -n "$previous" ]] && activate "$previous"; then
+  save_state "$previous" "$sha" rolledBack
+  fail 'candidate failed; previous release restored and ready'
+fi
+sudo -n /usr/bin/systemctl stop "$service" || true
+save_state "" "$previous" unhealthy
+fail 'no healthy previous release; service stopped'

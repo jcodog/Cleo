@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=/srv/cleo/twitch-bot
+tools=/usr/local/libexec/cleo/twitch
+fail() { echo "Twitch host contract failed: $*" >&2; exit 1; }
+[[ $# == 0 && "$(id -un)" == github-runner && "$(uname -s)" == Linux ]] || fail 'requires the production runner'
+for directory in /srv /srv/cleo /usr/local /usr/local/libexec /usr/local/libexec/cleo; do
+  [[ -d "$directory" && ! -L "$directory" && "$(stat -c %U "$directory")" == root && ! -w "$directory" ]] || fail 'unsafe parent directory'
+done
+[[ "$("$tools/deploy-twitch-release" contract-version)" == 1 ]] || fail 'stale deployment controller'
+for file in "$tools/node" "$tools/validateArtifact.mjs" "$tools/validate-twitch-artifact.mjs" "$tools/run-twitch-release" "$tools/check-twitch-readiness" "$tools/check-twitch-secrets" "$tools/check-twitch-runner" "$tools/deploy-twitch-release"; do
+  [[ -f "$file" && ! -L "$file" && "$(stat -c %U:%G "$file")" == root:root && ! -w "$file" ]] || fail 'unsafe installed tooling'
+done
+[[ -d "$tools" && ! -L "$tools" && "$(stat -c %U:%G:%a "$tools")" == root:root:755 ]] || fail 'unsafe tooling directory'
+[[ "$("$tools/node" --version)" == v24.15.0 && "$("$tools/node" -p '`${process.platform}-${process.arch}`')" == linux-x64 ]] || fail 'wrong Node runtime'
+[[ " $(id -nG cleo) " == *' cleo-runtime '* && " $(id -nG cleo) " != *' cleo-deploy '* ]] || fail 'runtime group isolation'
+[[ " $(id -nG) " == *' cleo-runtime '* && " $(id -nG) " == *' cleo-deploy '* && " $(id -nG) " != *' cleo '* ]] || fail 'runner group isolation'
+for directory in "$root" "$root/releases"; do
+  [[ -d "$directory" && ! -L "$directory" && -w "$directory" && "$(stat -c %U:%G:%a "$directory")" == root:cleo-deploy:2771 ]] || fail 'unsafe release boundary'
+done
+[[ -d "$root/shared" && ! -L "$root/shared" && "$(stat -c %U:%G:%a "$root/shared")" == root:cleo-deploy:2770 ]] || fail 'unsafe shared boundary'
+[[ -f "$root/shared/deployment.lock" && ! -L "$root/shared/deployment.lock" && "$(stat -c %U:%G:%a "$root/shared/deployment.lock")" == github-runner:cleo-deploy:640 ]] || fail 'unsafe lock'
+unsafe="$(find "$root/releases" -mindepth 1 \( -type l -o ! -user github-runner -o ! -group cleo-runtime -o \( -type d ! -perm 0750 \) -o \( -type f ! -perm 0640 \) \) -print -quit)"
+[[ -z "$unsafe" ]] || fail 'unsafe release ownership or permissions'
+env_file=/etc/cleo/twitch-bot.env
+[[ ! -r "$env_file" ]] || fail 'runner can read the secret environment'
+sudo -n -u cleo "$tools/check-twitch-secrets" || fail 'unsafe or missing secret files'
+unit() { systemctl show cleo-twitch.service --property "$1" --value; }
+[[ "$(unit LoadState)" == loaded && "$(unit User)" == cleo && "$(unit Group)" == cleo ]] || fail 'wrong runtime user'
+[[ " $(unit SupplementaryGroups) " == *' cleo-runtime '* && " $(unit SupplementaryGroups) " != *' cleo-deploy '* ]] || fail 'wrong service groups'
+[[ "$(unit WorkingDirectory)" == "$root/current" && "$(unit EnvironmentFiles)" == *"$env_file"* && "$(unit ExecStart)" == *"$tools/run-twitch-release runtime"* ]] || fail 'wrong service entrypoint'
+[[ "$(unit NoNewPrivileges)" == yes && "$(unit ProtectSystem)" == strict && "$(unit ProtectHome)" == yes ]] || fail 'missing service hardening'
+[[ "$(systemctl is-enabled cleo-twitch.service)" == enabled ]] || fail 'service is not enabled'
+sudo -n -l /usr/bin/systemctl restart cleo-twitch.service >/dev/null || fail 'missing restart rule'
+sudo -n -l /usr/bin/systemctl stop cleo-twitch.service >/dev/null || fail 'missing stop rule'
+sudo -n -u cleo -l "$tools/check-twitch-readiness" 1 1 >/dev/null || fail 'missing readiness rule'
+echo 'Twitch host contract 1 is ready.'

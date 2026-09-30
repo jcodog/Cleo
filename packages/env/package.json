@@ -25,6 +25,7 @@
     "./web": "./src/web.ts",
     "./backend": "./src/backend.ts",
     "./discord": "./src/discord.ts",
+    "./twitch": "./src/twitch.ts",
     "./kick": "./src/kick.ts",
     "./ws": "./src/ws.ts"
   }

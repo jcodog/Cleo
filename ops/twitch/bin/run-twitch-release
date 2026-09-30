@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=/srv/cleo/twitch-bot
+tools=/usr/local/libexec/cleo/twitch
+release="$(readlink -f "$root/current")"
+sha="${release##*/}"
+[[ "$sha" =~ ^[a-f0-9]{40}$ && "$release" == "$root/releases/$sha" ]] || exit 1
+"$tools/node" "$tools/validate-twitch-artifact.mjs" "$release" "$sha"
+cd "$release"
+case "${1:-}" in
+  runtime) exec "$tools/node" dist/index.js ;;
+  smoke) [[ $# -le 2 ]] || exit 1; exec "$tools/node" dist/scripts/sendSmokeMessage.js "${@:2}" ;;
+  *) exit 1 ;;
+esac

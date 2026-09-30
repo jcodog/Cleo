@@ -68,6 +68,20 @@
         "zod": "^4.6.5",
       },
     },
+    "apps/twitch-bot": {
+      "name": "@workspace/twitch-bot",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "catalog:",
+        "@workspace/env": "workspace:*",
+        "@workspace/logger": "workspace:*",
+        "@workspace/typescript-config": "workspace:*",
+        "esbuild": "^0.28.2",
+        "tsx": "catalog:",
+        "typescript": "catalog:",
+        "zod": "^4.6.5",
+      },
+    },
     "packages/backend": {
       "name": "@workspace/backend",
       "version": "0.0.0",
@@ -955,6 +969,8 @@
     "@workspace/logger": ["@workspace/logger@workspace:packages/logger"],
 
     "@workspace/shared": ["@workspace/shared@workspace:packages/shared"],
+
+    "@workspace/twitch-bot": ["@workspace/twitch-bot@workspace:apps/twitch-bot"],
 
     "@workspace/typescript-config": ["@workspace/typescript-config@workspace:packages/typescript-config"],
 

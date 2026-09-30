@@ -1,10 +1,6 @@
-import {
-  normalizeClerkUserData,
-  type ClerkUserData,
-} from "./clerkUserData"
+import { normalizeClerkUserData, type ClerkUserData } from "./clerkUserData"
 
 const CLERK_API_BASE_URL = "https://api.clerk.com/v1"
-const CLERK_DISCORD_OAUTH_PROVIDER = "oauth_discord"
 const FETCH_TIMEOUT_MS = 10000
 
 type ClerkOAuthToken = {
@@ -22,6 +18,16 @@ export type ClerkDiscordAccessTokenResult =
         | "clerkSecretUnavailable"
         | "discordAccessTokenUnavailable"
         | "discordTokenResolutionUnavailable"
+    }
+
+export type ClerkProviderAccessTokenResult =
+  | { status: "ready"; accessToken: string }
+  | {
+      status:
+        | "secretUnavailable"
+        | "providerNotLinked"
+        | "tokenUnavailable"
+        | "providerUnavailable"
     }
 
 export type ClerkUserResult =
@@ -101,46 +107,48 @@ export async function getClerkUser(
 export async function getClerkDiscordAccessToken(
   clerkUserId: string
 ): Promise<ClerkDiscordAccessTokenResult> {
-  const clerkSecretKey = process.env.CLERK_SECRET_KEY
-
-  if (!clerkSecretKey) {
+  const result = await getClerkProviderAccessToken(clerkUserId, "discord")
+  if (result.status === "ready") return result
+  if (result.status === "secretUnavailable") {
     return {
       status: "unavailable",
       reason: "clerkSecretUnavailable",
     }
   }
 
-  const token = await fetchClerkOAuthToken(
-    clerkUserId,
-    CLERK_DISCORD_OAUTH_PROVIDER,
-    clerkSecretKey
-  )
-
-  if (token === null) {
+  if (result.status === "providerUnavailable") {
     return {
       status: "unavailable",
       reason: "discordTokenResolutionUnavailable",
     }
   }
 
-  if (token === "") {
-    return {
-      status: "unavailable",
-      reason: "discordAccessTokenUnavailable",
-    }
-  }
-
   return {
-    status: "ready",
-    accessToken: token,
+    status: "unavailable",
+    reason: "discordAccessTokenUnavailable",
   }
+}
+
+export function getClerkTwitchAccessToken(
+  clerkUserId: string
+): Promise<ClerkProviderAccessTokenResult> {
+  return getClerkProviderAccessToken(clerkUserId, "twitch")
+}
+
+export async function getClerkProviderAccessToken(
+  clerkUserId: string,
+  provider: "discord" | "twitch"
+): Promise<ClerkProviderAccessTokenResult> {
+  const secret = process.env.CLERK_SECRET_KEY
+  if (!secret) return { status: "secretUnavailable" }
+  return fetchClerkOAuthToken(clerkUserId, `oauth_${provider}`, secret)
 }
 
 async function fetchClerkOAuthToken(
   clerkUserId: string,
   provider: string,
   clerkSecretKey: string
-): Promise<string | null> {
+): Promise<ClerkProviderAccessTokenResult> {
   let response: Response
 
   try {
@@ -156,15 +164,15 @@ async function fetchClerkOAuthToken(
       }
     )
   } catch {
-    return null
+    return { status: "providerUnavailable" }
   }
 
   if (response.status === 404) {
-    return ""
+    return { status: "providerNotLinked" }
   }
 
   if (!response.ok) {
-    return null
+    return { status: "providerUnavailable" }
   }
 
   let json: unknown
@@ -172,16 +180,19 @@ async function fetchClerkOAuthToken(
   try {
     json = await response.json()
   } catch {
-    return null
+    return { status: "providerUnavailable" }
   }
 
   const tokens = getClerkOAuthTokens(json)
 
   if (tokens === null) {
-    return null
+    return { status: "providerUnavailable" }
   }
 
-  return tokens.find((entry) => entry.token)?.token ?? ""
+  const accessToken = tokens.find((entry) => entry.token)?.token
+  return accessToken
+    ? { status: "ready", accessToken }
+    : { status: "tokenUnavailable" }
 }
 
 function getClerkOAuthTokens(value: unknown): ClerkOAuthToken[] | null {

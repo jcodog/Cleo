@@ -1,0 +1,35 @@
+{
+  "name": "@workspace/twitch-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist",
+    "runtime-artifact.json"
+  ],
+  "scripts": {
+    "dev": "tsx watch --env-file=.env.local entrypoints/index.mjs",
+    "start": "node dist/index.js",
+    "start:production": "node dist/index.js",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
+    "format": "prettier -w \"**/*.{ts,json,mjs}\"",
+    "test": "node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src --include=\"src/**/*.{ts,mjs}\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/twitch-bot\" --temp-directory=\"../../.coverage-tmp/apps/twitch-bot\" node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
+    "bot:authorize": "tsx --env-file=.env.local entrypoints/authorizeBot.mjs",
+    "twitch:smoke": "node dist/scripts/sendSmokeMessage.js",
+    "readiness": "node dist/scripts/checkReadiness.js",
+    "package:release": "node scripts/package-release.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@workspace/env": "workspace:*",
+    "@workspace/logger": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "esbuild": "^0.28.2",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "zod": "^4.6.5"
+  }
+}

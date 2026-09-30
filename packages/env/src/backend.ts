@@ -1,6 +1,7 @@
 import { createEnv } from "@t3-oss/env-core"
 
 import { nodeEnv, optionalString, optionalUrl } from "./shared"
+import { twitchEventSubSecret } from "./twitch"
 
 export const backendEnv = createEnv({
   server: {
@@ -17,6 +18,7 @@ export const backendEnv = createEnv({
     STRIPE_WEBHOOK_SECRET: optionalString,
     DISCORD_BOT_CONVEX_SECRET: optionalString,
     DISCORD_BOT_TOKEN: optionalString,
+    TWITCH_EVENTSUB_SECRET: twitchEventSubSecret.optional(),
   },
   runtimeEnv: process.env,
 })

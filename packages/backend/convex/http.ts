@@ -5,8 +5,17 @@ import { httpAction } from "./_generated/server"
 import { backendEnv } from "@workspace/env/backend"
 import { normalizeClerkUserData } from "./lib/clerkUserData"
 import { type ClerkWebhookEvent, verifyClerkWebhook } from "./lib/clerkWebhook"
+import { handleTwitchWebhook } from "./lib/twitchWebhook"
 
 const http = httpRouter()
+
+http.route({
+  path: "/twitch-eventsub",
+  method: "POST",
+  handler: httpAction(async (_ctx, request) =>
+    handleTwitchWebhook(request, backendEnv.TWITCH_EVENTSUB_SECRET)
+  ),
+})
 
 http.route({
   path: "/clerk-users-webhook",
