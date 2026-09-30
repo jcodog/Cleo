@@ -1,0 +1,21 @@
+docs/twitch/bootstrap.md
+  s_32720aa4a12247::t_d973cfa8ca33cf 54
+ops/twitch/bin/check-twitch-runner
+  s_32720aa4a12247::t_d973cfa8ca33cf 38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0e675ea90a5d8860a216fa4b0bd543dcca705502",
+  "prompts": {},
+  "sessions": {
+    "s_32720aa4a12247": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f30d-28b6-78d1-974a-8110eec7dd38",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
