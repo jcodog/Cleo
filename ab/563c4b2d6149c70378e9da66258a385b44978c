@@ -1,0 +1,20 @@
+apps/dashboard/package.json
+  h_2bc691fceb4fe5 25
+bun.lock
+  h_2bc691fceb4fe5 34,151,184,543,545,547,549,551,553,555,557,559,561,1637,1753
+package.json
+  h_2bc691fceb4fe5 40
+packages/ui/package.json
+  h_2bc691fceb4fe5 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ab563c4b2d6149c70378e9da66258a385b44978c",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
