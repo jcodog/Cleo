@@ -1,0 +1,122 @@
+ops/twitch/test.sh
+  s_32720aa4a12247::t_f79a29b0e91f7e 25-29,88,152-155,157
+  s_32720aa4a12247::t_96f93df93ffdab 47-50,101-113
+  s_32720aa4a12247::t_80967f60201516 89-98
+  s_32720aa4a12247::t_654f1f6de4da28 114-119
+apps/twitch-bot/src/api.test.ts
+  s_32720aa4a12247::t_a57d397934e635 18-19,24,29-33,38-43,51,60-62
+  s_32720aa4a12247::t_e5190364d4887a 20-23,25-28,34-37,44-50,52-59
+apps/twitch-bot/src/index.ts
+  s_32720aa4a12247::t_bd523938b19ede 2,22,24-25
+.github/workflows/twitch-production.yml
+  s_32720aa4a12247::t_af1dd617918783 8,21-24,85
+.github/scripts/twitch-no-network.mjs
+  s_32720aa4a12247::t_af67da7fb9dc5f 1-25
+apps/twitch-bot/src/readiness.ts
+  s_32720aa4a12247::t_f650cde42767cf 2,18,40
+.gitignore
+  s_32720aa4a12247::t_bd523938b19ede 49
+apps/twitch-bot/src/grantStore.recovery.test.ts
+  s_32720aa4a12247::t_871fdecaa6d158 1-9,27,29,33-34,43-52,61-75,80,82,86
+  s_32720aa4a12247::t_e5190364d4887a 10-26,28,30-32,35-42,53-60,76-79,81,83-85
+apps/dashboard/src/features/twitch/TwitchWorkspace.tsx
+  s_32720aa4a12247::t_e5190364d4887a 23-27,51-52
+apps/twitch-bot/src/grantStore.test.ts
+  s_32720aa4a12247::t_e5190364d4887a 21-23,25-41
+  s_32720aa4a12247::t_a57d397934e635 18-20,24,42-49
+apps/twitch-bot/src/scripts/scripts.test.ts
+  s_32720aa4a12247::t_e5190364d4887a 170-177,179,192-195,197-198,210-233,235
+  s_32720aa4a12247::t_d4ce064b9d3f8f 178,180-182,191,196,199
+  s_32720aa4a12247::t_871fdecaa6d158 208-209,234,236
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_32720aa4a12247::t_e5190364d4887a 34-55,114-118
+apps/dashboard/src/features/twitch/TwitchLinkCallback.tsx
+  s_32720aa4a12247::t_bd523938b19ede 39
+  s_32720aa4a12247::t_e5190364d4887a 60-64
+apps/dashboard/src/features/twitch/components.test.ts
+  s_32720aa4a12247::t_8299285ffda587 1-12,17-28,37-41,43-44,64,77,105,116,126,128-131,136,142-143,159,164-168,187,216,264,301,369,371
+  s_32720aa4a12247::t_e5190364d4887a 13-16,29-36,45-53,65,70-75,78-104,106-115,117-125,127,132-135,137-141,144-158,160-163,169-182,184-186,188-215,217-226,228-242,244-263,265-300,302-357,359-362,370
+  s_32720aa4a12247::t_ed80d397ea5ce1 56-62,66-69,227,243,364-367
+  s_32720aa4a12247::t_94307b4d122f65 42,54-55,63,76,183,358,363,368
+apps/twitch-bot/src/runtime.test.ts
+  s_32720aa4a12247::t_e5190364d4887a 25-42
+  s_32720aa4a12247::t_a57d397934e635 20-24,43-48
+  s_32720aa4a12247::t_d4ce064b9d3f8f 309-311
+docs/twitch/bootstrap.md
+  s_32720aa4a12247::t_654f1f6de4da28 40-41
+  s_32720aa4a12247::t_8747015efc60f9 28,36-38
+  s_32720aa4a12247::t_66358db013af5d 39
+apps/twitch-bot/src/scripts/authorizeBot.ts
+  s_32720aa4a12247::t_8bae32daf9c52b 12
+  s_32720aa4a12247::t_bd523938b19ede 2,19,23,28,30-31
+  s_32720aa4a12247::t_e5190364d4887a 13-15,20-22
+.github/scripts/check-twitch-entrypoints.mjs
+  s_32720aa4a12247::t_af67da7fb9dc5f 1-11,16-17,27-28,35-39,42-46
+  s_32720aa4a12247::t_e5190364d4887a 12-15,18-26,29-34,40-41,47-75
+.github/workflows/regression.yml
+  s_32720aa4a12247::t_af67da7fb9dc5f 138-139
+  s_32720aa4a12247::t_ddb43752df4216 140
+ops/twitch/sudoers/cleo-twitch-deploy
+  s_32720aa4a12247::t_af1dd617918783 1
+apps/twitch-bot/src/runtime.ts
+  s_32720aa4a12247::t_bd523938b19ede 5,103-109,113
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_32720aa4a12247::t_e5190364d4887a 8,11-39
+ops/twitch/bin/check-twitch-runner
+  s_32720aa4a12247::t_f79a29b0e91f7e 10,36
+apps/twitch-bot/src/api.ts
+  s_32720aa4a12247::t_e5190364d4887a 48-51
+  s_32720aa4a12247::t_bd523938b19ede 214-215
+apps/twitch-bot/src/grantStore.ts
+  s_32720aa4a12247::t_bcc72b65493dc3 30-32,36-39,46-50,60-63,72,74-85,93-94,107,161,177,180
+  s_32720aa4a12247::t_e5190364d4887a 7-11,33-34,40-45,51,65-70,87-91,95-100
+  s_32720aa4a12247::t_f650cde42767cf 1,52,64,71,73,106
+  s_32720aa4a12247::t_43168ae7ebe6ee 105,108
+ops/twitch/bootstrap-host.sh
+  s_32720aa4a12247::t_8747015efc60f9 3,9,12-13,22,32,50,59
+apps/dashboard/src/features/twitch/linking.ts
+  s_32720aa4a12247::t_bd523938b19ede 9-12
+  s_32720aa4a12247::t_e5190364d4887a 38,52-53
+apps/twitch-bot/src/grantStore.platform.test.ts
+  s_32720aa4a12247::t_d4ce064b9d3f8f 107
+  s_32720aa4a12247::t_e5190364d4887a 96-106
+.github/scripts/test-twitch-private-files.mjs
+  s_32720aa4a12247::t_23e2bd64ab8f53 3,42-43
+  s_32720aa4a12247::t_ddb43752df4216 1-2,4-6,11-15,26-37
+  s_32720aa4a12247::t_e5190364d4887a 7-10,16-25,38-41,44-49
+apps/twitch-bot/tests/fixtures.ts
+  s_32720aa4a12247::t_bd523938b19ede 25
+ops/twitch/systemd/cleo-twitch.service
+  s_32720aa4a12247::t_af1dd617918783 5
+apps/twitch-bot/src/privateFile.ts
+  s_32720aa4a12247::t_f650cde42767cf 1-5,14-15,21-22,26-29,39-40,46,55-57,64-66,70
+  s_32720aa4a12247::t_e5190364d4887a 6-13,16-20,23-25,30-38,41-45,47-54,58-63,67-69
+ops/twitch/bin/deploy-twitch-release
+  s_32720aa4a12247::t_f79a29b0e91f7e 4,37,55-71,79-89,97-111,162-163,175
+  s_32720aa4a12247::t_654f1f6de4da28 74-78,90-96
+apps/twitch-bot/scripts/package-release.mjs
+  s_32720aa4a12247::t_e5190364d4887a 3-10,40-52,62-68,71-76,79-84,87-89,107-110,134-152
+  s_32720aa4a12247::t_af67da7fb9dc5f 11-12,53-61,69-70,77-78,85-86,90
+.github/scripts/test-twitch-package.mjs
+  s_32720aa4a12247::t_0637640c117367 1-2,13-22,28-31,37,42-43,56-58,64-69,81,83,88-89,102,135,137-161
+  s_32720aa4a12247::t_95351ce0211fca 111-113,118-121,130-134
+  s_32720aa4a12247::t_ed80d397ea5ce1 114-117,122-129
+  s_32720aa4a12247::t_e5190364d4887a 3-12,23-27,32-36,38-40,44-55,59-63,70-80,82,84-87,90-101,103-110,162-167
+  s_32720aa4a12247::t_871fdecaa6d158 41,136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c2379e7e3c6ed0f3647880bc6547624510e14d82",
+  "prompts": {},
+  "sessions": {
+    "s_32720aa4a12247": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f30d-28b6-78d1-974a-8110eec7dd38",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
