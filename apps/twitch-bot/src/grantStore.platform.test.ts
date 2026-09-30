@@ -132,6 +132,12 @@ test("POSIX grant/readiness permissions and durable directory sync are enforced"
       }),
       true
     )
+    const { syncPrivateDirectory } = await import("./privateFile")
+    Object.defineProperty(process, "platform", { value: "win32" })
+    const syncsBeforeWindows = parentSyncs
+    // Windows cannot open directory handles for fsync; it must skip that step.
+    await syncPrivateDirectory(join(directory, "missing-parent", "state.json"))
+    assert.equal(parentSyncs, syncsBeforeWindows)
   } finally {
     Object.defineProperty(process, "platform", originalPlatform)
     await filesystem.rm(directory, { recursive: true, force: true })
