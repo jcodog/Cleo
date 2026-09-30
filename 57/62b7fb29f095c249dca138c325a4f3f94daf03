@@ -1,0 +1,19 @@
+.github/workflows/regression.yml
+  s_32720aa4a12247::t_f7d845d284702a 115-138,266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "5762b7fb29f095c249dca138c325a4f3f94daf03",
+  "prompts": {},
+  "sessions": {
+    "s_32720aa4a12247": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f30d-28b6-78d1-974a-8110eec7dd38",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
