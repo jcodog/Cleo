@@ -22,7 +22,11 @@ cat > "$test_root/mock/systemctl" <<'SH'
 #!/usr/bin/env bash
 printf 'systemctl %s\n' "$*" >> "$TEST_LOG"
 case "$1" in
-  restart) [[ "$TEST_RESTART" == true || "$(basename "$(readlink -f "$CLEO_TWITCH_DEPLOY_ROOT/current")")" == "$TEST_OLD_SHA" ]] ;;
+  reset-failed) touch "$CLEO_TWITCH_DEPLOY_ROOT/shared/start-limit-reset" ;;
+  restart)
+    [[ -f "$CLEO_TWITCH_DEPLOY_ROOT/shared/start-limit-reset" ]] || exit 1
+    rm "$CLEO_TWITCH_DEPLOY_ROOT/shared/start-limit-reset"
+    [[ "$TEST_RESTART" == true || "$(basename "$(readlink -f "$CLEO_TWITCH_DEPLOY_ROOT/current")")" == "$TEST_OLD_SHA" ]] ;;
   is-active) exit 0 ;;
   show) echo 4242 ;;
   stop) exit 0 ;;
@@ -40,6 +44,10 @@ if [[ "${1:-}" == -u ]]; then
   [[ "$TEST_RECOVER" == true && "$(basename "$(readlink -f "$CLEO_TWITCH_DEPLOY_ROOT/current")")" == "$TEST_OLD_SHA" ]]
 else
   shift # fixed /usr/bin/systemctl
+  if [[ "$1" == restart && "${TEST_INTERRUPT_ON_RESTART:-false}" == true ]]; then
+    kill -KILL "$PPID" # Only this fixture's deployment controller parent.
+    exit 1
+  fi
   systemctl "$@"
 fi
 SH
@@ -77,8 +85,37 @@ NODE
 controller="$repository/ops/twitch/bin/deploy-twitch-release"
 deploy() { bash "$controller" deploy "$1" "$test_root/artifacts/cleo-twitch-$1.tar.gz" "$test_root/artifacts/cleo-twitch-$1.tar.gz.sha256"; }
 expect_failure() { if "$@"; then echo 'Expected deployment failure.' >&2; exit 1; fi; }
-[[ "$(bash "$controller" contract-version)" == 1 ]]
+[[ "$(bash "$controller" contract-version)" == 2 ]]
+grep -Fx 'ConditionPathIsDirectory=/srv/cleo/twitch-bot/current' "$repository/ops/twitch/systemd/cleo-twitch.service" >/dev/null
+grep -F '/usr/bin/systemctl reset-failed cleo-twitch.service' "$repository/ops/twitch/sudoers/cleo-twitch-deploy" >/dev/null
+
+# Interrupted first deployment has no rollback target and must stop cleanly.
+export TEST_INTERRUPT_ON_RESTART=true
+expect_failure deploy "$TEST_OLD_SHA"
+export TEST_INTERRUPT_ON_RESTART=false
+expect_failure bash "$controller" rollback
+[[ ! -e "$CLEO_TWITCH_DEPLOY_ROOT/current" && ! -L "$CLEO_TWITCH_DEPLOY_ROOT/current" ]]
+
 deploy "$TEST_OLD_SHA"
+[[ "$(readlink -f "$CLEO_TWITCH_DEPLOY_ROOT/current")" == "$CLEO_TWITCH_DEPLOY_ROOT/releases/$TEST_OLD_SHA" ]]
+
+export TEST_INTERRUPT_ON_RESTART=true
+expect_failure deploy "$new_sha"
+export TEST_INTERRUPT_ON_RESTART=false
+"$node" --input-type=module - "$CLEO_TWITCH_DEPLOY_ROOT/shared/deployment-state.json" "$new_sha" "$TEST_OLD_SHA" <<'NODE'
+import { readFileSync } from "node:fs"
+import assert from "node:assert/strict"
+const state = JSON.parse(readFileSync(process.argv[2], "utf8"))
+assert.equal(state.result, "activating")
+assert.equal(state.currentSha, process.argv[3])
+assert.equal(state.previousSha, process.argv[4])
+NODE
+bash "$controller" rollback
+[[ "$(readlink -f "$CLEO_TWITCH_DEPLOY_ROOT/current")" == "$CLEO_TWITCH_DEPLOY_ROOT/releases/$TEST_OLD_SHA" ]]
+
+# Old host tooling could switch current while leaving the prior terminal record.
+ln -sfn "$CLEO_TWITCH_DEPLOY_ROOT/releases/$new_sha" "$CLEO_TWITCH_DEPLOY_ROOT/current"
+bash "$controller" rollback
 [[ "$(readlink -f "$CLEO_TWITCH_DEPLOY_ROOT/current")" == "$CLEO_TWITCH_DEPLOY_ROOT/releases/$TEST_OLD_SHA" ]]
 deploy "$new_sha"
 [[ "$(stat -c %a "$CLEO_TWITCH_DEPLOY_ROOT/releases/$new_sha")" == 750 ]]
@@ -112,8 +149,12 @@ printf '%s  cleo-twitch-%s.tar.gz\n' "$(sha256sum "$test_root/artifacts/cleo-twi
 expect_failure deploy "$next_sha"
 cp "$test_root/good.tar.gz" "$test_root/artifacts/cleo-twitch-$next_sha.tar.gz"
 cp "$test_root/good.sha256" "$test_root/artifacts/cleo-twitch-$next_sha.tar.gz.sha256"
-printf 'tampered' > "$CLEO_TWITCH_DEPLOY_ROOT/releases/$TEST_OLD_SHA/dist/index.js"
+# Restore and corrupt the state-selected rollback target, not the current release.
+mkdir "$CLEO_TWITCH_DEPLOY_ROOT/releases/$new_sha"
+tar -xzf "$test_root/artifacts/cleo-twitch-$new_sha.tar.gz" -C "$CLEO_TWITCH_DEPLOY_ROOT/releases/$new_sha"
+printf 'tampered' > "$CLEO_TWITCH_DEPLOY_ROOT/releases/$new_sha/dist/index.js"
 expect_failure bash "$controller" rollback
+rm -rf -- "$CLEO_TWITCH_DEPLOY_ROOT/releases/$new_sha"
 rm "$CLEO_TWITCH_DEPLOY_ROOT/current"
 export TEST_READY=false TEST_RECOVER=false
 expect_failure deploy "$new_sha"

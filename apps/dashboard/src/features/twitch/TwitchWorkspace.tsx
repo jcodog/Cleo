@@ -20,7 +20,11 @@ import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Spinner } from "@workspace/ui/components/spinner"
 
-import { beginTwitchLink, getTwitchLinkState } from "./linking"
+import {
+  beginTwitchLink,
+  getTwitchLinkState,
+  isTwitchProvider,
+} from "./linking"
 
 const labels = {
   notConnected: "Not connected",
@@ -44,8 +48,8 @@ export function TwitchWorkspace() {
     return <Skeleton className="h-32 w-full" />
   if (!user) return <p>Sign in to connect Twitch.</p>
   const state = getTwitchLinkState(user.externalAccounts)
-  const liveAccount = user.externalAccounts.find(
-    (account) => account.provider === "twitch"
+  const liveAccount = user.externalAccounts.find((account) =>
+    isTwitchProvider(account.provider)
   )
   const matchingConnection =
     liveAccount?.providerUserId === connection?.providerAccountId

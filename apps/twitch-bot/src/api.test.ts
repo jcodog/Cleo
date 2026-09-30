@@ -15,6 +15,51 @@ import {
 const fails = (code: string) => (error: unknown) =>
   error instanceof TwitchFailure && error.code === code
 
+test("validation accepts documented arrays and observed null scopes without authorizing an unscoped bot", async () => {
+  for (const scopes of [null, []]) {
+    await new TwitchApi(
+      apiConfig,
+      httpFake(() => json({ ...validApp, scopes }))
+    ).validateAppToken("test-only-app")
+    await assert.rejects(
+      new TwitchApi(
+        apiConfig,
+        httpFake(() => json({ ...validBot, scopes }))
+      ).validateBotToken("test-only-access"),
+      fails("missingScope")
+    )
+  }
+  for (const scopes of [undefined, "user:bot", [1]])
+    await assert.rejects(
+      new TwitchApi(
+        apiConfig,
+        httpFake(() => json({ ...validApp, scopes }))
+      ).validateAppToken("test-only-app"),
+      fails("malformedResponse")
+    )
+})
+
+test("C1 message controls are rejected before any Twitch request", async () => {
+  let requests = 0
+  const api = new TwitchApi(
+    apiConfig,
+    httpFake(() => {
+      requests++
+      return json({ data: [{ is_sent: true, message_id: "test-message" }] })
+    })
+  )
+  for (const code of [127, 128, 133, 159])
+    await assert.rejects(
+      api.sendChatMessage(
+        "test-only-app",
+        "222",
+        `hello${String.fromCharCode(code)}`
+      ),
+      /1-500/
+    )
+  assert.equal(requests, 0)
+})
+
 test("app tokens use client credentials, validate client/type and never request bot scopes", async () => {
   const calls: string[] = []
   const api = new TwitchApi(

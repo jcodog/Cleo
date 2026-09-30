@@ -6,6 +6,10 @@ import { getSafeInternalPath } from "../auth/safeRedirect"
 
 export const TWITCH_BROADCASTER_SCOPES = ["channel:bot"]
 
+export function isTwitchProvider(provider: string): boolean {
+  return provider === "twitch" || provider === "oauth_twitch"
+}
+
 export type TwitchLinkState =
   "notConnected" | "connected" | "missingPermission" | "reconnectRequired"
 export type PublicExternalAccount = Pick<
@@ -31,9 +35,7 @@ type LinkingUser = {
 export function getTwitchLinkState(
   accounts: readonly PublicExternalAccount[]
 ): TwitchLinkState {
-  const account = accounts.find(
-    (entry) => entry.provider === "twitch" || entry.provider === "oauth_twitch"
-  )
+  const account = accounts.find((entry) => isTwitchProvider(entry.provider))
   if (!account) return "notConnected"
   if (account.verification?.status !== "verified") return "reconnectRequired"
   return account.approvedScopes.split(/\s+/).includes("channel:bot")
@@ -47,9 +49,8 @@ export async function beginTwitchLink(
 ): Promise<string> {
   const callback = new URL("/twitch/link-callback?returnTo=%2Ftwitch", origin)
     .href
-  const existing = user.externalAccounts.find(
-    (account) =>
-      account.provider === "twitch" || account.provider === "oauth_twitch"
+  const existing = user.externalAccounts.find((account) =>
+    isTwitchProvider(account.provider)
   )
   const params = {
     additionalScopes: [...TWITCH_BROADCASTER_SCOPES],

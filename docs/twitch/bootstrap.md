@@ -25,13 +25,19 @@ Provider cancellation and unavailable-provider states are recoverable from `/twi
 
 1. Create a private operator directory outside the checkout. On Linux, use mode `0700`; on Windows, restrict its ACL to the operator. Choose a grant filename ending in `.twitch-grant.json`.
 2. Configure `apps/twitch-bot/.env.local` with `NODE_ENV=development`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_BOT_USER_ID`, `TWITCH_BOT_GRANT_PATH` and `TWITCH_BOT_REDIRECT_URI`. Use an absolute private grant path and the exact registered redirect URI. Do not commit this file.
-3. Run `bun run --filter @workspace/twitch-bot bot:authorize` from the repository root.
+3. Run `bun run --filter @workspace/twitch-bot bot:authorize` from the repository root in an interactive terminal. The authorization URL contains one-use callback state and is printed only to that terminal, never structured logs or CI output.
 4. Open the printed authorization URL while signed in as the dedicated bot. The utility requests exactly `user:read:chat`, `user:write:chat` and `user:bot`. It checks callback state, exchanges the code server-side, validates the client, bot identity and scopes, then saves a private grant. It never prints tokens or overwrites an existing grant.
 5. Transfer the resulting grant JSON through a secure operator channel to `/var/lib/cleo-twitch/bot.twitch-grant.json`. Set owner/group `cleo:cleo` and mode `0600`; keep its directory `cleo:cleo` and `0700`.
 
 The JSON contains the access token, rotating refresh token, expiry, Client ID and bot user ID. Keep it outside release artifacts and GitHub Actions. The runtime validates the bot on startup and every 30 seconds, refreshes expired/rejected access tokens, and atomically persists refresh rotation before a subsequent validation request. Validation outages and missing scopes fail readiness. App access tokens stay in process memory and are reacquired when invalid; they have no refresh token.
 
 If authorization must be repeated, stop the runtime and preserve the existing grant securely before selecting a new output path. After a crash, a surviving `<grant-path>.lock` fails closed. Inspect its PID and confirm no runtime or operator uses the grant before removing that lock. Never delete a lock held by a live process.
+
+Refresh writes a durable `<grant-path>.refreshing` marker before contacting Twitch, then stores the replacement in `<grant-path>.rotated` before replacing the primary grant. The next startup recovers a completed rotation. If storage fails before a replacement can be saved, the marker blocks reuse of the potentially invalid old token and requires operator reauthorization. Permanent loss of writable storage cannot guarantee recovery of a token returned by a remote service. Keep all sidecars private and transfer them together when recovering a failed rotation.
+
+For local watch mode, use `bun run --filter @workspace/twitch-bot dev`. The `start`, `start:production`, `twitch:smoke` and `readiness` scripts execute compiled artifacts and require `bun run --filter @workspace/twitch-bot build` first. `twitch:smoke` remains an explicit operator action and must never be used as a readiness check.
+
+Host contract 2 requires the reviewed controller, unit and scoped `reset-failed` sudo rule. Existing hosts with contract 1 must have the updated host tooling installed through the reviewed bootstrap procedure before a future production activation. The runner check rejects stale tooling. An interrupted activation restores the last verified release on the next controller invocation, or stops the service if no healthy previous release exists.
 
 ## D. Configure Convex EventSub ingress
 

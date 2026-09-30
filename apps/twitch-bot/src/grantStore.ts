@@ -1,12 +1,14 @@
-import { constants } from "node:fs"
-import { link, lstat, open, rename, unlink } from "node:fs/promises"
-import { dirname } from "node:path"
-import { randomUUID } from "node:crypto"
+import { lstat, open, unlink } from "node:fs/promises"
 import { setTimeout as delay } from "node:timers/promises"
 import { z } from "zod"
 
 import { TwitchApi, TwitchFailure, type BotToken } from "./api"
 import type { TwitchCredentials } from "@workspace/env/twitch"
+import {
+  readPrivateJson,
+  writePrivateJson,
+  syncPrivateDirectory,
+} from "./privateFile"
 
 const grantSchema = z.object({
   version: z.literal(1),
@@ -25,63 +27,83 @@ export class GrantStore {
   ) {}
 
   async read(): Promise<BotGrant> {
-    const handle = await open(
-      this.path,
-      constants.O_RDONLY | constants.O_NOFOLLOW
-    )
+    const rotated = `${this.path}.rotated`
+    if (await this.exists(rotated)) return this.readGrant(rotated)
+    if (await this.exists(`${this.path}.refreshing`))
+      throw new Error(
+        "Bot refresh was interrupted before recovery was saved. Reauthorize the bot; the old grant must not be reused."
+      )
+    return this.readGrant(this.path)
+  }
+
+  private async exists(path: string): Promise<boolean> {
     try {
-      const stat = await handle.stat()
-      if (
-        !stat.isFile() ||
-        stat.size > 16384 ||
-        (process.platform !== "win32" && (stat.mode & 0o077) !== 0)
-      )
-        throw new Error("Bot grant must be a private regular file.")
-      const result = grantSchema.safeParse(
-        JSON.parse(await handle.readFile("utf8"))
-      )
+      await lstat(path)
+      return true
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT")
+        return false
+      throw error
+    }
+  }
+
+  private async readGrant(path: string): Promise<BotGrant> {
+    try {
+      const result = grantSchema.safeParse(await readPrivateJson(path, 16384))
       if (!result.success) throw new Error("Invalid bot grant file.")
       return result.data
     } catch {
       throw new Error("Cannot read a valid private bot grant file.")
-    } finally {
-      await handle.close()
+    }
+  }
+
+  async recoverRotation(): Promise<void> {
+    const rotated = `${this.path}.rotated`
+    if (!(await this.exists(rotated))) return
+    await this.write(await this.readGrant(rotated))
+    await unlink(`${this.path}.refreshing`).catch((error: unknown) => {
+      if (!(
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ))
+        throw error
+    })
+    await unlink(rotated)
+    await syncPrivateDirectory(this.path)
+  }
+
+  async prepareRotation(grant: BotGrant): Promise<void> {
+    // Reserve a durable interruption marker before making the remote refresh.
+    await new GrantStore(`${this.path}.refreshing`).write(grant, false)
+  }
+
+  async persistRotation(grant: BotGrant): Promise<void> {
+    // A separate, durable record survives failures replacing the primary file.
+    // Retry local persistence only; never repeat the remote refresh request.
+    const recovery = new GrantStore(`${this.path}.rotated`)
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await recovery.write(grant, false)
+        break
+      } catch (error) {
+        if (attempt === 2) throw error
+        await delay(50)
+      }
+    }
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await this.recoverRotation()
+        return
+      } catch (error) {
+        if (attempt === 2) throw error
+        await delay(50)
+      }
     }
   }
 
   async write(grant: BotGrant, overwrite = true): Promise<void> {
-    const dir = dirname(this.path)
-    const directory = await lstat(dir)
-    if (
-      !directory.isDirectory() ||
-      directory.isSymbolicLink() ||
-      (process.platform !== "win32" && (directory.mode & 0o077) !== 0)
-    )
-      throw new Error(
-        "Bot grant directory must be private and must not be a symlink."
-      )
-    const temporary = `${this.path}.${randomUUID()}.tmp`
-    try {
-      const handle = await open(temporary, "wx", 0o600)
-      try {
-        await handle.writeFile(JSON.stringify(grantSchema.parse(grant)))
-        await handle.sync()
-      } finally {
-        await handle.close()
-      }
-      if (overwrite) await rename(temporary, this.path)
-      else await link(temporary, this.path)
-      if (process.platform !== "win32") {
-        const parent = await open(dir, constants.O_RDONLY)
-        try {
-          await parent.sync()
-        } finally {
-          await parent.close()
-        }
-      }
-    } finally {
-      await unlink(temporary).catch(() => undefined)
-    }
+    await writePrivateJson(this.path, grantSchema.parse(grant), overwrite)
   }
 
   async locked<T>(operation: () => Promise<T>): Promise<T> {
@@ -136,6 +158,7 @@ export async function ensureBotGrant(
   config: TwitchCredentials
 ): Promise<void> {
   await store.locked(async () => {
+    await store.recoverRotation()
     const grant = await store.read()
     if (grant.clientId !== config.TWITCH_CLIENT_ID)
       throw new TwitchFailure("wrongClient")
@@ -151,9 +174,10 @@ export async function ensureBotGrant(
       ))
         throw error
     }
+    await store.prepareRotation(grant)
     const token = await api.refreshBotToken(grant.refreshToken)
     // Preserve refresh rotation even if the following validation request fails.
-    await store.write(createGrant(token, config))
+    await store.persistRotation(createGrant(token, config))
     await api.validateBotToken(token.access_token)
   })
 }

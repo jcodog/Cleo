@@ -2,6 +2,7 @@
 Description=Cleo Twitch Cloud Chatbot
 Wants=network-online.target
 After=network-online.target
+ConditionPathIsDirectory=/srv/cleo/twitch-bot/current
 StartLimitIntervalSec=300
 StartLimitBurst=5
 

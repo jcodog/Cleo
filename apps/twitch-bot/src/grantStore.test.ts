@@ -15,6 +15,38 @@ import {
 import { TwitchApi, TwitchFailure } from "./api"
 import { createGrant, ensureBotGrant, GrantStore } from "./grantStore"
 
+test("rotated grant survives primary persistence failure and a new store recovers it without refreshing the old token", async (t) => {
+  await withGrant(async (store) => {
+    await store.write(createGrant(botToken, apiConfig))
+    t.mock.method(store, "write", async () => {
+      throw new Error("primary persistence unavailable")
+    })
+    let refreshes = 0
+    const api = new TwitchApi(
+      apiConfig,
+      httpFake((url, init) => {
+        if (url.pathname.endsWith("token")) {
+          refreshes++
+          return json({
+            ...botToken,
+            access_token: "test-only-new",
+            refresh_token: "test-only-rotated",
+          })
+        }
+        return new Headers(init.headers).get("Authorization") ===
+          "OAuth test-only-access"
+          ? json({}, 401)
+          : json(validBot)
+      })
+    )
+    await assert.rejects(ensureBotGrant(api, store, apiConfig))
+    const recovered = new GrantStore(store.path)
+    assert.equal((await recovered.read()).refreshToken, "test-only-rotated")
+    await ensureBotGrant(api, recovered, apiConfig)
+    assert.equal(refreshes, 1)
+  })
+})
+
 test("private grant writes are atomic, readable and initial bootstrap never overwrites", async () => {
   await withGrant(async (store) => {
     const grant = createGrant(botToken, apiConfig)

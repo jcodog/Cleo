@@ -22,7 +22,7 @@ export const validBot = {
 }
 export const validApp = {
   client_id: "test-client",
-  scopes: [],
+  scopes: null,
   expires_in: 1000,
 }
 export const botToken: BotToken = {

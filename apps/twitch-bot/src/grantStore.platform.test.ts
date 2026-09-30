@@ -93,6 +93,18 @@ test("POSIX grant/readiness permissions and durable directory sync are enforced"
       /must be private/
     )
     const path = join(directory, "state.json")
+    await assert.rejects(
+      writeReadiness(path, {
+        version: 1,
+        pid: process.pid,
+        startedAt: 1,
+        updatedAt: 2,
+        state: "ready",
+        subscriptionId: "test-sub",
+      }),
+      /must be private/
+    )
+    directoryMode = 0o700
     await writeReadiness(path, {
       version: 1,
       pid: process.pid,

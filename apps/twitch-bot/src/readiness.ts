@@ -1,7 +1,5 @@
-import { constants } from "node:fs"
-import { open, rename, unlink } from "node:fs/promises"
-import { randomUUID } from "node:crypto"
 import { z } from "zod"
+import { readPrivateJson, writePrivateJson } from "./privateFile"
 
 const readinessSchema = z.object({
   version: z.literal(1),
@@ -17,19 +15,7 @@ export async function writeReadiness(
   path: string,
   state: ReadinessState
 ): Promise<void> {
-  const temporary = `${path}.${randomUUID()}.tmp`
-  try {
-    const handle = await open(temporary, "wx", 0o600)
-    try {
-      await handle.writeFile(JSON.stringify(state))
-      await handle.sync()
-    } finally {
-      await handle.close()
-    }
-    await rename(temporary, path)
-  } finally {
-    await unlink(temporary).catch(() => undefined)
-  }
+  await writePrivateJson(path, readinessSchema.parse(state))
 }
 
 export async function checkReadiness(options: {
@@ -51,23 +37,7 @@ export async function checkReadiness(options: {
       }
     })
   try {
-    const handle = await open(
-      options.path,
-      constants.O_RDONLY | constants.O_NOFOLLOW
-    )
-    let value: unknown
-    try {
-      const stat = await handle.stat()
-      if (
-        !stat.isFile() ||
-        stat.size > 4096 ||
-        (process.platform !== "win32" && (stat.mode & 0o077) !== 0)
-      )
-        return false
-      value = JSON.parse(await handle.readFile("utf8"))
-    } finally {
-      await handle.close()
-    }
+    const value = await readPrivateJson(options.path, 4096)
     const parsed = readinessSchema.safeParse(value)
     if (!parsed.success) return false
     const state = parsed.data

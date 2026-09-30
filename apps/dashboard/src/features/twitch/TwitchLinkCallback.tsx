@@ -36,7 +36,7 @@ export function TwitchLinkCallback() {
         // This authenticated return page reloads that verified account, then syncs.
         const current = await user.reload()
         const state = getTwitchLinkState(current.externalAccounts)
-        if (state === "notConnected" || state === "reconnectRequired") {
+        if (state !== "connected") {
           setFailure(
             "Twitch did not verify the connection. Reconnect from your Twitch workspace."
           )
@@ -57,7 +57,11 @@ export function TwitchLinkCallback() {
       }
     })()
   }, [isLoaded, user, providerError, returnTo, router, sync])
-  const error = providerError ?? failure
+  const error =
+    providerError ??
+    (isLoaded && !user
+      ? "Sign in again to verify your Twitch connection."
+      : failure)
   return (
     <section className="mx-auto flex w-full max-w-xl flex-col gap-4 p-6">
       {error ? (

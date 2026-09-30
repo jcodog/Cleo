@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 027
-if [[ "${1:-}" == contract-version && $# == 1 ]]; then echo 1; exit 0; fi
+if [[ "${1:-}" == contract-version && $# == 1 ]]; then echo 2; exit 0; fi
 root="${CLEO_TWITCH_DEPLOY_ROOT:-/srv/cleo/twitch-bot}"
 tools="${CLEO_TWITCH_TOOLS:-/usr/local/libexec/cleo/twitch}"
 node="$tools/node"
@@ -34,6 +34,7 @@ current_sha() {
 activate() {
   local sha="$1" started pid attempt
   validate "$sha" || return 1
+  sudo -n /usr/bin/systemctl reset-failed "$service" || return 1
   started="$(date +%s%3N)"
   local link
   link="$(mktemp -u "$root/.current.XXXXXXXX")"
@@ -51,13 +52,63 @@ activate() {
   return 1
 }
 save_state() {
-  local tmp
-  tmp="$(mktemp "$root/shared/.state.XXXXXXXX")"
-  printf '{"contractVersion":1,"currentSha":"%s","previousSha":"%s","result":"%s","updatedAt":"%s"}\n' "$1" "$2" "$3" "$(date -u +%FT%TZ)" > "$tmp"
-  chmod 0640 "$tmp"
-  mv -fT -- "$tmp" "$state"
+  "$node" --input-type=module - "$state" "$1" "$2" "$3" <<'NODE'
+import { openSync, writeFileSync, fsyncSync, closeSync, renameSync, unlinkSync, constants } from "node:fs"
+import { dirname } from "node:path"
+import { randomUUID } from "node:crypto"
+const [path, currentSha, previousSha, result] = process.argv.slice(2)
+const temporary = `${path}.${randomUUID()}.tmp`
+try {
+  const fd = openSync(temporary, "wx", 0o640)
+  try {
+    writeFileSync(fd, JSON.stringify({ contractVersion: 1, currentSha, previousSha, result, updatedAt: new Date().toISOString() }) + "\n")
+    fsyncSync(fd)
+  } finally { closeSync(fd) }
+  renameSync(temporary, path)
+  const parent = openSync(dirname(path), constants.O_RDONLY | constants.O_NOFOLLOW)
+  try { fsyncSync(parent) } finally { closeSync(parent) }
+} finally { try { unlinkSync(temporary) } catch (error) { if (error.code !== "ENOENT") throw error } }
+NODE
 }
 previous="$(current_sha)" || fail 'invalid current release link'
+case "${1:-}" in
+  deploy) [[ $# == 4 && "$2" =~ ^[a-f0-9]{40}$ ]] || fail 'expected deploy SHA archive checksum' ;;
+  rollback) [[ $# == 1 ]] || fail 'expected rollback without arguments' ;;
+  *) fail 'unknown operation' ;;
+esac
+if [[ -e "$state" || -L "$state" ]]; then
+  [[ -f "$state" && ! -L "$state" && "$(stat -c %s "$state")" -le 4096 ]] || fail 'invalid deployment state'
+  recorded="$("$node" --input-type=module - "$state" <<'NODE'
+import { readFileSync } from "node:fs"
+const state = JSON.parse(readFileSync(process.argv[2], "utf8"))
+const sha = value => typeof value === "string" && (value === "" || /^[a-f0-9]{40}$/.test(value))
+if (state.contractVersion !== 1 || !sha(state.currentSha) || !sha(state.previousSha) || !["activating", "ready", "rolledBack", "unhealthy"].includes(state.result)) process.exit(1)
+console.log(`${state.result}|${state.currentSha}|${state.previousSha}`)
+NODE
+  )" || fail 'invalid deployment state'
+  IFS='|' read -r recorded_result recorded_current recorded_previous <<< "$recorded"
+  # Recover the old controller's switch-before-save window during a host upgrade.
+  if [[ ( "$recorded_result" == ready || "$recorded_result" == rolledBack ) && "$recorded_current" != "$previous" ]]; then
+    save_state "$previous" "$recorded_current" activating
+    recorded_previous="$recorded_current"
+    recorded_current="$previous"
+    recorded_result=activating
+  fi
+  if [[ "$recorded_result" == activating ]]; then
+    [[ "$previous" == "$recorded_current" || "$previous" == "$recorded_previous" ]] || fail 'current link differs from interrupted activation intent'
+    if [[ -n "$recorded_previous" ]] && activate "$recorded_previous"; then
+      save_state "$recorded_previous" "$recorded_current" rolledBack
+      previous="$recorded_previous"
+      echo "Recovered interrupted Twitch activation: $previous"
+      [[ "${1:-}" != rollback ]] || exit 0
+    else
+      sudo -n /usr/bin/systemctl stop "$service" || true
+      [[ ! -L "$root/current" ]] || unlink "$root/current"
+      save_state "" "$recorded_previous" unhealthy
+      fail 'interrupted activation has no healthy previous release; service stopped'
+    fi
+  fi
+fi
 case "${1:-}" in
   deploy)
     [[ $# == 4 && "$2" =~ ^[a-f0-9]{40}$ ]] || fail 'expected deploy SHA archive checksum'
@@ -108,6 +159,8 @@ console.log(state.previousSha)
 NODE
   )" || fail 'invalid previous deployment state'
 fi
+# Persist the recovery target before switching current or restarting systemd.
+save_state "$sha" "$previous" activating
 if activate "$sha"; then
   save_state "$sha" "$previous" ready
   echo "Twitch release ready: $sha"
@@ -119,5 +172,6 @@ if [[ -n "$previous" ]] && activate "$previous"; then
   fail 'candidate failed; previous release restored and ready'
 fi
 sudo -n /usr/bin/systemctl stop "$service" || true
+[[ ! -L "$root/current" ]] || unlink "$root/current"
 save_state "" "$previous" unhealthy
 fail 'no healthy previous release; service stopped'

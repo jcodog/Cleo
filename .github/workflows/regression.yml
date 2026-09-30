@@ -135,6 +135,9 @@ jobs:
           import { validateArtifact } from "./apps/twitch-bot/src/deployment/validateArtifact.mjs"
           await validateArtifact(process.argv[2], process.argv[3])
           NODE
+          node .github/scripts/check-twitch-entrypoints.mjs "$extract_dir"
+          node .github/scripts/test-twitch-package.mjs
+          node .github/scripts/test-twitch-private-files.mjs
 
       - name: Test Discord release packaging
         run: |

@@ -1,5 +1,5 @@
 import { resolveTwitchRuntimeEnv } from "@workspace/env/twitch"
-import { createLogger } from "@workspace/logger"
+import { createLogger, serializeLogError } from "@workspace/logger"
 
 import { TwitchApi } from "./api"
 import { GrantStore } from "./grantStore"
@@ -19,9 +19,10 @@ export async function main(): Promise<void> {
       logger,
       signal: abort.signal,
     })
-  } catch {
+  } catch (error) {
     logger.error(
-      "Twitch startup or runtime failed. Check configuration and readiness."
+      "Twitch startup or runtime failed. Check configuration and readiness.",
+      { error: serializeLogError(error) }
     )
     process.exitCode = 1
   } finally {

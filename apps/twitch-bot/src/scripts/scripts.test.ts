@@ -167,10 +167,19 @@ test("operator CLI completes the real local callback and saves only the expected
           json(url.pathname.endsWith("token") ? botToken : validBot)
         )
         let callback: Promise<Response> | undefined
-        console.log = (line: string) => {
-          const data = JSON.parse(line)
-          if (data.metadata?.url) {
-            const authorization = new URL(data.metadata.url)
+        const originalTTY = Object.getOwnPropertyDescriptor(
+          process.stdout,
+          "isTTY"
+        )
+        Object.defineProperty(process.stdout, "isTTY", {
+          configurable: true,
+          value: true,
+        })
+        const originalWrite = process.stdout.write
+        process.stdout.write = (line: string | Uint8Array) => {
+          const output = String(line)
+          if (output.startsWith("Open this URL")) {
+            const authorization = new URL(output.trim().split("\n")[1]!)
             const url = new URL(authorization.searchParams.get("redirect_uri")!)
             url.searchParams.set(
               "state",
@@ -179,12 +188,49 @@ test("operator CLI completes the real local callback and saves only the expected
             url.searchParams.set("code", "test-only-code")
             callback = realFetch(url)
           }
+          return true
         }
-        await authorizeMain()
+        try {
+          await authorizeMain()
+        } finally {
+          process.stdout.write = originalWrite
+          if (originalTTY)
+            Object.defineProperty(process.stdout, "isTTY", originalTTY)
+          else Reflect.deleteProperty(process.stdout, "isTTY")
+        }
         assert.equal((await callback)?.status, 200)
         assert.equal(process.exitCode, undefined)
         assert.equal((await store.read()).botUserId, "111")
       }
     )
   })
+})
+
+test("operator URL is withheld from noninteractive output with useful sanitized diagnostics", async () => {
+  await withEnvironment(
+    {
+      ...apiConfig,
+      TWITCH_BOT_REDIRECT_URI: "http://127.0.0.1:34567/callback",
+    },
+    async () => {
+      const previous = Object.getOwnPropertyDescriptor(process.stdout, "isTTY")
+      Object.defineProperty(process.stdout, "isTTY", {
+        configurable: true,
+        value: false,
+      })
+      const lines: string[] = []
+      console.error = (line: string) => {
+        lines.push(line)
+      }
+      try {
+        await authorizeMain()
+        assert.equal(process.exitCode, 1)
+        assert.match(lines.join(""), /interactive operator terminal/)
+        assert.doesNotMatch(lines.join(""), /state=|test-only-secret/)
+      } finally {
+        if (previous) Object.defineProperty(process.stdout, "isTTY", previous)
+        else Reflect.deleteProperty(process.stdout, "isTTY")
+      }
+    }
+  )
 })

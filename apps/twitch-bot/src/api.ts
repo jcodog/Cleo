@@ -45,7 +45,10 @@ const botTokenSchema = tokenSchema.extend({
 const validationSchema = z.object({
   client_id: z.string().min(1),
   user_id: z.string().nullish(),
-  scopes: z.array(z.string()),
+  scopes: z
+    .array(z.string())
+    .nullable()
+    .transform((scopes) => scopes ?? []),
   expires_in: z.number().int().nonnegative(),
 })
 const subscriptionSchema = z.object({
@@ -208,7 +211,8 @@ export class TwitchApi {
       [...message].length > 500 ||
       [...message].some(
         (character) =>
-          character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127
+          character.charCodeAt(0) < 32 ||
+          (character.charCodeAt(0) >= 127 && character.charCodeAt(0) <= 159)
       )
     )
       throw new Error(

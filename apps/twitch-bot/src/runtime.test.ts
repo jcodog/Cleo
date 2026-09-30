@@ -17,6 +17,35 @@ import { createGrant } from "./grantStore"
 import type { ReadinessState } from "./readiness"
 import { runRuntime } from "./runtime"
 
+test("failed unhealthy persistence preserves the original failure and logs sanitized diagnostics", async () => {
+  await withGrant(async (store) => {
+    const original = new Error("state failed token=test-only-private")
+    const logged: unknown[] = []
+    let writes = 0
+    await assert.rejects(
+      runRuntime(runtimeEnv(store.path), {
+        store,
+        createApi: (signal) => new TwitchApi(apiConfig, runtimeHttp(), signal),
+        signal: new AbortController().signal,
+        logger: {
+          ...silentLogger,
+          error: (_message, metadata) => {
+            logged.push(metadata)
+          },
+        },
+        writeState: async () => {
+          if (++writes === 1) throw original
+          throw new Error("unhealthy write failed")
+        },
+      }),
+      (error) => error === original
+    )
+    assert.match(JSON.stringify(logged), /state failed/)
+    assert.match(JSON.stringify(logged), /unhealthy write failed/)
+    assert.equal(JSON.stringify(logged).includes("test-only-private"), false)
+  })
+})
+
 test("valid startup and periodic checks become ready, clean shutdown stops, and chat never sends", async () => {
   await withGrant(async (store) => {
     await store.write(createGrant(botToken, apiConfig))
@@ -277,6 +306,8 @@ test("local state failures are sanitized and cannot become ready", async () => {
         },
       })
     )
-    assert.deepEqual(logged, [{ code: "localStateUnavailable" }])
+    assert.equal(logged.length, 1)
+    assert.match(JSON.stringify(logged), /localStateUnavailable/)
+    assert.match(JSON.stringify(logged), /test-only-private-path/)
   })
 })

@@ -2,6 +2,7 @@ import { setTimeout as delay } from "node:timers/promises"
 
 import type { TwitchRuntimeEnv } from "@workspace/env/twitch"
 import type { Logger } from "@workspace/logger"
+import { serializeLogError } from "@workspace/logger"
 
 import { TwitchApi, TwitchFailure } from "./api"
 import { ensureBotGrant, GrantStore } from "./grantStore"
@@ -99,10 +100,17 @@ export async function runRuntime(
     }
   } catch (error) {
     if (!signal.aborted) {
-      await state("unhealthy")
+      try {
+        await state("unhealthy")
+      } catch (persistenceError) {
+        logger.error("Cannot persist Twitch unhealthy state", {
+          error: serializeLogError(persistenceError),
+        })
+      }
       logger.error("Twitch runtime unhealthy", {
         code:
           error instanceof TwitchFailure ? error.code : "localStateUnavailable",
+        error: serializeLogError(error),
       })
       throw deadline.signal.aborted
         ? new TwitchFailure("startupTimeout")

@@ -7,7 +7,7 @@ fail() { echo "Twitch host contract failed: $*" >&2; exit 1; }
 for directory in /srv /srv/cleo /usr/local /usr/local/libexec /usr/local/libexec/cleo; do
   [[ -d "$directory" && ! -L "$directory" && "$(stat -c %U "$directory")" == root && ! -w "$directory" ]] || fail 'unsafe parent directory'
 done
-[[ "$("$tools/deploy-twitch-release" contract-version)" == 1 ]] || fail 'stale deployment controller'
+[[ "$("$tools/deploy-twitch-release" contract-version)" == 2 ]] || fail 'stale deployment controller; reinstall reviewed host tooling'
 for file in "$tools/node" "$tools/validateArtifact.mjs" "$tools/validate-twitch-artifact.mjs" "$tools/run-twitch-release" "$tools/check-twitch-readiness" "$tools/check-twitch-secrets" "$tools/check-twitch-runner" "$tools/deploy-twitch-release"; do
   [[ -f "$file" && ! -L "$file" && "$(stat -c %U:%G "$file")" == root:root && ! -w "$file" ]] || fail 'unsafe installed tooling'
 done
@@ -33,5 +33,6 @@ unit() { systemctl show cleo-twitch.service --property "$1" --value; }
 [[ "$(systemctl is-enabled cleo-twitch.service)" == enabled ]] || fail 'service is not enabled'
 sudo -n -l /usr/bin/systemctl restart cleo-twitch.service >/dev/null || fail 'missing restart rule'
 sudo -n -l /usr/bin/systemctl stop cleo-twitch.service >/dev/null || fail 'missing stop rule'
+sudo -n -l /usr/bin/systemctl reset-failed cleo-twitch.service >/dev/null || fail 'missing start-limit reset rule'
 sudo -n -u cleo -l "$tools/check-twitch-readiness" 1 1 >/dev/null || fail 'missing readiness rule'
 echo 'Twitch host contract 1 is ready.'
