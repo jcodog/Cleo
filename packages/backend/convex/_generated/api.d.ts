@@ -1523,27 +1523,6 @@ export declare const api: {
   mutations: {
     dashboard: {
       account: {
-        linkedAccounts: {
-          upsert: {
-            upsertForCurrentUser: FunctionReference<
-              "mutation",
-              "public",
-              {
-                accessTokenSecretId?: string;
-                avatarUrl?: string;
-                displayName?: string;
-                expiresAt?: number;
-                externalProvider?: string;
-                provider: "discord" | "kick" | "twitch" | "github";
-                providerAccountId: string;
-                refreshTokenSecretId?: string;
-                scopes: Array<string>;
-                username?: string;
-              },
-              Id<"linkedAccounts">
-            >;
-          };
-        };
         onboarding: {
           complete: FunctionReference<
             "mutation",
