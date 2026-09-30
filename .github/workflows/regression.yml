@@ -68,7 +68,7 @@ jobs:
       - name: Run workspace tests with coverage
         run: |
           set -o pipefail
-          bun run test:coverage 2>&1 | tee coverage-test.log
+          bun run test:coverage 2>&1 | tee "$RUNNER_TEMP/coverage-test.log"
 
       - name: Upload failed coverage output
         if: failure()
@@ -76,7 +76,7 @@ jobs:
         with:
           name: failed-coverage-output
           if-no-files-found: ignore
-          path: coverage-test.log
+          path: ${{ runner.temp }}/coverage-test.log
 
       - name: Verify coverage reports
         run: |
