@@ -86,6 +86,36 @@ test("VPS activation and rollback are source and package-manager independent", (
   assert.doesNotMatch(rollback, /needs:\s*classify/)
 })
 
+test("workflow requires explicit verified command deployment after runtime activation and rollback", () => {
+  const workflow = repositoryFile(".github/workflows/discord-production.yml")
+  for (const job of [
+    workflowJob(workflow, "activate", "rollback"),
+    workflowJob(workflow, "rollback"),
+  ]) {
+    const runtime = job.indexOf("        id: runtime")
+    const commands = job.indexOf("        id: commands")
+    assert.ok(runtime !== -1 && commands > runtime)
+    assert.match(
+      job,
+      /sudo -n \/usr\/bin\/systemctl start "\$CLEO_DISCORD_COMMAND_SERVICE"/
+    )
+    assert.doesNotMatch(
+      job,
+      /continue-on-error|commandFingerprint\s*(?:===|!==)/
+    )
+    assert.match(job, /commandVerificationVersion !== 1/)
+    assert.match(job, /CLEO_DISCORD_HOST_NODE: \/usr\/local\/libexec\/cleo\/node/)
+    assert.match(job, /"\$CLEO_DISCORD_HOST_NODE" --input-type=module/)
+    assert.match(job, /command_result=verified/)
+  }
+  const activate = workflowJob(workflow, "activate", "rollback")
+  assert.match(activate, /steps\.commands\.outcome == 'failure'/)
+  assert.match(activate, /attempting one runtime rollback/)
+  assert.match(activate, /Deploy and verify restored release commands/)
+  assert.match(activate, /steps\.runtime\.outcome == 'failure'/)
+  assert.match(workflowJob(workflow, "rollback"), /runtime rollback/)
+})
+
 test("host deployment controller uses release fingerprints without Git history", () => {
   const controller = repositoryFile("ops/discord/bin/deploy-discord-release")
 

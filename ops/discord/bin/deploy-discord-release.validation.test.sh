@@ -39,6 +39,10 @@ cat > "$bin_dir/sudo" <<'EOF'
 while [[ "${1:-}" == "-n" || "${1:-}" == "-u" ]]; do
   if [[ "$1" == "-u" ]]; then shift 2; else shift; fi
 done
+if [[ "${1:-}" == /usr/bin/systemctl ]]; then
+  shift
+  exec systemctl "$@"
+fi
 exec "$@"
 EOF
 cat > "$bin_dir/systemctl" <<'EOF'
@@ -66,6 +70,12 @@ case "$operation" in
         fi
         ;;
     esac
+    ;;
+  start)
+    if [[ -n "${CLEO_DISCORD_TEST_COMMAND_LOG:-}" ]]; then
+      readlink -f "$CLEO_DISCORD_TEST_DEPLOY_ROOT/current" >> "$CLEO_DISCORD_TEST_COMMAND_LOG"
+    fi
+    [[ "${CLEO_DISCORD_TEST_COMMAND_FAIL:-0}" == 0 ]]
     ;;
   *) exit 0 ;;
 esac
@@ -182,6 +192,9 @@ const manifest = {
   buildTimestamp: "2026-08-17T20:00:00Z",
   commandFingerprint: criticalFileSha256[contract.commandRegistrationEntrypoint],
   commandRegistrationEntrypoint: contract.commandRegistrationEntrypoint,
+  commandVerificationVersion: 1,
+  botVersion: "3.1.1",
+  globalCommandNames: ["8ball", "ping"],
   commitSha,
   criticalFileSha256,
   nodeVersion: "24.15.0",
@@ -192,6 +205,7 @@ writeFileSync(
   path.join(root, contract.releaseManifest),
   `${JSON.stringify(manifest, null, 2)}\n`
 )
+writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "@workspace/discord-bot", version: "3.1.1" }))
 NODE
 }
 
@@ -385,3 +399,95 @@ expect_rejected_preserving_active \
   "Discord release symlink escapes the staged release"
 
 echo "Discord host release validation tests passed."
+
+# Execute the workflow's actual shell blocks against the controller fixtures.
+# The three paths must use the same command deployment contract.
+"$host_node" --input-type=module - \
+  "$script_dir/../../../.github/workflows/discord-production.yml" "$fixture_root" <<'NODE'
+import assert from "node:assert/strict"
+import { readFileSync, writeFileSync } from "node:fs"
+import path from "node:path"
+const [workflowPath, outputRoot] = process.argv.slice(2)
+const lines = readFileSync(workflowPath, "utf8").split(/\r?\n/)
+const scripts = []
+for (let i = 0; i < lines.length; i++) {
+  if (!/^      - name: Deploy and verify (active|restored) release commands$/.test(lines[i])) continue
+  while (lines[++i] !== "        run: |") assert.ok(i < lines.length)
+  const body = []
+  while (++i < lines.length && (lines[i].startsWith("          ") || lines[i] === "")) body.push(lines[i].slice(10))
+  scripts.push(body.join("\n").trim() + "\n")
+}
+assert.equal(scripts.length, 3)
+assert.equal(scripts[0], scripts[1])
+assert.equal(scripts[0], scripts[2])
+scripts.forEach((body, i) => writeFileSync(path.join(outputRoot, `workflow-commands-${i}.sh`), body))
+NODE
+
+export CLEO_DISCORD_COMMAND_SERVICE=cleo-discord-register-commands.service
+export CLEO_DISCORD_TEST_COMMAND_LOG="$fixture_root/workflow-command-starts"
+export GITHUB_STEP_SUMMARY="$fixture_root/workflow-summary"
+reset_deployment
+create_valid_release
+package_release
+bash "$controller" deploy
+: > "$CLEO_DISCORD_TEST_COMMAND_LOG"
+
+for script in "$fixture_root"/workflow-commands-*.sh; do bash -n "$script"; done
+bash "$fixture_root/workflow-commands-0.sh"
+[[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 1 ]]
+grep -F 'bot=3.1.1' "$GITHUB_STEP_SUMMARY" >/dev/null
+grep -F 'Intended global commands (2): 8ball, ping' "$GITHUB_STEP_SUMMARY" >/dev/null
+
+# An equal fingerprint still requires the explicit step, including a routine
+# application release for which the installed controller skips registration.
+bash "$controller" deploy > "$fixture_root/equal-fingerprint-output"
+grep -F 'Discord command registration unchanged; skipping.' "$fixture_root/equal-fingerprint-output" >/dev/null
+bash "$fixture_root/workflow-commands-0.sh"
+[[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 2 ]]
+
+rollback_sha=cccccccccccccccccccccccccccccccccccccccc
+cp -a "$deploy_root/releases/$release_sha" "$deploy_root/releases/$rollback_sha"
+printf '%s\n' "$rollback_sha" > "$deploy_root/releases/$rollback_sha/.cleo-release-sha"
+"$host_node" --input-type=module - "$deploy_root/releases/$rollback_sha/release-manifest.json" "$rollback_sha" <<'NODE'
+import { readFileSync, writeFileSync } from "node:fs"
+const [file, sha] = process.argv.slice(2)
+const manifest = JSON.parse(readFileSync(file, "utf8"))
+manifest.commitSha = sha
+writeFileSync(file, JSON.stringify(manifest))
+NODE
+fingerprint="$(sha256sum "$deploy_root/releases/$release_sha/dist/scripts/registerCommands.js" | cut -d ' ' -f 1)"
+printf 'APPLICATION_SHA=%s\nPREVIOUS_APPLICATION_SHA=%s\nCOMMAND_FINGERPRINT=%s\n' \
+  "$release_sha" "$rollback_sha" "$fingerprint" > "$deploy_root/shared/deployment-state.env"
+bash "$controller" rollback
+bash "$fixture_root/workflow-commands-2.sh"
+[[ "$(tail -1 "$CLEO_DISCORD_TEST_COMMAND_LOG")" == "$deploy_root/releases/$rollback_sha" ]]
+[[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 3 ]]
+
+for script in "$fixture_root"/workflow-commands-*.sh; do
+  : > "$GITHUB_STEP_SUMMARY"
+  if CLEO_DISCORD_TEST_COMMAND_FAIL=1 bash "$script"; then
+    echo "Workflow reported success after command service failure" >&2
+    exit 1
+  fi
+  grep -F 'Command deployment: failed' "$GITHUB_STEP_SUMMARY" >/dev/null
+  if grep -F 'Global Discord commands verified' "$GITHUB_STEP_SUMMARY" >/dev/null; then
+    echo "Workflow claimed verified commands after failure" >&2
+    exit 1
+  fi
+done
+
+# Older immutable artifacts cannot supply a verifier through the existing unit.
+# They must never produce a complete rollback success claim.
+"$host_node" --input-type=module - "$deploy_root/releases/$rollback_sha/release-manifest.json" <<'NODE'
+import { readFileSync, writeFileSync } from "node:fs"
+const file = process.argv[2]
+const manifest = JSON.parse(readFileSync(file, "utf8"))
+delete manifest.commandVerificationVersion
+writeFileSync(file, JSON.stringify(manifest))
+NODE
+if bash "$fixture_root/workflow-commands-2.sh" > "$fixture_root/legacy-rollback-output" 2>&1; then
+  echo "Workflow accepted a rollback without authoritative command verification" >&2
+  exit 1
+fi
+grep -F 'predates authoritative command verification' "$fixture_root/legacy-rollback-output" >/dev/null
+echo "Workflow command deployment, equal fingerprint, failure and rollback tests passed."

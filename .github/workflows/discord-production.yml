@@ -183,6 +183,7 @@ jobs:
     env:
       CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
+      CLEO_DISCORD_HOST_NODE: /usr/local/libexec/cleo/node
       CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
@@ -210,6 +211,7 @@ jobs:
           path: ${{ runner.temp }}/cleo-discord-release
 
       - name: Activate release and record resulting state
+        id: runtime
         env:
           CLEO_DISCORD_EXPECTED_SHA: ${{ github.sha }}
           CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ github.sha }}.tar.gz
@@ -239,7 +241,7 @@ jobs:
             result="succeeded"
           fi
           {
-            echo "### Discord production activation"
+            echo "### Discord production runtime activation"
             echo
             echo "| Field | Value |"
             echo "| --- | --- |"
@@ -254,6 +256,94 @@ jobs:
 
           exit "$deployment_status"
 
+      - name: Deploy and verify active release commands
+        id: commands
+        run: |
+          set -euo pipefail
+          command_result=failed
+          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
+          metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
+          import { readFileSync } from "node:fs"
+          import path from "node:path"
+          const root = process.argv[2]
+          const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
+          const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+          if (manifest.commandVerificationVersion !== 1) {
+            throw new Error("Active release predates authoritative command verification; complete deployment/rollback cannot be confirmed. Redeploy a verified release through the production workflow.")
+          }
+          if (pkg.name !== "@workspace/discord-bot" || pkg.version !== manifest.botVersion ||
+              !/^[0-9a-f]{40}$/.test(manifest.commitSha) || path.basename(root) !== manifest.commitSha ||
+              !/^[0-9a-f]{64}$/.test(manifest.commandFingerprint) ||
+              !Array.isArray(manifest.globalCommandNames) || manifest.globalCommandNames.length === 0 ||
+              manifest.globalCommandNames.some((name) => typeof name !== "string" || !/^[a-z0-9_-]{1,32}$/.test(name))) {
+            throw new Error("Active release command deployment metadata is invalid.")
+          }
+          console.log(`SHA=${manifest.commitSha} bot=${pkg.version} fingerprint=${manifest.commandFingerprint}`)
+          console.log(`Intended global commands (${manifest.globalCommandNames.length}): ${manifest.globalCommandNames.join(", ")}`)
+          NODE
+          )"
+          echo "Command deployment started: $metadata"
+          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE"
+          sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
+          test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
+          command_result=verified
+          echo "Discord command deployment verified: $metadata"
+          {
+            echo
+            echo "Global Discord commands verified by the active release registration program."
+            echo "$metadata"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore runtime after explicit command deployment failure
+        id: recovery
+        if: failure() && steps.runtime.outcome == 'success' && steps.commands.outcome == 'failure'
+        run: |
+          echo "Command deployment failed; attempting one runtime rollback." >> "$GITHUB_STEP_SUMMARY"
+          /usr/local/libexec/cleo/deploy-discord-release rollback
+
+      - name: Deploy and verify restored release commands
+        id: restored_commands
+        if: >-
+          failure() &&
+          (steps.recovery.outcome == 'success' || steps.runtime.outcome == 'failure')
+        run: |
+          set -euo pipefail
+          command_result=failed
+          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
+          metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
+          import { readFileSync } from "node:fs"
+          import path from "node:path"
+          const root = process.argv[2]
+          const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
+          const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+          if (manifest.commandVerificationVersion !== 1) {
+            throw new Error("Active release predates authoritative command verification; complete deployment/rollback cannot be confirmed. Redeploy a verified release through the production workflow.")
+          }
+          if (pkg.name !== "@workspace/discord-bot" || pkg.version !== manifest.botVersion ||
+              !/^[0-9a-f]{40}$/.test(manifest.commitSha) || path.basename(root) !== manifest.commitSha ||
+              !/^[0-9a-f]{64}$/.test(manifest.commandFingerprint) ||
+              !Array.isArray(manifest.globalCommandNames) || manifest.globalCommandNames.length === 0 ||
+              manifest.globalCommandNames.some((name) => typeof name !== "string" || !/^[a-z0-9_-]{1,32}$/.test(name))) {
+            throw new Error("Active release command deployment metadata is invalid.")
+          }
+          console.log(`SHA=${manifest.commitSha} bot=${pkg.version} fingerprint=${manifest.commandFingerprint}`)
+          console.log(`Intended global commands (${manifest.globalCommandNames.length}): ${manifest.globalCommandNames.join(", ")}`)
+          NODE
+          )"
+          echo "Command deployment started: $metadata"
+          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE"
+          sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
+          test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
+          command_result=verified
+          echo "Discord command deployment verified: $metadata"
+          {
+            echo
+            echo "Global Discord commands verified by the active release registration program."
+            echo "$metadata"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   rollback:
     name: Roll back Discord production
     if: >-
@@ -266,6 +356,7 @@ jobs:
     env:
       CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
+      CLEO_DISCORD_HOST_NODE: /usr/local/libexec/cleo/node
       CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
       CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
       CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
@@ -287,6 +378,7 @@ jobs:
             "$CLEO_DISCORD_RELEASE_PLATFORM"
 
       - name: Roll back and record resulting state
+        id: runtime
         run: |
           rollback_from="unavailable"
           rollback_target="unavailable"
@@ -321,7 +413,7 @@ jobs:
             result="succeeded"
           fi
           {
-            echo "### Discord production rollback"
+            echo "### Discord production runtime rollback"
             echo
             echo "| Field | Value |"
             echo "| --- | --- |"
@@ -336,3 +428,42 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           exit "$rollback_status"
+
+      - name: Deploy and verify active release commands
+        id: commands
+        run: |
+          set -euo pipefail
+          command_result=failed
+          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
+          metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
+          import { readFileSync } from "node:fs"
+          import path from "node:path"
+          const root = process.argv[2]
+          const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
+          const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+          if (manifest.commandVerificationVersion !== 1) {
+            throw new Error("Active release predates authoritative command verification; complete deployment/rollback cannot be confirmed. Redeploy a verified release through the production workflow.")
+          }
+          if (pkg.name !== "@workspace/discord-bot" || pkg.version !== manifest.botVersion ||
+              !/^[0-9a-f]{40}$/.test(manifest.commitSha) || path.basename(root) !== manifest.commitSha ||
+              !/^[0-9a-f]{64}$/.test(manifest.commandFingerprint) ||
+              !Array.isArray(manifest.globalCommandNames) || manifest.globalCommandNames.length === 0 ||
+              manifest.globalCommandNames.some((name) => typeof name !== "string" || !/^[a-z0-9_-]{1,32}$/.test(name))) {
+            throw new Error("Active release command deployment metadata is invalid.")
+          }
+          console.log(`SHA=${manifest.commitSha} bot=${pkg.version} fingerprint=${manifest.commandFingerprint}`)
+          console.log(`Intended global commands (${manifest.globalCommandNames.length}): ${manifest.globalCommandNames.join(", ")}`)
+          NODE
+          )"
+          echo "Command deployment started: $metadata"
+          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE"
+          sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
+          test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
+          command_result=verified
+          echo "Discord command deployment verified: $metadata"
+          {
+            echo
+            echo "Global Discord commands verified by the active release registration program."
+            echo "$metadata"
+          } >> "$GITHUB_STEP_SUMMARY"

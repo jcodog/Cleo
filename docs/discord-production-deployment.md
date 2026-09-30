@@ -45,29 +45,96 @@ Activation performs:
 - staging under `/srv/cleo/discord-bot/releases/<sha>`;
 - atomic `current` symlink activation;
 - systemd restart and repeated liveness checks;
-- global command registration only when the release command fingerprint changes;
+- the installed controller's legacy fingerprint-based registration check;
 - atomic deployment-state update;
 - automatic restoration of the previous release when activation fails.
 
+After runtime activation and health checks succeed, the workflow explicitly resets
+and starts `cleo-discord-register-commands.service` for every release, regardless
+of fingerprint equality. That service runs the active release's registration
+program as `cleo`, using `/etc/cleo/discord-bot.env`. Tokens never reach the runner.
+The workflow completes only after this command step succeeds.
+
+Registration validates the local registry before any write, checks the bot token's
+application against `DISCORD_APPLICATION_ID`, performs one global bulk overwrite,
+then reads the authoritative global command definitions back from Discord. Exact
+names/count and stable definitions must match. Comparisons cover descriptions,
+types, contexts, installation types, permissions, NSFW status, nested options,
+choices, limits and localizations. Generated IDs and versions are ignored, and
+documented defaults and set ordering are normalized. Any REST or verification
+failure exits non-zero. No separate global clear occurs.
+
 Rollback uses the same installed controller and does not depend on Git history or
-source files.
+source files. After switching to a healthy rollback target, the workflow explicitly
+starts that target's command service and requires the same verification. A failed
+explicit command deployment during a release triggers one runtime rollback attempt, followed by
+explicit command deployment for the restored target. The original deployment
+remains failed even if recovery succeeds. Controller failures also trigger an
+explicit command step for the resulting active release. There is no recovery loop.
+
+Artifacts created before this hotfix lack authoritative verification and contain
+the symlink entrypoint defect described below. The workflow detects their missing
+`commandVerificationVersion` and fails with an incomplete deployment/rollback
+message. A runtime restoration to such an artifact must not be treated as a complete
+rollback. Recover through a new production release containing the desired runtime
+code and the fixed registration program. Existing immutable artifacts are not
+patched in place. No root-owned host file, sudo permission, artifact schema version
+or host contract version changes are required for this hotfix.
 
 ## Deployment observability
 
 The activation and rollback steps always write a GitHub Actions job summary before
 returning their final status. The summary records:
 
-- whether the operation succeeded;
+- whether runtime activation or rollback succeeded;
 - the attempted deployment SHA or rollback target;
 - the SHA actually referenced by `current` after the attempt;
 - the persisted application and previous SHAs;
 - the persisted command fingerprint;
 - the systemd service state.
 
+The explicit command step separately records started, failed or verified status,
+the active SHA, bot version, command fingerprint, and intended command count/names.
+Release success requires both runtime and command steps. The fingerprint remains
+an integrity and diagnostic identifier and a legacy controller optimization. It
+does not gate the workflow command step. The controller may also register commands
+first; both invocations use the same idempotent bulk overwrite and verification.
+
 This is intentional. A failed health check can successfully restore the previous
 release, and a later green run must not hide which revision was actually left
 running. The workflow step still fails when the controller fails; recording the
 summary does not weaken the deployment gate.
+
+### JCN-222 incident evidence
+
+The `/8ball` release was `97f655e74c14682abe8e3ad59ab59f6deff3c718`.
+[Its production workflow](https://github.com/jcodog/Cleo/actions/runs/36650384850)
+completed successfully and printed the deployed SHA without the fingerprint-skip
+message. Its static registry includes `/8ball`. Packaging hashes the compiled
+registration entrypoint, and the installed controller starts the oneshot command
+unit when that fingerprint differs. The unit launches the entrypoint through
+`/srv/cleo/discord-bot/current`.
+
+The old direct-entrypoint guard compared the unresolved `process.argv[1]` URL with
+`import.meta.url`. Node resolves the latter through `current` to the physical
+release directory. The downloaded historical artifact, with its archive checksum
+and command fingerprint verified, exits zero through the symlink without
+calling registration; the physical path reaches registration. This explains a
+successful systemd/controller result without any Discord write. The fix uses native
+Node entrypoint detection, with regression tests through the real compiled launcher.
+
+The repository and workflow logs prove the defective launch path and successful
+controller result. They do not contain the VPS journal, installed-file history or
+historical Discord API state. Therefore the exact production invocation, actual
+credentials/application, and any later external command overwrite cannot be proven
+from those records alone. The old program also performed no authoritative readback,
+so a successful PUT could not establish the resulting live command definitions.
+
+Discord's [current application endpoint](https://docs.discord.com/developers/resources/application#get-current-application)
+identifies the application associated with the requesting bot. The registration
+program compares that ID before writing. The
+[global commands endpoint](https://docs.discord.com/developers/interactions/application-commands#get-global-application-commands)
+returns the command list used for verification, with full localization dictionaries.
 
 ## Host contract
 
@@ -266,7 +333,10 @@ build or install packages.
 
 Manual `operation=rollback` runs only on `cleo-prod`. It validates the recorded
 previous release, switches the active symlink, restarts and health-checks the
-service, reapplies command registration when its fingerprint differs, and atomically
-updates deployment state. If rollback command registration fails, the controller
-restores the release it started from and repairs command/state consistency. Convex
-is not rolled back automatically.
+service, and atomically updates deployment state through the installed controller.
+The workflow then explicitly deploys and verifies the target's complete global
+command set regardless of fingerprint equality. A command failure or a target
+without authoritative verification leaves the rollback unsuccessful. The installed
+controller retains its own fingerprint-based registration and recovery behavior,
+but that does not replace the explicit workflow step. Convex is not rolled back
+automatically.

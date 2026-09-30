@@ -102,6 +102,7 @@ export function StaffUserButton({
             }
           />
         ) : null}
+        <UserButton.Action label="manageAccount" />
         <UserButton.Action
           label="Sign out"
           labelIcon={<IconLogout aria-hidden size={16} />}
