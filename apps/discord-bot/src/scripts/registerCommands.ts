@@ -228,6 +228,8 @@ function normalizedDefinition(
   )
   if (kind === "command") {
     result.default_member_permissions = data.default_member_permissions ?? null
+    result.default_permission = data.default_permission ?? true
+    result.dm_permission = data.dm_permission ?? true
     result.nsfw = data.nsfw ?? false
     for (const field of ["contexts", "integration_types"]) {
       result[field] = [...definitionList(data[field])].sort()
@@ -272,6 +274,10 @@ export function verifyCommandDefinitions(
     const actual = live.find((command) => command.name === expected.name)
     const scopedActual = {
       ...actual,
+      // contexts controls DM availability. Compare the deprecated flag only
+      // when the release explicitly supplies it, rather than its legacy default.
+      dm_permission:
+        expected.dm_permission === undefined ? undefined : actual?.dm_permission,
       contexts: expected.contexts === undefined ? undefined : actual?.contexts,
       integration_types:
         expected.integration_types === undefined

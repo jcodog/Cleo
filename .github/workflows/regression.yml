@@ -147,6 +147,28 @@ jobs:
           CLEO_DISCORD_TEST_BUNDLE_ROOT="$extract_dir" \
             bash ops/discord/bin/run-discord-release.test.sh
           (
+            cd apps/discord-bot
+            node --import tsx --input-type=module - "$extract_dir" <<'NODE'
+          import assert from "node:assert/strict"
+          import { readFileSync } from "node:fs"
+          import path from "node:path"
+          import { pathToFileURL } from "node:url"
+          import { commandVerificationVersion, getGlobalCommandDefinitions } from "./src/scripts/registerCommands.ts"
+          const root = process.argv[2]
+          const sourcePackage = JSON.parse(readFileSync("package.json", "utf8"))
+          const packagedPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+          const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
+          const packaged = await import(pathToFileURL(path.join(root, "dist/scripts/registerCommands.js")).href)
+          const intended = await getGlobalCommandDefinitions()
+          assert.equal(packagedPackage.name, sourcePackage.name)
+          assert.equal(packagedPackage.version, sourcePackage.version)
+          assert.equal(manifest.botVersion, sourcePackage.version)
+          assert.equal(manifest.commandVerificationVersion, commandVerificationVersion)
+          assert.deepEqual(manifest.globalCommandNames, intended.map(command => command.name).sort())
+          assert.deepEqual(await packaged.getGlobalCommandDefinitions(), intended)
+          NODE
+          )
+          (
             cd "$extract_dir"
             node --input-type=module -e '
               import assert from "node:assert/strict"

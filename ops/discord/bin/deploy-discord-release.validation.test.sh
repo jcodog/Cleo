@@ -470,7 +470,10 @@ for script in "$fixture_root"/workflow-commands-*.sh; do
     exit 1
   fi
   grep -F 'Command deployment: failed' "$GITHUB_STEP_SUMMARY" >/dev/null
-  ! grep -F 'Global Discord commands verified' "$GITHUB_STEP_SUMMARY" >/dev/null
+  if grep -F 'Global Discord commands verified' "$GITHUB_STEP_SUMMARY" >/dev/null; then
+    echo "Workflow claimed verified commands after failure" >&2
+    exit 1
+  fi
 done
 
 # Older immutable artifacts cannot supply a verifier through the existing unit.

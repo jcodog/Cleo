@@ -560,6 +560,7 @@ test("verification rejects missing, stale, duplicate, malformed and mismatched c
       },
     ],
     [{ ...commands[0]?.data, default_member_permissions: "8" }],
+    [{ ...commands[0]?.data, default_permission: false }],
     [{ ...commands[0]?.data, nsfw: true }],
   ]) {
     const { calls, rest } = createRecordingRest({ liveCommands })
@@ -601,6 +602,8 @@ test("verification ignores generated metadata, defaults and set ordering while p
     type: 1,
     nsfw: false,
     default_member_permissions: null,
+    default_permission: true,
+    dm_permission: false,
     name_localizations: null,
     description_localizations: { "en-US": command.description },
     options: [
@@ -634,6 +637,35 @@ test("verification ignores generated metadata, defaults and set ordering while p
         [command],
         [{ ...live, name_localizations: { fr: "boule" } }]
       ),
+    /definition mismatch/
+  )
+})
+
+test("verification checks explicit legacy DM permissions without overriding modern contexts", () => {
+  const command = makeCommand({
+    contexts: [InteractionContextType.Guild],
+  }).data
+  assert.doesNotThrow(() =>
+    verifyCommandDefinitions([command], [{ ...command, dm_permission: false }])
+  )
+  for (const dmPermission of [true, false]) {
+    const intended = { ...command, dm_permission: dmPermission }
+    assert.doesNotThrow(() => verifyCommandDefinitions([intended], [intended]))
+    assert.throws(
+      () =>
+        verifyCommandDefinitions(
+          [intended],
+          [{ ...intended, dm_permission: !dmPermission }]
+        ),
+      /definition mismatch/
+    )
+  }
+  const legacyDisabled = { ...command, default_permission: false }
+  assert.doesNotThrow(() =>
+    verifyCommandDefinitions([legacyDisabled], [legacyDisabled])
+  )
+  assert.throws(
+    () => verifyCommandDefinitions([legacyDisabled], [command]),
     /definition mismatch/
   )
 })
