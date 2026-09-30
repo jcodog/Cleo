@@ -1,0 +1,19 @@
+apps/twitch-bot/src/grantStore.platform.test.ts
+  s_32720aa4a12247::t_3484bc14584776 135-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1db41b740fe8b2dca833139a853fdd9f20bd03e1",
+  "prompts": {},
+  "sessions": {
+    "s_32720aa4a12247": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f30d-28b6-78d1-974a-8110eec7dd38",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
