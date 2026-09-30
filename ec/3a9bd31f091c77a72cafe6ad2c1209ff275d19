@@ -1,0 +1,19 @@
+apps/dashboard/src/features/app-shell/AppTopbar.tsx
+  s_967632eda2728f::t_bc8440ae533114 105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ec3a9bd31f091c77a72cafe6ad2c1209ff275d19",
+  "prompts": {},
+  "sessions": {
+    "s_967632eda2728f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0efde-f710-7d01-9057-e97e806dafdf",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
