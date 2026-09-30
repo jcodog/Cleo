@@ -1,0 +1,54 @@
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_967632eda2728f::t_cd80453bdaebd0 42-45,74-79,195-197,208,402-490
+apps/discord-bot/src/deployment/compiledRegistration.test.ts
+  s_967632eda2728f::t_4979c917181715 6,99
+  s_967632eda2728f::t_f0f61a9214212b 29-33,35-37,54-55,87-98,100-112,114-118
+  s_967632eda2728f::t_815c83ad044aa2 69-71,85-86
+  s_967632eda2728f::t_9b69a397dabc04 13-15,56-68,72-84
+  s_967632eda2728f::t_83c89e1637bafa 1-5,7-9,11-12,16-28,34,38-53,113,119-127
+  s_967632eda2728f::t_0f6500db66cbd2 10
+apps/discord-bot/src/deployment/deploymentPipeline.test.ts
+  s_967632eda2728f::t_9d5400b5fd7eab 89-92,94-106,109-117
+  s_967632eda2728f::t_e1f09f67717d31 107-108
+  s_967632eda2728f::t_35d1f5a94dc77f 93
+  s_967632eda2728f::t_4e398d46751b46 118
+.github/workflows/regression.yml
+  s_967632eda2728f::t_df8224d896911f 147-148,151-166
+docs/discord-production-deployment.md
+  s_967632eda2728f::t_1c3308dad9fa7b 120-121
+  s_967632eda2728f::t_4b39a1c75914bb 70,123-124
+  s_967632eda2728f::t_8e70618c08cd23 48,52-66,68-69,71-82,89,96-102,108-119,122,125-138
+  s_967632eda2728f::t_71d39aad1bf39d 336-342
+.github/scripts/package-discord-release.sh
+  s_967632eda2728f::t_e3437734026cb3 201-205,213-215
+  s_967632eda2728f::t_5faa30e3df4013 178
+.github/workflows/discord-production.yml
+  s_967632eda2728f::t_407a998b9ad5cb 214,244,259-265,267-314,316-346,381,416,431-438,440-469
+  s_967632eda2728f::t_f1ab4edd05e5a2 186,266,315,359,439
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  s_967632eda2728f::t_b7dae58369f42f 18,41-48,53,57,59-67,74,300,316-320,538-682
+apps/discord-bot/src/scripts/registerCommands.ts
+  s_967632eda2728f::t_b7dae58369f42f 1,16-23,34-37,166,170-172,174-182,184-232,234-240,242-252,254-272,281-283,285-291,305-307,375-382
+  s_967632eda2728f::t_ed2ad091870f63 233,241,273-280,284
+  s_967632eda2728f::t_12d412105ecd0c 412-413
+ops/discord/bin/run-discord-release.test.sh
+  s_967632eda2728f::t_25500061a1517e 86-107
+bun.lock
+  s_967632eda2728f::t_11a980a237e145 51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "64f6a9090b3719dd6c007d5f26d065439ec3b0ee",
+  "prompts": {},
+  "sessions": {
+    "s_967632eda2728f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0efde-f710-7d01-9057-e97e806dafdf",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
