@@ -1,0 +1,24 @@
+packages/backend/convex/linkedAccountAuthority.test.ts
+  s_0c167404558e62::t_956018f7eac651 1-2,4-8,11-14,19-34,37,47-96,294,310-328,331-336,342-346,350
+  s_0c167404558e62::t_fd0c80fee870e2 15-18,254,329-330,337-341,347-349
+  s_0c167404558e62::t_592aa144b7dc0a 3,9-10,35-36,38-46,97-187,194-201,206-207,212-223,228-230,237-243,250-253,255-256,260-266,270-279,287,295-299,308-309
+  s_0c167404558e62::t_362227cdda27de 188-193,202-205,208-211,224-227,231-236,244-249,257-259,267-269,280-286,288-293,300-307
+docs/security/linked-account-authority.md
+  s_0c167404558e62::t_025498dbc805db 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2a77e16b5e01550a90c603aa594ce83e43fd12bb",
+  "prompts": {},
+  "sessions": {
+    "s_0c167404558e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0efba-fa8b-7622-93a5-d8ffebe6d2e8",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
