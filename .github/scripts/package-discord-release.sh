@@ -175,6 +175,7 @@ node --input-type=module - "$bundle_dir" "$sha" "$release_platform" \
 import { createHash } from "node:crypto"
 import { readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
+import { pathToFileURL } from "node:url"
 
 const [root, commitSha, target, nodeVersion, buildTimestamp] = process.argv.slice(2)
 const contract = JSON.parse(
@@ -197,6 +198,11 @@ const criticalFileSha256 = Object.fromEntries(
   ])
 )
 const [platform, architecture] = target.split("-", 2)
+const { commandVerificationVersion, getGlobalCommandDefinitions } = await import(
+  pathToFileURL(path.join(root, contract.commandRegistrationEntrypoint)).href
+)
+const globalCommands = await getGlobalCommandDefinitions()
+const runtimePackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
 const manifest = {
   architecture,
   artifactContractVersion: contract.schemaVersion,
@@ -204,6 +210,9 @@ const manifest = {
   buildTimestamp,
   commandFingerprint: criticalFileSha256[contract.commandRegistrationEntrypoint],
   commandRegistrationEntrypoint: contract.commandRegistrationEntrypoint,
+  commandVerificationVersion,
+  botVersion: runtimePackage.version,
+  globalCommandNames: globalCommands.map((command) => command.name).sort(),
   commitSha,
   criticalFileSha256,
   nodeVersion,

@@ -1,5 +1,4 @@
-import path from "node:path"
-import { pathToFileURL } from "node:url"
+import { isDeepStrictEqual } from "node:util"
 
 import {
   ApplicationIntegrationType,
@@ -14,6 +13,14 @@ import { Command, type CommandData } from "@/classes/Command"
 import { loadCommands } from "@/loaders/loadCommands"
 import { botLog, botLogError } from "@/utils/botLog"
 
+export const commandVerificationVersion = 1
+
+export async function getGlobalCommandDefinitions(): Promise<CommandData[]> {
+  const commands = await loadCommands()
+  validateCommands(commands)
+  return prepareCommandsForTarget(commands, { type: "global" })
+}
+
 export type RegisterTarget =
   | {
       type: "guild"
@@ -24,6 +31,10 @@ export type RegisterTarget =
     }
 
 type CommandRegistrationRest = {
+  get: (
+    route: `/${string}`,
+    options?: { query: URLSearchParams }
+  ) => Promise<unknown> | unknown
   put: (
     route: `/${string}`,
     options: {
@@ -152,19 +163,132 @@ async function putCommandData(
 
 async function overwriteCommandScope(
   rest: CommandRegistrationRest,
-  route: string,
+  route: `/${string}`,
   scopeLabel: string,
   commandData: CommandData[]
 ) {
-  logInfo(`Registering ${commandData.length} command(s) to ${scopeLabel}...`)
+  logInfo(
+    `Deploying ${commandData.length} command(s) to ${scopeLabel}: ${commandData.map((command) => `/${command.name}`).join(", ")}`
+  )
 
-  const response = await putCommandData(rest, route, commandData)
+  await putCommandData(rest, route, commandData)
+  const liveCommands = await rest.get(route, {
+    query: new URLSearchParams({ with_localizations: "true" }),
+  })
+  verifyCommandDefinitions(commandData, liveCommands)
+  logSuccess(
+    `Verified ${commandData.length} command(s) on Discord for ${scopeLabel}.`
+  )
+}
 
-  const registeredCount = Array.isArray(response)
-    ? response.length
-    : commandData.length
+function commandObject(value: unknown): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(
+      "Discord command verification received an invalid definition."
+    )
+  }
+  return Object.fromEntries(Object.entries(value))
+}
 
-  logSuccess(`Registered ${registeredCount} command(s) to ${scopeLabel}.`)
+function definitionList(value: unknown): unknown[] {
+  if (value === undefined || value === null) return []
+  if (!Array.isArray(value)) {
+    throw new Error("Discord command verification received an invalid list.")
+  }
+  return value
+}
+
+function localizations(value: unknown, defaultValue: unknown) {
+  if (value === undefined || value === null) return {}
+  return Object.fromEntries(
+    Object.entries(commandObject(value)).filter(
+      ([, text]) => text !== defaultValue
+    )
+  )
+}
+
+function normalizedDefinition(
+  value: unknown,
+  kind: "command" | "option" | "choice"
+): Record<string, unknown> {
+  const data = commandObject(value)
+  const result: Record<string, unknown> = {
+    name: data.name,
+    name_localizations: localizations(data.name_localizations, data.name),
+  }
+  if (kind === "choice") return { ...result, value: data.value }
+  result.description = data.description
+  result.description_localizations = localizations(
+    data.description_localizations,
+    data.description
+  )
+  result.type = data.type ?? (kind === "command" ? 1 : undefined)
+  result.options = definitionList(data.options).map((option) =>
+    normalizedDefinition(option, "option")
+  )
+  if (kind === "command") {
+    result.default_member_permissions = data.default_member_permissions ?? null
+    result.nsfw = data.nsfw ?? false
+    for (const field of ["contexts", "integration_types"]) {
+      result[field] = [...definitionList(data[field])].sort()
+    }
+  } else {
+    result.required = data.required ?? false
+    result.autocomplete = data.autocomplete ?? false
+    result.choices = definitionList(data.choices).map((choice) =>
+      normalizedDefinition(choice, "choice")
+    )
+    result.channel_types = [...definitionList(data.channel_types)].sort()
+    for (const field of [
+      "min_value",
+      "max_value",
+      "min_length",
+      "max_length",
+    ]) {
+      result[field] = data[field] ?? null
+    }
+  }
+  return result
+}
+
+export function verifyCommandDefinitions(
+  intended: readonly CommandData[],
+  response: unknown
+): void {
+  if (!Array.isArray(response)) {
+    throw new Error(
+      "Discord command verification did not return a command list."
+    )
+  }
+  const live = response.map(commandObject)
+  const expectedNames = intended.map((command) => command.name).sort()
+  const liveNames = live.map((command) => command.name).sort()
+  if (JSON.stringify(expectedNames) !== JSON.stringify(liveNames)) {
+    throw new Error(
+      `Discord command verification failed: expected ${intended.length} commands [${expectedNames.join(", ")}], received ${live.length} [${liveNames.join(", ")}].`
+    )
+  }
+  for (const expected of intended) {
+    const actual = live.find((command) => command.name === expected.name)
+    const scopedActual = {
+      ...actual,
+      contexts: expected.contexts === undefined ? undefined : actual?.contexts,
+      integration_types:
+        expected.integration_types === undefined
+          ? undefined
+          : actual?.integration_types,
+    }
+    if (
+      !isDeepStrictEqual(
+        normalizedDefinition(expected, "command"),
+        normalizedDefinition(scopedActual, "command")
+      )
+    ) {
+      throw new Error(
+        `Discord command definition mismatch for /${expected.name}.`
+      )
+    }
+  }
 }
 
 export function validateCommands(commands: readonly Command[]): void {
@@ -178,7 +302,9 @@ export function validateCommands(commands: readonly Command[]): void {
     }
 
     if (typeof command.execute !== "function") {
-      throw new Error(`Command /${command.data.name} does not define execute().`)
+      throw new Error(
+        `Command /${command.data.name} does not define execute().`
+      )
     }
 
     const commandData = command.data
@@ -246,6 +372,14 @@ export async function registerCommands(options: RegisterCommandsOptions = {}) {
 
   const rest = options.rest ?? new REST({ version: "10" }).setToken(token)
 
+  const application = commandObject(await rest.get(Routes.currentApplication()))
+  if (application.id !== applicationId) {
+    throw new Error(
+      "DISCORD_APPLICATION_ID does not match the application authenticated by DISCORD_BOT_TOKEN."
+    )
+  }
+  logInfo(`Authenticated Discord application ${applicationId}.`)
+
   const globalRoute = Routes.applicationCommands(applicationId)
 
   const targetRoute =
@@ -275,17 +409,8 @@ export async function registerCommands(options: RegisterCommandsOptions = {}) {
   }
 }
 
-function isDirectEntrypoint(): boolean {
-  const entrypoint = process.argv[1]
-
-  if (!entrypoint) {
-    return false
-  }
-
-  return pathToFileURL(path.resolve(entrypoint)).href === import.meta.url
-}
-
-if (isDirectEntrypoint()) {
+// Native entrypoint detection works through current and during packaging imports.
+if (import.meta.main) {
   try {
     await registerCommands()
   } catch (error) {

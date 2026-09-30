@@ -15,6 +15,7 @@ import {
   registerCommands,
   resolveRegisterTarget,
   validateCommands,
+  verifyCommandDefinitions,
 } from "./registerCommands"
 
 const guildId = "123456789012345678"
@@ -37,21 +38,40 @@ function makeCommand(overrides: Partial<CommandData> = {}): Command {
   })
 }
 
-function createRecordingRest(options: { failOnCall?: number } = {}) {
+function createRecordingRest(
+  options: {
+    failOnCall?: number
+    liveCommands?: unknown
+    authenticatedApplicationId?: string
+    failOnGet?: boolean
+  } = {}
+) {
   const calls: {
     route: string
     body: CommandData[]
   }[] = []
+  const requests: string[] = []
 
   return {
     calls,
+    requests,
     rest: {
+      async get(route: `/${string}`, request?: { query: URLSearchParams }) {
+        requests.push(`GET ${route}`)
+        if (options.failOnGet) throw new Error("Discord REST read failed.")
+        if (route === Routes.currentApplication()) {
+          return { id: options.authenticatedApplicationId ?? applicationId }
+        }
+        assert.equal(request?.query.get("with_localizations"), "true")
+        return options.liveCommands ?? calls.at(-1)?.body
+      },
       async put(
         route: `/${string}`,
         request: {
           body: CommandData[]
         }
       ) {
+        requests.push(`PUT ${route}`)
         calls.push({
           route,
           body: request.body,
@@ -277,7 +297,7 @@ test("global registration makes one complete overwrite request from Command inst
       integration_types: [ApplicationIntegrationType.UserInstall],
     }),
   ]
-  const { calls, rest } = createRecordingRest()
+  const { calls, requests, rest } = createRecordingRest()
 
   await registerCommands({
     args: ["node", "register", "--global"],
@@ -292,6 +312,11 @@ test("global registration makes one complete overwrite request from Command inst
       route: Routes.applicationCommands(applicationId),
       body: commands.map((command) => command.data),
     },
+  ])
+  assert.deepEqual(requests, [
+    `GET ${Routes.currentApplication()}`,
+    `PUT ${Routes.applicationCommands(applicationId)}`,
+    `GET ${Routes.applicationCommands(applicationId)}`,
   ])
 })
 
@@ -509,4 +534,149 @@ test("active global and guild deployment payloads exclude quarantined /help", as
       )
     }
   }
+})
+
+test("verification rejects missing, stale, duplicate, malformed and mismatched commands", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+  const commands = [makeCommand({ name: "8ball" })]
+  for (const liveCommands of [
+    [],
+    [commands[0]?.data, makeCommand({ name: "stale" }).data],
+    [commands[0]?.data, commands[0]?.data],
+    {},
+    [null],
+    [{ ...commands[0]?.data, description: "Wrong description" }],
+    [{ ...commands[0]?.data, contexts: [InteractionContextType.BotDM] }],
+    [
+      {
+        ...commands[0]?.data,
+        integration_types: [ApplicationIntegrationType.UserInstall],
+      },
+    ],
+    [
+      {
+        ...commands[0]?.data,
+        options: [{ type: 3, name: "question", description: "Wrong option" }],
+      },
+    ],
+    [{ ...commands[0]?.data, default_member_permissions: "8" }],
+    [{ ...commands[0]?.data, nsfw: true }],
+  ]) {
+    const { calls, rest } = createRecordingRest({ liveCommands })
+    await assert.rejects(
+      registerCommands({
+        args: ["--global"],
+        token: "token",
+        applicationId,
+        rest,
+        commands,
+      }),
+      /verification|definition mismatch/
+    )
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0]?.body[0]?.name, "8ball")
+  }
+})
+
+test("verification ignores generated metadata, defaults and set ordering while preserving option semantics", () => {
+  const command = makeCommand({
+    contexts: [0, 1, 2],
+    integration_types: [0, 1],
+    options: [
+      {
+        type: 3,
+        name: "question",
+        description: "Ask a question",
+        choices: [{ name: "Yes", value: "yes" }],
+      },
+    ],
+  }).data
+  const live = {
+    ...command,
+    id: "generated",
+    version: "generated",
+    application_id: applicationId,
+    contexts: [2, 0, 1],
+    integration_types: [1, 0],
+    type: 1,
+    nsfw: false,
+    default_member_permissions: null,
+    name_localizations: null,
+    description_localizations: { "en-US": command.description },
+    options: [
+      {
+        ...command.options?.[0],
+        required: false,
+        autocomplete: false,
+        options: [],
+        channel_types: [],
+      },
+    ],
+  }
+  assert.doesNotThrow(() => verifyCommandDefinitions([command], [live]))
+  for (const field of ["required", "autocomplete", "min_length", "choices"]) {
+    const changedOption = {
+      ...live.options[0],
+      [field]: field === "choices" ? [{ name: "No", value: "no" }] : 1,
+    }
+    assert.throws(
+      () =>
+        verifyCommandDefinitions(
+          [command],
+          [{ ...live, options: [changedOption] }]
+        ),
+      /definition mismatch/
+    )
+  }
+  assert.throws(
+    () =>
+      verifyCommandDefinitions(
+        [command],
+        [{ ...live, name_localizations: { fr: "boule" } }]
+      ),
+    /definition mismatch/
+  )
+})
+
+test("credential application mismatch and API read failures reject before overwrite", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+  for (const options of [
+    { authenticatedApplicationId: "unexpected" },
+    { failOnGet: true },
+  ]) {
+    const { calls, rest } = createRecordingRest(options)
+    await assert.rejects(
+      registerCommands({
+        args: ["--global"],
+        token: "token",
+        applicationId,
+        rest,
+        commands: [makeCommand()],
+      }),
+      /does not match|REST read failed/
+    )
+    assert.deepEqual(calls, [])
+  }
+})
+
+test("authoritative GET failure propagates after a successful overwrite", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+  const { calls, rest } = createRecordingRest()
+  const get = rest.get
+  rest.get = async (route, options) => {
+    if (route !== Routes.currentApplication())
+      throw new Error("Verification GET failed")
+    return get(route, options)
+  }
+  await assert.rejects(
+    registerCommands({
+      args: ["--global"],
+      token: "token",
+      applicationId,
+      rest,
+      commands: [makeCommand()],
+    }),
+    /Verification GET failed/
+  )
+  assert.equal(calls.length, 1)
 })

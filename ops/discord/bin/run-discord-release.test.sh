@@ -83,3 +83,25 @@ if CLEO_DISCORD_RELEASE_ROOT="$current_link" \
 fi
 
 echo "Discord release launcher forward activation and rollback tests passed."
+
+# Execute the real compiled registration program through current, rather than
+# only checking the arguments passed to a mocked Node launcher.
+bundle_root="${CLEO_DISCORD_TEST_BUNDLE_ROOT:-$script_dir/../../../apps/discord-bot}"
+if [[ -f "$bundle_root/dist/scripts/registerCommands.js" ]]; then
+  cat > "$fake_nvm_exec" <<'EOF'
+#!/usr/bin/env bash
+exec "$@"
+EOF
+  rm -f -- "$current_link"
+  ln -s "$(cd "$bundle_root" && pwd)" "$current_link"
+  set +e
+  output="$(DISCORD_BOT_TOKEN= DISCORD_APPLICATION_ID= run_launcher register-commands 2>&1)"
+  status=$?
+  set -e
+  if [[ "$status" -ne 1 || "$output" != *"Missing DISCORD_BOT_TOKEN"* ]]; then
+    echo "Compiled registration did not execute through current: status=$status" >&2
+    printf '%s\n' "$output" >&2
+    exit 1
+  fi
+  echo "Compiled command registration executes through the production launcher and current symlink."
+fi
