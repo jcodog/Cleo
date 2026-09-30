@@ -71,6 +71,7 @@ test("loaded commands are valid Command instances with unique deployment metadat
   const commands = await loadCommands()
 
   assert.deepEqual(commands.map((command) => command.data.name).sort(), [
+    "8ball",
     "ban",
     "cleo",
     "kick",
@@ -97,6 +98,43 @@ test("command validation rejects entries that bypass the Command class", () => {
   } as Command
 
   assert.throws(() => validateCommands([fakeCommand]), /not a Command instance/)
+})
+
+test("production global and guild registration include /8ball from the runtime registry", async (t) => {
+  t.mock.method(console, "log", () => undefined)
+  const commands = await loadCommands()
+  const eightBall = commands.find((command) => command.data.name === "8ball")
+  assert.ok(eightBall)
+
+  for (const args of [
+    ["node", "register", "--global"],
+    ["node", "register", "--guild", guildId],
+  ]) {
+    const { calls, rest } = createRecordingRest()
+    await registerCommands({ args, token: "token", applicationId, rest })
+    assert.equal(calls.length, 1)
+    const registered = calls[0]?.body.find(
+      (command) => command.name === "8ball"
+    )
+    assert.ok(registered)
+    assert.deepEqual(registered.options, eightBall.data.options)
+    assert.equal(registered.description, eightBall.data.description)
+    assert.equal(
+      calls[0]?.body.some((command) => command.name === "help"),
+      false
+    )
+    if (args.includes("--global")) {
+      assert.equal(calls[0]?.route, Routes.applicationCommands(applicationId))
+      assert.deepEqual(registered, eightBall.data)
+    } else {
+      assert.equal(
+        calls[0]?.route,
+        Routes.applicationGuildCommands(applicationId, guildId)
+      )
+      assert.equal(registered.contexts, undefined)
+      assert.equal(registered.integration_types, undefined)
+    }
+  }
 })
 
 test("command validation rejects duplicate command names", () => {

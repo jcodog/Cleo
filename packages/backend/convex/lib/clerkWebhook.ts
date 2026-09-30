@@ -28,7 +28,8 @@ export function verifyClerkWebhook({
   const webhook = new Webhook(secret)
 
   try {
-    const event = webhook.verify(payload, headers)
+    webhook.verify(payload, headers)
+    const event: unknown = JSON.parse(payload)
 
     return isClerkWebhookEvent(event) ? event : null
   } catch {
