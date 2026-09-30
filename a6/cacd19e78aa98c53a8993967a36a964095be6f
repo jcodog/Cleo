@@ -1,0 +1,29 @@
+.github/workflows/regression.yml
+  s_967632eda2728f::t_68685e0e1a4210 150-170
+  s_967632eda2728f::t_920364c1978fdc 149
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_967632eda2728f::t_b91fe4dd29e264 473-476
+apps/discord-bot/src/scripts/registerCommands.ts
+  s_967632eda2728f::t_68685e0e1a4210 231-232,277-280
+apps/dashboard/src/features/app-shell/AppTopbar.test.ts
+  s_967632eda2728f::t_b91fe4dd29e264 26-34,44-57,91,95-97,119,127-128
+apps/discord-bot/src/scripts/registerCommands.test.ts
+  s_967632eda2728f::t_68685e0e1a4210 563,605-606,644-668,670
+  s_967632eda2728f::t_1718e84f6c9372 669,671-672
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a6cacd19e78aa98c53a8993967a36a964095be6f",
+  "prompts": {},
+  "sessions": {
+    "s_967632eda2728f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0efde-f710-7d01-9057-e97e806dafdf",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
