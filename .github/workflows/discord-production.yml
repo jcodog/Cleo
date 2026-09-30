@@ -284,7 +284,6 @@ jobs:
           NODE
           )"
           echo "Command deployment started: $metadata"
-          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE"
           sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
           test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
           command_result=verified
@@ -333,7 +332,6 @@ jobs:
           NODE
           )"
           echo "Command deployment started: $metadata"
-          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE"
           sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
           test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
           command_result=verified
@@ -457,7 +455,6 @@ jobs:
           NODE
           )"
           echo "Command deployment started: $metadata"
-          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE"
           sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
           test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
           command_result=verified

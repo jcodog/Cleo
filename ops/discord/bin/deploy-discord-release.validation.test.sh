@@ -50,6 +50,19 @@ cat > "$bin_dir/systemctl" <<'EOF'
 operation="${1:-}"
 shift || true
 case "$operation" in
+  is-enabled)
+    [[ -f "$CLEO_DISCORD_TEST_COMMAND_UNIT_FILE" ]] || exit 1
+    grep -F 'Type=oneshot' "$CLEO_DISCORD_TEST_COMMAND_UNIT_FILE" >/dev/null || exit 1
+    if grep -F '[Install]' "$CLEO_DISCORD_TEST_COMMAND_UNIT_FILE" >/dev/null; then exit 1; fi
+    printf '%s\n' static
+    ;;
+  reset-failed)
+    if [[ -n "${CLEO_DISCORD_TEST_COMMAND_STATE:-}" &&
+          "$(cat "$CLEO_DISCORD_TEST_COMMAND_STATE")" == unloaded ]]; then
+      echo "Failed to reset failed state of unit $1: Unit $1 not loaded." >&2
+      exit 1
+    fi
+    ;;
   show)
     unit="$1"
     property="$3"
@@ -75,7 +88,19 @@ case "$operation" in
     if [[ -n "${CLEO_DISCORD_TEST_COMMAND_LOG:-}" ]]; then
       readlink -f "$CLEO_DISCORD_TEST_DEPLOY_ROOT/current" >> "$CLEO_DISCORD_TEST_COMMAND_LOG"
     fi
-    [[ "${CLEO_DISCORD_TEST_COMMAND_FAIL:-0}" == 0 ]]
+    if [[ "${CLEO_DISCORD_TEST_COMMAND_FAIL:-0}" != 0 ]] ||
+       { [[ -n "${CLEO_DISCORD_TEST_COMMAND_PROGRAM:-}" ]] && ! "$CLEO_DISCORD_TEST_COMMAND_PROGRAM"; }; then
+      if [[ -n "${CLEO_DISCORD_TEST_COMMAND_STATE:-}" ]]; then
+        printf '%s\n' failed > "$CLEO_DISCORD_TEST_COMMAND_STATE"
+      fi
+      exit 1
+    fi
+    if [[ -n "${CLEO_DISCORD_TEST_COMMAND_STATE:-}" ]]; then
+      printf '%s\n' unloaded > "$CLEO_DISCORD_TEST_COMMAND_STATE"
+    fi
+    if [[ -n "${CLEO_DISCORD_TEST_SWITCH_RELEASE:-}" ]]; then
+      ln -sfn "$CLEO_DISCORD_TEST_SWITCH_RELEASE" "$CLEO_DISCORD_TEST_DEPLOY_ROOT/current"
+    fi
     ;;
   *) exit 0 ;;
 esac
@@ -193,7 +218,7 @@ const manifest = {
   commandFingerprint: criticalFileSha256[contract.commandRegistrationEntrypoint],
   commandRegistrationEntrypoint: contract.commandRegistrationEntrypoint,
   commandVerificationVersion: 1,
-  botVersion: "3.1.1",
+  botVersion: "3.1.2",
   globalCommandNames: ["8ball", "ping"],
   commitSha,
   criticalFileSha256,
@@ -205,7 +230,7 @@ writeFileSync(
   path.join(root, contract.releaseManifest),
   `${JSON.stringify(manifest, null, 2)}\n`
 )
-writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "@workspace/discord-bot", version: "3.1.1" }))
+writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "@workspace/discord-bot", version: "3.1.2" }))
 NODE
 }
 
@@ -425,17 +450,47 @@ NODE
 
 export CLEO_DISCORD_COMMAND_SERVICE=cleo-discord-register-commands.service
 export CLEO_DISCORD_TEST_COMMAND_LOG="$fixture_root/workflow-command-starts"
+export CLEO_DISCORD_TEST_COMMAND_UNIT_FILE="$script_dir/../systemd/cleo-discord-register-commands.service"
+export CLEO_DISCORD_TEST_COMMAND_STATE="$fixture_root/command-unit-state"
+export CLEO_DISCORD_TEST_COMMAND_PROGRAM="$fixture_root/registration-program"
+export CLEO_DISCORD_TEST_REGISTRATION_LOG="$fixture_root/verified-registrations"
+cat > "$CLEO_DISCORD_TEST_COMMAND_PROGRAM" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${CLEO_DISCORD_TEST_REGISTRATION_FAIL:-0}" != 0 ]]; then exit 1; fi
+readlink -f "$CLEO_DISCORD_TEST_DEPLOY_ROOT/current" >> "$CLEO_DISCORD_TEST_REGISTRATION_LOG"
+EOF
+chmod 0755 "$CLEO_DISCORD_TEST_COMMAND_PROGRAM"
+printf '%s\n' inactive > "$CLEO_DISCORD_TEST_COMMAND_STATE"
 export GITHUB_STEP_SUMMARY="$fixture_root/workflow-summary"
 reset_deployment
 create_valid_release
 package_release
 bash "$controller" deploy
+[[ "$(systemctl is-enabled "$CLEO_DISCORD_COMMAND_SERVICE")" == static ]]
+[[ "$(wc -l < "$CLEO_DISCORD_TEST_REGISTRATION_LOG")" -eq 1 ]]
+[[ "$(cat "$CLEO_DISCORD_TEST_COMMAND_STATE")" == unloaded ]]
 : > "$CLEO_DISCORD_TEST_COMMAND_LOG"
 
 for script in "$fixture_root"/workflow-commands-*.sh; do bash -n "$script"; done
+# Every workflow path must start an installed unit after its previous successful
+# oneshot has been unloaded. The old mandatory reset aborts before start here.
+for script in "$fixture_root"/workflow-commands-*.sh; do
+  if systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE" > "$fixture_root/reset-output" 2>&1; then
+    echo "Fixture unexpectedly reset an unloaded oneshot" >&2
+    exit 1
+  fi
+  grep -F 'not loaded' "$fixture_root/reset-output" >/dev/null
+  bash "$script"
+  [[ "$(cat "$CLEO_DISCORD_TEST_COMMAND_STATE")" == unloaded ]]
+  grep -F 'Global Discord commands verified' "$GITHUB_STEP_SUMMARY" >/dev/null
+done
+[[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 3 ]]
+[[ "$(wc -l < "$CLEO_DISCORD_TEST_REGISTRATION_LOG")" -eq 4 ]]
+: > "$CLEO_DISCORD_TEST_COMMAND_LOG"
 bash "$fixture_root/workflow-commands-0.sh"
 [[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 1 ]]
-grep -F 'bot=3.1.1' "$GITHUB_STEP_SUMMARY" >/dev/null
+grep -F 'bot=3.1.2' "$GITHUB_STEP_SUMMARY" >/dev/null
 grep -F 'Intended global commands (2): 8ball, ping' "$GITHUB_STEP_SUMMARY" >/dev/null
 
 # An equal fingerprint still requires the explicit step, including a routine
@@ -463,17 +518,36 @@ bash "$fixture_root/workflow-commands-2.sh"
 [[ "$(tail -1 "$CLEO_DISCORD_TEST_COMMAND_LOG")" == "$deploy_root/releases/$rollback_sha" ]]
 [[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 3 ]]
 
+for failure in start registration; do
+  for script in "$fixture_root"/workflow-commands-*.sh; do
+    : > "$GITHUB_STEP_SUMMARY"
+    start_failure=0
+    registration_failure=0
+    if [[ "$failure" == start ]]; then start_failure=1; else registration_failure=1; fi
+    if CLEO_DISCORD_TEST_COMMAND_FAIL="$start_failure" \
+       CLEO_DISCORD_TEST_REGISTRATION_FAIL="$registration_failure" bash "$script"; then
+      echo "Workflow reported success after command service failure" >&2
+      exit 1
+    fi
+    grep -F 'Command deployment: failed' "$GITHUB_STEP_SUMMARY" >/dev/null
+    if grep -F 'Global Discord commands verified' "$GITHUB_STEP_SUMMARY" >/dev/null; then
+      echo "Workflow claimed verified commands after failure" >&2
+      exit 1
+    fi
+    [[ "$(cat "$CLEO_DISCORD_TEST_COMMAND_STATE")" == failed ]]
+    # A failed state does not itself require reset before a later successful start.
+    bash "$script"
+  done
+done
+
 for script in "$fixture_root"/workflow-commands-*.sh; do
   : > "$GITHUB_STEP_SUMMARY"
-  if CLEO_DISCORD_TEST_COMMAND_FAIL=1 bash "$script"; then
-    echo "Workflow reported success after command service failure" >&2
+  if CLEO_DISCORD_TEST_SWITCH_RELEASE="$deploy_root/releases/$release_sha" bash "$script"; then
+    echo "Workflow accepted a release change during command deployment" >&2
     exit 1
   fi
   grep -F 'Command deployment: failed' "$GITHUB_STEP_SUMMARY" >/dev/null
-  if grep -F 'Global Discord commands verified' "$GITHUB_STEP_SUMMARY" >/dev/null; then
-    echo "Workflow claimed verified commands after failure" >&2
-    exit 1
-  fi
+  ln -sfn "$deploy_root/releases/$rollback_sha" "$deploy_root/current"
 done
 
 # Older immutable artifacts cannot supply a verifier through the existing unit.

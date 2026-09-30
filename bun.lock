@@ -48,7 +48,7 @@
     },
     "apps/discord-bot": {
       "name": "@workspace/discord-bot",
-      "version": "3.1.1",
+      "version": "3.1.2",
       "dependencies": {
         "@napi-rs/canvas": "^1.0.9",
         "discord.js": "^14.27.0",
