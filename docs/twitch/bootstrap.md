@@ -51,7 +51,7 @@ For EventSub secret rotation, update both environments and remove the affected o
 
 ## E. Install the VPS host contract
 
-1. Use the existing `cleo` and `github-runner` Linux accounts. Review `ops/twitch/bootstrap-host.sh`, the unit and sudoers file from a trusted checkout, then run `sudo bash ops/twitch/bootstrap-host.sh`. It installs contract version `1` and the SHA256-verified Linux x64 Node `v24.15.0`. It enables the service without starting it.
+1. Use the existing `cleo` and `github-runner` Linux accounts. Review `ops/twitch/bootstrap-host.sh`, the unit and sudoers file from a trusted checkout, then run `sudo bash ops/twitch/bootstrap-host.sh`. It installs contract version `2` and the SHA256-verified Linux x64 Node `v24.15.0`. It enables the service without starting it.
 2. Restart the runner session so its `cleo-deploy` and `cleo-runtime` group memberships take effect. The runtime is excluded from `cleo-deploy`; releases are read-only to `cleo-runtime`.
 3. Populate `/etc/cleo/twitch-bot.env` through your secure operator channel. Keep owner/group `root:cleo` and mode `0640`. Start from `ops/twitch/twitch-bot.env.example`.
 4. Set these variable names, without placing values in workflow inputs or command history:

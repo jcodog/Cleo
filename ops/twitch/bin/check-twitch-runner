@@ -35,4 +35,4 @@ sudo -n -l /usr/bin/systemctl restart cleo-twitch.service >/dev/null || fail 'mi
 sudo -n -l /usr/bin/systemctl stop cleo-twitch.service >/dev/null || fail 'missing stop rule'
 sudo -n -l /usr/bin/systemctl reset-failed cleo-twitch.service >/dev/null || fail 'missing start-limit reset rule'
 sudo -n -u cleo -l "$tools/check-twitch-readiness" 1 1 >/dev/null || fail 'missing readiness rule'
-echo 'Twitch host contract 1 is ready.'
+echo 'Twitch host contract 2 is ready.'
