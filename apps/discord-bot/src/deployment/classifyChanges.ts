@@ -31,6 +31,28 @@ const COMMAND_FILES = new Set<string>([
   "apps/discord-bot/src/scripts/registerCommands.ts",
 ])
 
+export function isConvexDeployPath(file: string): boolean {
+  return (
+    [
+      "packages/backend/",
+      "packages/env/",
+      "packages/logger/",
+      "packages/shared/",
+      "packages/typescript-config/",
+    ].some((prefix) => file.startsWith(prefix)) ||
+    [
+      "package.json",
+      "bun.lock",
+      "bunfig.toml",
+      "turbo.json",
+      ".nvmrc",
+      "convex.json",
+    ].includes(file) ||
+    /^tsconfig(?:\.[^/]+)?\.json$/.test(file) ||
+    /^(?:apps|packages)\/[^/]+\/package\.json$/.test(file)
+  )
+}
+
 export function isDiscordDeployPath(file: string): boolean {
   return (
     DEPLOY_FILES.has(file) ||
@@ -89,8 +111,10 @@ if (isDirectEntrypoint()) {
   const changed =
     changedPaths === null
       ? true
-      : mode === "deploy"
-        ? classifyChangedPaths(changedPaths).deploy
-        : classifyChangedPaths(changedPaths).registerCommands
+      : mode === "backend"
+        ? changedPaths.some(isConvexDeployPath)
+        : mode === "deploy"
+          ? classifyChangedPaths(changedPaths).deploy
+          : classifyChangedPaths(changedPaths).registerCommands
   process.stdout.write(String(changed))
 }

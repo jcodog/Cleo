@@ -1,0 +1,42 @@
+[Unit]
+Description=Cleo Twitch Cloud Chatbot
+Wants=network-online.target
+After=network-online.target
+ConditionPathIsDirectory=/srv/cleo/twitch-bot/current
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=cleo
+Group=cleo
+SupplementaryGroups=cleo-runtime
+WorkingDirectory=/srv/cleo/twitch-bot/current
+EnvironmentFile=/etc/cleo/twitch-bot.env
+ExecStart=/usr/local/libexec/cleo/twitch/run-twitch-release runtime
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=20
+UMask=0077
+RuntimeDirectory=cleo-twitch
+RuntimeDirectoryMode=0700
+StateDirectory=cleo-twitch
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/srv/cleo/twitch-bot /usr/local/libexec/cleo/twitch
+ReadWritePaths=/var/lib/cleo-twitch /run/cleo-twitch
+
+[Install]
+WantedBy=multi-user.target

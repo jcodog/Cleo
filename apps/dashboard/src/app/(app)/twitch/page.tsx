@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"
+import { TwitchWorkspace } from "@/features/twitch/TwitchWorkspace"
 
 export const metadata: Metadata = {
   title: "Twitch",
@@ -13,9 +14,10 @@ export default async function TwitchPage() {
       <header className="flex flex-col gap-2 border-b pb-5">
         <h1 className="font-heading text-2xl font-medium">Twitch</h1>
         <p className="text-sm text-muted-foreground">
-          Twitch workspace surfaces will be added in a later pass.
+          Connect your channel and manage Cleo's Twitch chat permission.
         </p>
       </header>
+      <TwitchWorkspace />
     </main>
   )
 }

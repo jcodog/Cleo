@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 2 && "$1" =~ ^[1-9][0-9]*$ && "$2" =~ ^[1-9][0-9]*$ ]] || exit 1
+root=/srv/cleo/twitch-bot
+tools=/usr/local/libexec/cleo/twitch
+release="$(readlink -f "$root/current")"
+sha="${release##*/}"
+[[ "$sha" =~ ^[a-f0-9]{40}$ && "$release" == "$root/releases/$sha" ]] || exit 1
+"$tools/node" "$tools/validate-twitch-artifact.mjs" "$release" "$sha"
+exec "$tools/node" "$release/dist/scripts/checkReadiness.js" /run/cleo-twitch/state.json "$1" "$2"

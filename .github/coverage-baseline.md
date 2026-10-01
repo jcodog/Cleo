@@ -9,6 +9,7 @@ regression tests are added.
 | ------------------ | -------------: | ------------------: | -----------------: | ----------------: |
 | `apps/dashboard`   |            100 |                 100 |                100 |               100 |
 | `apps/discord-bot` |            100 |                 100 |                100 |               100 |
+| `apps/twitch-bot`  |            100 |                 100 |                100 |               100 |
 | `packages/backend` |            100 |                 100 |                100 |               100 |
 | `packages/env`     |            100 |                 100 |                100 |                95 |
 | `packages/logger`  |            100 |                 100 |                100 |               100 |
@@ -19,6 +20,14 @@ Do not lower these thresholds to absorb uncovered changes. Add focused tests and
 expand the scoped include sets when a new module becomes a stable regression
 boundary. Re-run `bun run test:coverage` and update this document whenever the
 enforced policy changes.
+
+The Twitch bootstrap enforces all runtime source and its native artifact
+validator at 100% across all four measures. Behavior tests cover dedicated bot
+authorization, grant rotation and storage, Twitch API requests, subscription
+reconciliation, readiness and explicit smoke invocation. Disposable shell tests
+exercise artifact rejection, activation, readiness failure and rollback without
+using host services or live Twitch chat. These checks run in the regression and
+Twitch production workflows.
 
 The reliability hardening pass adds two backend security and transport
 boundaries to the enforced include set:

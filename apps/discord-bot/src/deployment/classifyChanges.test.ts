@@ -5,7 +5,37 @@ import {
   classifyChangedPaths,
   isCommandRegistrationPath,
   isDiscordDeployPath,
+  isConvexDeployPath,
 } from "./classifyChanges"
+
+test("Convex classification includes imported packages, dependency resolution and build inputs", () => {
+  for (const path of [
+    "packages/backend/convex/http.ts",
+    "packages/env/src/backend.ts",
+    "packages/logger/src/index.ts",
+    "packages/shared/src/providers.ts",
+    "packages/typescript-config/base.json",
+    "package.json",
+    "bun.lock",
+    "bunfig.toml",
+    "turbo.json",
+    ".nvmrc",
+    "convex.json",
+    "tsconfig.json",
+    "tsconfig.build.json",
+    "apps/dashboard/package.json",
+    "packages/ui/package.json",
+  ])
+    assert.equal(isConvexDeployPath(path), true, path)
+  for (const path of [
+    "apps/dashboard/src/page.tsx",
+    "ops/twitch/test.sh",
+    "docs/twitch/bootstrap.md",
+    "packages/ui/src/button.tsx",
+    "tsconfig.json/other",
+  ])
+    assert.equal(isConvexDeployPath(path), false, path)
+})
 
 test("Discord deploy paths include runtime and direct dependencies", () => {
   assert.equal(isDiscordDeployPath("apps/discord-bot/src/index.ts"), true)

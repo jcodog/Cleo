@@ -1,0 +1,11 @@
+{
+  "contractVersion": 1,
+  "service": "twitch-bot",
+  "packageName": "@workspace/twitch-bot",
+  "packageVersion": "0.1.0",
+  "nodeVersion": "v24.15.0",
+  "platform": "linux-x64",
+  "runtimeEntrypoint": "dist/index.js",
+  "smokeEntrypoint": "dist/scripts/sendSmokeMessage.js",
+  "readinessEntrypoint": "dist/scripts/checkReadiness.js"
+}

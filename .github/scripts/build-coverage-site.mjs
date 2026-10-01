@@ -4,6 +4,7 @@ import path from "node:path"
 const reports = [
   { name: "Dashboard", path: "apps/dashboard" },
   { name: "Discord bot", path: "apps/discord-bot" },
+  { name: "Twitch bot", path: "apps/twitch-bot" },
   { name: "Convex backend", path: "packages/backend" },
   { name: "Environment", path: "packages/env" },
   { name: "Logger", path: "packages/logger" },

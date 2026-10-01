@@ -2570,6 +2570,23 @@ export declare const api: {
           >;
         };
       };
+      twitch: {
+        connection: {
+          get: FunctionReference<
+            "query",
+            "public",
+            {},
+            null | {
+              avatarUrl?: string;
+              displayName?: string;
+              hasBootstrapPermission: boolean;
+              providerAccountId: string;
+              syncedAt: number;
+              username?: string;
+            }
+          >;
+        };
+      };
     };
   };
 };

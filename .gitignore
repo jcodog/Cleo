@@ -41,3 +41,9 @@ npm-debug.log*
 
 mkcert
 certificates
+
+# Private Twitch grants and process state
+*.twitch-grant.json
+*.twitch-grant.json.*
+*.twitch-readiness.json
+*.twitch-readiness.json.*
