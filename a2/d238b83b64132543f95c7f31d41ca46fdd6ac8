@@ -1,0 +1,20 @@
+docs/twitch/jcn-226-report.md
+  s_34fa6e60961d38::t_ff3ab0187a9b34 111-112,114-117
+  s_34fa6e60961d38::t_c2faa253cc96b0 113,159,175,177,179,181,189-190,195-199,205,213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a2d238b83b64132543f95c7f31d41ca46fdd6ac8",
+  "prompts": {},
+  "sessions": {
+    "s_34fa6e60961d38": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f8d1-9c4e-7d82-8e05-4dd6bab0c2c6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
