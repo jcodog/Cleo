@@ -1,0 +1,46 @@
+apps/twitch-bot/src/services/TwitchApiService.ts
+  s_34fa6e60961d38::t_015091bbd6b64b 116,140
+apps/twitch-bot/src/scripts/sendSmokeMessage.ts
+  s_34fa6e60961d38::t_015091bbd6b64b 16,27
+apps/twitch-bot/src/services/TwitchApiService.test.ts
+  s_34fa6e60961d38::t_d2b882fe99ed26 237-240
+  s_34fa6e60961d38::t_54c3d1f92e742f 251,258
+apps/twitch-bot/src/scripts/scripts.test.ts
+  s_34fa6e60961d38::t_7d679971b20f98 50
+apps/twitch-bot/src/services/TwitchAuthService.ts
+  s_34fa6e60961d38::t_015091bbd6b64b 44-46
+.github/scripts/test-twitch-workflow.mjs
+  s_34fa6e60961d38::t_015091bbd6b64b 11,16
+apps/twitch-bot/src/services/announcements/AnnouncementService.ts
+  s_34fa6e60961d38::t_015091bbd6b64b 10,21
+docs/twitch/jcn-226-report.md
+  s_34fa6e60961d38::t_7d679971b20f98 203
+  s_34fa6e60961d38::t_09bb8236702a61 195-197,201,209
+  s_34fa6e60961d38::t_ba8d1504d186c3 202
+apps/twitch-bot/src/auth/grantStore.ts
+  s_34fa6e60961d38::t_015091bbd6b64b 163-164,173,186
+apps/twitch-bot/src/services/TwitchAuthService.test.ts
+  s_34fa6e60961d38::t_54c3d1f92e742f 6,16,70
+  s_34fa6e60961d38::t_d2b882fe99ed26 71-147
+  s_34fa6e60961d38::t_fe8689b86e9ab1 148-149
+docs/twitch/architecture.md
+  s_34fa6e60961d38::t_09bb8236702a61 54
+apps/twitch-bot/src/services/eventsub/EventSubRouter.test.ts
+  s_34fa6e60961d38::t_54c3d1f92e742f 90,99,107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "5fd1fe57b62acd9a44e0718a4cdf7b58dfd0fc3e",
+  "prompts": {},
+  "sessions": {
+    "s_34fa6e60961d38": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f8d1-9c4e-7d82-8e05-4dd6bab0c2c6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
