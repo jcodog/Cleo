@@ -151,7 +151,7 @@ test("entrypoints fail closed on invalid env and never dump credentials", async 
 test("operator CLI completes the real local callback and saves only the expected bot", async () => {
   const realFetch = globalThis.fetch
   const listener = createServer()
-  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve))
+  await new Promise<void>((resolve) => listener.listen(0, "localhost", resolve))
   const address = listener.address()
   assert.ok(address && typeof address !== "string")
   await new Promise<void>((resolve) => listener.close(() => resolve()))
@@ -160,7 +160,7 @@ test("operator CLI completes the real local callback and saves only the expected
       {
         ...apiConfig,
         TWITCH_BOT_GRANT_PATH: store.path,
-        TWITCH_BOT_REDIRECT_URI: `http://127.0.0.1:${address.port}/callback`,
+        TWITCH_BOT_REDIRECT_URI: `http://localhost:${address.port}/callback`,
       },
       async () => {
         globalThis.fetch = httpFake((url) =>
@@ -210,7 +210,7 @@ test("operator URL is withheld from noninteractive output with useful sanitized 
   await withEnvironment(
     {
       ...apiConfig,
-      TWITCH_BOT_REDIRECT_URI: "http://127.0.0.1:34567/callback",
+      TWITCH_BOT_REDIRECT_URI: "http://localhost:34567/callback",
     },
     async () => {
       const previous = Object.getOwnPropertyDescriptor(process.stdout, "isTTY")

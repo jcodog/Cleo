@@ -20,7 +20,7 @@ import {
 
 async function unusedPort(): Promise<number> {
   const server = createServer()
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+  await new Promise<void>((resolve) => server.listen(0, "localhost", resolve))
   const address = server.address()
   if (!address || typeof address === "string")
     throw new Error("Expected loopback address")
@@ -33,7 +33,7 @@ async function unusedPort(): Promise<number> {
 test("operator authorization URL requests exact bot scopes and callback requires constant-time checked state", () => {
   const config = {
     ...apiConfig,
-    TWITCH_BOT_REDIRECT_URI: "http://127.0.0.1:1234/callback",
+    TWITCH_BOT_REDIRECT_URI: "http://localhost:1234/callback",
   }
   const url = new URL(authorizationUrl(config, "test-state"))
   assert.equal(url.origin, "https://id.twitch.tv")
@@ -44,7 +44,7 @@ test("operator authorization URL requests exact bot scopes and callback requires
   assert.equal(url.searchParams.has("client_secret"), false)
   const callback = (query: string, path = "/callback") =>
     parseAuthorizationCallback(
-      new URL(`http://127.0.0.1:1234${path}?${query}`),
+      new URL(`http://localhost:1234${path}?${query}`),
       "test-state"
     )
   assert.deepEqual(callback("state=test-state&code=test-code"), {
@@ -69,7 +69,7 @@ test("operator authorization URL requests exact bot scopes and callback requires
 
 test("real operator callback rejects wrong state and method, accepts code without reflecting secrets", async () => {
   const port = await unusedPort()
-  const redirect = `http://127.0.0.1:${port}/callback`
+  const redirect = `http://localhost:${port}/callback`
   let finished: Promise<void> | undefined
   const code = await waitForBotCode(
     redirect,
@@ -118,7 +118,7 @@ test("real operator callback rejects wrong state and method, accepts code withou
 
 test("callback denial, timeout and unavailable local port fail cleanly", async () => {
   const port = await unusedPort()
-  const redirect = `http://127.0.0.1:${port}/callback`
+  const redirect = `http://localhost:${port}/callback`
   let request: Promise<Response> | undefined
   await assert.rejects(
     waitForBotCode(
@@ -138,7 +138,7 @@ test("callback denial, timeout and unavailable local port fail cleanly", async (
   )
   const server = createServer()
   await new Promise<void>((resolve) =>
-    server.listen(port, "127.0.0.1", resolve)
+    server.listen(port, "localhost", resolve)
   )
   try {
     await assert.rejects(
@@ -156,7 +156,7 @@ test("operator exchanges server-side, validates the expected bot and saves priva
     await authorizeBot(
       {
         ...apiConfig,
-        TWITCH_BOT_REDIRECT_URI: "http://127.0.0.1:1234/callback",
+        TWITCH_BOT_REDIRECT_URI: "http://localhost:1234/callback",
       },
       {
         api: new TwitchApi(
@@ -190,7 +190,7 @@ test("operator exchanges server-side, validates the expected bot and saves priva
       authorizeBot(
         {
           ...apiConfig,
-          TWITCH_BOT_REDIRECT_URI: "http://127.0.0.1:1234/callback",
+          TWITCH_BOT_REDIRECT_URI: "http://localhost:1234/callback",
         },
         {
           api: new TwitchApi(

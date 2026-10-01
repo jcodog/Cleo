@@ -87,24 +87,26 @@ test("Twitch config rejects identity confusion, insecure callbacks and invalid s
   )
 })
 
-test("operator redirects are explicit loopback HTTP and separate from EventSub", () => {
+test("operator redirects require explicit localhost HTTP and are separate from EventSub", () => {
   assert.equal(
     resolveTwitchOperatorEnv({
       ...credentials,
-      TWITCH_BOT_REDIRECT_URI: "http://127.0.0.1:8765/callback",
+      TWITCH_BOT_REDIRECT_URI: "http://localhost:8765/callback",
     }).TWITCH_BOT_REDIRECT_URI,
-    "http://127.0.0.1:8765/callback"
+    "http://localhost:8765/callback"
   )
   for (const uri of [
     undefined,
     "bad",
     "https://example.com/callback",
-    "http://127.0.0.1/callback",
-    "http://127.0.0.1:1234/other",
-    "http://localhost:1234/callback",
-    "http://user:password@127.0.0.1:1234/callback",
-    "http://127.0.0.1:1234/callback?a=1",
-    "http://127.0.0.1:1234/callback#hash",
+    "https://localhost:1234/callback",
+    "http://example.com:1234/callback",
+    "http://localhost/callback",
+    "http://localhost:1234/other",
+    "http://127.0.0.1:1234/callback",
+    "http://user:password@localhost:1234/callback",
+    "http://localhost:1234/callback?a=1",
+    "http://localhost:1234/callback#hash",
   ]) {
     assert.throws(() =>
       resolveTwitchOperatorEnv({ ...credentials, TWITCH_BOT_REDIRECT_URI: uri })
