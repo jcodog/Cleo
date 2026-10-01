@@ -89,7 +89,7 @@ export function resolveTwitchOperatorEnv(
   const url = new URL(redirect.data)
   if (
     url.protocol !== "http:" ||
-    url.hostname !== "127.0.0.1" ||
+    url.hostname !== "localhost" ||
     !url.port ||
     url.pathname !== "/callback" ||
     url.username ||
@@ -98,7 +98,7 @@ export function resolveTwitchOperatorEnv(
     url.hash
   ) {
     throw new Error(
-      "TWITCH_BOT_REDIRECT_URI must be http://127.0.0.1:<port>/callback for the local operator utility."
+      "TWITCH_BOT_REDIRECT_URI must be http://localhost:<port>/callback for the local operator utility."
     )
   }
   return { ...value, TWITCH_BOT_REDIRECT_URI: url.href }

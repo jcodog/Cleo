@@ -103,7 +103,7 @@ export async function waitForBotCode(
       () => finish({ error: new Error("Bot authorization timed out.") }),
       timeoutMs
     )
-    server.listen(Number(redirect.port), "127.0.0.1", showUrl)
+    server.listen(Number(redirect.port), "localhost", showUrl)
   })
 }
 
