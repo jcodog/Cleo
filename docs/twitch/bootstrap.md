@@ -6,7 +6,7 @@ Complete these steps after reviewing and merging the bootstrap. This guide sets 
 
 1. Create or select Cleo's Twitch Developer application. Use the **same Client ID and Client Secret** for Clerk's production Twitch connection and the runtime. Both the broadcaster's `channel:bot` grant and the bot's grants must belong to that application.
 2. Copy the production OAuth redirect URI shown by Clerk's Twitch social-connection settings into the Twitch application. Use Clerk's actual URI, not Cleo's `/sso-callback`.
-3. Add the operator redirect URI selected for `TWITCH_BOT_REDIRECT_URI`. The utility accepts `http://127.0.0.1:<operator-port>/callback`; register the exact port and path. The utility binds only to loopback.
+3. Add the operator redirect URI selected for `TWITCH_BOT_REDIRECT_URI`. The utility accepts `http://localhost:<operator-port>/callback`; register the exact port and path. The utility binds only to loopback.
 4. Record the numeric Twitch user IDs of the dedicated bot and test broadcaster. They must be different. Store IDs in configuration, and credentials through your secure operator channel.
 
 The browser return page `/twitch/link-callback?returnTo=%2Ftwitch` runs after Clerk completes its own external-account verification. It is not the Twitch Developer application's OAuth redirect URI.

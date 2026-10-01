@@ -105,12 +105,12 @@ test("bot refresh and authorization exchange use encoded form bodies", async () 
     })
   )
   await api.refreshBotToken("test-only-refresh%&+")
-  await api.exchangeBotCode("test-only-code", "http://127.0.0.1:1234/callback")
+  await api.exchangeBotCode("test-only-code", "http://localhost:1234/callback")
   assert.equal(requests[0]?.get("refresh_token"), "test-only-refresh%&+")
   assert.equal(requests[1]?.get("grant_type"), "authorization_code")
   assert.equal(
     requests[1]?.get("redirect_uri"),
-    "http://127.0.0.1:1234/callback"
+    "http://localhost:1234/callback"
   )
 })
 
