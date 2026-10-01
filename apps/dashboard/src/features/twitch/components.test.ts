@@ -101,6 +101,7 @@ test("actual Twitch callback and workspace handle provider evidence, actions and
   t.mock.module("@clerk/nextjs", {
     exports: {
       useUser: () => ({ user: hasUser ? user : null, isLoaded: loaded }),
+      useClerk: () => ({ openUserProfile: () => events.push("manageAccount") }),
       useReverification: (action: () => Promise<string>) => action,
     },
   })

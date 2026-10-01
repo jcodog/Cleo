@@ -42,9 +42,25 @@ export const get = internalQuery({
       }
     }
 
+    const live = await ctx.db
+      .query("guildLiveNotificationConfigs")
+      .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
+      .unique()
     return {
       status: "ready" as const,
       config: {
+        ...(live
+          ? {
+              liveNotificationsEnabled: live.liveNotificationsEnabled,
+              liveNotificationMentionMode: live.liveNotificationMentionMode,
+              ...(live.liveNotificationChannelId
+                ? { liveNotificationChannelId: live.liveNotificationChannelId }
+                : {}),
+              ...(live.liveNotificationRoleId
+                ? { liveNotificationRoleId: live.liveNotificationRoleId }
+                : {}),
+            }
+          : {}),
         discordGuildId: guild.discordGuildId,
         moderationEnabled: config.moderationEnabled,
         welcomeEnabled: config.welcomeEnabled,

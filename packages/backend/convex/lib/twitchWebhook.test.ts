@@ -13,6 +13,93 @@ const subscription = {
   condition: { broadcaster_user_id: "222", user_id: "111" },
 }
 
+test("verified stream.online webhook validates current contract and persists before acknowledging", async () => {
+  const onlineSubscription = {
+    ...subscription,
+    type: "stream.online",
+    condition: { broadcaster_user_id: "222" },
+  }
+  const event = {
+    id: "9001",
+    broadcaster_user_id: "222",
+    broadcaster_user_login: "Verified_Owner",
+    broadcaster_user_name: "Owner",
+    type: "live",
+    started_at: new Date(now).toISOString(),
+  }
+  const body = JSON.stringify({ subscription: onlineSubscription, event })
+  const received: unknown[] = []
+  for (let count = 0; count < 2; count++)
+    assert.equal(
+      (
+        await handleTwitchWebhook(signed(body), secret, now, async (value) => {
+          received.push(value)
+        })
+      ).status,
+      204
+    )
+  assert.deepEqual(received[0], {
+    broadcasterId: "222",
+    streamId: "9001",
+    messageId: "test-message-id",
+    login: "verified_owner",
+    displayName: "Owner",
+    startedAt: event.started_at,
+  })
+  assert.equal(
+    (await handleTwitchWebhook(signed(body), secret, now)).status,
+    503
+  )
+  assert.equal(
+    (
+      await handleTwitchWebhook(signed(body), secret, now, async () => {
+        throw new Error("unavailable")
+      })
+    ).status,
+    503
+  )
+  for (const patch of [
+    { id: "" },
+    { broadcaster_user_id: "333" },
+    { broadcaster_user_login: "https://bad" },
+    { broadcaster_user_name: 1 },
+    { type: "unknown" },
+    { started_at: "bad" },
+  ])
+    assert.equal(
+      (
+        await handleTwitchWebhook(
+          signed(
+            JSON.stringify({
+              subscription: onlineSubscription,
+              event: { ...event, ...patch },
+            })
+          ),
+          secret,
+          now,
+          async () => undefined
+        )
+      ).status,
+      400
+    )
+  assert.equal(
+    (
+      await handleTwitchWebhook(
+        signed(
+          JSON.stringify({
+            subscription: onlineSubscription,
+            challenge: "online-challenge",
+          }),
+          { type: "webhook_callback_verification" }
+        ),
+        secret,
+        now
+      )
+    ).status,
+    200
+  )
+})
+
 function signed(
   body: string,
   options: {

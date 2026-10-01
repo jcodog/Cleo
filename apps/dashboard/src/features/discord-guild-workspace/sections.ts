@@ -1,6 +1,7 @@
 export const DISCORD_GUILD_SECTIONS = [
   "overview",
   "welcome",
+  "live-notifications",
   "moderation",
   "support",
   "logs",
@@ -13,6 +14,7 @@ export const DISCORD_GUILD_SECTION_TITLES: Record<DiscordGuildSection, string> =
   {
     overview: "Overview",
     welcome: "Welcome",
+    "live-notifications": "Live notifications",
     moderation: "Moderation",
     support: "Support",
     logs: "Logs",

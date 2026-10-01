@@ -6,15 +6,101 @@ import { backendEnv } from "@workspace/env/backend"
 import { normalizeClerkUserData } from "./lib/clerkUserData"
 import { type ClerkWebhookEvent, verifyClerkWebhook } from "./lib/clerkWebhook"
 import { handleTwitchWebhook } from "./lib/twitchWebhook"
+import { createLogger } from "@workspace/logger"
 
 const http = httpRouter()
+const liveLogger = createLogger("twitch-live-sources")
 
 http.route({
   path: "/twitch-eventsub",
   method: "POST",
-  handler: httpAction(async (_ctx, request) =>
-    handleTwitchWebhook(request, backendEnv.TWITCH_EVENTSUB_SECRET)
+  handler: httpAction(async (ctx, request) =>
+    handleTwitchWebhook(
+      request,
+      backendEnv.TWITCH_EVENTSUB_SECRET,
+      Date.now(),
+      (event) => ctx.runMutation(internal.liveNotifications.receive, event)
+    )
   ),
+})
+
+http.route({
+  path: "/twitch-live-sources",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const configured = backendEnv.TWITCH_RUNTIME_CONVEX_SECRET
+    const received = request.headers
+      .get("Authorization")
+      ?.match(/^Bearer (.+)$/)?.[1]
+    if (!configured || !received)
+      return new Response("Unauthorized.", { status: 401 })
+    const digest = async (value: string) =>
+      new Uint8Array(
+        await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
+      )
+    const [actual, expected] = await Promise.all([
+      digest(received),
+      digest(configured),
+    ])
+    let difference = 0
+    for (let index = 0; index < expected.length; index++)
+      difference |= (actual[index] ?? 0) ^ (expected[index] ?? 0)
+    if (difference !== 0) return new Response("Unauthorized.", { status: 401 })
+    try {
+      const body = await request.text()
+      if (body.length > 65536)
+        return new Response("Invalid body.", { status: 413 })
+      let value: unknown
+      try {
+        value = JSON.parse(body)
+      } catch {
+        return new Response("Invalid body.", { status: 400 })
+      }
+      if (
+        !value ||
+        typeof value !== "object" ||
+        !("states" in value) ||
+        !Array.isArray(value.states) ||
+        value.states.length > 500
+      )
+        return new Response("Invalid body.", { status: 400 })
+      const states: {
+        broadcasterId: string
+        status: "ready" | "pending" | "unavailable"
+      }[] = []
+      for (const entry of value.states) {
+        if (
+          !entry ||
+          typeof entry !== "object" ||
+          !("broadcasterId" in entry) ||
+          typeof entry.broadcasterId !== "string" ||
+          !/^[1-9]\d*$/.test(entry.broadcasterId) ||
+          !("status" in entry) ||
+          (entry.status !== "ready" &&
+            entry.status !== "pending" &&
+            entry.status !== "unavailable")
+        )
+          return new Response("Invalid body.", { status: 400 })
+        states.push({
+          broadcasterId: entry.broadcasterId,
+          status: entry.status,
+        })
+      }
+      await ctx.runMutation(internal.liveNotifications.subscriptions, {
+        states,
+      })
+      const sources = await ctx.runAction(
+        internal.liveNotificationActions.runtimeSources,
+        {}
+      )
+      return Response.json(sources)
+    } catch {
+      liveLogger.error("Twitch live notification source reconciliation failed")
+      return new Response("Live notification sources unavailable.", {
+        status: 503,
+      })
+    }
+  }),
 })
 
 http.route({

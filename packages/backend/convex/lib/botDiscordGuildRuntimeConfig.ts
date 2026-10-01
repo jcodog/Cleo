@@ -6,6 +6,7 @@ import {
   DISCORD_GUILD_SUPPORT_TRANSCRIPT_POLICIES,
 } from "@workspace/shared/discordRuntimeConfig"
 import { v } from "convex/values"
+import { liveMentionMode } from "../dbTables/twitchLiveNotifications"
 
 const botDiscordGuildRuntimeConfigDisabledReason = v.union(
   ...BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS.map((value) =>
@@ -30,6 +31,10 @@ const botDiscordGuildSupportEscalationPolicy = v.union(
 )
 
 export const botDiscordGuildRuntimeConfig = v.object({
+  liveNotificationsEnabled: v.optional(v.boolean()),
+  liveNotificationChannelId: v.optional(v.string()),
+  liveNotificationMentionMode: v.optional(liveMentionMode),
+  liveNotificationRoleId: v.optional(v.string()),
   discordGuildId: v.string(),
   moderationEnabled: v.boolean(),
   welcomeEnabled: v.boolean(),

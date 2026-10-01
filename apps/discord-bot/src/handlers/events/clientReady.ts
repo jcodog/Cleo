@@ -3,6 +3,7 @@ import { Events, type Client } from "discord.js"
 import { Event } from "@/classes/Event"
 import { convexBotClient } from "@/services/convexBotClient"
 import { configureRotatingStatus } from "@/services/rotatingStatus"
+import { startTwitchLiveNotificationWorker } from "@/services/twitchLiveNotifications"
 import { botLog, botLogError } from "@/utils/botLog"
 import {
   createGuildSnapshot,
@@ -24,6 +25,7 @@ export default new Event({
   once: true,
   async execute(client) {
     await handleClientReady(client)
+    startTwitchLiveNotificationWorker(client)
   },
 })
 

@@ -8,6 +8,11 @@ import { TwitchApi, TwitchFailure } from "./api"
 import { ensureBotGrant, GrantStore } from "./grantStore"
 import { writeReadiness, type ReadinessState } from "./readiness"
 import { reconcileChatSubscription } from "./subscriptions"
+import {
+  loadLiveSources,
+  reconcileLiveSubscriptions,
+  type LiveSubscriptionState,
+} from "./liveSubscriptions"
 
 export type RuntimeDependencies = {
   createApi: (signal: AbortSignal) => TwitchApi
@@ -18,6 +23,8 @@ export type RuntimeDependencies = {
   sleep?: (milliseconds: number, signal: AbortSignal) => Promise<void>
   now?: () => number
   pid?: number
+  loadLive?: typeof loadLiveSources
+  reconcileLive?: typeof reconcileLiveSubscriptions
 }
 
 export async function runRuntime(
@@ -54,6 +61,7 @@ export async function runRuntime(
     })
   let appToken: string | undefined
   let ready = false
+  let liveStates: LiveSubscriptionState[] = []
   try {
     await state("starting")
     while (!signal.aborted) {
@@ -81,6 +89,33 @@ export async function runRuntime(
         callback: config.TWITCH_EVENTSUB_CALLBACK_URL,
         secret: config.TWITCH_EVENTSUB_SECRET,
       })
+      if (config.TWITCH_RUNTIME_CONVEX_SECRET) {
+        try {
+          const ids = await (dependencies.loadLive ?? loadLiveSources)(
+            config.TWITCH_EVENTSUB_CALLBACK_URL,
+            config.TWITCH_RUNTIME_CONVEX_SECRET,
+            liveStates,
+            operationSignal
+          )
+          liveStates = await (
+            dependencies.reconcileLive ?? reconcileLiveSubscriptions
+          )(
+            api,
+            appToken,
+            ids,
+            config.TWITCH_EVENTSUB_CALLBACK_URL,
+            config.TWITCH_EVENTSUB_SECRET
+          )
+        } catch (error) {
+          liveStates = liveStates.map((entry) => ({
+            ...entry,
+            status: "unavailable",
+          }))
+          logger.error("Twitch live subscription reconciliation failed", {
+            error: serializeLogError(error),
+          })
+        }
+      }
       if (!ready && now() - startedAt >= config.TWITCH_STARTUP_TIMEOUT_MS)
         throw new TwitchFailure("startupTimeout")
       if (subscription.status === "ready") {

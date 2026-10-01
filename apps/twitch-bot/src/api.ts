@@ -139,12 +139,23 @@ export class TwitchApi {
   }
 
   async listChatSubscriptions(appToken: string): Promise<ChatSubscription[]> {
+    return this.listSubscriptions(appToken, "channel.chat.message")
+  }
+
+  async listOnlineSubscriptions(appToken: string): Promise<ChatSubscription[]> {
+    return this.listSubscriptions(appToken, "stream.online")
+  }
+
+  private async listSubscriptions(
+    appToken: string,
+    type: string
+  ): Promise<ChatSubscription[]> {
     const subscriptions: ChatSubscription[] = []
     const cursors = new Set<string>()
     let cursor: string | undefined
     do {
       const url = new URL("https://api.twitch.tv/helix/eventsub/subscriptions")
-      url.searchParams.set("type", "channel.chat.message")
+      url.searchParams.set("type", type)
       if (cursor) url.searchParams.set("after", cursor)
       const page = await this.request(
         subscriptionsSchema,
@@ -179,6 +190,30 @@ export class TwitchApi {
             broadcaster_user_id: config.broadcasterId,
             user_id: config.botId,
           },
+          transport: {
+            method: "webhook",
+            callback: config.callback,
+            secret: config.secret,
+          },
+        }),
+      }
+    )
+  }
+
+  async createOnlineSubscription(
+    appToken: string,
+    config: Omit<ChatSubscriptionConfig, "botId">
+  ): Promise<void> {
+    await this.request(
+      subscriptionsSchema,
+      "https://api.twitch.tv/helix/eventsub/subscriptions",
+      {
+        ...this.helixHeaders(appToken),
+        method: "POST",
+        body: JSON.stringify({
+          type: "stream.online",
+          version: "1",
+          condition: { broadcaster_user_id: config.broadcasterId },
           transport: {
             method: "webhook",
             callback: config.callback,

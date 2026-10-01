@@ -17,6 +17,70 @@ import { createGrant } from "./grantStore"
 import type { ReadinessState } from "./readiness"
 import { runRuntime } from "./runtime"
 
+test("configured live sources reconcile dynamically and failures do not stop bootstrap chat health", async (t) => {
+  await withGrant(async (store) => {
+    await store.write(createGrant(botToken, apiConfig))
+    const config = {
+      ...runtimeEnv(store.path),
+      TWITCH_RUNTIME_CONVEX_SECRET: "test-live-secret",
+    }
+    const abort = new AbortController()
+    let calls = 0
+    const logs: string[] = []
+    t.mock.method(
+      globalThis,
+      "fetch",
+      httpFake(() => {
+        if (++calls === 2) throw new Error("live sources offline")
+        return json({ broadcasterIds: ["333"] })
+      })
+    )
+    let sleeps = 0
+    await runRuntime(config, {
+      store,
+      createApi: (signal) => new TwitchApi(apiConfig, runtimeHttp(), signal),
+      signal: abort.signal,
+      logger: {
+        ...silentLogger,
+        error: (message) => {
+          logs.push(message)
+        },
+      },
+      writeState: async () => undefined,
+      sleep: async () => {
+        if (++sleeps === 3) abort.abort()
+      },
+    })
+    assert.equal(calls, 3)
+    assert.deepEqual(logs, ["Twitch live subscription reconciliation failed"])
+  })
+  await withGrant(async (store) => {
+    await store.write(createGrant(botToken, apiConfig))
+    const abort = new AbortController()
+    await runRuntime(
+      {
+        ...runtimeEnv(store.path),
+        TWITCH_RUNTIME_CONVEX_SECRET: "test-live-secret",
+      },
+      {
+        store,
+        createApi: (signal) => new TwitchApi(apiConfig, runtimeHttp(), signal),
+        signal: abort.signal,
+        logger: silentLogger,
+        writeState: async () => undefined,
+        loadLive: async () => ["444"],
+        reconcileLive: async (_api, _token, ids) => {
+          assert.deepEqual(ids, ["444"])
+          return []
+        },
+        sleep: async () => {
+          abort.abort()
+        },
+      }
+    )
+  })
+})
+
 test("failed unhealthy persistence preserves the original failure and logs sanitized diagnostics", async () => {
   await withGrant(async (store) => {
     const original = new Error("state failed token=test-only-private")
@@ -263,6 +327,10 @@ test("startup deadline aborts a stalled Twitch request and writes unhealthy stat
     const stalled = httpFake(
       (_url, init) =>
         new Promise((_resolve, reject) => {
+          if (init.signal?.aborted) {
+            reject(new Error("aborted"))
+            return
+          }
           init.signal?.addEventListener(
             "abort",
             () => reject(new Error("aborted")),

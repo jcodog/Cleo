@@ -19,6 +19,7 @@ export const backendEnv = createEnv({
     DISCORD_BOT_CONVEX_SECRET: optionalString,
     DISCORD_BOT_TOKEN: optionalString,
     TWITCH_EVENTSUB_SECRET: twitchEventSubSecret.optional(),
+    TWITCH_RUNTIME_CONVEX_SECRET: optionalString,
   },
   runtimeEnv: process.env,
 })

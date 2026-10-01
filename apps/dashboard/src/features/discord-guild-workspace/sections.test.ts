@@ -20,6 +20,7 @@ test("guild workspace sections are unique and all have labels", () => {
   assert.deepEqual(DISCORD_GUILD_SECTIONS, [
     "overview",
     "welcome",
+    "live-notifications",
     "moderation",
     "support",
     "logs",

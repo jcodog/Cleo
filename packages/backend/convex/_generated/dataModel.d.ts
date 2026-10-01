@@ -1982,6 +1982,36 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  guildLiveNotificationConfigs: {
+    document: {
+      createdAt: number;
+      guildId: Id<"guilds">;
+      liveNotificationChannelId?: string;
+      liveNotificationMentionMode: "none" | "everyone" | "role";
+      liveNotificationRoleId?: string;
+      liveNotificationsEnabled: boolean;
+      updatedAt: number;
+      _id: Id<"guildLiveNotificationConfigs">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "createdAt"
+      | "guildId"
+      | "liveNotificationChannelId"
+      | "liveNotificationMentionMode"
+      | "liveNotificationRoleId"
+      | "liveNotificationsEnabled"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_guild_id: ["guildId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   guilds: {
     document: {
       botInstallationVerifiedAt?: number;
@@ -2243,6 +2273,123 @@ export type DataModel = {
         "_creationTime",
       ];
       by_scope_and_updated_at: ["scope", "updatedAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchLiveDeliveries: {
+    document: {
+      attempts: number;
+      broadcasterId: string;
+      category?: string;
+      claim?: string;
+      claimExpiresAt?: number;
+      createdAt: number;
+      displayName: string;
+      eventId: Id<"twitchLiveEvents">;
+      failure?: string;
+      guildId: Id<"guilds">;
+      login: string;
+      messageId?: string;
+      startedAt: string;
+      state:
+        | "pending"
+        | "claimed"
+        | "sending"
+        | "sent"
+        | "failed"
+        | "uncertain"
+        | "cancelled";
+      streamId: string;
+      title?: string;
+      updatedAt: number;
+      _id: Id<"twitchLiveDeliveries">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "attempts"
+      | "broadcasterId"
+      | "category"
+      | "claim"
+      | "claimExpiresAt"
+      | "createdAt"
+      | "displayName"
+      | "eventId"
+      | "failure"
+      | "guildId"
+      | "login"
+      | "messageId"
+      | "startedAt"
+      | "state"
+      | "streamId"
+      | "title"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_guild_state: ["guildId", "state", "_creationTime"];
+      by_guild_stream: [
+        "guildId",
+        "broadcasterId",
+        "streamId",
+        "_creationTime",
+      ];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchLiveEvents: {
+    document: {
+      attempts: number;
+      broadcasterId: string;
+      createdAt: number;
+      displayName: string;
+      failure?: string;
+      login: string;
+      messageId: string;
+      startedAt: string;
+      state: "pending" | "processed" | "failed";
+      streamId: string;
+      _id: Id<"twitchLiveEvents">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "attempts"
+      | "broadcasterId"
+      | "createdAt"
+      | "displayName"
+      | "failure"
+      | "login"
+      | "messageId"
+      | "startedAt"
+      | "state"
+      | "streamId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_broadcaster_stream: ["broadcasterId", "streamId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchLiveSubscriptions: {
+    document: {
+      broadcasterId: string;
+      checkedAt: number;
+      status: "ready" | "pending" | "unavailable";
+      _id: Id<"twitchLiveSubscriptions">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      "_creationTime" | "_id" | "broadcasterId" | "checkedAt" | "status";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_broadcaster: ["broadcasterId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

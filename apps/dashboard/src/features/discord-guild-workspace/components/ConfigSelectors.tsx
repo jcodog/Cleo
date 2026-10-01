@@ -218,3 +218,62 @@ export function DiscordRoleMultiSelect({
     </Field>
   )
 }
+
+export function DiscordRoleSelect({
+  disabled,
+  onChange,
+  optionsState,
+  value,
+}: {
+  disabled: boolean
+  onChange: (value: string) => void
+  optionsState: OptionsState
+  value: string
+}) {
+  const roles =
+    optionsState.options?.roles.filter((role) => role.name !== "@everyone") ??
+    []
+  const selected = getSelectedOptionState(roles, value)
+  return (
+    <Field data-disabled={disabled}>
+      <FieldLabel>Custom role</FieldLabel>
+      <Select
+        disabled={disabled || optionsState.status !== "ready"}
+        value={value || null}
+        onValueChange={(next) => onChange(next ?? "")}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue
+            placeholder={
+              optionsState.status === "loading"
+                ? "Loading Discord roles…"
+                : optionsState.status === "unavailable"
+                  ? "Discord roles unavailable"
+                  : "Select a role"
+            }
+          >
+            {selected.option?.name ??
+              (selected.missing ? `Missing role · ${value}` : undefined)}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {selected.missing && (
+              <SelectItem value={value}>Missing role · {value}</SelectItem>
+            )}
+            {roles.map((role) => (
+              <SelectItem key={role.id} value={role.id}>
+                {role.name}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <FieldDescription>
+        {selected.missing
+          ? "The saved role is no longer visible to Cleo. Select a replacement; it remains saved until you save."
+          : "Cleo mentions only this role. It must be mentionable or Cleo must have permission to mention roles."}
+      </FieldDescription>
+    </Field>
+  )
+}

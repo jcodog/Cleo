@@ -44,6 +44,10 @@ export const DISCORD_GUILD_RUNTIME_CONFIG_REQUIRED_FIELD_NAMES = [
 ] as const
 
 export const DISCORD_GUILD_RUNTIME_CONFIG_OPTIONAL_FIELD_NAMES = [
+  "liveNotificationsEnabled",
+  "liveNotificationChannelId",
+  "liveNotificationMentionMode",
+  "liveNotificationRoleId",
   "logLevel",
   "logChannelId",
   "modLogChannelId",
@@ -86,6 +90,10 @@ export type DiscordGuildRuntimeConfigDisabledReason =
   | LocalDiscordGuildRuntimeConfigDisabledReason
 
 export type DiscordGuildRuntimeConfig = {
+  liveNotificationsEnabled?: boolean
+  liveNotificationChannelId?: string
+  liveNotificationMentionMode?: "none" | "everyone" | "role"
+  liveNotificationRoleId?: string
   discordGuildId: string
   moderationEnabled: boolean
   welcomeEnabled: boolean
@@ -308,6 +316,44 @@ function validateDiscordGuildRuntimeConfig(
   }
 
   const logLevel = value.logLevel
+  const liveNotificationsEnabled = value.liveNotificationsEnabled
+  const liveNotificationMentionMode = value.liveNotificationMentionMode
+  if (
+    liveNotificationsEnabled !== undefined &&
+    typeof liveNotificationsEnabled !== "boolean"
+  )
+    return validationError("Invalid live notification enabled state.")
+  if (
+    liveNotificationMentionMode !== undefined &&
+    liveNotificationMentionMode !== "none" &&
+    liveNotificationMentionMode !== "everyone" &&
+    liveNotificationMentionMode !== "role"
+  )
+    return validationError("Invalid live notification mention mode.")
+  const liveNotificationChannelId = validateOptionalDiscordSnowflake(
+    "liveNotificationChannelId",
+    value.liveNotificationChannelId
+  )
+  if (!liveNotificationChannelId.success) return liveNotificationChannelId
+  const liveNotificationRoleId = validateOptionalDiscordSnowflake(
+    "liveNotificationRoleId",
+    value.liveNotificationRoleId
+  )
+  if (!liveNotificationRoleId.success) return liveNotificationRoleId
+  if (
+    liveNotificationsEnabled &&
+    (!liveNotificationChannelId.data || !liveNotificationMentionMode)
+  )
+    return validationError(
+      "Enabled live notifications need a channel and mention mode."
+    )
+  if (liveNotificationMentionMode === "role" && !liveNotificationRoleId.data)
+    return validationError("Live role notifications need a role.")
+  if (
+    liveNotificationMentionMode !== "role" &&
+    liveNotificationRoleId.data !== undefined
+  )
+    return validationError("Live notification role requires role mention mode.")
 
   if (
     logLevel !== undefined &&
@@ -416,6 +462,18 @@ function validateDiscordGuildRuntimeConfig(
       welcomeEnabled,
       loggingEnabled,
       supportEnabled,
+      ...(liveNotificationsEnabled !== undefined
+        ? { liveNotificationsEnabled }
+        : {}),
+      ...(liveNotificationMentionMode !== undefined
+        ? { liveNotificationMentionMode }
+        : {}),
+      ...(liveNotificationChannelId.data !== undefined
+        ? { liveNotificationChannelId: liveNotificationChannelId.data }
+        : {}),
+      ...(liveNotificationRoleId.data !== undefined
+        ? { liveNotificationRoleId: liveNotificationRoleId.data }
+        : {}),
       ...(logLevel !== undefined ? { logLevel } : {}),
       ...(logChannelId.data !== undefined
         ? { logChannelId: logChannelId.data }
