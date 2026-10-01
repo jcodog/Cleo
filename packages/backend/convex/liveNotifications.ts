@@ -510,6 +510,18 @@ async function claimDelivery(
       failure: "targetNoLongerEligible",
       updatedAt: Date.now(),
     })
+    if (guild)
+      await insertGuildAuditEvent(ctx, {
+        guild,
+        source: "bot-action",
+        eventType: "bot.twitch_live_notification.cancelled",
+        summary: "Twitch live notification target no longer eligible",
+        metadata: {
+          deliveryId: delivery._id,
+          streamId: delivery.streamId,
+          failure: "targetNoLongerEligible",
+        },
+      })
     return null
   }
   if (!reserve) return null
@@ -554,7 +566,10 @@ export const claimBatch = internalMutation({
       const guildId =
         delivery.discordGuildId ??
         (await ctx.db.get(delivery.guildId))?.discordGuildId
-      if (!guildId || !allowed.has(guildId)) continue
+      if (!guildId || !allowed.has(guildId)) {
+        await claimDelivery(ctx, job, owners, false)
+        continue
+      }
       const claimed = await claimDelivery(ctx, job, owners, results.length < 4)
       if (claimed) results.push(claimed)
     }

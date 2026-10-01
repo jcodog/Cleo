@@ -134,9 +134,13 @@ export function startTwitchLiveNotificationWorker(client: Client<true>): void {
   let running = false
   let stopped = false
   let cursor: string | null = null
+  let continuation: ReturnType<typeof setTimeout> | undefined
   const tick = async () => {
     if (running || stopped || !client.isReady()) return
+    if (continuation) clearTimeout(continuation)
+    continuation = undefined
     running = true
+    let again = false
     try {
       const guildIds = [...client.guilds.cache.keys()]
       if (!guildIds.length) return
@@ -146,8 +150,9 @@ export function startTwitchLiveNotificationWorker(client: Client<true>): void {
       )
       if (!page) return
       cursor = page.continueCursor
+      again = page.deliveries.length === 4 || page.continueCursor !== null
       let next = 0
-      // Fixed worker pool keeps the 20-job claim batch inside its lease.
+      // Four workers start the four claimed jobs inside their fresh leases.
       await Promise.all(
         Array.from(
           { length: Math.min(4, page.deliveries.length) },
@@ -163,6 +168,14 @@ export function startTwitchLiveNotificationWorker(client: Client<true>): void {
       botLogError("Twitch live notification worker failed.", error)
     } finally {
       running = false
+      if (again && !stopped) {
+        if (continuation) clearTimeout(continuation)
+        // Bound busy-queue request frequency without waiting for the idle poll.
+        continuation = setTimeout(() => {
+          void tick()
+        }, 250)
+        continuation.unref()
+      }
     }
   }
   const timer = setInterval(() => {
@@ -173,6 +186,7 @@ export function startTwitchLiveNotificationWorker(client: Client<true>): void {
     stopped = true
     workers.delete(client)
     clearInterval(timer)
+    if (continuation) clearTimeout(continuation)
   })
   void tick()
 }

@@ -1128,6 +1128,66 @@ test("queue claims are bounded to pending work, preserve runtime guild ownership
   )
 })
 
+test("queue cancels departed and deleted foreign guilds but leaves eligible foreign work pending", async () => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  const id = await receiveEvent(f.t, event)
+  await f.t.action(internal.liveNotificationActions.processEvent, {
+    eventId: id,
+  })
+  const template = await f.t.run((ctx) =>
+    ctx.db.query("twitchLiveDeliveries").unique()
+  )
+  assert.ok(template)
+  const { _id: _id, _creationTime: _creationTime, ...fields } = template
+  const foreign = await f.t.run(async (ctx) => {
+    const result = []
+    const { discordGuildId: _discordGuildId, ...liveConfig } = config
+    for (const state of ["eligible", "left", "deleted"] as const) {
+      const guildId = await ctx.db.insert("guilds", {
+        discordGuildId: `foreign-${state}`,
+        ownerDiscordId,
+        name: state,
+        createdAt: 1,
+        updatedAt: 1,
+        ...(state === "left" ? { botLeftAt: 2 } : {}),
+      })
+      await ctx.db.insert("guildLiveNotificationConfigs", {
+        guildId,
+        ...liveConfig,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      const deliveryId = await ctx.db.insert("twitchLiveDeliveries", {
+        ...fields,
+        guildId,
+        discordGuildId: `foreign-${state}`,
+      })
+      if (state === "deleted") await ctx.db.delete(guildId)
+      result.push({ deliveryId, state })
+    }
+    return result
+  })
+  await f.t.action(api.liveNotificationActions.claim, {
+    secret,
+    discordGuildIds: [guildDiscordId],
+  })
+  for (const row of foreign)
+    assert.equal(
+      (await f.t.run((ctx) => ctx.db.get(row.deliveryId)))?.state,
+      row.state === "eligible" ? "pending" : "cancelled"
+    )
+  const cancellations = await f.t.run((ctx) =>
+    ctx.db.query("guildAuditEvents").collect()
+  )
+  assert.equal(
+    cancellations.filter(
+      (entry) => entry.eventType === "bot.twitch_live_notification.cancelled"
+    ).length,
+    1
+  )
+})
+
 test("send reservation rejects linked authority changed while provider verification was in flight", async () => {
   const f = await fixture()
   await f.manager.action(api.liveNotificationActions.update, config)

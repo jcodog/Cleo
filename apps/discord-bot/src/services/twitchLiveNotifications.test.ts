@@ -293,3 +293,60 @@ test("live worker starts an immediate bounded claim, avoids duplicate workers, r
   t.mock.timers.tick(15000)
   assert.equal(claims, 2)
 })
+
+test("busy worker drains full batches and foreign pages without waiting for idle polling", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval", "setTimeout"] })
+  const f = fixture()
+  const client = Object.assign(f.client, {
+    isReady: () => true,
+    destroy() {},
+  }) as Client<true>
+  let claims = 0
+  t.mock.method(
+    convexBotClient,
+    "claimLiveNotifications",
+    async (_guilds: string[], cursor?: string | null) => {
+      claims++
+      if (claims === 1)
+        return {
+          deliveries: Array.from({ length: 4 }, (_, index) => ({
+            ...f.job,
+            _id: `job-${index}`,
+          })) as Job[],
+          continueCursor: null,
+        }
+      if (claims === 2)
+        return { deliveries: [], continueCursor: "foreign-page" }
+      assert.equal(cursor, "foreign-page")
+      return { deliveries: [], continueCursor: null }
+    }
+  )
+  t.mock.method(
+    convexBotClient,
+    "beginLiveNotification",
+    f.backend.beginLiveNotification
+  )
+  t.mock.method(
+    convexBotClient,
+    "finishLiveNotification",
+    f.backend.finishLiveNotification
+  )
+  startTwitchLiveNotificationWorker(client)
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(f.sent.length, 4)
+  assert.equal(claims, 1)
+  t.mock.timers.tick(250)
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(claims, 2)
+  t.mock.timers.tick(250)
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(claims, 3)
+  t.mock.timers.tick(250)
+  assert.equal(claims, 3)
+  await shutdownDiscordBot({
+    client,
+    reason: "SIGTERM",
+    exitCode: 0,
+    exit() {},
+  })
+})
