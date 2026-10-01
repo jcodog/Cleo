@@ -88,6 +88,13 @@ expect_failure() { if "$@"; then echo 'Expected deployment failure.' >&2; exit 1
 [[ "$(bash "$controller" contract-version)" == 3 ]]
 grep -Fx 'ConditionPathIsDirectory=/srv/cleo/twitch-bot/current' "$repository/ops/twitch/systemd/cleo-twitch.service" >/dev/null
 grep -F '/usr/bin/systemctl reset-failed cleo-twitch.service' "$repository/ops/twitch/sudoers/cleo-twitch-deploy" >/dev/null
+ingress="$repository/ops/twitch/nginx/eventsub.conf.example"
+grep -F 'listen 443 ssl;' "$ingress" >/dev/null
+grep -F 'ssl_certificate_key /etc/letsencrypt/live/YOUR_TWITCH_HOST/privkey.pem;' "$ingress" >/dev/null
+grep -F 'location = /eventsub {' "$ingress" >/dev/null
+grep -F 'limit_except POST { deny all; }' "$ingress" >/dev/null
+grep -F 'proxy_pass http://127.0.0.1:8087/eventsub;' "$ingress" >/dev/null
+grep -F 'location / { return 404; }' "$ingress" >/dev/null
 
 # Interrupted first deployment has no rollback target and must stop cleanly.
 export TEST_INTERRUPT_ON_RESTART=true

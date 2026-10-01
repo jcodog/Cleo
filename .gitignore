@@ -47,3 +47,5 @@ certificates
 *.twitch-grant.json.*
 *.twitch-readiness.json
 *.twitch-readiness.json.*
+
+*-log.md
