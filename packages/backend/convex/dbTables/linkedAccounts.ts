@@ -20,6 +20,7 @@ export const linkedAccounts = defineTable({
   updatedAt: v.number(),
 })
   .index("by_user_id", ["userId"])
+  .index("by_user_provider", ["userId", "provider"])
   .index("by_provider_and_provider_account_id", [
     "provider",
     "providerAccountId",

@@ -3,7 +3,12 @@ import { test } from "node:test"
 
 import type { GuildSnapshot } from "@/utils/createGuildSnapshot"
 
-import { formatReadySyncScopeLog, handleClientReady } from "./clientReady"
+import clientReady, {
+  formatReadySyncScopeLog,
+  handleClientReady,
+} from "./clientReady"
+import { convexBotClient } from "@/services/convexBotClient"
+import { shutdownDiscordBot } from "@/runtime/shutdown"
 
 type SyncReadyCall = {
   guilds: GuildSnapshot[]
@@ -44,6 +49,36 @@ function createClient(guilds = [createGuild()]) {
     },
   }
 }
+
+test("default READY starts live claims before a stalled initial guild sync completes", async (t) => {
+  let release: () => void = () => {}
+  const stalled = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let claims = 0
+  t.mock.method(convexBotClient, "syncReadyGuilds", async () => stalled)
+  t.mock.method(convexBotClient, "claimLiveNotifications", async () => {
+    claims++
+    return { deliveries: [], continueCursor: null }
+  })
+  const fake = createClient()
+  const client = {
+    ...fake,
+    user: { ...fake.user, setPresence() {} },
+    isReady: () => true,
+    destroy() {},
+  } as never
+  const ready = clientReady.execute(client)
+  assert.equal(claims, 1)
+  release()
+  await ready
+  await shutdownDiscordBot({
+    client,
+    reason: "SIGTERM",
+    exitCode: 0,
+    exit() {},
+  })
+})
 
 test("clientReady logs ready state and syncs guild snapshots to Convex", async () => {
   const calls: SyncReadyCall[] = []

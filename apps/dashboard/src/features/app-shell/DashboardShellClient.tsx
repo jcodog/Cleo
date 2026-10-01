@@ -11,6 +11,7 @@ import {
   IconShield,
   IconShieldLock,
   IconSparkles,
+  IconBroadcast,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { type Preloaded, useConvexAuth, usePreloadedQuery } from "convex/react"
@@ -145,6 +146,17 @@ export function DashboardShellClient({
             activeDiscordGuildId !== undefined &&
             pathname.startsWith(
               `/dashboard/${activeDiscordGuildId}/moderation`
+            ),
+          disabled: !hasSelectedDiscordGuild,
+        },
+        {
+          title: "Live notifications",
+          href: discordGuildSectionHref("live-notifications"),
+          icon: IconBroadcast,
+          isActive:
+            activeDiscordGuildId !== undefined &&
+            pathname.startsWith(
+              `/dashboard/${activeDiscordGuildId}/live-notifications`
             ),
           disabled: !hasSelectedDiscordGuild,
         },

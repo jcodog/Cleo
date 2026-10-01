@@ -4,11 +4,20 @@ import { twitchEventSubSecret } from "@workspace/env/twitch"
 const MAX_BODY_BYTES = 1024 * 1024
 const REPLAY_WINDOW_MS = 10 * 60 * 1000
 const logger = createLogger("twitch-eventsub")
+export type TwitchOnlineEvent = {
+  broadcasterId: string
+  streamId: string
+  messageId: string
+  login: string
+  displayName: string
+  startedAt: string
+}
 
 export async function handleTwitchWebhook(
   request: Request,
   secret: string | undefined,
-  now = Date.now()
+  now = Date.now(),
+  onOnline?: (event: TwitchOnlineEvent) => Promise<unknown>
 ): Promise<Response> {
   if (!twitchEventSubSecret.safeParse(secret).success || !secret)
     return new Response("Webhook unavailable.", { status: 503 })
@@ -64,11 +73,14 @@ export async function handleTwitchWebhook(
     !isRecord(value) ||
     !isRecord(value.subscription) ||
     typeof value.subscription.id !== "string" ||
-    value.subscription.type !== "channel.chat.message" ||
+    !["channel.chat.message", "stream.online"].includes(
+      String(value.subscription.type)
+    ) ||
     value.subscription.version !== "1" ||
     !isRecord(value.subscription.condition) ||
     typeof value.subscription.condition.broadcaster_user_id !== "string" ||
-    typeof value.subscription.condition.user_id !== "string"
+    (value.subscription.type === "channel.chat.message" &&
+      typeof value.subscription.condition.user_id !== "string")
   )
     return new Response("Invalid webhook subscription.", { status: 400 })
   const type = request.headers.get("Twitch-Eventsub-Message-Type")
@@ -92,6 +104,45 @@ export async function handleTwitchWebhook(
   if (type === "notification") {
     if (!isRecord(value.event))
       return new Response("Invalid notification.", { status: 400 })
+    if (value.subscription.type === "stream.online") {
+      const event = value.event
+      if (
+        typeof event.id !== "string" ||
+        !/^[1-9]\d*$/.test(event.id) ||
+        event.broadcaster_user_id !==
+          value.subscription.condition.broadcaster_user_id ||
+        typeof event.broadcaster_user_id !== "string" ||
+        !/^[1-9]\d*$/.test(event.broadcaster_user_id) ||
+        typeof event.broadcaster_user_login !== "string" ||
+        !/^[a-zA-Z0-9_]{1,25}$/.test(event.broadcaster_user_login) ||
+        typeof event.broadcaster_user_name !== "string" ||
+        event.broadcaster_user_name.length > 100 ||
+        !["live", "playlist", "watch_party", "premiere", "rerun"].includes(
+          String(event.type)
+        ) ||
+        typeof event.started_at !== "string" ||
+        !Number.isFinite(Date.parse(event.started_at))
+      )
+        return new Response("Invalid online event.", { status: 400 })
+      if (!onOnline)
+        return new Response("Live notifications unavailable.", { status: 503 })
+      try {
+        await onOnline({
+          broadcasterId: event.broadcaster_user_id,
+          streamId: event.id,
+          messageId: id,
+          login: event.broadcaster_user_login.toLowerCase(),
+          displayName: event.broadcaster_user_name,
+          startedAt: event.started_at,
+        })
+      } catch {
+        logger.error("Twitch live notification could not be persisted", {
+          messageId: id,
+        })
+        return new Response("Live notifications unavailable.", { status: 503 })
+      }
+      return new Response(null, { status: 204 })
+    }
     // No chat side effects or stored chat content. Valid redelivery is harmless.
     logger.debug("Twitch chat notification acknowledged", {
       subscriptionId: value.subscription.id,
@@ -99,15 +150,19 @@ export async function handleTwitchWebhook(
     return new Response(null, { status: 204 })
   }
   if (type === "revocation") {
-    logger.warn("Twitch chat subscription revoked", {
+    logger.warn("Twitch EventSub subscription revoked", {
       subscriptionId: value.subscription.id,
+      subscriptionType: value.subscription.type,
     })
     return new Response(null, { status: 204 })
   }
   return new Response("Unsupported webhook message.", { status: 400 })
 }
 
-async function boundedBody(request: Request): Promise<Uint8Array> {
+export async function boundedBody(
+  request: Request,
+  maxBytes = MAX_BODY_BYTES
+): Promise<Uint8Array> {
   if (!request.body) return new Uint8Array()
   const reader = request.body.getReader()
   const chunks: Uint8Array[] = []
@@ -117,7 +172,7 @@ async function boundedBody(request: Request): Promise<Uint8Array> {
       const result = await reader.read()
       if (result.done) break
       size += result.value.byteLength
-      if (size > MAX_BODY_BYTES) {
+      if (size > maxBytes) {
         await reader.cancel()
         throw new Error("Body too large.")
       }

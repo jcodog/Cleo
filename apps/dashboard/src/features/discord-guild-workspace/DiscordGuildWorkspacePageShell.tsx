@@ -32,6 +32,7 @@ import { OverviewSection } from "./sections/OverviewSection"
 import { SettingsSection } from "./sections/SettingsSection"
 import { SupportSection } from "./sections/SupportSection"
 import { WelcomeSection } from "./sections/WelcomeSection"
+import { LiveNotificationsSection } from "./sections/LiveNotificationsSection"
 import {
   DISCORD_GUILD_SECTION_TITLES,
   type DiscordGuildSection,
@@ -203,6 +204,14 @@ function WorkspaceSection({
   }`
 
   switch (section) {
+    case "live-notifications":
+      return (
+        <LiveNotificationsSection
+          key={sectionKey}
+          isBotLeft={isBotLeft}
+          overview={overview}
+        />
+      )
     case "overview":
       return <OverviewSection isBotLeft={isBotLeft} overview={overview} />
     case "welcome":

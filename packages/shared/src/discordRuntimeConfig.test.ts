@@ -13,6 +13,56 @@ import {
 
 const guildId = "123456789012345678"
 
+test("live notification runtime fields accept only coherent destinations and controlled mentions", () => {
+  const base = {
+    discordGuildId: guildId,
+    moderationEnabled: false,
+    welcomeEnabled: false,
+    loggingEnabled: false,
+    supportEnabled: false,
+  }
+  const validate = (patch: Record<string, unknown>) =>
+    validateBackendDiscordGuildRuntimeConfigResult({
+      status: "ready",
+      config: { ...base, ...patch },
+    })
+  for (const mode of ["none", "everyone", "role"]) {
+    assert.equal(
+      validate({
+        liveNotificationsEnabled: true,
+        liveNotificationChannelId: guildId,
+        liveNotificationMentionMode: mode,
+        ...(mode === "role"
+          ? { liveNotificationRoleId: "234567890123456789" }
+          : {}),
+      }).success,
+      true
+    )
+  }
+  assert.equal(
+    validate({
+      liveNotificationsEnabled: false,
+      liveNotificationMentionMode: "none",
+    }).success,
+    true
+  )
+  for (const patch of [
+    { liveNotificationsEnabled: "yes" },
+    { liveNotificationMentionMode: "users" },
+    { liveNotificationChannelId: "123" },
+    { liveNotificationRoleId: "123" },
+    { liveNotificationsEnabled: true },
+    { liveNotificationsEnabled: true, liveNotificationChannelId: guildId },
+    { liveNotificationMentionMode: "role" },
+    { liveNotificationMentionMode: "none", liveNotificationRoleId: guildId },
+    {
+      liveNotificationMentionMode: "everyone",
+      liveNotificationRoleId: guildId,
+    },
+  ])
+    assert.equal(validate(patch).success, false)
+})
+
 const validConfig = {
   discordGuildId: guildId,
   moderationEnabled: false,
@@ -57,6 +107,10 @@ test("runtime-config contract exposes stable variants and field names", () => {
     "welcomeEnabled",
     "loggingEnabled",
     "supportEnabled",
+    "liveNotificationsEnabled",
+    "liveNotificationChannelId",
+    "liveNotificationMentionMode",
+    "liveNotificationRoleId",
     "logLevel",
     "logChannelId",
     "modLogChannelId",

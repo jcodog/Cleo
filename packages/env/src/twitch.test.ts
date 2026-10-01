@@ -21,6 +21,14 @@ const runtime = {
 }
 
 test("Twitch environment keeps credentials scoped and supplies bounded defaults", () => {
+  for (const value of [undefined, "", "   ", "runtime-secret"])
+    assert.equal(
+      resolveTwitchRuntimeEnv({
+        ...runtime,
+        TWITCH_RUNTIME_CONVEX_SECRET: value,
+      }).TWITCH_RUNTIME_CONVEX_SECRET,
+      value?.trim() || undefined
+    )
   const parsed = resolveTwitchCredentials({
     ...credentials,
     NODE_ENV: "production",

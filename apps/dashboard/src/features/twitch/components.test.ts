@@ -101,6 +101,7 @@ test("actual Twitch callback and workspace handle provider evidence, actions and
   t.mock.module("@clerk/nextjs", {
     exports: {
       useUser: () => ({ user: hasUser ? user : null, isLoaded: loaded }),
+      useClerk: () => ({ openUserProfile: () => events.push("manageAccount") }),
       useReverification: (action: () => Promise<string>) => action,
     },
   })
@@ -316,6 +317,9 @@ test("actual Twitch callback and workspace handle provider evidence, actions and
       }
       await button(render(TwitchWorkspace), "Connect Twitch").props.onClick?.()
       assert.deepEqual(events, ["assign:https://clerk.example/authorize"])
+      await button(render(TwitchWorkspace), "Manage account").props.onClick?.()
+      assert.equal(events.at(-1), "manageAccount")
+      events.pop()
       assert.equal(
         button(render(TwitchWorkspace), "Connect Twitch").props.disabled,
         true

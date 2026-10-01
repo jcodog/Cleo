@@ -40,7 +40,10 @@ type OptionsState =
   | { status: "ready"; options: DiscordConfigOptions }
   | { status: "unavailable"; options: null }
 
-export function useDiscordConfigOptions(discordGuildId: string): OptionsState {
+export function useDiscordConfigOptions(
+  discordGuildId: string,
+  refreshToken = 0
+): OptionsState {
   const loadOptions = useAction(
     api.actions.dashboard.discord.guilds.configOptions.get
   )
@@ -83,7 +86,7 @@ export function useDiscordConfigOptions(discordGuildId: string): OptionsState {
     return () => {
       active = false
     }
-  }, [discordGuildId, loadOptions])
+  }, [discordGuildId, loadOptions, refreshToken])
 
   return state.discordGuildId === discordGuildId
     ? state
@@ -214,6 +217,67 @@ export function DiscordRoleMultiSelect({
         {missingIds.length > 0
           ? "One or more saved roles no longer exist or are not visible to Cleo. They remain saved until you replace them and save."
           : "New requests mention only these roles."}
+      </FieldDescription>
+    </Field>
+  )
+}
+
+export function DiscordRoleSelect({
+  disabled,
+  onChange,
+  optionsState,
+  value,
+}: {
+  disabled: boolean
+  onChange: (value: string) => void
+  optionsState: OptionsState
+  value: string
+}) {
+  const roles =
+    optionsState.options?.roles.filter((role) => role.name !== "@everyone") ??
+    []
+  const selected = getSelectedOptionState(roles, value)
+  return (
+    <Field data-disabled={disabled}>
+      <FieldLabel htmlFor="live-notification-custom-role">
+        Custom role
+      </FieldLabel>
+      <Select
+        disabled={disabled || optionsState.status !== "ready"}
+        value={value || null}
+        onValueChange={(next) => onChange(next ?? "")}
+      >
+        <SelectTrigger id="live-notification-custom-role" className="w-full">
+          <SelectValue
+            placeholder={
+              optionsState.status === "loading"
+                ? "Loading Discord roles…"
+                : optionsState.status === "unavailable"
+                  ? "Discord roles unavailable"
+                  : "Select a role"
+            }
+          >
+            {selected.option?.name ??
+              (selected.missing ? `Missing role · ${value}` : undefined)}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {selected.missing && (
+              <SelectItem value={value}>Missing role · {value}</SelectItem>
+            )}
+            {roles.map((role) => (
+              <SelectItem key={role.id} value={role.id}>
+                {role.name}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <FieldDescription>
+        {selected.missing
+          ? "The saved role is no longer visible to Cleo. Select a replacement; it remains saved until you save."
+          : "Cleo mentions only this role. It must be mentionable or Cleo must have permission to mention roles."}
       </FieldDescription>
     </Field>
   )

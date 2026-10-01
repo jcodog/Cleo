@@ -1,6 +1,6 @@
 "use client"
 
-import { useReverification, useUser } from "@clerk/nextjs"
+import { useClerk, useReverification, useUser } from "@clerk/nextjs"
 import { IconBrandTwitch } from "@tabler/icons-react"
 import { useAction, useQuery } from "convex/react"
 import { useState } from "react"
@@ -34,6 +34,7 @@ const labels = {
 }
 
 export function TwitchWorkspace() {
+  const clerk = useClerk()
   const { user, isLoaded } = useUser()
   const connection = useQuery(api.queries.dashboard.twitch.connection.get)
   const sync = useAction(api.actions.dashboard.account.syncLinkedAccounts.sync)
@@ -135,6 +136,13 @@ export function TwitchWorkspace() {
           </p>
         )}
         <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={() => clerk.openUserProfile()}
+            disabled={busy}
+          >
+            Manage account
+          </Button>
           <Button onClick={link} disabled={busy}>
             {busy ? (
               <Spinner data-icon="inline-start" />
@@ -149,6 +157,10 @@ export function TwitchWorkspace() {
             </Button>
           )}
         </div>
+        <p className="text-sm text-muted-foreground">
+          Manage account opens your Clerk profile. Use Connect or Reconnect here
+          to grant Cleo's Twitch permission, then sync the connection.
+        </p>
         <p className="text-sm text-muted-foreground">
           Your Discord sign-in stays the same. Cleo's dedicated bot account
           handles chat messages.

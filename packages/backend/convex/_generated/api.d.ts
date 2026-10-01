@@ -95,6 +95,10 @@ export declare const api: {
                   config: {
                     announcementChannelId?: string;
                     discordGuildId: string;
+                    liveNotificationChannelId?: string;
+                    liveNotificationMentionMode?: "none" | "everyone" | "role";
+                    liveNotificationRoleId?: string;
+                    liveNotificationsEnabled?: boolean;
                     logChannelId?: string;
                     logLevel?: "none" | "minimal" | "medium" | "maximum";
                     loggingEnabled: boolean;
@@ -1520,6 +1524,143 @@ export declare const api: {
       };
     };
   };
+  liveNotificationActions: {
+    begin: FunctionReference<
+      "action",
+      "public",
+      {
+        claim: string;
+        configUpdatedAt: number;
+        deliveryId: Id<"twitchLiveDeliveries">;
+        secret: string;
+      },
+      boolean
+    >;
+    claim: FunctionReference<
+      "action",
+      "public",
+      {
+        cursor?: null | string;
+        discordGuildIds: Array<string>;
+        secret: string;
+      },
+      {
+        continueCursor: null | string;
+        deliveries: Array<{
+          _creationTime: number;
+          _id: Id<"twitchLiveDeliveries">;
+          attempts: number;
+          broadcasterId: string;
+          category?: string;
+          claim: string;
+          claimExpiresAt?: number;
+          config: {
+            _creationTime: number;
+            _id: Id<"guildLiveNotificationConfigs">;
+            broadcasterId?: string;
+            createdAt: number;
+            guildId: Id<"guilds">;
+            liveNotificationChannelId?: string;
+            liveNotificationMentionMode: "none" | "everyone" | "role";
+            liveNotificationRoleId?: string;
+            liveNotificationsEnabled: boolean;
+            ownerDiscordId?: string;
+            ownerUserId?: Id<"users">;
+            updatedAt: number;
+          };
+          createdAt: number;
+          discordGuildId: string;
+          displayName: string;
+          eventId: Id<"twitchLiveEvents">;
+          failure?: string;
+          guildId: Id<"guilds">;
+          login: string;
+          messageId?: string;
+          ownerDiscordId?: string;
+          startedAt: string;
+          state:
+            | "pending"
+            | "claimed"
+            | "sending"
+            | "sent"
+            | "failed"
+            | "uncertain"
+            | "cancelled";
+          streamId: string;
+          title?: string;
+          updatedAt: number;
+        }>;
+      }
+    >;
+    finish: FunctionReference<
+      "action",
+      "public",
+      {
+        claim: string;
+        deliveryId: Id<"twitchLiveDeliveries">;
+        failure?: string;
+        messageId?: string;
+        secret: string;
+      },
+      null | boolean
+    >;
+    get: FunctionReference<
+      "action",
+      "public",
+      { discordGuildId: string },
+      {
+        botLeft: boolean;
+        config:
+          | {
+              _creationTime: number;
+              _id: Id<"guildLiveNotificationConfigs">;
+              broadcasterId?: string;
+              createdAt: number;
+              guildId: Id<"guilds">;
+              liveNotificationChannelId?: string;
+              liveNotificationMentionMode: "none" | "everyone" | "role";
+              liveNotificationRoleId?: string;
+              liveNotificationsEnabled: boolean;
+              ownerDiscordId?: string;
+              ownerUserId?: Id<"users">;
+              updatedAt: number;
+            }
+          | {
+              liveNotificationChannelId?: string;
+              liveNotificationMentionMode: "none" | "everyone" | "role";
+              liveNotificationRoleId?: string;
+              liveNotificationsEnabled: boolean;
+            };
+        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
+        isOwner: boolean;
+        source:
+          | {
+              status:
+                "needsLink" | "unavailable" | "stale" | "missingPermission";
+            }
+          | {
+              avatarUrl?: string;
+              broadcasterId: string;
+              displayName: string;
+              login: string;
+              status: "ready";
+            };
+        subscriptionStatus: "ready" | "pending" | "unavailable";
+      }
+    >;
+    update: FunctionReference<
+      "action",
+      "public",
+      {
+        discordGuildId: string;
+        liveNotificationChannelId?: string;
+        liveNotificationMentionMode: "none" | "everyone" | "role";
+        liveNotificationRoleId?: string;
+        liveNotificationsEnabled: boolean;
+      },
+      number
+    >;
+  };
   mutations: {
     dashboard: {
       account: {
@@ -2600,6 +2741,710 @@ export declare const api: {
  * ```
  */
 export declare const internal: {
+  liveNotificationActions: {
+    processEvent: FunctionReference<
+      "action",
+      "internal",
+      { eventId: Id<"twitchLiveEvents"> },
+      null
+    >;
+    runtimeSources: FunctionReference<
+      "action",
+      "internal",
+      { cursor?: null | string },
+      { broadcasterIds: Array<string>; continueCursor: null | string }
+    >;
+  };
+  liveNotifications: {
+    begin: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        claim: string;
+        configUpdatedAt: number;
+        deliveryId: Id<"twitchLiveDeliveries">;
+        expectedOwnerEvidenceKey: string;
+      },
+      boolean
+    >;
+    claim: FunctionReference<
+      "mutation",
+      "internal",
+      { claim: string; deliveryId: Id<"twitchLiveDeliveries"> },
+      null | {
+        _creationTime: number;
+        _id: Id<"twitchLiveDeliveries">;
+        attempts: number;
+        broadcasterId: string;
+        category?: string;
+        claim: string;
+        claimExpiresAt?: number;
+        config: {
+          _creationTime: number;
+          _id: Id<"guildLiveNotificationConfigs">;
+          broadcasterId?: string;
+          createdAt: number;
+          guildId: Id<"guilds">;
+          liveNotificationChannelId?: string;
+          liveNotificationMentionMode: "none" | "everyone" | "role";
+          liveNotificationRoleId?: string;
+          liveNotificationsEnabled: boolean;
+          ownerDiscordId?: string;
+          ownerUserId?: Id<"users">;
+          updatedAt: number;
+        };
+        createdAt: number;
+        discordGuildId: string;
+        displayName: string;
+        eventId: Id<"twitchLiveEvents">;
+        failure?: string;
+        guildId: Id<"guilds">;
+        login: string;
+        messageId?: string;
+        ownerDiscordId?: string;
+        startedAt: string;
+        state:
+          | "pending"
+          | "claimed"
+          | "sending"
+          | "sent"
+          | "failed"
+          | "uncertain"
+          | "cancelled";
+        streamId: string;
+        title?: string;
+        updatedAt: number;
+      }
+    >;
+    claimBatch: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        discordGuildIds: Array<string>;
+        jobs: Array<{ claim: string; deliveryId: Id<"twitchLiveDeliveries"> }>;
+      },
+      Array<{
+        _creationTime: number;
+        _id: Id<"twitchLiveDeliveries">;
+        attempts: number;
+        broadcasterId: string;
+        category?: string;
+        claim: string;
+        claimExpiresAt?: number;
+        config: {
+          _creationTime: number;
+          _id: Id<"guildLiveNotificationConfigs">;
+          broadcasterId?: string;
+          createdAt: number;
+          guildId: Id<"guilds">;
+          liveNotificationChannelId?: string;
+          liveNotificationMentionMode: "none" | "everyone" | "role";
+          liveNotificationRoleId?: string;
+          liveNotificationsEnabled: boolean;
+          ownerDiscordId?: string;
+          ownerUserId?: Id<"users">;
+          updatedAt: number;
+        };
+        createdAt: number;
+        discordGuildId: string;
+        displayName: string;
+        eventId: Id<"twitchLiveEvents">;
+        failure?: string;
+        guildId: Id<"guilds">;
+        login: string;
+        messageId?: string;
+        ownerDiscordId?: string;
+        startedAt: string;
+        state:
+          | "pending"
+          | "claimed"
+          | "sending"
+          | "sent"
+          | "failed"
+          | "uncertain"
+          | "cancelled";
+        streamId: string;
+        title?: string;
+        updatedAt: number;
+      }>
+    >;
+    cleanup: FunctionReference<"mutation", "internal", {}, null>;
+    configured: FunctionReference<
+      "query",
+      "internal",
+      { broadcasterId?: string; cursor?: null | string },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        targets: Array<{
+          check: null | {
+            _creationTime: number;
+            _id: Id<"twitchLiveOwnerChecks">;
+            broadcasterId?: string;
+            checkedAt: number;
+            evidenceKey: string;
+            status: "ready" | "stale" | "missingPermission";
+            userId: Id<"users">;
+          };
+          config: {
+            _creationTime: number;
+            _id: Id<"guildLiveNotificationConfigs">;
+            broadcasterId?: string;
+            createdAt: number;
+            guildId: Id<"guilds">;
+            liveNotificationChannelId?: string;
+            liveNotificationMentionMode: "none" | "everyone" | "role";
+            liveNotificationRoleId?: string;
+            liveNotificationsEnabled: boolean;
+            ownerDiscordId?: string;
+            ownerUserId?: Id<"users">;
+            updatedAt: number;
+          };
+          owner: {
+            discord: {
+              _creationTime: number;
+              _id: Id<"linkedAccounts">;
+              accessTokenSecretId?: string;
+              avatarUrl?: string;
+              createdAt: number;
+              displayName?: string;
+              expiresAt?: number;
+              externalProvider?: string;
+              provider: "discord" | "kick" | "twitch" | "github";
+              providerAccountId: string;
+              refreshTokenSecretId?: string;
+              scopes: Array<string>;
+              updatedAt: number;
+              userId: Id<"users">;
+              username?: string;
+            };
+            guild: {
+              _creationTime: number;
+              _id: Id<"guilds">;
+              botInstallationVerifiedAt?: number;
+              botJoinedAt?: number;
+              botLeftAt?: number;
+              createdAt: number;
+              description?: string;
+              discordGuildId: string;
+              iconHash?: string;
+              iconUrl?: string;
+              lastOpenedAt?: number;
+              lastSyncedAt?: number;
+              memberCount?: number;
+              name: string;
+              ownerDiscordId?: string;
+              presenceCount?: number;
+              readyShardCount?: number;
+              readyShardId?: number;
+              readyShardKey?: string;
+              staffMetricsTracked?: boolean;
+              updatedAt: number;
+            };
+            status: "linked";
+            twitch: {
+              _creationTime: number;
+              _id: Id<"linkedAccounts">;
+              accessTokenSecretId?: string;
+              avatarUrl?: string;
+              createdAt: number;
+              displayName?: string;
+              expiresAt?: number;
+              externalProvider?: string;
+              provider: "discord" | "kick" | "twitch" | "github";
+              providerAccountId: string;
+              refreshTokenSecretId?: string;
+              scopes: Array<string>;
+              updatedAt: number;
+              userId: Id<"users">;
+              username?: string;
+            };
+            twitchAccounts: Array<{
+              _creationTime: number;
+              _id: Id<"linkedAccounts">;
+              accessTokenSecretId?: string;
+              avatarUrl?: string;
+              createdAt: number;
+              displayName?: string;
+              expiresAt?: number;
+              externalProvider?: string;
+              provider: "discord" | "kick" | "twitch" | "github";
+              providerAccountId: string;
+              refreshTokenSecretId?: string;
+              scopes: Array<string>;
+              updatedAt: number;
+              userId: Id<"users">;
+              username?: string;
+            }>;
+            user: {
+              _creationTime: number;
+              _id: Id<"users">;
+              clerkUserId: string;
+              createdAt: number;
+              displayName?: string | null;
+              email: string;
+              imageUrl?: string | null;
+              onboardingCompletedAt?: number;
+              onboardingProvenance?: "pre-rollout" | "post-rollout";
+              onboardingVersion?: number;
+              role: "user" | "staff" | "admin" | "superadmin";
+              status?: "active" | "disabled";
+              updatedAt: number;
+            };
+          };
+        }>;
+      }
+    >;
+    delivery: FunctionReference<
+      "query",
+      "internal",
+      { deliveryId: Id<"twitchLiveDeliveries"> },
+      null | {
+        _creationTime: number;
+        _id: Id<"twitchLiveDeliveries">;
+        attempts: number;
+        broadcasterId: string;
+        category?: string;
+        claim?: string;
+        claimExpiresAt?: number;
+        createdAt: number;
+        discordGuildId?: string;
+        displayName: string;
+        eventId: Id<"twitchLiveEvents">;
+        failure?: string;
+        guildId: Id<"guilds">;
+        login: string;
+        messageId?: string;
+        startedAt: string;
+        state:
+          | "pending"
+          | "claimed"
+          | "sending"
+          | "sent"
+          | "failed"
+          | "uncertain"
+          | "cancelled";
+        streamId: string;
+        title?: string;
+        updatedAt: number;
+      }
+    >;
+    dispatch: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        complete?: boolean;
+        eventId: Id<"twitchLiveEvents">;
+        retry: boolean;
+        targets: Array<{
+          category?: string;
+          displayName: string;
+          guildId: Id<"guilds">;
+          login: string;
+          ownerDiscordId: string;
+          title?: string;
+        }>;
+      },
+      null
+    >;
+    event: FunctionReference<
+      "query",
+      "internal",
+      { eventId: Id<"twitchLiveEvents"> },
+      null | {
+        _creationTime: number;
+        _id: Id<"twitchLiveEvents">;
+        attempts: number;
+        broadcasterId: string;
+        createdAt: number;
+        displayName: string;
+        failure?: string;
+        login: string;
+        messageId: string;
+        startedAt: string;
+        state: "pending" | "processed" | "failed";
+        streamId: string;
+      }
+    >;
+    expire: FunctionReference<
+      "mutation",
+      "internal",
+      { claim: string; deliveryId: Id<"twitchLiveDeliveries"> },
+      null
+    >;
+    finish: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        claim: string;
+        deliveryId: Id<"twitchLiveDeliveries">;
+        failure?: string;
+        messageId?: string;
+      },
+      null | boolean
+    >;
+    managed: FunctionReference<
+      "query",
+      "internal",
+      { discordGuildId: string },
+      {
+        config:
+          | {
+              _creationTime: number;
+              _id: Id<"guildLiveNotificationConfigs">;
+              broadcasterId?: string;
+              createdAt: number;
+              guildId: Id<"guilds">;
+              liveNotificationChannelId?: string;
+              liveNotificationMentionMode: "none" | "everyone" | "role";
+              liveNotificationRoleId?: string;
+              liveNotificationsEnabled: boolean;
+              ownerDiscordId?: string;
+              ownerUserId?: Id<"users">;
+              updatedAt: number;
+            }
+          | {
+              liveNotificationChannelId?: string;
+              liveNotificationMentionMode: "none" | "everyone" | "role";
+              liveNotificationRoleId?: string;
+              liveNotificationsEnabled: boolean;
+            };
+        guild: {
+          _creationTime: number;
+          _id: Id<"guilds">;
+          botInstallationVerifiedAt?: number;
+          botJoinedAt?: number;
+          botLeftAt?: number;
+          createdAt: number;
+          description?: string;
+          discordGuildId: string;
+          iconHash?: string;
+          iconUrl?: string;
+          lastOpenedAt?: number;
+          lastSyncedAt?: number;
+          memberCount?: number;
+          name: string;
+          ownerDiscordId?: string;
+          presenceCount?: number;
+          readyShardCount?: number;
+          readyShardId?: number;
+          readyShardKey?: string;
+          staffMetricsTracked?: boolean;
+          updatedAt: number;
+        };
+        isOwner: boolean;
+        owner:
+          | {
+              discord: {
+                _creationTime: number;
+                _id: Id<"linkedAccounts">;
+                accessTokenSecretId?: string;
+                avatarUrl?: string;
+                createdAt: number;
+                displayName?: string;
+                expiresAt?: number;
+                externalProvider?: string;
+                provider: "discord" | "kick" | "twitch" | "github";
+                providerAccountId: string;
+                refreshTokenSecretId?: string;
+                scopes: Array<string>;
+                updatedAt: number;
+                userId: Id<"users">;
+                username?: string;
+              };
+              guild: {
+                _creationTime: number;
+                _id: Id<"guilds">;
+                botInstallationVerifiedAt?: number;
+                botJoinedAt?: number;
+                botLeftAt?: number;
+                createdAt: number;
+                description?: string;
+                discordGuildId: string;
+                iconHash?: string;
+                iconUrl?: string;
+                lastOpenedAt?: number;
+                lastSyncedAt?: number;
+                memberCount?: number;
+                name: string;
+                ownerDiscordId?: string;
+                presenceCount?: number;
+                readyShardCount?: number;
+                readyShardId?: number;
+                readyShardKey?: string;
+                staffMetricsTracked?: boolean;
+                updatedAt: number;
+              };
+              status: "linked";
+              twitch: {
+                _creationTime: number;
+                _id: Id<"linkedAccounts">;
+                accessTokenSecretId?: string;
+                avatarUrl?: string;
+                createdAt: number;
+                displayName?: string;
+                expiresAt?: number;
+                externalProvider?: string;
+                provider: "discord" | "kick" | "twitch" | "github";
+                providerAccountId: string;
+                refreshTokenSecretId?: string;
+                scopes: Array<string>;
+                updatedAt: number;
+                userId: Id<"users">;
+                username?: string;
+              };
+              twitchAccounts: Array<{
+                _creationTime: number;
+                _id: Id<"linkedAccounts">;
+                accessTokenSecretId?: string;
+                avatarUrl?: string;
+                createdAt: number;
+                displayName?: string;
+                expiresAt?: number;
+                externalProvider?: string;
+                provider: "discord" | "kick" | "twitch" | "github";
+                providerAccountId: string;
+                refreshTokenSecretId?: string;
+                scopes: Array<string>;
+                updatedAt: number;
+                userId: Id<"users">;
+                username?: string;
+              }>;
+              user: {
+                _creationTime: number;
+                _id: Id<"users">;
+                clerkUserId: string;
+                createdAt: number;
+                displayName?: string | null;
+                email: string;
+                imageUrl?: string | null;
+                onboardingCompletedAt?: number;
+                onboardingProvenance?: "pre-rollout" | "post-rollout";
+                onboardingVersion?: number;
+                role: "user" | "staff" | "admin" | "superadmin";
+                status?: "active" | "disabled";
+                updatedAt: number;
+              };
+            }
+          | { status: "needsLink" }
+          | { status: "unavailable" };
+        user: {
+          _creationTime: number;
+          _id: Id<"users">;
+          clerkUserId: string;
+          createdAt: number;
+          displayName?: string | null;
+          email: string;
+          imageUrl?: string | null;
+          onboardingCompletedAt?: number;
+          onboardingProvenance?: "pre-rollout" | "post-rollout";
+          onboardingVersion?: number;
+          role: "user" | "staff" | "admin" | "superadmin";
+          status?: "active" | "disabled";
+          updatedAt: number;
+        };
+      }
+    >;
+    owner: FunctionReference<
+      "query",
+      "internal",
+      { guildId: Id<"guilds"> },
+      | {
+          discord: {
+            _creationTime: number;
+            _id: Id<"linkedAccounts">;
+            accessTokenSecretId?: string;
+            avatarUrl?: string;
+            createdAt: number;
+            displayName?: string;
+            expiresAt?: number;
+            externalProvider?: string;
+            provider: "discord" | "kick" | "twitch" | "github";
+            providerAccountId: string;
+            refreshTokenSecretId?: string;
+            scopes: Array<string>;
+            updatedAt: number;
+            userId: Id<"users">;
+            username?: string;
+          };
+          guild: {
+            _creationTime: number;
+            _id: Id<"guilds">;
+            botInstallationVerifiedAt?: number;
+            botJoinedAt?: number;
+            botLeftAt?: number;
+            createdAt: number;
+            description?: string;
+            discordGuildId: string;
+            iconHash?: string;
+            iconUrl?: string;
+            lastOpenedAt?: number;
+            lastSyncedAt?: number;
+            memberCount?: number;
+            name: string;
+            ownerDiscordId?: string;
+            presenceCount?: number;
+            readyShardCount?: number;
+            readyShardId?: number;
+            readyShardKey?: string;
+            staffMetricsTracked?: boolean;
+            updatedAt: number;
+          };
+          status: "linked";
+          twitch: {
+            _creationTime: number;
+            _id: Id<"linkedAccounts">;
+            accessTokenSecretId?: string;
+            avatarUrl?: string;
+            createdAt: number;
+            displayName?: string;
+            expiresAt?: number;
+            externalProvider?: string;
+            provider: "discord" | "kick" | "twitch" | "github";
+            providerAccountId: string;
+            refreshTokenSecretId?: string;
+            scopes: Array<string>;
+            updatedAt: number;
+            userId: Id<"users">;
+            username?: string;
+          };
+          twitchAccounts: Array<{
+            _creationTime: number;
+            _id: Id<"linkedAccounts">;
+            accessTokenSecretId?: string;
+            avatarUrl?: string;
+            createdAt: number;
+            displayName?: string;
+            expiresAt?: number;
+            externalProvider?: string;
+            provider: "discord" | "kick" | "twitch" | "github";
+            providerAccountId: string;
+            refreshTokenSecretId?: string;
+            scopes: Array<string>;
+            updatedAt: number;
+            userId: Id<"users">;
+            username?: string;
+          }>;
+          user: {
+            _creationTime: number;
+            _id: Id<"users">;
+            clerkUserId: string;
+            createdAt: number;
+            displayName?: string | null;
+            email: string;
+            imageUrl?: string | null;
+            onboardingCompletedAt?: number;
+            onboardingProvenance?: "pre-rollout" | "post-rollout";
+            onboardingVersion?: number;
+            role: "user" | "staff" | "admin" | "superadmin";
+            status?: "active" | "disabled";
+            updatedAt: number;
+          };
+        }
+      | { status: "needsLink" }
+      | { status: "unavailable" }
+    >;
+    pending: FunctionReference<
+      "query",
+      "internal",
+      { cursor?: null | string },
+      {
+        continueCursor: null | string;
+        deliveries: Array<{
+          _creationTime: number;
+          _id: Id<"twitchLiveDeliveries">;
+          attempts: number;
+          broadcasterId: string;
+          category?: string;
+          claim?: string;
+          claimExpiresAt?: number;
+          createdAt: number;
+          discordGuildId?: string;
+          displayName: string;
+          eventId: Id<"twitchLiveEvents">;
+          failure?: string;
+          guildId: Id<"guilds">;
+          login: string;
+          messageId?: string;
+          startedAt: string;
+          state:
+            | "pending"
+            | "claimed"
+            | "sending"
+            | "sent"
+            | "failed"
+            | "uncertain"
+            | "cancelled";
+          streamId: string;
+          title?: string;
+          updatedAt: number;
+        }>;
+      }
+    >;
+    projectSources: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        sources: Array<{
+          broadcasterId?: string;
+          configId: Id<"guildLiveNotificationConfigs">;
+          evidenceKey: string;
+          status: "ready" | "stale" | "missingPermission";
+        }>;
+      },
+      null
+    >;
+    receive: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        broadcasterId: string;
+        displayName: string;
+        login: string;
+        messageId: string;
+        startedAt: string;
+        streamId: string;
+      },
+      Id<"twitchLiveEvents"> | null
+    >;
+    save: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        discordGuildId: string;
+        expectedBroadcasterId?: string;
+        expectedOwnerDiscordId?: string;
+        liveNotificationChannelId?: string;
+        liveNotificationMentionMode: "none" | "everyone" | "role";
+        liveNotificationRoleId?: string;
+        liveNotificationsEnabled: boolean;
+      },
+      number
+    >;
+    subscription: FunctionReference<
+      "query",
+      "internal",
+      { broadcasterId: string },
+      null | {
+        _creationTime: number;
+        _id: Id<"twitchLiveSubscriptions">;
+        broadcasterId: string;
+        checkedAt: number;
+        status: "ready" | "pending" | "unavailable";
+      }
+    >;
+    subscriptions: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        states: Array<{
+          broadcasterId: string;
+          status: "ready" | "pending" | "unavailable";
+        }>;
+      },
+      null
+    >;
+  };
   mutations: {
     bot: {
       discord: {
@@ -5162,6 +6007,10 @@ export declare const internal: {
                   config: {
                     announcementChannelId?: string;
                     discordGuildId: string;
+                    liveNotificationChannelId?: string;
+                    liveNotificationMentionMode?: "none" | "everyone" | "role";
+                    liveNotificationRoleId?: string;
+                    liveNotificationsEnabled?: boolean;
                     logChannelId?: string;
                     logLevel?: "none" | "minimal" | "medium" | "maximum";
                     loggingEnabled: boolean;

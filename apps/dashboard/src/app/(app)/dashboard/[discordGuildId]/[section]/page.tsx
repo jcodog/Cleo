@@ -8,6 +8,7 @@ import {
   type DiscordGuildSection,
 } from "@/features/discord-guild-workspace"
 import { DISCORD_GUILD_SECTIONS } from "@/features/discord-guild-workspace/sections"
+import { DISCORD_GUILD_SECTION_TITLES } from "@/features/discord-guild-workspace/sections"
 import { getConvexAuthToken } from "@/lib/convex-auth"
 
 const DISCORD_SECTIONS = new Set<string>(DISCORD_GUILD_SECTIONS)
@@ -19,14 +20,7 @@ type DiscordGuildSectionPageProps = {
   }>
 }
 
-const SECTION_TITLES: Record<string, string> = {
-  logs: "Logs",
-  moderation: "Moderation",
-  overview: "Overview",
-  settings: "Settings",
-  support: "Support",
-  welcome: "Welcome",
-}
+const SECTION_TITLES: Record<string, string> = DISCORD_GUILD_SECTION_TITLES
 
 export async function generateMetadata({
   params,

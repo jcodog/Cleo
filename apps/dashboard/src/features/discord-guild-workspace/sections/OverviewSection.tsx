@@ -5,6 +5,7 @@ import {
   IconLogs,
   IconShield,
   IconSparkles,
+  IconBroadcast,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
@@ -23,6 +24,8 @@ import Link from "next/link"
 import { BotStatusBadge } from "../components/workspace-ui"
 import { formatDateTime } from "../lib/format"
 import type { GuildOverview } from "../types"
+import { useLiveNotifications } from "./useLiveNotifications"
+import { getLiveNotificationState } from "../lib/liveNotifications"
 
 export function OverviewSection({
   isBotLeft,
@@ -31,6 +34,7 @@ export function OverviewSection({
   isBotLeft: boolean
   overview: GuildOverview
 }) {
+  const live = useLiveNotifications(overview.discordGuildId)
   const dashboardAuditResult = useQuery(
     api.queries.dashboard.discord.guilds.auditEvents.list,
     { discordGuildId: overview.discordGuildId, source: "dashboard" }
@@ -60,6 +64,14 @@ export function OverviewSection({
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-3">
+            <FeatureState
+              enabled={
+                getLiveNotificationState(live.view, live.error) === "Ready"
+              }
+              href={`/dashboard/${overview.discordGuildId}/live-notifications`}
+              label="Live notifications"
+              stateLabel={getLiveNotificationState(live.view, live.error)}
+            />
             <FeatureState
               enabled={
                 overview.guildConfig?.welcomeEnabled === true &&
@@ -124,6 +136,11 @@ export function OverviewSection({
           <CardTitle>Configuration</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
+          <OverviewLink
+            href={`/dashboard/${overview.discordGuildId}/live-notifications`}
+            icon={IconBroadcast}
+            label="Live notifications"
+          />
           <OverviewLink
             href={`/dashboard/${overview.discordGuildId}/welcome`}
             icon={IconSparkles}

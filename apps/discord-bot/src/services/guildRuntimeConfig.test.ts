@@ -10,6 +10,42 @@ import {
 const guildId = "123456789012345678"
 const otherGuildId = "234567890123456789"
 
+test("live notification config changes refresh after cache invalidation including cleared custom role", async () => {
+  let enabled = true
+  let fetches = 0
+  const cache = new DiscordGuildRuntimeConfigCache({
+    startCleanupTimer: false,
+    fetchBackendResult: async () => {
+      fetches++
+      return {
+        status: "ready",
+        config: {
+          ...validConfig,
+          liveNotificationsEnabled: enabled,
+          liveNotificationChannelId: otherGuildId,
+          liveNotificationMentionMode: enabled ? "role" : "none",
+          ...(enabled ? { liveNotificationRoleId: "345678901234567890" } : {}),
+        },
+      }
+    },
+  })
+  const first = await cache.get(guildId)
+  assert.equal(first.status, "ready")
+  if (first.status === "ready")
+    assert.equal(first.config.liveNotificationRoleId, "345678901234567890")
+  enabled = false
+  await cache.get(guildId)
+  assert.equal(fetches, 1)
+  cache.invalidate(guildId)
+  const second = await cache.get(guildId)
+  assert.equal(fetches, 2)
+  if (second.status === "ready") {
+    assert.equal(second.config.liveNotificationsEnabled, false)
+    assert.equal(second.config.liveNotificationRoleId, undefined)
+  }
+  cache.dispose()
+})
+
 const validConfig: DiscordGuildRuntimeConfig = {
   discordGuildId: guildId,
   moderationEnabled: false,
