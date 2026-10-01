@@ -1,0 +1,33 @@
+packages/backend/convex/liveNotifications.test.ts
+  s_fc54b1374dcaf6::t_376feec69ed57d 756,771-775,779,796-798,804-806,811-815,827-828,850
+  s_fc54b1374dcaf6::t_a737e46ee64bca 799-803,807-810,816-826,829-836,844-849,851-862
+apps/twitch-bot/src/runtime.test.ts
+  s_fc54b1374dcaf6::t_a24c91b55f15ce 501,568
+  s_fc54b1374dcaf6::t_a737e46ee64bca 502-567,569-570
+docs/twitch/live-notifications.md
+  s_fc54b1374dcaf6::t_376feec69ed57d 13
+apps/dashboard/src/features/discord-guild-workspace/sections/LiveNotificationsSection.test.ts
+  s_fc54b1374dcaf6::t_376feec69ed57d 405-414
+apps/twitch-bot/src/runtime.ts
+  s_fc54b1374dcaf6::t_376feec69ed57d 46,202
+  s_fc54b1374dcaf6::t_a737e46ee64bca 51-55
+packages/backend/convex/http.ts
+  s_fc54b1374dcaf6::t_376feec69ed57d 50,52,56-60
+  s_fc54b1374dcaf6::t_b363c9e70b1e6a 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4cae5e3bf5a6458b33155eebbf2016e4a60441f9",
+  "prompts": {},
+  "sessions": {
+    "s_fc54b1374dcaf6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f7ca-2414-74f3-9449-baf04ca2cda1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
