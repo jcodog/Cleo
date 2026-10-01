@@ -1,41 +1,45 @@
 # Owner Twitch live notifications
 
-JCN-224 configures one fixed Twitch source per Discord guild. The source is resolved through the guild owner's Discord ID, the trusted Discord linked-account index, the active Cleo user, and that user's Twitch linked account. Current Clerk accounts and Twitch token validation must agree with those records. Provider tokens stay in backend actions.
+JCN-224 configures one fixed Twitch source per Discord guild. Authority follows `guild.ownerDiscordId`, the trusted Discord linked-account index, an active Cleo user, and that user's linked Twitch candidates. Current Clerk external-account evidence selects exactly one current Twitch row, and Twitch OAuth validation must agree. Historical rows remain history. Missing, duplicate, disabled, unlinked or contradictory authority cannot borrow a manager's account. Provider tokens stay in backend actions.
 
-The dedicated Cleo Connect/Reconnect flow still requests `channel:bot` and synchronizes Clerk evidence to Convex. Manage account opens Clerk's account-management UI. It does not replace scope acquisition or synchronization. `stream.online` v1 itself requires no additional broadcaster scope.
+Cleo intentionally treats an active linked broadcaster connection as authorization for its dedicated chatbot, including `channel:bot`, as specified by JCN-51. `stream.online` itself requires no broadcaster scope. This slice preserves that product permission lifecycle. Connect/Reconnect acquires permission and synchronizes Clerk evidence. Manage account opens the Clerk profile; it does not guarantee additional scopes or Convex synchronization.
 
-Configuration is stored in `guildLiveNotificationConfigs`. It contains enabled state, a Discord text/announcement destination, and none/everyone/role mention settings. Twitch broadcaster IDs are never accepted by the dashboard save action. The save action verifies fresh Manage Guild authority, bot presence, owner consistency, and channel/role membership using Discord REST. Changes enter the guild audit trail.
+`guildLiveNotificationConfigs` stores enablement, a Discord text/announcement destination and none/everyone/role mentions. Its broadcaster and owner projection fields are written only internally after verified owner resolution. Public saves never accept a broadcaster ID. Fresh Manage Guild authority, bot presence, current owner and real channel/role membership are checked server-side. Changes enter the guild audit trail.
 
-The existing Twitch runtime requests desired owner-linked broadcasters from the authenticated Convex `/twitch-live-sources` endpoint. Every runtime check reconciles only `stream.online` v1 webhook subscriptions at the configured callback. Bootstrap chat subscriptions remain separate. Disabled/unlinked owners leave the desired set. Provider outages preserve subscriptions and expose unavailable health rather than treating the outage as unlink. Reconciliation never sends a notification merely because it starts or reconnects.
+## Reconciliation and event processing
 
-The verified EventSub ingress persists one event per broadcaster and stream ID before acknowledging Twitch. A scheduled action resolves eligible guilds and creates one durable delivery per guild, broadcaster, and stream. A single Helix stream lookup enriches a received event with optional title/category. It is not stream polling. Event processing retries provider outages at most three times. Dedupe records are retained across deployments and runtime restarts.
+The authenticated `/twitch-live-sources` endpoint returns cursor pages of 25 enabled configs. There is no total 500-config limit. Each page shares owner database reads and verifies unique owners with at most eight concurrent operations. A server-side, five-minute owner-check cache shares verification across pages and guilds; its evidence key changes with stored user/account authority. This cache contains no tokens and is used only for subscription reconciliation. Delivery requires fresh Clerk and Twitch evidence.
 
-Each Discord runtime polls a bounded batch of its cached guilds for delivery jobs every 15 seconds. Convex atomically claims a job for 90 seconds. Before sending, the bot verifies the current owner, channel type, send permission, and mention permission. Convex rechecks live owner authority and config before persisting the send reservation. The bot uses its existing authenticated Discord client, a Components V2 container, safe text displays, and a Watch stream link built from verified login data. Twitch text cannot introduce mentions. `allowedMentions` permits only the configured mention.
+Source reconciliation runs in an independent task every five minutes, while the chat/readiness loop remains responsive every 30 seconds. The runtime consumes all pages before modifying subscriptions. A failed page or provider outage preserves subscriptions. Configs are indexed by their server-derived broadcaster so an event loads only matching targets. Event processing shares fresh owner verification and one optional Helix metadata lookup across pages, then dispatches in transactions of at most 25 targets.
 
-An expired claim that has not reserved a send can retry at most three times. A send already reserved is never automatically replayed. If the bot dies after reservation, its outcome becomes `uncertain`, with a structured failure record. This avoids duplicate notifications across the send/ack crash window. Discord's enforced nonce provides an additional recent-request guard, not the persistent dedupe guarantee. Failed and uncertain outcomes require operator inspection; do not manually retry an uncertain send without checking Discord first.
+Only `stream.online` v1 is reconciled. All documented online stream classifications are accepted. Bootstrap chat remains separate. A callback mismatch fails visibly with an operator-actionable error, matching the conservative chat policy. Operators must inspect and migrate old subscriptions; the runtime neither deletes a different ingress blindly nor hides a 409 as pending success. Removed broadcasters immediately publish unavailable health. Reconcile failures mark previous and newly desired IDs unavailable. Restored subscriptions publish their current state immediately.
+
+Health updates use batches of at most 100 from the runtime. Status changes persist immediately; unchanged rows renew at most once every five minutes. Dashboard readiness expires after 15 minutes without a heartbeat.
+
+## Delivery and retention
+
+Verified EventSub ingress persists one event per broadcaster/stream before acknowledgement. Per-guild broadcaster/stream keys prevent duplicate jobs. Event processing allows three total attempts, including the initial attempt, then records provider failure. Restarts and reconciliation never create notifications by themselves.
+
+Each Discord runtime polls the indexed pending queue every 15 seconds, advancing a cursor through pages of 20 jobs. Empty queues require one indexed query and no per-guild queries or claim mutation. A single transaction cancels obsolete jobs and claims at most four eligible deliveries belonging to that runtime's cached guilds. Four concurrent workers start those claims immediately within their 90-second leases. Unavailable guilds remain pending for their owning runtime.
+
+Before reservation, deterministic destination/owner/permission/role failures store their specific code. Unknown network failures leave the claim to expire and retry, with three total claims allowed. `begin` freshly verifies authority and config, then durably enters `sending`. After that boundary, a send rejection or lost response is `uncertain` with `sendOutcomeUnknown`, never automatically retried. Known message IDs record `sent`; late acknowledgements may settle an uncertain outcome. Terminal outcomes enter the guild audit trail. Operators must inspect Discord before considering manual recovery of an uncertain send.
+
+A pending notification older than 15 minutes remains claimable. Immediately before reservation, one bounded Helix lookup checks its original stream ID. The same live session may be announced after an outage; an ended or replaced session records `streamEnded`. Twitch/provider unavailability leaves the lease retryable. These are event/delivery-triggered checks, not polling loops.
+
+Hourly cleanup uses created-time indexes and deletes at most 100 event and 100 delivery rows per transaction, scheduling bounded continuations when needed. Rows are retained for 31 days. Ingress ignores sessions whose start is already over 30 days old, so removing dedupe rows cannot resurrect old sessions through a fresh webhook timestamp. Guild audits remain separately available under their existing lifecycle.
+
+The existing Discord client sends Components V2: a container, sanitized identity and optional title/category, relative start time, separator and Watch stream link built from verified Twitch login. `allowedMentions` permits none, intentional everyone only, or exactly one role. Twitch text cannot introduce mentions. Enforced nonce is an additional recent-request guard, not the persistent guarantee.
+
+## Local grant-lock recovery
+
+A stopped or forcibly restarted watcher can leave `bot.twitch-grant.json.lock`. It contains the owning PID, not a token. Do not remove it while an operator/runtime owns it. On Windows, check that PID with `Get-CimInstance Win32_Process -Filter 'ProcessId=<PID>'`; also check for other Twitch runtimes before preserving a confirmed stale lock under a backup name. Do not move or edit the grant. Existing `.refreshing` and `.rotated` markers belong to grant recovery, not manual deletion. Avoid multiple watchers against the same grant.
 
 ## Production acceptance
 
-No production secrets or services are changed by this implementation. Before enabling the feature, an operator must:
+1. Set a dedicated high-entropy `TWITCH_RUNTIME_CONVEX_SECRET` with exactly the same value in production Convex and the Twitch VPS. Keep it distinct from EventSub. A blank optional runtime secret means bootstrap chat only.
+2. Release all four services through reviewed workflows. Inspect old callback subscriptions when rotating ingress URLs.
+3. Confirm owner identity, health and manager restrictions. Allow up to five minutes for source lifecycle reconciliation.
+4. Authorize a controlled owner stream transition and verify one Components V2 message and its audit/delivery state. Test mentions only in an approved destination.
+5. Verify unlink, replacement, ownership transfer, deleted destinations, bot-left, outages, delayed recovery, redelivery and restarts.
 
-1. Set a dedicated high-entropy `TWITCH_RUNTIME_CONVEX_SECRET` in the Twitch VPS environment and the production Convex environment. The values must match and differ from the EventSub secret.
-2. Release the backend, Twitch runtime, Discord runtime, and dashboard through their normal reviewed deployment workflows.
-3. Confirm a linked owner shows ready subscription health. Verify a non-owner manager sees that owner's broadcaster and cannot substitute their own account.
-4. Authorize a controlled real owner stream transition, confirm one Components V2 Discord message, and inspect its stream/guild delivery record. Test none/everyone/custom-role mentions only in an explicitly approved destination.
-5. Check unavailable, owner unlink, ownership transfer, deleted destination/role, and bot-left behavior. Check redelivery/restarts do not resend the recorded session.
-
-The first reconciliation is bounded to 500 guild configurations. Exceeding that limit fails visibly and requires pagination work before growth past that capacity. No JCN-225 or JCN-226 events, chat commands, or additional channel selection are included.
-
-## Local verification
-
-Validated on 2026-10-01:
-
-- `bun run typecheck` and `bun run lint`: passed across all eight workspaces with checks.
-- `bun run test --env-mode=loose`: passed, 642 tests. Dashboard 68, backend 174, Discord bot 292, Twitch bot 51, shared 28, env 20, logger 7, UI 2.
-- `bun run test:coverage --env-mode=loose`: passed. All existing enforced scopes retain 100% statements, branches, functions, and lines. Twitch coverage includes the entire new subscription implementation; dashboard coverage includes the new overview state helper.
-- `bun run build --env-mode=loose`: passed for dashboard, Discord bot, and Twitch bot. `NODE_USE_SYSTEM_CA=1` uses the host certificate store.
-- `bun run --filter @workspace/backend codegen --typecheck disable`: passed. This is Convex's read-only codegen operation, not a deployment.
-- `bash ops/twitch/test.sh` and every `ops/discord/bin/*.test.sh`: passed in disposable WSL fixtures, using checksum-verified Node 24.15.0 and Linux line endings. Service and command-deployment calls were mocked; no production services or messages were involved.
-- `git diff --check`: passed.
-
-The root test/build commands use environment passthrough because strict Turborepo environment filtering removes the sandbox's injected Git ownership configuration, which existing artifact tests need. No coverage thresholds or production security settings were changed.
+No JCN-225/JCN-226 events, chat commands, arbitrary broadcasters or production deployment are included. Review validation and signed SHAs are recorded in PR #233 and JCN-224.

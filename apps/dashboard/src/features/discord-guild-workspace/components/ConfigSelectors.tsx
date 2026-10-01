@@ -40,7 +40,10 @@ type OptionsState =
   | { status: "ready"; options: DiscordConfigOptions }
   | { status: "unavailable"; options: null }
 
-export function useDiscordConfigOptions(discordGuildId: string): OptionsState {
+export function useDiscordConfigOptions(
+  discordGuildId: string,
+  refreshToken = 0
+): OptionsState {
   const loadOptions = useAction(
     api.actions.dashboard.discord.guilds.configOptions.get
   )
@@ -83,7 +86,7 @@ export function useDiscordConfigOptions(discordGuildId: string): OptionsState {
     return () => {
       active = false
     }
-  }, [discordGuildId, loadOptions])
+  }, [discordGuildId, loadOptions, refreshToken])
 
   return state.discordGuildId === discordGuildId
     ? state
@@ -236,13 +239,15 @@ export function DiscordRoleSelect({
   const selected = getSelectedOptionState(roles, value)
   return (
     <Field data-disabled={disabled}>
-      <FieldLabel>Custom role</FieldLabel>
+      <FieldLabel htmlFor="live-notification-custom-role">
+        Custom role
+      </FieldLabel>
       <Select
         disabled={disabled || optionsState.status !== "ready"}
         value={value || null}
         onValueChange={(next) => onChange(next ?? "")}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger id="live-notification-custom-role" className="w-full">
           <SelectValue
             placeholder={
               optionsState.status === "loading"

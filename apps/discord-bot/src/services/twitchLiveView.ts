@@ -68,6 +68,13 @@ export function buildTwitchLiveView(
         `Playing ${safeText(view.category, 100)}`
       )
     )
+  const start = Date.parse(view.startedAt)
+  if (Number.isFinite(start))
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `Started <t:${Math.floor(start / 1000)}:R>`
+      )
+    )
   container
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
     .addActionRowComponents(

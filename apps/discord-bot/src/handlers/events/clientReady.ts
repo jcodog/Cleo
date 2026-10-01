@@ -24,8 +24,8 @@ export default new Event({
   name: Events.ClientReady,
   once: true,
   async execute(client) {
-    await handleClientReady(client)
     startTwitchLiveNotificationWorker(client)
+    await handleClientReady(client)
   },
 })
 

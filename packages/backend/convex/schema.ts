@@ -6,6 +6,7 @@ import {
   twitchLiveEvents,
   twitchLiveDeliveries,
   twitchLiveSubscriptions,
+  twitchLiveOwnerChecks,
 } from "./dbTables/twitchLiveNotifications"
 import { guilds } from "./dbTables/guilds"
 import { guildConfigs } from "./dbTables/guildConfigs"
@@ -36,6 +37,7 @@ export default defineSchema({
   twitchLiveEvents,
   twitchLiveDeliveries,
   twitchLiveSubscriptions,
+  twitchLiveOwnerChecks,
   guilds,
   guildConfigs,
   discordGuildMemberships,

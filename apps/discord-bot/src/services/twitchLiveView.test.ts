@@ -30,6 +30,21 @@ test("live notification uses Components V2 and safe verified Twitch link without
   assert.match(json, /https:\/\/www.twitch.tv\/verified_owner/)
   assert.match(json, /Watch stream/)
   assert.match(json, /LIVE/)
+  assert.ok(
+    json.includes(
+      `Started <t:${Math.floor(Date.parse(base.startedAt) / 1000)}:R>`
+    )
+  )
+  assert.equal(
+    JSON.stringify(
+      buildTwitchLiveView({
+        ...base,
+        startedAt: "invalid",
+        mentionMode: "none",
+      }).components
+    ).includes("Started"),
+    false
+  )
   assert.equal(json.includes("@everyone"), false)
   assert.equal(json.includes("<@"), false)
   assert.equal(message.enforceNonce, true)

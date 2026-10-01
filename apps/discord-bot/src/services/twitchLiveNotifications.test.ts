@@ -8,10 +8,16 @@ import {
 } from "discord.js"
 import type { FunctionReturnType } from "convex/server"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import { deliverTwitchLiveNotification } from "./twitchLiveNotifications"
+import {
+  deliverTwitchLiveNotification,
+  startTwitchLiveNotificationWorker,
+} from "./twitchLiveNotifications"
+import { shutdownDiscordBot } from "../runtime/shutdown"
 import { convexBotClient } from "./convexBotClient"
 
-type Job = FunctionReturnType<typeof api.liveNotificationActions.claim>[number]
+type Job = FunctionReturnType<
+  typeof api.liveNotificationActions.claim
+>["deliveries"][number]
 const guildId = "123456789012345678"
 const channelId = "234567890123456789"
 const roleId = "345678901234567890"
@@ -101,7 +107,10 @@ function fixture(
     },
   } as unknown as Job
   const backend = {
-    claimLiveNotifications: async () => [job],
+    claimLiveNotifications: async () => ({
+      deliveries: [job],
+      continueCursor: null,
+    }),
     beginLiveNotification: async () => {
       reservations++
       return options.begin === undefined ? true : options.begin
@@ -157,7 +166,11 @@ test("Discord preflight rejects missing/unsupported destinations, changed owners
       {
         deliveryId: f.job._id,
         claim: f.job.claim,
-        failure: "discordDeliveryFailed",
+        failure: options.changedOwner
+          ? "ownerChanged"
+          : options.missingSend
+            ? "missingDiscordPermission"
+            : "destinationUnavailable",
       },
     ])
   }
@@ -193,7 +206,18 @@ test("rejected reservation, Discord send failure and unavailable backend acknowl
   await deliverTwitchLiveNotification(failed.client, failed.job, failed.backend)
   assert.equal(failed.sent.length, 1)
   assert.equal(failed.reservations(), 1)
-  assert.match(JSON.stringify(failed.outcomes), /discordDeliveryFailed/)
+  assert.match(JSON.stringify(failed.outcomes), /sendOutcomeUnknown/)
+  const unrecordableFailure = fixture({ sendFailure: true })
+  unrecordableFailure.backend.finishLiveNotification = async () => {
+    throw new Error("Backend unavailable")
+  }
+  await deliverTwitchLiveNotification(
+    unrecordableFailure.client,
+    unrecordableFailure.job,
+    unrecordableFailure.backend
+  )
+  assert.equal(unrecordableFailure.reservations(), 1)
+  assert.equal(unrecordableFailure.sent.length, 1)
   const unacknowledged = fixture({ finish: null })
   t.mock.method(
     convexBotClient,
@@ -208,4 +232,64 @@ test("rejected reservation, Discord send failure and unavailable backend acknowl
   await deliverTwitchLiveNotification(unacknowledged.client, unacknowledged.job)
   assert.equal(unacknowledged.sent.length, 1)
   assert.equal(unacknowledged.outcomes.length, 1)
+})
+
+test("transient channel, member and role preflight failures preserve claim expiry instead of finalizing", async () => {
+  for (const boundary of ["channels", "members", "roles"] as const) {
+    const f = fixture({ missingMe: true })
+    const guild = f.client.guilds.cache.get(guildId)!
+    if (boundary === "channels")
+      guild.channels.fetch = async () => {
+        throw new Error("network unavailable")
+      }
+    if (boundary === "members")
+      guild.members.fetchMe = async () => {
+        throw new Error("network unavailable")
+      }
+    if (boundary === "roles") {
+      f.job.config.liveNotificationMentionMode = "role"
+      f.job.config.liveNotificationRoleId = roleId
+      guild.roles.fetch = async () => {
+        throw new Error("network unavailable")
+      }
+    }
+    await deliverTwitchLiveNotification(f.client, f.job, f.backend)
+    assert.equal(f.reservations(), 0)
+    assert.equal(f.sent.length, 0)
+    assert.deepEqual(f.outcomes, [])
+  }
+})
+
+test("live worker starts an immediate bounded claim, avoids duplicate workers, retries poll failures and stops on cleanup", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] })
+  const f = fixture()
+  const client = Object.assign(f.client, {
+    isReady: () => true,
+    destroy() {},
+  }) as Client<true>
+  let claims = 0
+  t.mock.method(
+    convexBotClient,
+    "claimLiveNotifications",
+    async (guilds: string[]) => {
+      assert.deepEqual(guilds, [guildId])
+      if (++claims === 1) throw new Error("claim unavailable")
+      return { deliveries: [], continueCursor: null }
+    }
+  )
+  startTwitchLiveNotificationWorker(client)
+  startTwitchLiveNotificationWorker(client)
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(claims, 1)
+  t.mock.timers.tick(15000)
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(claims, 2)
+  await shutdownDiscordBot({
+    client,
+    reason: "SIGTERM",
+    exitCode: 0,
+    exit() {},
+  })
+  t.mock.timers.tick(15000)
+  assert.equal(claims, 2)
 })

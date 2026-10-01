@@ -5,8 +5,8 @@ import { httpAction } from "./_generated/server"
 import { backendEnv } from "@workspace/env/backend"
 import { normalizeClerkUserData } from "./lib/clerkUserData"
 import { type ClerkWebhookEvent, verifyClerkWebhook } from "./lib/clerkWebhook"
-import { handleTwitchWebhook } from "./lib/twitchWebhook"
-import { createLogger } from "@workspace/logger"
+import { boundedBody, handleTwitchWebhook } from "./lib/twitchWebhook"
+import { createLogger, serializeLogError } from "@workspace/logger"
 
 const http = httpRouter()
 const liveLogger = createLogger("twitch-live-sources")
@@ -47,9 +47,14 @@ http.route({
       difference |= (actual[index] ?? 0) ^ (expected[index] ?? 0)
     if (difference !== 0) return new Response("Unauthorized.", { status: 401 })
     try {
-      const body = await request.text()
-      if (body.length > 65536)
+      let body: string
+      try {
+        body = new TextDecoder("utf-8", { fatal: true }).decode(
+          await boundedBody(request, 65536)
+        )
+      } catch {
         return new Response("Invalid body.", { status: 413 })
+      }
       let value: unknown
       try {
         value = JSON.parse(body)
@@ -62,6 +67,13 @@ http.route({
         !("states" in value) ||
         !Array.isArray(value.states) ||
         value.states.length > 500
+      )
+        return new Response("Invalid body.", { status: 400 })
+      if (
+        ("cursor" in value &&
+          value.cursor !== null &&
+          (typeof value.cursor !== "string" || value.cursor.length > 4096)) ||
+        ("healthOnly" in value && typeof value.healthOnly !== "boolean")
       )
         return new Response("Invalid body.", { status: 400 })
       const states: {
@@ -89,13 +101,18 @@ http.route({
       await ctx.runMutation(internal.liveNotifications.subscriptions, {
         states,
       })
+      if ("healthOnly" in value && value.healthOnly === true)
+        return Response.json({ broadcasterIds: [], continueCursor: null })
       const sources = await ctx.runAction(
         internal.liveNotificationActions.runtimeSources,
-        {}
+        { cursor: "cursor" in value ? (value.cursor as string | null) : null }
       )
       return Response.json(sources)
-    } catch {
-      liveLogger.error("Twitch live notification source reconciliation failed")
+    } catch (error) {
+      liveLogger.error(
+        "Twitch live notification source reconciliation failed",
+        { error: serializeLogError(error) }
+      )
       return new Response("Live notification sources unavailable.", {
         status: 503,
       })

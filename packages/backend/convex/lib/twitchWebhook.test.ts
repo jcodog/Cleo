@@ -28,6 +28,23 @@ test("verified stream.online webhook validates current contract and persists bef
     started_at: new Date(now).toISOString(),
   }
   const body = JSON.stringify({ subscription: onlineSubscription, event })
+  for (const type of ["live", "playlist", "watch_party", "premiere", "rerun"])
+    assert.equal(
+      (
+        await handleTwitchWebhook(
+          signed(
+            JSON.stringify({
+              subscription: onlineSubscription,
+              event: { ...event, type },
+            })
+          ),
+          secret,
+          now,
+          async () => {}
+        )
+      ).status,
+      204
+    )
   const received: unknown[] = []
   for (let count = 0; count < 2; count++)
     assert.equal(

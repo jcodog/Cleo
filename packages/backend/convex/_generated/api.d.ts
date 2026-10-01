@@ -1539,48 +1539,58 @@ export declare const api: {
     claim: FunctionReference<
       "action",
       "public",
-      { discordGuildIds: Array<string>; secret: string },
-      Array<{
-        _creationTime: number;
-        _id: Id<"twitchLiveDeliveries">;
-        attempts: number;
-        broadcasterId: string;
-        category?: string;
-        claim: string;
-        claimExpiresAt?: number;
-        config: {
+      {
+        cursor?: null | string;
+        discordGuildIds: Array<string>;
+        secret: string;
+      },
+      {
+        continueCursor: null | string;
+        deliveries: Array<{
           _creationTime: number;
-          _id: Id<"guildLiveNotificationConfigs">;
+          _id: Id<"twitchLiveDeliveries">;
+          attempts: number;
+          broadcasterId: string;
+          category?: string;
+          claim: string;
+          claimExpiresAt?: number;
+          config: {
+            _creationTime: number;
+            _id: Id<"guildLiveNotificationConfigs">;
+            broadcasterId?: string;
+            createdAt: number;
+            guildId: Id<"guilds">;
+            liveNotificationChannelId?: string;
+            liveNotificationMentionMode: "none" | "everyone" | "role";
+            liveNotificationRoleId?: string;
+            liveNotificationsEnabled: boolean;
+            ownerDiscordId?: string;
+            ownerUserId?: Id<"users">;
+            updatedAt: number;
+          };
           createdAt: number;
+          discordGuildId: string;
+          displayName: string;
+          eventId: Id<"twitchLiveEvents">;
+          failure?: string;
           guildId: Id<"guilds">;
-          liveNotificationChannelId?: string;
-          liveNotificationMentionMode: "none" | "everyone" | "role";
-          liveNotificationRoleId?: string;
-          liveNotificationsEnabled: boolean;
+          login: string;
+          messageId?: string;
+          ownerDiscordId?: string;
+          startedAt: string;
+          state:
+            | "pending"
+            | "claimed"
+            | "sending"
+            | "sent"
+            | "failed"
+            | "uncertain"
+            | "cancelled";
+          streamId: string;
+          title?: string;
           updatedAt: number;
-        };
-        createdAt: number;
-        discordGuildId: string;
-        displayName: string;
-        eventId: Id<"twitchLiveEvents">;
-        failure?: string;
-        guildId: Id<"guilds">;
-        login: string;
-        messageId?: string;
-        ownerDiscordId?: string;
-        startedAt: string;
-        state:
-          | "pending"
-          | "claimed"
-          | "sending"
-          | "sent"
-          | "failed"
-          | "uncertain"
-          | "cancelled";
-        streamId: string;
-        title?: string;
-        updatedAt: number;
-      }>
+        }>;
+      }
     >;
     finish: FunctionReference<
       "action",
@@ -1604,12 +1614,15 @@ export declare const api: {
           | {
               _creationTime: number;
               _id: Id<"guildLiveNotificationConfigs">;
+              broadcasterId?: string;
               createdAt: number;
               guildId: Id<"guilds">;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
               liveNotificationsEnabled: boolean;
+              ownerDiscordId?: string;
+              ownerUserId?: Id<"users">;
               updatedAt: number;
             }
           | {
@@ -1645,7 +1658,7 @@ export declare const api: {
         liveNotificationRoleId?: string;
         liveNotificationsEnabled: boolean;
       },
-      null
+      number
     >;
   };
   mutations: {
@@ -2738,8 +2751,8 @@ export declare const internal: {
     runtimeSources: FunctionReference<
       "action",
       "internal",
-      {},
-      { broadcasterIds: Array<string> }
+      { cursor?: null | string },
+      { broadcasterIds: Array<string>; continueCursor: null | string }
     >;
   };
   liveNotifications: {
@@ -2750,6 +2763,7 @@ export declare const internal: {
         claim: string;
         configUpdatedAt: number;
         deliveryId: Id<"twitchLiveDeliveries">;
+        expectedOwnerEvidenceKey: string;
       },
       boolean
     >;
@@ -2768,12 +2782,15 @@ export declare const internal: {
         config: {
           _creationTime: number;
           _id: Id<"guildLiveNotificationConfigs">;
+          broadcasterId?: string;
           createdAt: number;
           guildId: Id<"guilds">;
           liveNotificationChannelId?: string;
           liveNotificationMentionMode: "none" | "everyone" | "role";
           liveNotificationRoleId?: string;
           liveNotificationsEnabled: boolean;
+          ownerDiscordId?: string;
+          ownerUserId?: Id<"users">;
           updatedAt: number;
         };
         createdAt: number;
@@ -2799,98 +2816,184 @@ export declare const internal: {
         updatedAt: number;
       }
     >;
-    configured: FunctionReference<
-      "query",
+    claimBatch: FunctionReference<
+      "mutation",
       "internal",
-      {},
+      {
+        discordGuildIds: Array<string>;
+        jobs: Array<{ claim: string; deliveryId: Id<"twitchLiveDeliveries"> }>;
+      },
       Array<{
+        _creationTime: number;
+        _id: Id<"twitchLiveDeliveries">;
+        attempts: number;
+        broadcasterId: string;
+        category?: string;
+        claim: string;
+        claimExpiresAt?: number;
         config: {
           _creationTime: number;
           _id: Id<"guildLiveNotificationConfigs">;
+          broadcasterId?: string;
           createdAt: number;
           guildId: Id<"guilds">;
           liveNotificationChannelId?: string;
           liveNotificationMentionMode: "none" | "everyone" | "role";
           liveNotificationRoleId?: string;
           liveNotificationsEnabled: boolean;
+          ownerDiscordId?: string;
+          ownerUserId?: Id<"users">;
           updatedAt: number;
         };
-        owner: {
-          discord: {
-            _creationTime: number;
-            _id: Id<"linkedAccounts">;
-            accessTokenSecretId?: string;
-            avatarUrl?: string;
-            createdAt: number;
-            displayName?: string;
-            expiresAt?: number;
-            externalProvider?: string;
-            provider: "discord" | "kick" | "twitch" | "github";
-            providerAccountId: string;
-            refreshTokenSecretId?: string;
-            scopes: Array<string>;
-            updatedAt: number;
-            userId: Id<"users">;
-            username?: string;
-          };
-          guild: {
-            _creationTime: number;
-            _id: Id<"guilds">;
-            botInstallationVerifiedAt?: number;
-            botJoinedAt?: number;
-            botLeftAt?: number;
-            createdAt: number;
-            description?: string;
-            discordGuildId: string;
-            iconHash?: string;
-            iconUrl?: string;
-            lastOpenedAt?: number;
-            lastSyncedAt?: number;
-            memberCount?: number;
-            name: string;
-            ownerDiscordId?: string;
-            presenceCount?: number;
-            readyShardCount?: number;
-            readyShardId?: number;
-            readyShardKey?: string;
-            staffMetricsTracked?: boolean;
-            updatedAt: number;
-          };
-          status: "linked";
-          twitch: {
-            _creationTime: number;
-            _id: Id<"linkedAccounts">;
-            accessTokenSecretId?: string;
-            avatarUrl?: string;
-            createdAt: number;
-            displayName?: string;
-            expiresAt?: number;
-            externalProvider?: string;
-            provider: "discord" | "kick" | "twitch" | "github";
-            providerAccountId: string;
-            refreshTokenSecretId?: string;
-            scopes: Array<string>;
-            updatedAt: number;
-            userId: Id<"users">;
-            username?: string;
-          };
-          user: {
-            _creationTime: number;
-            _id: Id<"users">;
-            clerkUserId: string;
-            createdAt: number;
-            displayName?: string | null;
-            email: string;
-            imageUrl?: string | null;
-            onboardingCompletedAt?: number;
-            onboardingProvenance?: "pre-rollout" | "post-rollout";
-            onboardingVersion?: number;
-            role: "user" | "staff" | "admin" | "superadmin";
-            status?: "active" | "disabled";
-            updatedAt: number;
-          };
-        };
+        createdAt: number;
+        discordGuildId: string;
+        displayName: string;
+        eventId: Id<"twitchLiveEvents">;
+        failure?: string;
+        guildId: Id<"guilds">;
+        login: string;
+        messageId?: string;
+        ownerDiscordId?: string;
+        startedAt: string;
+        state:
+          | "pending"
+          | "claimed"
+          | "sending"
+          | "sent"
+          | "failed"
+          | "uncertain"
+          | "cancelled";
+        streamId: string;
+        title?: string;
+        updatedAt: number;
       }>
+    >;
+    cleanup: FunctionReference<"mutation", "internal", {}, null>;
+    configured: FunctionReference<
+      "query",
+      "internal",
+      { broadcasterId?: string; cursor?: null | string },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        targets: Array<{
+          check: null | {
+            _creationTime: number;
+            _id: Id<"twitchLiveOwnerChecks">;
+            broadcasterId?: string;
+            checkedAt: number;
+            evidenceKey: string;
+            status: "ready" | "stale" | "missingPermission";
+            userId: Id<"users">;
+          };
+          config: {
+            _creationTime: number;
+            _id: Id<"guildLiveNotificationConfigs">;
+            broadcasterId?: string;
+            createdAt: number;
+            guildId: Id<"guilds">;
+            liveNotificationChannelId?: string;
+            liveNotificationMentionMode: "none" | "everyone" | "role";
+            liveNotificationRoleId?: string;
+            liveNotificationsEnabled: boolean;
+            ownerDiscordId?: string;
+            ownerUserId?: Id<"users">;
+            updatedAt: number;
+          };
+          owner: {
+            discord: {
+              _creationTime: number;
+              _id: Id<"linkedAccounts">;
+              accessTokenSecretId?: string;
+              avatarUrl?: string;
+              createdAt: number;
+              displayName?: string;
+              expiresAt?: number;
+              externalProvider?: string;
+              provider: "discord" | "kick" | "twitch" | "github";
+              providerAccountId: string;
+              refreshTokenSecretId?: string;
+              scopes: Array<string>;
+              updatedAt: number;
+              userId: Id<"users">;
+              username?: string;
+            };
+            guild: {
+              _creationTime: number;
+              _id: Id<"guilds">;
+              botInstallationVerifiedAt?: number;
+              botJoinedAt?: number;
+              botLeftAt?: number;
+              createdAt: number;
+              description?: string;
+              discordGuildId: string;
+              iconHash?: string;
+              iconUrl?: string;
+              lastOpenedAt?: number;
+              lastSyncedAt?: number;
+              memberCount?: number;
+              name: string;
+              ownerDiscordId?: string;
+              presenceCount?: number;
+              readyShardCount?: number;
+              readyShardId?: number;
+              readyShardKey?: string;
+              staffMetricsTracked?: boolean;
+              updatedAt: number;
+            };
+            status: "linked";
+            twitch: {
+              _creationTime: number;
+              _id: Id<"linkedAccounts">;
+              accessTokenSecretId?: string;
+              avatarUrl?: string;
+              createdAt: number;
+              displayName?: string;
+              expiresAt?: number;
+              externalProvider?: string;
+              provider: "discord" | "kick" | "twitch" | "github";
+              providerAccountId: string;
+              refreshTokenSecretId?: string;
+              scopes: Array<string>;
+              updatedAt: number;
+              userId: Id<"users">;
+              username?: string;
+            };
+            twitchAccounts: Array<{
+              _creationTime: number;
+              _id: Id<"linkedAccounts">;
+              accessTokenSecretId?: string;
+              avatarUrl?: string;
+              createdAt: number;
+              displayName?: string;
+              expiresAt?: number;
+              externalProvider?: string;
+              provider: "discord" | "kick" | "twitch" | "github";
+              providerAccountId: string;
+              refreshTokenSecretId?: string;
+              scopes: Array<string>;
+              updatedAt: number;
+              userId: Id<"users">;
+              username?: string;
+            }>;
+            user: {
+              _creationTime: number;
+              _id: Id<"users">;
+              clerkUserId: string;
+              createdAt: number;
+              displayName?: string | null;
+              email: string;
+              imageUrl?: string | null;
+              onboardingCompletedAt?: number;
+              onboardingProvenance?: "pre-rollout" | "post-rollout";
+              onboardingVersion?: number;
+              role: "user" | "staff" | "admin" | "superadmin";
+              status?: "active" | "disabled";
+              updatedAt: number;
+            };
+          };
+        }>;
+      }
     >;
     delivery: FunctionReference<
       "query",
@@ -2905,6 +3008,7 @@ export declare const internal: {
         claim?: string;
         claimExpiresAt?: number;
         createdAt: number;
+        discordGuildId?: string;
         displayName: string;
         eventId: Id<"twitchLiveEvents">;
         failure?: string;
@@ -2929,6 +3033,7 @@ export declare const internal: {
       "mutation",
       "internal",
       {
+        complete?: boolean;
         eventId: Id<"twitchLiveEvents">;
         retry: boolean;
         targets: Array<{
@@ -2987,12 +3092,15 @@ export declare const internal: {
           | {
               _creationTime: number;
               _id: Id<"guildLiveNotificationConfigs">;
+              broadcasterId?: string;
               createdAt: number;
               guildId: Id<"guilds">;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
               liveNotificationsEnabled: boolean;
+              ownerDiscordId?: string;
+              ownerUserId?: Id<"users">;
               updatedAt: number;
             }
           | {
@@ -3085,6 +3193,23 @@ export declare const internal: {
                 userId: Id<"users">;
                 username?: string;
               };
+              twitchAccounts: Array<{
+                _creationTime: number;
+                _id: Id<"linkedAccounts">;
+                accessTokenSecretId?: string;
+                avatarUrl?: string;
+                createdAt: number;
+                displayName?: string;
+                expiresAt?: number;
+                externalProvider?: string;
+                provider: "discord" | "kick" | "twitch" | "github";
+                providerAccountId: string;
+                refreshTokenSecretId?: string;
+                scopes: Array<string>;
+                updatedAt: number;
+                userId: Id<"users">;
+                username?: string;
+              }>;
               user: {
                 _creationTime: number;
                 _id: Id<"users">;
@@ -3183,6 +3308,23 @@ export declare const internal: {
             userId: Id<"users">;
             username?: string;
           };
+          twitchAccounts: Array<{
+            _creationTime: number;
+            _id: Id<"linkedAccounts">;
+            accessTokenSecretId?: string;
+            avatarUrl?: string;
+            createdAt: number;
+            displayName?: string;
+            expiresAt?: number;
+            externalProvider?: string;
+            provider: "discord" | "kick" | "twitch" | "github";
+            providerAccountId: string;
+            refreshTokenSecretId?: string;
+            scopes: Array<string>;
+            updatedAt: number;
+            userId: Id<"users">;
+            username?: string;
+          }>;
           user: {
             _creationTime: number;
             _id: Id<"users">;
@@ -3205,9 +3347,10 @@ export declare const internal: {
     pending: FunctionReference<
       "query",
       "internal",
-      { discordGuildIds: Array<string> },
-      Array<{
-        delivery: {
+      { cursor?: null | string },
+      {
+        continueCursor: null | string;
+        deliveries: Array<{
           _creationTime: number;
           _id: Id<"twitchLiveDeliveries">;
           attempts: number;
@@ -3216,6 +3359,7 @@ export declare const internal: {
           claim?: string;
           claimExpiresAt?: number;
           createdAt: number;
+          discordGuildId?: string;
           displayName: string;
           eventId: Id<"twitchLiveEvents">;
           failure?: string;
@@ -3234,9 +3378,21 @@ export declare const internal: {
           streamId: string;
           title?: string;
           updatedAt: number;
-        };
-        discordGuildId: string;
-      }>
+        }>;
+      }
+    >;
+    projectSources: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        sources: Array<{
+          broadcasterId?: string;
+          configId: Id<"guildLiveNotificationConfigs">;
+          evidenceKey: string;
+          status: "ready" | "stale" | "missingPermission";
+        }>;
+      },
+      null
     >;
     receive: FunctionReference<
       "mutation",
@@ -3249,7 +3405,7 @@ export declare const internal: {
         startedAt: string;
         streamId: string;
       },
-      Id<"twitchLiveEvents">
+      Id<"twitchLiveEvents"> | null
     >;
     save: FunctionReference<
       "mutation",
@@ -3263,7 +3419,7 @@ export declare const internal: {
         liveNotificationRoleId?: string;
         liveNotificationsEnabled: boolean;
       },
-      null
+      number
     >;
     subscription: FunctionReference<
       "query",

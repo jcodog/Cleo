@@ -4,6 +4,7 @@ import { TwitchApi, TwitchFailure } from "./api"
 import {
   loadLiveSources,
   reconcileLiveSubscriptions,
+  publishLiveStates,
 } from "./liveSubscriptions"
 import { apiConfig, httpFake, json, subscription } from "../tests/fixtures"
 
@@ -72,7 +73,7 @@ test("runtime source contract is authenticated, bounded and rejects unavailable/
   )
 })
 
-test("live reconciliation keeps one enabled subscription, removes obsolete owned subscriptions and ignores other transports/callbacks", async () => {
+test("live reconciliation keeps one enabled subscription, removes obsolete owned subscriptions and ignores other transports/versions", async () => {
   const removed: string[] = []
   const api = new TwitchApi(
     apiConfig,
@@ -95,14 +96,6 @@ test("live reconciliation keeps one enabled subscription, removes obsolete owned
             condition: { broadcaster_user_id: "333" },
           },
           { ...online, id: "no-broadcaster", condition: {} },
-          {
-            ...online,
-            id: "foreign",
-            transport: {
-              method: "webhook",
-              callback: "https://other.example/eventsub",
-            },
-          },
           subscription,
           { ...online, id: "websocket", transport: { method: "websocket" } },
           { ...online, id: "version", version: "2" },
@@ -157,7 +150,7 @@ test("live reconciliation creates stream.online v1 with app token, recovers pend
         })
       })
     )
-    if (state === "error")
+    if (state === "error" || state === "conflict")
       await assert.rejects(
         reconcileLiveSubscriptions(api, "app", ["222"], callback, secret),
         TwitchFailure
@@ -176,4 +169,89 @@ test("live reconciliation creates stream.online v1 with app token, recovers pend
           : ["GET", "POST"]
     )
   }
+})
+
+test("callback rotation is operator-visible and never deletes or creates behind an obsolete callback", async () => {
+  const methods: string[] = []
+  const api = new TwitchApi(
+    apiConfig,
+    httpFake((_url, init) => {
+      methods.push(init.method ?? "GET")
+      return json({
+        data: [
+          {
+            ...online,
+            transport: {
+              method: "webhook",
+              callback: "https://old.convex.site/twitch-eventsub",
+            },
+          },
+        ],
+      })
+    })
+  )
+  await assert.rejects(
+    reconcileLiveSubscriptions(api, "app", ["222"], callback, secret),
+    /callback mismatch/
+  )
+  assert.deepEqual(methods, ["GET"])
+})
+
+test("source pages and health batches support more than 500 broadcasters with bounded requests", async () => {
+  const ids = Array.from({ length: 601 }, (_, i) => String(i + 1))
+  const states = ids.map((broadcasterId) => ({
+    broadcasterId,
+    status: "ready" as const,
+  }))
+  let health = 0
+  const request = httpFake((_url, init) => {
+    const input = JSON.parse(String(init.body)) as {
+      states: unknown[]
+      healthOnly?: boolean
+      cursor?: string
+    }
+    assert.ok(input.states.length <= 100)
+    if (input.healthOnly) {
+      health += input.states.length
+      return json({})
+    }
+    const page = Number(input.cursor ?? 0)
+    return json({
+      broadcasterIds: ids.slice(page * 100, (page + 1) * 100),
+      continueCursor: page === 6 ? null : String(page + 1),
+    })
+  })
+  assert.deepEqual(
+    await loadLiveSources(callback, secret, states, undefined, request),
+    ids
+  )
+  assert.equal(health, 501)
+  await publishLiveStates(
+    callback,
+    secret,
+    states,
+    new AbortController().signal,
+    request
+  )
+  assert.equal(health, 1102)
+  await assert.rejects(
+    publishLiveStates(
+      callback,
+      secret,
+      states,
+      undefined,
+      httpFake(() => json({}, 503))
+    ),
+    /subscriptionUnavailable/
+  )
+  await assert.rejects(
+    loadLiveSources(
+      callback,
+      secret,
+      [],
+      undefined,
+      httpFake(() => json({ broadcasterIds: [], continueCursor: "same" }))
+    ),
+    /malformedResponse/
+  )
 })

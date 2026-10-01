@@ -6,7 +6,10 @@ export type LiveSubscriptionState = {
   status: "ready" | "pending" | "unavailable"
 }
 const sourcesSchema = z
-  .object({ broadcasterIds: z.array(z.string().regex(/^[1-9]\d*$/)).max(500) })
+  .object({
+    broadcasterIds: z.array(z.string().regex(/^[1-9]\d*$/)).max(500),
+    continueCursor: z.string().nullable().optional(),
+  })
   .strict()
 
 export async function loadLiveSources(
@@ -16,23 +19,71 @@ export async function loadLiveSources(
   signal?: AbortSignal,
   request: typeof fetch = fetch
 ): Promise<string[]> {
-  const endpoint = new URL("/twitch-live-sources", callback)
-  const response = await request(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${secret}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ states }),
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(15000)])
-      : AbortSignal.timeout(15000),
-    redirect: "error",
-  })
-  if (!response.ok) throw new TwitchFailure("subscriptionUnavailable")
-  const parsed = sourcesSchema.safeParse(await response.json())
-  if (!parsed.success) throw new TwitchFailure("malformedResponse")
-  return [...new Set(parsed.data.broadcasterIds)]
+  if (states.length > 100)
+    await publishLiveStates(
+      callback,
+      secret,
+      states.slice(100),
+      signal,
+      request
+    )
+  const ids = new Set<string>()
+  const cursors = new Set<string>()
+  let cursor: string | null = null
+  do {
+    const endpoint = new URL("/twitch-live-sources", callback)
+    const response = await request(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        states: cursor ? [] : states.slice(0, 100),
+        ...(cursor ? { cursor } : {}),
+      }),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(45000)])
+        : AbortSignal.timeout(45000),
+      redirect: "error",
+    })
+    if (!response.ok) throw new TwitchFailure("subscriptionUnavailable")
+    const parsed = sourcesSchema.safeParse(await response.json())
+    if (!parsed.success) throw new TwitchFailure("malformedResponse")
+    for (const id of parsed.data.broadcasterIds) ids.add(id)
+    cursor = parsed.data.continueCursor ?? null
+    if (cursor && cursors.has(cursor))
+      throw new TwitchFailure("malformedResponse")
+    if (cursor) cursors.add(cursor)
+  } while (cursor)
+  return [...ids]
+}
+
+export async function publishLiveStates(
+  callback: string,
+  secret: string,
+  states: LiveSubscriptionState[],
+  signal?: AbortSignal,
+  request: typeof fetch = fetch
+): Promise<void> {
+  for (let offset = 0; offset < states.length; offset += 100) {
+    const response = await request(new URL("/twitch-live-sources", callback), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        states: states.slice(offset, offset + 100),
+        healthOnly: true,
+      }),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(15000)])
+        : AbortSignal.timeout(15000),
+      redirect: "error",
+    })
+    if (!response.ok) throw new TwitchFailure("subscriptionUnavailable")
+  }
 }
 
 export async function reconcileLiveSubscriptions(
@@ -47,9 +98,16 @@ export async function reconcileLiveSubscriptions(
     (entry) =>
       entry.type === "stream.online" &&
       entry.version === "1" &&
-      entry.transport.method === "webhook" &&
-      entry.transport.callback === callback
+      entry.transport.method === "webhook"
   )
+  // Other callbacks may be a previous deployment or a shared app. Do not delete
+  // them blindly or report a conflicting create as healthy/pending.
+  if (owned.some((entry) => entry.transport.callback !== callback)) {
+    const error = new TwitchFailure("subscriptionUnavailable")
+    error.message +=
+      ": stream.online callback mismatch; inspect and migrate the app's existing subscriptions before retrying."
+    throw error
+  }
   const desired = new Set(broadcasterIds)
   for (const entry of owned) {
     if (
@@ -71,16 +129,11 @@ export async function reconcileLiveSubscriptions(
     for (const entry of matches)
       if (entry !== keep) await api.deleteSubscription(appToken, entry.id)
     if (!keep) {
-      try {
-        await api.createOnlineSubscription(appToken, {
-          broadcasterId,
-          callback,
-          secret,
-        })
-      } catch (error) {
-        if (!(error instanceof TwitchFailure && error.status === 409))
-          throw error
-      }
+      await api.createOnlineSubscription(appToken, {
+        broadcasterId,
+        callback,
+        secret,
+      })
     }
     states.push({
       broadcasterId,

@@ -158,8 +158,8 @@ export function TwitchWorkspace() {
           )}
         </div>
         <p className="text-sm text-muted-foreground">
-          Manage account opens Clerk's linked accounts. Use Connect or Reconnect
-          here to grant Cleo's Twitch permission, then sync the connection.
+          Manage account opens your Clerk profile. Use Connect or Reconnect here
+          to grant Cleo's Twitch permission, then sync the connection.
         </p>
         <p className="text-sm text-muted-foreground">
           Your Discord sign-in stays the same. Cleo's dedicated bot account

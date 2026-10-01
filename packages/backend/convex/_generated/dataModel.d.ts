@@ -1984,12 +1984,15 @@ export type DataModel = {
   };
   guildLiveNotificationConfigs: {
     document: {
+      broadcasterId?: string;
       createdAt: number;
       guildId: Id<"guilds">;
       liveNotificationChannelId?: string;
       liveNotificationMentionMode: "none" | "everyone" | "role";
       liveNotificationRoleId?: string;
       liveNotificationsEnabled: boolean;
+      ownerDiscordId?: string;
+      ownerUserId?: Id<"users">;
       updatedAt: number;
       _id: Id<"guildLiveNotificationConfigs">;
       _creationTime: number;
@@ -1997,16 +2000,25 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "broadcasterId"
       | "createdAt"
       | "guildId"
       | "liveNotificationChannelId"
       | "liveNotificationMentionMode"
       | "liveNotificationRoleId"
       | "liveNotificationsEnabled"
+      | "ownerDiscordId"
+      | "ownerUserId"
       | "updatedAt";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
+      by_broadcaster: [
+        "broadcasterId",
+        "liveNotificationsEnabled",
+        "_creationTime",
+      ];
+      by_enabled: ["liveNotificationsEnabled", "_creationTime"];
       by_guild_id: ["guildId", "_creationTime"];
     };
     searchIndexes: {};
@@ -2155,6 +2167,7 @@ export type DataModel = {
         "_creationTime",
       ];
       by_user_id: ["userId", "_creationTime"];
+      by_user_provider: ["userId", "provider", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -2285,6 +2298,7 @@ export type DataModel = {
       claim?: string;
       claimExpiresAt?: number;
       createdAt: number;
+      discordGuildId?: string;
       displayName: string;
       eventId: Id<"twitchLiveEvents">;
       failure?: string;
@@ -2315,6 +2329,7 @@ export type DataModel = {
       | "claim"
       | "claimExpiresAt"
       | "createdAt"
+      | "discordGuildId"
       | "displayName"
       | "eventId"
       | "failure"
@@ -2329,6 +2344,7 @@ export type DataModel = {
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
+      by_created: ["createdAt", "_creationTime"];
       by_guild_state: ["guildId", "state", "_creationTime"];
       by_guild_stream: [
         "guildId",
@@ -2336,6 +2352,7 @@ export type DataModel = {
         "streamId",
         "_creationTime",
       ];
+      by_state: ["state", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -2372,6 +2389,33 @@ export type DataModel = {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_broadcaster_stream: ["broadcasterId", "streamId", "_creationTime"];
+      by_created: ["createdAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchLiveOwnerChecks: {
+    document: {
+      broadcasterId?: string;
+      checkedAt: number;
+      evidenceKey: string;
+      status: "ready" | "stale" | "missingPermission";
+      userId: Id<"users">;
+      _id: Id<"twitchLiveOwnerChecks">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "checkedAt"
+      | "evidenceKey"
+      | "status"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_user: ["userId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

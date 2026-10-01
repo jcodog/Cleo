@@ -56,7 +56,11 @@ export function resolveTwitchRuntimeEnv(
         }, "A public HTTPS /twitch-eventsub callback on port 443 is required.")
       ),
       TWITCH_EVENTSUB_SECRET: twitchEventSubSecret,
-      TWITCH_RUNTIME_CONVEX_SECRET: requiredText.optional(),
+      TWITCH_RUNTIME_CONVEX_SECRET: z.preprocess(
+        (value) =>
+          typeof value === "string" && value.trim() === "" ? undefined : value,
+        requiredText.optional()
+      ),
       TWITCH_READINESS_PATH: privatePath,
       TWITCH_STARTUP_TIMEOUT_MS: z.coerce
         .number()

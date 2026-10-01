@@ -24,7 +24,12 @@ export function useLiveNotifications(discordGuildId: string) {
         if (active) setResult({ discordGuildId, view, error: false })
       })
       .catch(() => {
-        if (active) setResult({ discordGuildId, error: true })
+        if (active)
+          setResult((previous) =>
+            previous.discordGuildId === discordGuildId
+              ? { ...previous, error: true }
+              : { discordGuildId, error: true }
+          )
       })
     return () => {
       active = false

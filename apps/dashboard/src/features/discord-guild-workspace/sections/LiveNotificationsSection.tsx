@@ -44,7 +44,7 @@ export function LiveNotificationsSection({
   isBotLeft: boolean
 }) {
   const { view, error, refresh } = useLiveNotifications(overview.discordGuildId)
-  if (error)
+  if (error && !view)
     return (
       <div role="alert">
         <p>Live notification settings are unavailable.</p>
@@ -56,11 +56,12 @@ export function LiveNotificationsSection({
   if (!view) return <Skeleton className="h-48 w-full max-w-3xl" />
   return (
     <LiveNotificationsForm
-      key={"updatedAt" in view.config ? view.config.updatedAt : "new"}
+      key={overview.discordGuildId}
       discordGuildId={overview.discordGuildId}
       isBotLeft={isBotLeft || view.botLeft}
       view={view}
       refresh={refresh}
+      refreshError={error}
     />
   )
 }
@@ -70,15 +71,18 @@ function LiveNotificationsForm({
   isBotLeft,
   view,
   refresh,
+  refreshError,
 }: {
   discordGuildId: string
   isBotLeft: boolean
   view: LiveNotificationsView
   refresh: () => void
+  refreshError: boolean
 }) {
   const clerk = useClerk()
   const update = useAction(api.liveNotificationActions.update)
-  const options = useDiscordConfigOptions(discordGuildId)
+  const [optionsRevision, setOptionsRevision] = useState(0)
+  const options = useDiscordConfigOptions(discordGuildId, optionsRevision)
   const [enabled, setEnabled] = useState(view.config.liveNotificationsEnabled)
   const [channelId, setChannelId] = useState(
     "liveNotificationChannelId" in view.config
@@ -95,6 +99,16 @@ function LiveNotificationsForm({
   )
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [error, setError] = useState<string | null>(null)
+  const [dirty, setDirty] = useState(false)
+  const configRevision = "updatedAt" in view.config ? view.config.updatedAt : 0
+  const [remoteRevision, setRemoteRevision] = useState(configRevision)
+  if (!dirty && saveState !== "saving" && configRevision > remoteRevision) {
+    setEnabled(view.config.liveNotificationsEnabled)
+    setChannelId(view.config.liveNotificationChannelId ?? "")
+    setMode(view.config.liveNotificationMentionMode)
+    setRoleId(view.config.liveNotificationRoleId ?? "")
+    setRemoteRevision(configRevision)
+  }
   const disabled = isBotLeft || saveState === "saving"
   const sourceReady = view.source.status === "ready"
   const destinations =
@@ -111,16 +125,17 @@ function LiveNotificationsForm({
         }
       : options
   const markDirty = () => {
+    setDirty(true)
     setSaveState("idle")
     setError(null)
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (disabled) return
+    if (disabled || (mode === "role" && !roleId)) return
     setSaveState("saving")
     setError(null)
     try {
-      await update({
+      const savedRevision = await update({
         discordGuildId,
         liveNotificationsEnabled: enabled,
         liveNotificationChannelId: channelId || undefined,
@@ -129,6 +144,8 @@ function LiveNotificationsForm({
           mode === "role" ? roleId || undefined : undefined,
       })
       setSaveState("success")
+      setRemoteRevision(savedRevision)
+      setDirty(false)
       refresh()
     } catch (failure) {
       setSaveState("error")
@@ -137,6 +154,12 @@ function LiveNotificationsForm({
   }
   return (
     <form className="flex max-w-3xl flex-col gap-6" onSubmit={save}>
+      {refreshError && (
+        <p role="alert">
+          Connection refresh failed. Your edits are preserved. Try Refresh
+          connection again.
+        </p>
+      )}
       <div className="flex items-center justify-between gap-4 border-b pb-6">
         <div>
           <h2 className="font-heading text-lg font-medium">
@@ -291,11 +314,9 @@ function LiveNotificationsForm({
           type="submit"
           disabled={
             disabled ||
+            (mode === "role" && !roleId) ||
             (enabled &&
-              (!sourceReady ||
-                options.status !== "ready" ||
-                !channelId ||
-                (mode === "role" && !roleId)))
+              (!sourceReady || options.status !== "ready" || !channelId))
           }
         >
           {" "}
@@ -305,7 +326,10 @@ function LiveNotificationsForm({
           type="button"
           variant="outline"
           disabled={disabled}
-          onClick={refresh}
+          onClick={() => {
+            setOptionsRevision((value) => value + 1)
+            refresh()
+          }}
         >
           Refresh connection
         </Button>

@@ -474,13 +474,17 @@ async function syncWithConvex(
 }
 
 export const convexBotClient = {
-  async claimLiveNotifications(discordGuildIds: string[]) {
+  async claimLiveNotifications(
+    discordGuildIds: string[],
+    cursor?: string | null
+  ) {
     return callLiveWithConvex(
       "Twitch live notification claim",
       ({ client, secret }) =>
         client.action(api.liveNotificationActions.claim, {
           secret,
           discordGuildIds,
+          ...(cursor ? { cursor } : {}),
         })
     )
   },

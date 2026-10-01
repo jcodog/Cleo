@@ -11,6 +11,7 @@ import { reconcileChatSubscription } from "./subscriptions"
 import {
   loadLiveSources,
   reconcileLiveSubscriptions,
+  publishLiveStates,
   type LiveSubscriptionState,
 } from "./liveSubscriptions"
 
@@ -25,6 +26,7 @@ export type RuntimeDependencies = {
   pid?: number
   loadLive?: typeof loadLiveSources
   reconcileLive?: typeof reconcileLiveSubscriptions
+  publishLive?: typeof publishLiveStates
 }
 
 export async function runRuntime(
@@ -62,6 +64,62 @@ export async function runRuntime(
   let appToken: string | undefined
   let ready = false
   let liveStates: LiveSubscriptionState[] = []
+  let nextLiveCheck = 0
+  let liveTask: Promise<void> | undefined
+  const reconcileLive = async () => {
+    let desired: string[] | undefined
+    try {
+      desired = await (dependencies.loadLive ?? loadLiveSources)(
+        config.TWITCH_EVENTSUB_CALLBACK_URL,
+        config.TWITCH_RUNTIME_CONVEX_SECRET!,
+        liveStates,
+        operationSignal
+      )
+      const reconciled = await (
+        dependencies.reconcileLive ?? reconcileLiveSubscriptions
+      )(
+        api,
+        appToken!,
+        desired,
+        config.TWITCH_EVENTSUB_CALLBACK_URL,
+        config.TWITCH_EVENTSUB_SECRET
+      )
+      const removed = liveStates
+        .filter((entry) => !desired!.includes(entry.broadcasterId))
+        .map((entry) => ({ ...entry, status: "unavailable" as const }))
+      await (dependencies.publishLive ?? publishLiveStates)(
+        config.TWITCH_EVENTSUB_CALLBACK_URL,
+        config.TWITCH_RUNTIME_CONVEX_SECRET!,
+        [...removed, ...reconciled],
+        operationSignal
+      )
+      liveStates = reconciled
+    } catch (error) {
+      const ids = new Set([
+        ...liveStates.map((entry) => entry.broadcasterId),
+        ...(desired ?? []),
+      ])
+      liveStates = [...ids].map((broadcasterId) => ({
+        broadcasterId,
+        status: "unavailable",
+      }))
+      logger.error("Twitch live subscription reconciliation failed", {
+        error: serializeLogError(error),
+      })
+      try {
+        await (dependencies.publishLive ?? publishLiveStates)(
+          config.TWITCH_EVENTSUB_CALLBACK_URL,
+          config.TWITCH_RUNTIME_CONVEX_SECRET!,
+          liveStates,
+          operationSignal
+        )
+      } catch (healthError) {
+        logger.error("Cannot persist Twitch live subscription health", {
+          error: serializeLogError(healthError),
+        })
+      }
+    }
+  }
   try {
     await state("starting")
     while (!signal.aborted) {
@@ -89,33 +147,6 @@ export async function runRuntime(
         callback: config.TWITCH_EVENTSUB_CALLBACK_URL,
         secret: config.TWITCH_EVENTSUB_SECRET,
       })
-      if (config.TWITCH_RUNTIME_CONVEX_SECRET) {
-        try {
-          const ids = await (dependencies.loadLive ?? loadLiveSources)(
-            config.TWITCH_EVENTSUB_CALLBACK_URL,
-            config.TWITCH_RUNTIME_CONVEX_SECRET,
-            liveStates,
-            operationSignal
-          )
-          liveStates = await (
-            dependencies.reconcileLive ?? reconcileLiveSubscriptions
-          )(
-            api,
-            appToken,
-            ids,
-            config.TWITCH_EVENTSUB_CALLBACK_URL,
-            config.TWITCH_EVENTSUB_SECRET
-          )
-        } catch (error) {
-          liveStates = liveStates.map((entry) => ({
-            ...entry,
-            status: "unavailable",
-          }))
-          logger.error("Twitch live subscription reconciliation failed", {
-            error: serializeLogError(error),
-          })
-        }
-      }
       if (!ready && now() - startedAt >= config.TWITCH_STARTUP_TIMEOUT_MS)
         throw new TwitchFailure("startupTimeout")
       if (subscription.status === "ready") {
@@ -130,6 +161,16 @@ export async function runRuntime(
         await state("starting")
         if (ready || now() - startedAt >= config.TWITCH_STARTUP_TIMEOUT_MS)
           throw new TwitchFailure("subscriptionUnavailable")
+      }
+      if (
+        config.TWITCH_RUNTIME_CONVEX_SECRET &&
+        !liveTask &&
+        now() >= nextLiveCheck
+      ) {
+        nextLiveCheck = now() + 5 * 60000
+        liveTask = reconcileLive().finally(() => {
+          liveTask = undefined
+        })
       }
       await sleep(ready ? 30000 : 2000, operationSignal)
     }
@@ -153,6 +194,7 @@ export async function runRuntime(
     }
   } finally {
     clearTimeout(startupTimer)
+    await liveTask
     if (signal.aborted) {
       await state("stopped")
       logger.info("Twitch runtime stopped")

@@ -9,7 +9,7 @@ import { botLogError } from "../utils/botLog"
 
 type Delivery = FunctionReturnType<
   typeof api.liveNotificationActions.claim
->[number]
+>["deliveries"][number]
 type DeliveryBackend = Pick<
   typeof convexBotClient,
   "claimLiveNotifications" | "beginLiveNotification" | "finishLiveNotification"
@@ -21,6 +21,8 @@ export async function deliverTwitchLiveNotification(
   backend: DeliveryBackend = convexBotClient
 ): Promise<void> {
   const outcome = { deliveryId: job._id, claim: job.claim }
+  let reserved = false
+  let sentMessageId: string | undefined
   // Live delivery always uses the latest claim config, never a stale cache grant.
   invalidateDiscordGuildRuntimeConfig(job.discordGuildId)
   try {
@@ -81,7 +83,9 @@ export async function deliverTwitchLiveNotification(
       })) !== true
     )
       return
+    reserved = true
     const message = await channel.send(payload)
+    sentMessageId = message.id
     const recorded = await backend.finishLiveNotification({
       ...outcome,
       messageId: message.id,
@@ -97,34 +101,64 @@ export async function deliverTwitchLiveNotification(
       deliveryId: job._id,
       discordGuildId: job.discordGuildId,
     })
-    await backend.finishLiveNotification({
-      ...outcome,
-      failure: "discordDeliveryFailed",
-    })
+    if (sentMessageId) return // Preserve the known send; expiry must never replay it.
+    const code = error instanceof Error ? error.message : ""
+    const permanent = [
+      "destinationUnavailable",
+      "ownerChanged",
+      "missingDiscordPermission",
+      "missingMentionPermission",
+      "roleUnavailable",
+    ]
+    if (!reserved && !permanent.includes(code)) return
+    try {
+      await backend.finishLiveNotification({
+        ...outcome,
+        failure: reserved ? "sendOutcomeUnknown" : code,
+      })
+    } catch (recordError) {
+      botLogError(
+        "Twitch live notification failure could not be recorded; claim expiry will settle it.",
+        recordError,
+        { deliveryId: job._id }
+      )
+    }
   }
 }
 
+const workers = new WeakSet<Client<true>>()
+
 export function startTwitchLiveNotificationWorker(client: Client<true>): void {
+  if (workers.has(client)) return
+  workers.add(client)
   let running = false
   let stopped = false
-  let offset = 0
+  let cursor: string | null = null
   const tick = async () => {
     if (running || stopped || !client.isReady()) return
     running = true
     try {
       const guildIds = [...client.guilds.cache.keys()]
-      const batch = guildIds.slice(offset, offset + 100)
-      offset = offset + 100 >= guildIds.length ? 0 : offset + 100
-      if (!batch.length) return
-      // Claim immediately before delivery so queued jobs cannot exhaust their lease.
-      for (let count = 0; count < 20 && !stopped; count++) {
-        const deliveries = await convexBotClient.claimLiveNotifications(batch)
-        if (!deliveries?.length) break
-        for (const delivery of deliveries) {
-          if (stopped) break
-          await deliverTwitchLiveNotification(client, delivery)
-        }
-      }
+      if (!guildIds.length) return
+      const page = await convexBotClient.claimLiveNotifications(
+        guildIds,
+        cursor
+      )
+      if (!page) return
+      cursor = page.continueCursor
+      let next = 0
+      // Fixed worker pool keeps the 20-job claim batch inside its lease.
+      await Promise.all(
+        Array.from(
+          { length: Math.min(4, page.deliveries.length) },
+          async () => {
+            while (!stopped && next < page.deliveries.length) {
+              const delivery = page.deliveries[next++]!
+              await deliverTwitchLiveNotification(client, delivery)
+            }
+          }
+        )
+      )
     } catch (error) {
       botLogError("Twitch live notification worker failed.", error)
     } finally {
@@ -137,6 +171,7 @@ export function startTwitchLiveNotificationWorker(client: Client<true>): void {
   timer.unref()
   registerCleanupHook(() => {
     stopped = true
+    workers.delete(client)
     clearInterval(timer)
   })
   void tick()

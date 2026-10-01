@@ -16,6 +16,7 @@ import {
 import { createGrant } from "./grantStore"
 import type { ReadinessState } from "./readiness"
 import { runRuntime } from "./runtime"
+import type { LiveSubscriptionState } from "./liveSubscriptions"
 
 test("configured live sources reconcile dynamically and failures do not stop bootstrap chat health", async (t) => {
   await withGrant(async (store) => {
@@ -377,5 +378,123 @@ test("local state failures are sanitized and cannot become ready", async () => {
     assert.equal(logged.length, 1)
     assert.match(JSON.stringify(logged), /localStateUnavailable/)
     assert.match(JSON.stringify(logged), /test-only-private-path/)
+  })
+})
+
+test("live reconciliation preserves unavailable sources, marks new desired failures, removes old health and restores ready state", async () => {
+  await withGrant(async (store) => {
+    await store.write(createGrant(botToken, apiConfig))
+    const abort = new AbortController()
+    let clock = 0
+    let cycle = 0
+    let completed: Promise<void> = Promise.resolve()
+    let finish: () => void = () => {}
+    const health: LiveSubscriptionState[][] = []
+    const previous: LiveSubscriptionState[][] = []
+    const errors: string[] = []
+    await runRuntime(
+      { ...runtimeEnv(store.path), TWITCH_RUNTIME_CONVEX_SECRET: "runtime" },
+      {
+        store,
+        createApi: (signal) => new TwitchApi(apiConfig, runtimeHttp(), signal),
+        signal: abort.signal,
+        now: () => clock,
+        logger: {
+          ...silentLogger,
+          error: (message) => {
+            errors.push(message)
+          },
+        },
+        writeState: async () => {},
+        loadLive: async (_callback, _secret, states) => {
+          previous.push(states)
+          cycle++
+          completed = new Promise((resolve) => {
+            finish = resolve
+          })
+          if (cycle === 2) throw new Error("provider unavailable")
+          return cycle === 1 ? ["333"] : cycle === 5 ? [] : ["444"]
+        },
+        reconcileLive: async (_api, _token, ids) => {
+          if (cycle === 3) throw new Error("EventSub unavailable")
+          return ids.map((broadcasterId) => ({
+            broadcasterId,
+            status: "ready",
+          }))
+        },
+        publishLive: async (_callback, _secret, states) => {
+          health.push(states)
+          finish()
+        },
+        sleep: async () => {
+          await completed
+          await Promise.resolve()
+          clock += 5 * 60000
+          if (cycle === 5) abort.abort()
+        },
+      }
+    )
+    assert.deepEqual(health, [
+      [{ broadcasterId: "333", status: "ready" }],
+      [{ broadcasterId: "333", status: "unavailable" }],
+      [
+        { broadcasterId: "333", status: "unavailable" },
+        { broadcasterId: "444", status: "unavailable" },
+      ],
+      [
+        { broadcasterId: "333", status: "unavailable" },
+        { broadcasterId: "444", status: "ready" },
+      ],
+      [{ broadcasterId: "444", status: "unavailable" }],
+    ])
+    assert.equal(previous[2]?.[0]?.status, "unavailable")
+    assert.equal(errors.length, 2)
+  })
+})
+
+test("slow source reconciliation cannot block chat readiness and failed health publication is logged", async () => {
+  await withGrant(async (store) => {
+    await store.write(createGrant(botToken, apiConfig))
+    const abort = new AbortController()
+    let release: (ids: string[]) => void = () => {}
+    const loaded = new Promise<string[]>((resolve) => {
+      release = resolve
+    })
+    let ready = 0
+    let sleeps = 0
+    const errors: string[] = []
+    await runRuntime(
+      { ...runtimeEnv(store.path), TWITCH_RUNTIME_CONVEX_SECRET: "runtime" },
+      {
+        store,
+        createApi: (signal) => new TwitchApi(apiConfig, runtimeHttp(), signal),
+        signal: abort.signal,
+        logger: {
+          ...silentLogger,
+          error: (message) => {
+            errors.push(message)
+          },
+        },
+        writeState: async (_path, state) => {
+          if (state.state === "ready") ready++
+        },
+        loadLive: async () => loaded,
+        reconcileLive: async () => [],
+        publishLive: async () => {
+          throw new Error("health offline")
+        },
+        sleep: async () => {
+          if (++sleeps === 2) {
+            assert.equal(ready, 2)
+            release([])
+            abort.abort()
+          }
+        },
+      }
+    )
+    assert.deepEqual(errors, [
+      "Twitch live subscription reconciliation failed",
+      "Cannot persist Twitch live subscription health",
+    ])
   })
 })

@@ -26,17 +26,29 @@ export async function verifyOwnerTwitch(
     return { status: "unavailable" }
   const accounts = clerk.user.external_accounts ?? clerk.user.externalAccounts
   if (!accounts) return { status: "unavailable" }
-  const matches = (provider: "discord" | "twitch", id: string) =>
-    accounts.some(
-      (account) =>
-        getClerkLinkedProvider(account.provider) === provider &&
-        (account.provider_user_id ?? account.providerUserId) === id
-    )
+  const discord = accounts.filter(
+    (account) => getClerkLinkedProvider(account.provider) === "discord"
+  )
+  const twitchEvidence = accounts.filter(
+    (account) => getClerkLinkedProvider(account.provider) === "twitch"
+  )
+  if (discord.length !== 1 || twitchEvidence.length > 1)
+    return { status: "unavailable" }
+  const current = twitchEvidence[0]
+  const currentId = current?.provider_user_id ?? current?.providerUserId
   if (
-    !matches("discord", owner.discord.providerAccountId) ||
-    !matches("twitch", owner.twitch.providerAccountId)
+    (discord[0]?.provider_user_id ?? discord[0]?.providerUserId) !==
+      owner.discord.providerAccountId ||
+    !currentId
   )
     return { status: "stale" }
+  const matches = owner.twitchAccounts.filter(
+    (account) => account.providerAccountId === currentId
+  )
+  const twitch = matches[0]
+  if (matches.length === 0) return { status: "stale" }
+  if (matches.length !== 1 || !twitch || !/^[1-9]\d*$/.test(currentId))
+    return { status: "unavailable" }
   const token = await getClerkTwitchAccessToken(owner.user.clerkUserId)
   if (
     token.status === "providerNotLinked" ||
@@ -65,7 +77,7 @@ export async function verifyOwnerTwitch(
     )
       return { status: "unavailable" }
     if (
-      value.user_id !== owner.twitch.providerAccountId ||
+      value.user_id !== twitch.providerAccountId ||
       typeof value.expires_in !== "number" ||
       value.expires_in <= 0
     )
@@ -83,10 +95,10 @@ export async function verifyOwnerTwitch(
       return { status: "missingPermission" }
     return {
       status: "ready",
-      broadcasterId: owner.twitch.providerAccountId,
+      broadcasterId: twitch.providerAccountId,
       login: value.login.toLowerCase(),
-      displayName: owner.twitch.displayName ?? value.login,
-      ...(owner.twitch.avatarUrl ? { avatarUrl: owner.twitch.avatarUrl } : {}),
+      displayName: twitch.displayName ?? value.login,
+      ...(twitch.avatarUrl ? { avatarUrl: twitch.avatarUrl } : {}),
       accessToken: token.accessToken,
       clientId: value.client_id,
     }

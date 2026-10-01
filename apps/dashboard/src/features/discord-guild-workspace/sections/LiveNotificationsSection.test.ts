@@ -16,6 +16,8 @@ type Props = {
   onValueChange?: (value: string) => void
   onChange?: (value: string) => void
   onSubmit?: (event: { preventDefault: () => void }) => Promise<void>
+  id?: string
+  htmlFor?: string
 }
 function elements(node: React.ReactNode): React.ReactElement<Props>[] {
   if (!React.isValidElement<Props>(node)) return []
@@ -92,7 +94,8 @@ test("live notification form fixes owner source, handles linking, destinations, 
         return [
           slots[slot],
           (value: unknown) => {
-            slots[slot] = value
+            slots[slot] =
+              typeof value === "function" ? value(slots[slot]) : value
           },
         ]
       },
@@ -113,6 +116,7 @@ test("live notification form fixes owner source, handles linking, destinations, 
       useAction: () => async (input: unknown) => {
         if (saveFailure) throw new Error("Save failed")
         saves.push(input)
+        return 50
       },
     },
   })
@@ -338,6 +342,16 @@ test("live notification form fixes owner source, handles linking, destinations, 
   })
   assert.match(text(missingRole), /Missing role · deleted-role/)
   assert.equal(text(missingRole).includes("@everyone"), false)
+  assert.equal(
+    elements(missingRole).find((node) => node.type === "FieldLabel")?.props
+      .htmlFor,
+    "live-notification-custom-role"
+  )
+  assert.equal(
+    elements(missingRole).find((node) => node.type === "SelectTrigger")?.props
+      .id,
+    "live-notification-custom-role"
+  )
   assert.match(
     text(
       selectors.DiscordRoleSelect({
@@ -349,4 +363,60 @@ test("live notification form fixes owner source, handles linking, destinations, 
     ),
     /Viewers/
   )
+  saveFailure = false
+  optionsStatus = "ready"
+  view = {
+    ...ready,
+    config: { ...ready.config, liveNotificationMentionMode: "role" },
+  }
+  tree = render(true)
+  assert.equal(
+    elements(tree).find((node) => node.props.type === "submit")?.props.disabled,
+    true
+  )
+  const savedConfig = {
+    ...ready.config,
+    _id: "config",
+    _creationTime: 1,
+    guildId: "guild",
+    createdAt: 1,
+    updatedAt: 1,
+  } as LiveNotificationsView["config"]
+  view = { ...ready, config: savedConfig }
+  tree = render(true)
+  elements(tree)
+    .find((node) => node.type === selectors.DiscordChannelSelect)
+    ?.props.onChange?.("dirty-channel")
+  view = {
+    ...view,
+    config: {
+      ...savedConfig,
+      liveNotificationChannelId: "remote-channel",
+      updatedAt: 2,
+    } as LiveNotificationsView["config"],
+  }
+  render()
+  tree = render()
+  assert.equal(
+    elements(tree).find((node) => node.type === selectors.DiscordChannelSelect)
+      ?.props.value,
+    "dirty-channel"
+  )
+  await tree.props.onSubmit?.({ preventDefault() {} })
+  render()
+  tree = render()
+  assert.equal(slots.includes("success"), true)
+  assert.equal(
+    elements(tree).find((node) => node.type === selectors.DiscordChannelSelect)
+      ?.props.value,
+    "dirty-channel"
+  )
+  const beforeRefresh = refreshes
+  elements(tree)
+    .find(
+      (node) => node.type === "button" && text(node) === "Refresh connection"
+    )
+    ?.props.onClick?.()
+  assert.equal(refreshes, beforeRefresh + 1)
+  assert.equal(slots[0], 1)
 })

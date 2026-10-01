@@ -117,7 +117,9 @@ export async function handleTwitchWebhook(
         !/^[a-zA-Z0-9_]{1,25}$/.test(event.broadcaster_user_login) ||
         typeof event.broadcaster_user_name !== "string" ||
         event.broadcaster_user_name.length > 100 ||
-        event.type !== "live" ||
+        !["live", "playlist", "watch_party", "premiere", "rerun"].includes(
+          String(event.type)
+        ) ||
         typeof event.started_at !== "string" ||
         !Number.isFinite(Date.parse(event.started_at))
       )
@@ -157,7 +159,10 @@ export async function handleTwitchWebhook(
   return new Response("Unsupported webhook message.", { status: 400 })
 }
 
-async function boundedBody(request: Request): Promise<Uint8Array> {
+export async function boundedBody(
+  request: Request,
+  maxBytes = MAX_BODY_BYTES
+): Promise<Uint8Array> {
   if (!request.body) return new Uint8Array()
   const reader = request.body.getReader()
   const chunks: Uint8Array[] = []
@@ -167,7 +172,7 @@ async function boundedBody(request: Request): Promise<Uint8Array> {
       const result = await reader.read()
       if (result.done) break
       size += result.value.byteLength
-      if (size > MAX_BODY_BYTES) {
+      if (size > maxBytes) {
         await reader.cancel()
         throw new Error("Body too large.")
       }

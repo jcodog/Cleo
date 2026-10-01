@@ -5,6 +5,7 @@ import {
   twitchLiveDeliveries,
   twitchLiveEvents,
   twitchLiveSubscriptions,
+  twitchLiveOwnerChecks,
 } from "../dbTables/twitchLiveNotifications"
 import { guildDoc, linkedAccountDoc, userDoc } from "./validators"
 
@@ -28,12 +29,18 @@ export const liveSubscriptionDoc = v.object({
   _id: v.id("twitchLiveSubscriptions"),
   _creationTime: v.number(),
 })
+export const liveOwnerCheckDoc = v.object({
+  ...twitchLiveOwnerChecks.validator.fields,
+  _id: v.id("twitchLiveOwnerChecks"),
+  _creationTime: v.number(),
+})
 export const linkedOwner = v.object({
   status: v.literal("linked"),
   guild: guildDoc,
   user: userDoc,
   discord: linkedAccountDoc,
   twitch: linkedAccountDoc,
+  twitchAccounts: v.array(linkedAccountDoc),
 })
 export const ownerTwitch = v.union(
   linkedOwner,
