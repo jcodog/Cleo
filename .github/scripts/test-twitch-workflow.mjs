@@ -8,12 +8,12 @@ const workflow = readFileSync(
   "utf8"
 )
 const gate = workflow.match(
-  /id: gate[\s\S]*?run: \|\r?\n([\s\S]*?)      - name:/
+  /id: gate[\s\S]*?run: \|\r?\n([\s\S]*?) {6}- name:/
 )?.[1]
 assert.ok(gate)
 const script = gate
   .split(/\r?\n/)
-  .map((line) => line.replace(/^          /, ""))
+  .map((line) => line.replace(/^ {10}/, ""))
   .join("\n")
 const directory = mkdtempSync(join(tmpdir(), "cleo-gate-"))
 try {

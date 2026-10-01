@@ -41,4 +41,7 @@ export class TwitchAuthService {
   async appToken(): Promise<string> {
     return this.token ?? this.maintain()
   }
+  botToken(): Promise<string> {
+    return ensureBotGrant(this.api, this.store, this.config)
+  }
 }

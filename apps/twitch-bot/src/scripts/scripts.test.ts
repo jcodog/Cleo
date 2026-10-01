@@ -47,7 +47,7 @@ async function withEnvironment<T>(
   }
 }
 
-test("explicit smoke uses tested grants and app token, default/override only send on invocation", async () => {
+test("explicit smoke uses app lookup and bot grant chat, default/override only send on invocation", async () => {
   await withGrant(async (store, directory) => {
     await store.write(createGrant(botToken, apiConfig))
     const env = runtimeEnv(store.path, join(directory, "state.json"))

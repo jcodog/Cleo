@@ -113,7 +113,7 @@ export class TwitchApiService {
   }
 
   async sendChatMessage(
-    appToken: string,
+    botUserToken: string,
     broadcasterId: string,
     message: string
   ): Promise<string> {
@@ -137,13 +137,12 @@ export class TwitchApiService {
       }),
       "https://api.twitch.tv/helix/chat/messages",
       {
-        ...this.helixHeaders(appToken),
+        ...this.helixHeaders(botUserToken),
         method: "POST",
         body: JSON.stringify({
           broadcaster_id: broadcasterId,
           sender_id: this.config.TWITCH_BOT_USER_ID,
           message,
-          for_source_only: true,
         }),
       }
     )

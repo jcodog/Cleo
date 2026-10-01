@@ -234,6 +234,10 @@ test("broadcaster lookup and explicit send have exact IDs, request shape and no 
     httpFake((url, init) => {
       if (url.pathname.endsWith("users")) {
         assert.equal(url.searchParams.get("id"), "222")
+        assert.equal(
+          new Headers(init.headers).get("Authorization"),
+          "Bearer test-only-app"
+        )
         return json({ data: [{ id: "222" }] })
       }
       sends++
@@ -242,17 +246,16 @@ test("broadcaster lookup and explicit send have exact IDs, request shape and no 
         broadcaster_id: "222",
         sender_id: "111",
         message: "dude is online.",
-        for_source_only: true,
       })
       const headers = new Headers(init.headers)
-      assert.equal(headers.get("Authorization"), "Bearer test-only-app")
+      assert.equal(headers.get("Authorization"), "Bearer test-only-bot")
       assert.equal(headers.get("Client-Id"), "test-client")
       return json({ data: [{ is_sent: true, message_id: "test-message" }] })
     })
   )
   await api.broadcasterExists("test-only-app", "222")
   assert.equal(
-    await api.sendChatMessage("test-only-app", "222", "dude is online."),
+    await api.sendChatMessage("test-only-bot", "222", "dude is online."),
     "test-message"
   )
   assert.equal(sends, 1)

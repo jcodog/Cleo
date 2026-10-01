@@ -160,8 +160,8 @@ export async function ensureBotGrant(
   api: TwitchApiService,
   store: GrantStore,
   config: TwitchCredentials
-): Promise<void> {
-  await store.locked(async () => {
+): Promise<string> {
+  return store.locked(async () => {
     await store.recoverRotation()
     const grant = await store.read()
     if (grant.clientId !== config.TWITCH_CLIENT_ID)
@@ -170,7 +170,7 @@ export async function ensureBotGrant(
       throw new TwitchFailure("wrongBot")
     try {
       await api.validateBotToken(grant.accessToken)
-      return
+      return grant.accessToken
     } catch (error) {
       if (!(
         error instanceof TwitchFailure &&
@@ -183,5 +183,6 @@ export async function ensureBotGrant(
     // Preserve refresh rotation even if the following validation request fails.
     await store.persistRotation(createGrant(token, config))
     await api.validateBotToken(token.access_token)
+    return token.access_token
   })
 }

@@ -13,7 +13,7 @@ export async function sendSmokeMessage(
   if (!config.TWITCH_BOOTSTRAP_BROADCASTER_USER_ID)
     throw new Error("An explicit smoke broadcaster is required.")
   const api = new TwitchApiService(config, requestFetch)
-  await ensureBotGrant(
+  const botUserToken = await ensureBotGrant(
     api,
     new GrantStore(config.TWITCH_BOT_GRANT_PATH),
     config
@@ -24,7 +24,7 @@ export async function sendSmokeMessage(
     config.TWITCH_BOOTSTRAP_BROADCASTER_USER_ID
   )
   return api.sendChatMessage(
-    appToken,
+    botUserToken,
     config.TWITCH_BOOTSTRAP_BROADCASTER_USER_ID,
     message
   )

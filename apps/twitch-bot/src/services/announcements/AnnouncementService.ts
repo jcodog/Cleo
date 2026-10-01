@@ -7,7 +7,7 @@ type Definition = Parameters<typeof renderTemplate>[0]
 export class AnnouncementService {
   constructor(
     private readonly api: Pick<TwitchApiService, "sendChatMessage">,
-    private readonly auth: Pick<TwitchAuthService, "appToken">,
+    private readonly auth: Pick<TwitchAuthService, "botToken">,
     private readonly logger: Logger
   ) {}
   async send(
@@ -18,7 +18,7 @@ export class AnnouncementService {
     beforeSend?: () => Promise<boolean>
   ): Promise<void> {
     const message = renderTemplate(definition, values, template)
-    const token = await this.auth.appToken()
+    const token = await this.auth.botToken()
     if (beforeSend && !(await beforeSend())) return
     await this.api.sendChatMessage(token, broadcasterId, message)
     this.logger.info("Twitch chat message sent")
