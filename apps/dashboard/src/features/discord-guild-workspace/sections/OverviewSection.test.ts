@@ -67,7 +67,7 @@ test("Overview renders live readiness, failure and loading with the dedicated na
     )!
   assert.equal(entry().props.stateLabel, "Loading")
   error = true
-  assert.equal(entry().props.stateLabel, "Unavailable")
+  assert.equal(entry().props.stateLabel, "Provider unavailable")
   error = false
   view = {
     config: {
@@ -96,6 +96,6 @@ test("Overview renders live readiness, failure and loading with the dedicated na
     entry().type as (props: Props) => React.ReactElement<Props>
   )(entry().props)
   assert.equal(rendered.props.href, entry().props.href)
-  view = { ...view, subscriptionStatus: "unavailable" }
+  view = { ...view, subscriptionStatus: "providerUnavailable" }
   assert.equal(entry().props.enabled, false)
 })

@@ -1,4 +1,4 @@
-import { checkReadiness } from "../readiness"
+import { checkReadiness } from "../runtime/readiness"
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
   const [path, pid, notBefore] = args

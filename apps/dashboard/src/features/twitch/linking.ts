@@ -3,8 +3,12 @@ import type {
   CreateExternalAccountParams,
 } from "@clerk/nextjs/types"
 import { getSafeInternalPath } from "../auth/safeRedirect"
+import {
+  resolveBroadcasterScopes,
+  type EventKey,
+} from "@workspace/shared/twitchEventSub"
 
-export const TWITCH_BROADCASTER_SCOPES = ["channel:bot"]
+export const TWITCH_BROADCASTER_SCOPES = resolveBroadcasterScopes([])
 
 export function isTwitchProvider(provider: string): boolean {
   return provider === "twitch" || provider === "oauth_twitch"
@@ -21,6 +25,7 @@ type VerificationRedirect = {
 }
 type LinkingAccount = {
   provider: string
+  approvedScopes?: string
   reauthorize: (
     params: Parameters<ExternalAccountResource["reauthorize"]>[0]
   ) => Promise<VerificationRedirect>
@@ -45,7 +50,8 @@ export function getTwitchLinkState(
 
 export async function beginTwitchLink(
   user: LinkingUser,
-  origin: string
+  origin: string,
+  desiredEvents: readonly EventKey[] = []
 ): Promise<string> {
   const callback = new URL("/twitch/link-callback?returnTo=%2Ftwitch", origin)
     .href
@@ -53,7 +59,12 @@ export async function beginTwitchLink(
     isTwitchProvider(account.provider)
   )
   const params = {
-    additionalScopes: [...TWITCH_BROADCASTER_SCOPES],
+    additionalScopes: [
+      ...new Set([
+        ...resolveBroadcasterScopes(desiredEvents),
+        ...(existing?.approvedScopes?.split(/\s+/).filter(Boolean) ?? []),
+      ]),
+    ],
     redirectUrl: callback,
   }
   const account = existing

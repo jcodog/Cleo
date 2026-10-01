@@ -26,6 +26,7 @@
     "@types/node": "catalog:",
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
+    "@workspace/shared": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "esbuild": "^0.28.2",
     "tsx": "catalog:",

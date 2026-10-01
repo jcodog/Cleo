@@ -38,7 +38,7 @@ export function resolveTwitchRuntimeEnv(
 ) {
   const schema = credentials
     .extend({
-      TWITCH_BOOTSTRAP_BROADCASTER_USER_ID: userId,
+      TWITCH_BOOTSTRAP_BROADCASTER_USER_ID: userId.optional(),
       TWITCH_EVENTSUB_CALLBACK_URL: createOptionalUrl({
         nodeEnv: () => env.NODE_ENV,
       }).pipe(
@@ -51,23 +51,22 @@ export function resolveTwitchRuntimeEnv(
             !url.password &&
             !url.search &&
             !url.hash &&
-            url.pathname === "/twitch-eventsub"
+            url.pathname === "/eventsub"
           )
-        }, "A public HTTPS /twitch-eventsub callback on port 443 is required.")
+        }, "A public HTTPS /eventsub callback on port 443 is required.")
       ),
       TWITCH_EVENTSUB_SECRET: twitchEventSubSecret,
-      TWITCH_RUNTIME_CONVEX_SECRET: z.preprocess(
-        (value) =>
-          typeof value === "string" && value.trim() === "" ? undefined : value,
-        requiredText.optional()
+      TWITCH_WORKER_SECRET: requiredText,
+      CONVEX_URL: createOptionalUrl({ nodeEnv: () => env.NODE_ENV }).pipe(
+        z.string()
       ),
-      TWITCH_READINESS_PATH: privatePath,
-      TWITCH_STARTUP_TIMEOUT_MS: z.coerce
+      TWITCH_WEBHOOK_PORT: z.coerce
         .number()
         .int()
-        .min(1000)
-        .max(180000)
-        .default(90000),
+        .min(1024)
+        .max(65535)
+        .default(8087),
+      TWITCH_READINESS_PATH: privatePath,
     })
     .refine(
       (value) =>

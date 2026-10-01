@@ -125,6 +125,55 @@ test("already linked Twitch account uses reauthorization and never creates a dup
   }
 })
 
+test("scoped reauthorization unions desired events with previous approvals and deduplicates overlapping permissions", async () => {
+  let called = 0
+  await beginTwitchLink(
+    {
+      externalAccounts: [
+        {
+          provider: "twitch",
+          approvedScopes: "channel:bot bits:read user:read:email",
+          reauthorize: async (params) => {
+            called++
+            assert.deepEqual(params.additionalScopes, [
+              "channel:bot",
+              "moderator:read:followers",
+              "channel:read:subscriptions",
+              "bits:read",
+              "channel:read:hype_train",
+              "user:read:email",
+            ])
+            assert.equal(
+              params.redirectUrl,
+              "https://cleo.example/twitch/link-callback?returnTo=%2Ftwitch"
+            )
+            return {
+              verification: {
+                externalVerificationRedirectURL: new URL(
+                  "https://clerk.example/authorize"
+                ),
+              },
+            }
+          },
+        },
+      ],
+      createExternalAccount: async () => {
+        throw new Error("duplicate account")
+      },
+    },
+    "https://cleo.example",
+    [
+      "follow",
+      "subscribe",
+      "resubscribe",
+      "cheer",
+      "hypeTrainBegin",
+      "hypeTrainEnd",
+    ]
+  )
+  assert.equal(called, 1)
+})
+
 test("missing/insecure verification URLs and provider failures fail rather than navigating", async () => {
   for (const redirect of [null, new URL("http://insecure.example")])
     await assert.rejects(

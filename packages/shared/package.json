@@ -13,7 +13,11 @@
     "@workspace/typescript-config": "workspace:*",
     "typescript": "catalog:"
   },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
   "exports": {
+    "./twitchEventSub": "./src/twitchEventSub.ts",
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",
     "./cleoEntitlements": "./src/cleoEntitlements.ts",

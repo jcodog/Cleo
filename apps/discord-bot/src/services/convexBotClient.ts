@@ -437,26 +437,6 @@ async function callWithConvex<T>(
   }
 }
 
-async function callLiveWithConvex<T>(
-  operation: string,
-  callback: (config: { client: ConvexHttpClient; secret: string }) => Promise<T>
-): Promise<T | null> {
-  return callWithConvex(operation, ({ client, secret }) => {
-    const boundedClient = new ConvexHttpClient(client.url, {
-      logger: false,
-      fetch: createConvexDiagnosticFetch((input, init) =>
-        fetch(input, {
-          ...init,
-          signal: init?.signal
-            ? AbortSignal.any([init.signal, AbortSignal.timeout(45000)])
-            : AbortSignal.timeout(45000),
-        })
-      ),
-    })
-    return callback({ client: boundedClient, secret })
-  })
-}
-
 async function syncWithConvex(
   operation: string,
   callback: (config: {
@@ -474,44 +454,6 @@ async function syncWithConvex(
 }
 
 export const convexBotClient = {
-  async claimLiveNotifications(
-    discordGuildIds: string[],
-    cursor?: string | null
-  ) {
-    return callLiveWithConvex(
-      "Twitch live notification claim",
-      ({ client, secret }) =>
-        client.action(api.liveNotificationActions.claim, {
-          secret,
-          discordGuildIds,
-          ...(cursor ? { cursor } : {}),
-        })
-    )
-  },
-  async beginLiveNotification(
-    input: Omit<
-      FunctionArgs<typeof api.liveNotificationActions.begin>,
-      "secret"
-    >
-  ) {
-    return callLiveWithConvex(
-      "Twitch live notification send reservation",
-      ({ client, secret }) =>
-        client.action(api.liveNotificationActions.begin, { secret, ...input })
-    )
-  },
-  async finishLiveNotification(
-    input: Omit<
-      FunctionArgs<typeof api.liveNotificationActions.finish>,
-      "secret"
-    >
-  ) {
-    return callLiveWithConvex(
-      "Twitch live notification outcome",
-      ({ client, secret }) =>
-        client.action(api.liveNotificationActions.finish, { secret, ...input })
-    )
-  },
   async syncReadyGuilds(
     guilds: GuildSnapshot[],
     options: {

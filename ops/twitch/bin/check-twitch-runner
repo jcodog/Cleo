@@ -7,7 +7,7 @@ fail() { echo "Twitch host contract failed: $*" >&2; exit 1; }
 for directory in /srv /srv/cleo /usr/local /usr/local/libexec /usr/local/libexec/cleo; do
   [[ -d "$directory" && ! -L "$directory" && "$(stat -c %U "$directory")" == root && ! -w "$directory" ]] || fail 'unsafe parent directory'
 done
-[[ "$("$tools/deploy-twitch-release" contract-version)" == 2 ]] || fail 'stale deployment controller; reinstall reviewed host tooling'
+[[ "$("$tools/deploy-twitch-release" contract-version)" == 3 ]] || fail 'stale deployment controller; reinstall reviewed host tooling'
 for file in "$tools/node" "$tools/validateArtifact.mjs" "$tools/validate-twitch-artifact.mjs" "$tools/run-twitch-release" "$tools/check-twitch-readiness" "$tools/check-twitch-secrets" "$tools/check-twitch-runner" "$tools/deploy-twitch-release"; do
   [[ -f "$file" && ! -L "$file" && "$(stat -c %U:%G "$file")" == root:root && ! -w "$file" ]] || fail 'unsafe installed tooling'
 done
@@ -23,6 +23,7 @@ done
 unsafe="$(find "$root/releases" -mindepth 1 \( -type l -o ! -user github-runner -o ! -group cleo-runtime -o \( -type d ! -perm 0750 \) -o \( -type f ! -perm 0640 \) \) -print -quit)"
 [[ -z "$unsafe" ]] || fail 'unsafe release ownership or permissions'
 env_file=/etc/cleo/twitch-bot.env
+[[ -f /usr/local/libexec/cleo/twitch/eventsub.nginx.example && ! -L /usr/local/libexec/cleo/twitch/eventsub.nginx.example && "$(stat -c %U:%G:%a /usr/local/libexec/cleo/twitch/eventsub.nginx.example)" == root:root:644 ]] || fail 'missing reviewed ingress contract'
 [[ ! -r "$env_file" ]] || fail 'runner can read the secret environment'
 sudo -n -u cleo "$tools/check-twitch-secrets" || fail 'unsafe or missing secret files'
 unit() { systemctl show cleo-twitch.service --property "$1" --value; }
@@ -35,4 +36,4 @@ sudo -n -l /usr/bin/systemctl restart cleo-twitch.service >/dev/null || fail 'mi
 sudo -n -l /usr/bin/systemctl stop cleo-twitch.service >/dev/null || fail 'missing stop rule'
 sudo -n -l /usr/bin/systemctl reset-failed cleo-twitch.service >/dev/null || fail 'missing start-limit reset rule'
 sudo -n -u cleo -l "$tools/check-twitch-readiness" 1 1 >/dev/null || fail 'missing readiness rule'
-echo 'Twitch host contract 2 is ready.'
+echo 'Twitch host contract 3 is ready.'

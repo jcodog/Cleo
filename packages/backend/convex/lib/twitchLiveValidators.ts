@@ -1,11 +1,10 @@
+import { subscriptionStatus } from "../dbTables/twitchEventSub"
 import { v } from "convex/values"
 import {
   guildLiveNotificationConfigs,
   liveConfigFields,
   twitchLiveDeliveries,
   twitchLiveEvents,
-  twitchLiveSubscriptions,
-  twitchLiveOwnerChecks,
 } from "../dbTables/twitchLiveNotifications"
 import { guildDoc, linkedAccountDoc, userDoc } from "./validators"
 
@@ -22,16 +21,6 @@ export const liveEventDoc = v.object({
 export const liveDeliveryDoc = v.object({
   ...twitchLiveDeliveries.validator.fields,
   _id: v.id("twitchLiveDeliveries"),
-  _creationTime: v.number(),
-})
-export const liveSubscriptionDoc = v.object({
-  ...twitchLiveSubscriptions.validator.fields,
-  _id: v.id("twitchLiveSubscriptions"),
-  _creationTime: v.number(),
-})
-export const liveOwnerCheckDoc = v.object({
-  ...twitchLiveOwnerChecks.validator.fields,
-  _id: v.id("twitchLiveOwnerChecks"),
   _creationTime: v.number(),
 })
 export const linkedOwner = v.object({
@@ -83,7 +72,7 @@ export const liveWorkspace = v.object({
     v.literal("needsChannel"),
     v.literal("needsRole")
   ),
-  subscriptionStatus: twitchLiveSubscriptions.validator.fields.status,
+  subscriptionStatus,
 })
 export const claimedLiveDelivery = v.object({
   ...liveDeliveryDoc.fields,

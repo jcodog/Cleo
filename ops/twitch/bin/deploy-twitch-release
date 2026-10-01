@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 027
-if [[ "${1:-}" == contract-version && $# == 1 ]]; then echo 2; exit 0; fi
+if [[ "${1:-}" == contract-version && $# == 1 ]]; then echo 3; exit 0; fi
 root="${CLEO_TWITCH_DEPLOY_ROOT:-/srv/cleo/twitch-bot}"
 tools="${CLEO_TWITCH_TOOLS:-/usr/local/libexec/cleo/twitch}"
 node="$tools/node"

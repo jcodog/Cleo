@@ -52,7 +52,6 @@ try {
       startedAt: now,
       updatedAt: now,
       state: "ready",
-      subscriptionId: "test-only-subscription",
     }),
     { mode: 0o600 }
   )

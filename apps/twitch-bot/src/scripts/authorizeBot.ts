@@ -1,9 +1,9 @@
 import { resolveTwitchOperatorEnv } from "@workspace/env/twitch"
 import { createLogger, serializeLogError } from "@workspace/logger"
 
-import { TwitchApi } from "../api"
-import { authorizeBot } from "../authorization"
-import { GrantStore } from "../grantStore"
+import { TwitchApiService } from "../services/TwitchApiService"
+import { authorizeBot } from "../auth/authorization"
+import { GrantStore } from "../auth/grantStore"
 
 export async function main(): Promise<void> {
   const logger = createLogger("twitch-bot-authorization")
@@ -14,7 +14,7 @@ export async function main(): Promise<void> {
         "Bot authorization requires an interactive operator terminal."
       )
     await authorizeBot(config, {
-      api: new TwitchApi(config),
+      api: new TwitchApiService(config),
       store: new GrantStore(config.TWITCH_BOT_GRANT_PATH),
       showUrl: (url) => {
         process.stdout.write(

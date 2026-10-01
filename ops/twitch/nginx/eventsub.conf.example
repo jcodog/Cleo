@@ -1,0 +1,27 @@
+# Complete TLS virtual host for the oracle VPS, which has no existing ingress.
+# Replace YOUR_TWITCH_HOST and provision its certificate before nginx -t.
+# Install/activate Nginx only during the separately authorized rollout.
+# Cleo binds this listener to loopback. Do not expose its internal port publicly.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name YOUR_TWITCH_HOST;
+    ssl_certificate /etc/letsencrypt/live/YOUR_TWITCH_HOST/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/YOUR_TWITCH_HOST/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location = /eventsub {
+        limit_except POST { deny all; }
+        client_max_body_size 64k;
+        proxy_pass http://127.0.0.1:8087/eventsub;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 2s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+        proxy_request_buffering on;
+    }
+    # /healthz stays local. No management routes are exposed.
+    location / { return 404; }
+}

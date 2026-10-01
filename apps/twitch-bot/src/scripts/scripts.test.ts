@@ -7,8 +7,8 @@ import { main as runtimeMain } from "../index"
 import { main as authorizeMain } from "./authorizeBot"
 import { main as readinessMain } from "./checkReadiness"
 import { main as smokeMain, sendSmokeMessage } from "./sendSmokeMessage"
-import { createGrant } from "../grantStore"
-import { writeReadiness } from "../readiness"
+import { createGrant } from "../auth/grantStore"
+import { writeReadiness } from "../runtime/readiness"
 import {
   apiConfig,
   botToken,
@@ -47,7 +47,7 @@ async function withEnvironment<T>(
   }
 }
 
-test("explicit smoke uses tested grants and app token, default/override only send on invocation", async () => {
+test("explicit smoke uses app lookup and bot grant chat, default/override only send on invocation", async () => {
   await withGrant(async (store, directory) => {
     await store.write(createGrant(botToken, apiConfig))
     const env = runtimeEnv(store.path, join(directory, "state.json"))
@@ -68,6 +68,14 @@ test("explicit smoke uses tested grants and app token, default/override only sen
       "test-message"
     )
     await sendSmokeMessage(strings, "custom smoke", http)
+    await assert.rejects(
+      sendSmokeMessage(
+        { ...strings, TWITCH_BOOTSTRAP_BROADCASTER_USER_ID: undefined },
+        "smoke",
+        http
+      ),
+      /explicit smoke broadcaster/
+    )
     await withEnvironment(env, async () => {
       globalThis.fetch = http
       await smokeMain([])
@@ -92,7 +100,6 @@ test("readiness CLI gates PID and deployment timestamp and rejects malformed arg
       startedAt: Date.now(),
       updatedAt: Date.now(),
       state: "ready",
-      subscriptionId: "test-sub",
     })
     await withEnvironment({}, async () => {
       await readinessMain([path, String(process.pid), "1"])
@@ -123,8 +130,8 @@ test("runtime entry handles actual SIGTERM and SIGINT without sending and remove
       await withEnvironment(env, async () => {
         globalThis.fetch = httpFake(async (url, init) => {
           const response = await base(url.href, init)
-          if (url.pathname.endsWith("subscriptions"))
-            setTimeout(() => process.emit(signal), 20)
+          if (url.pathname.endsWith("validate"))
+            setTimeout(() => process.emit(signal), 100)
           return response
         })
         await runtimeMain()

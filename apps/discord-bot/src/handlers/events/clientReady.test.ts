@@ -50,17 +50,12 @@ function createClient(guilds = [createGuild()]) {
   }
 }
 
-test("default READY starts live claims before a stalled initial guild sync completes", async (t) => {
+test("default READY synchronizes guilds without starting a live notification polling worker", async (t) => {
   let release: () => void = () => {}
   const stalled = new Promise<void>((resolve) => {
     release = resolve
   })
-  let claims = 0
   t.mock.method(convexBotClient, "syncReadyGuilds", async () => stalled)
-  t.mock.method(convexBotClient, "claimLiveNotifications", async () => {
-    claims++
-    return { deliveries: [], continueCursor: null }
-  })
   const fake = createClient()
   const client = {
     ...fake,
@@ -69,7 +64,7 @@ test("default READY starts live claims before a stalled initial guild sync compl
     destroy() {},
   } as never
   const ready = clientReady.execute(client)
-  assert.equal(claims, 1)
+  assert.equal("claimLiveNotifications" in convexBotClient, false)
   release()
   await ready
   await shutdownDiscordBot({

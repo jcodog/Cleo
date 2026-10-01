@@ -1,7 +1,17 @@
 {
   "extends": ["//"],
   "tasks": {
-    "build": { "outputs": ["dist/**"] },
-    "dev": { "passThroughEnv": ["TWITCH_*"] }
+    "build": {
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "passThroughEnv": ["TWITCH_*"]
+    },
+    "test": {
+      "env": ["TWITCH_*"]
+    },
+    "test:coverage": {
+      "env": ["TWITCH_*"]
+    }
   }
 }

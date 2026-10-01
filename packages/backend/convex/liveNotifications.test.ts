@@ -2,15 +2,19 @@ import assert from "node:assert/strict"
 import { test, afterEach, beforeEach, mock } from "node:test"
 import { convexTest } from "convex-test"
 import { api, internal } from "./_generated/api"
-import type { FunctionArgs, FunctionReturnType } from "convex/server"
 import schema from "./schema"
-import { createHmac } from "node:crypto"
+import { randomUUID } from "node:crypto"
+import type { FunctionArgs } from "convex/server"
 import { boundedMap } from "./lib/boundedMap"
 
 process.env.CLERK_SECRET_KEY = "test-clerk-secret"
 process.env.DISCORD_BOT_TOKEN = "test-discord-token"
 process.env.DISCORD_BOT_CONVEX_SECRET = "test-bot-secret"
-process.env.TWITCH_RUNTIME_CONVEX_SECRET = "test-runtime-secret"
+process.env.TWITCH_WORKER_SECRET = "test-runtime-secret"
+process.env.TWITCH_CLIENT_ID = "test-client"
+process.env.TWITCH_CLIENT_SECRET = "test-client-secret"
+process.env.TWITCH_BOT_USER_ID = "111"
+process.env.TWITCH_EVENTSUB_CALLBACK_URL = "https://test.example/eventsub"
 process.env.TWITCH_EVENTSUB_SECRET =
   "test-eventsub-secret-012345678901234567890"
 
@@ -19,6 +23,8 @@ const modules = {
   "./liveNotifications.ts": () => import("./liveNotifications"),
   "./liveNotificationActions.ts": () => import("./liveNotificationActions"),
   "./http.ts": () => import("./http"),
+  "./twitchEventSub.ts": () => import("./twitchEventSub"),
+  "./twitchEventSubActions.ts": () => import("./twitchEventSubActions"),
   "./queries/bot/discord/guildConfigs/runtimeConfigByDiscordId.ts": () =>
     import("./queries/bot/discord/guildConfigs/runtimeConfigByDiscordId"),
 }
@@ -29,6 +35,32 @@ const channelId = "456789012345678901"
 const roleId = "567890123456789012"
 const secret = "test-bot-secret"
 const originalFetch = globalThis.fetch
+async function receiveEvent(
+  t: ReturnType<typeof convexTest>,
+  args: FunctionArgs<typeof internal.liveNotifications.receive>
+) {
+  const id = await t.mutation(internal.liveNotifications.receive, args)
+  assert.ok(id)
+  return id
+}
+async function claimJobs(
+  t: ReturnType<typeof convexTest>,
+  args: { secret: string; discordGuildIds: string[] }
+) {
+  const deliveries = await t.run((ctx) =>
+    ctx.db.query("twitchLiveDeliveries").collect()
+  )
+  const jobs = []
+  for (const delivery of deliveries) {
+    if (!args.discordGuildIds.includes(delivery.discordGuildId ?? "")) continue
+    const job = await t.mutation(internal.liveNotifications.claim, {
+      deliveryId: delivery._id,
+      claim: randomUUID(),
+    })
+    if (job) jobs.push(job)
+  }
+  return jobs
+}
 beforeEach(() => {
   mock.timers.enable({ apis: ["setTimeout"] })
 })
@@ -141,11 +173,22 @@ async function fixture(options: FixtureOptions = {}) {
   let linkedId: string | undefined = "222"
   let providerUnavailable = false
   let tokenUserId = "222"
+  let clientId = "test-client"
   let permissions = "32"
   let channelType = 0
   let rolesAvailable = true
   let scopes = ["channel:bot"]
-  globalThis.fetch = async (input) => {
+  const externalSubscriptions: {
+    id: string
+    status: string
+    type: string
+    version: string
+    condition: Record<string, string>
+    transport: { method: string; callback: string }
+  }[] = []
+  const subscriptionRequests: { method: string; body?: unknown }[] = []
+  let subscriptionUnavailable = false
+  globalThis.fetch = async (input, init) => {
     const url = new URL(String(input))
     if (providerUnavailable && url.hostname === "api.clerk.com")
       return Response.json({}, { status: 503 })
@@ -167,11 +210,44 @@ async function fixture(options: FixtureOptions = {}) {
             : []),
         ],
       })
+    if (url.pathname.endsWith("token"))
+      return Response.json({
+        access_token: "app-token",
+        expires_in: 3600,
+        token_type: "bearer",
+      })
+    if (url.pathname.endsWith("subscriptions")) {
+      if (subscriptionUnavailable) return Response.json({}, { status: 503 })
+      if (init?.method === "POST") {
+        const body = JSON.parse(String(init.body))
+        subscriptionRequests.push({ method: "POST", body })
+        const row = {
+          ...body,
+          transport: {
+            method: body.transport.method,
+            callback: body.transport.callback,
+          },
+          id: `subscription-${subscriptionRequests.length}`,
+          status: "enabled",
+        }
+        externalSubscriptions.push(row)
+        return Response.json({ data: [row] }, { status: 202 })
+      }
+      if (init?.method === "DELETE") {
+        subscriptionRequests.push({ method: "DELETE" })
+        const index = externalSubscriptions.findIndex(
+          (row) => row.id === url.searchParams.get("id")
+        )
+        if (index >= 0) externalSubscriptions.splice(index, 1)
+        return new Response(null, { status: 204 })
+      }
+      return Response.json({ data: externalSubscriptions, pagination: {} })
+    }
     if (url.pathname.endsWith("validate"))
       return Response.json({
         user_id: tokenUserId,
         login: "verified_owner",
-        client_id: "test-client",
+        client_id: clientId,
         expires_in: 100,
         scopes,
       })
@@ -219,11 +295,19 @@ async function fixture(options: FixtureOptions = {}) {
     t,
     manager,
     ids,
+    subscriptionRequests,
+    externalSubscriptions,
+    setSubscriptionUnavailable: (value: boolean) => {
+      subscriptionUnavailable = value
+    },
     setLinkedId: (value: string | undefined) => {
       linkedId = value
     },
     setUnavailable: (value = true) => {
       providerUnavailable = value
+    },
+    setClientId: (id: string) => {
+      clientId = id
     },
     setTokenId: (id: string) => {
       tokenUserId = id
@@ -258,6 +342,744 @@ const event = {
   startedAt: new Date().toISOString(),
 }
 
+test("shared external subscriptions are created immediately, retained for other consumers and deleted for the last consumer", async () => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  let rows = await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").collect()
+  )
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0]?.status, "ready")
+  assert.ok(rows[0]?.subscriptionId)
+  assert.equal(
+    f.subscriptionRequests.filter((request) => request.method === "POST")
+      .length,
+    1
+  )
+  const subscription = rows[0]!._id
+  // Changing ordinary configuration cannot touch the external subscription.
+  await f.manager.action(api.liveNotificationActions.update, {
+    ...config,
+    liveNotificationMentionMode: "everyone",
+  })
+  assert.equal(f.subscriptionRequests.length, 1)
+  const secondId = "987654321098765432"
+  const secondGuild = await f.t.run(async (ctx) => {
+    const guildId = await ctx.db.insert("guilds", {
+      discordGuildId: secondId,
+      ownerDiscordId,
+      name: "Second guild",
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    await ctx.db.insert("discordGuildMemberships", {
+      guildId,
+      userId: f.ids.managerId,
+      discordUserId: managerDiscordId,
+      canManage: true,
+      managementVerifiedAt: Date.now(),
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    return guildId
+  })
+  await f.manager.mutation(internal.liveNotifications.save, {
+    ...config,
+    discordGuildId: secondId,
+    expectedBroadcasterId: "222",
+    expectedOwnerDiscordId: ownerDiscordId,
+  })
+  await f.t.action(internal.twitchEventSubActions.reconcile, { subscription })
+  rows = await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").collect()
+  )
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0]?.consumers.length, 2)
+  assert.equal(f.subscriptionRequests.length, 1)
+  await f.manager.action(api.liveNotificationActions.update, {
+    ...config,
+    liveNotificationsEnabled: false,
+  })
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.deepEqual(
+    (await f.t.run((ctx) => ctx.db.get(subscription)))?.consumers,
+    [`guild:${secondGuild}`]
+  )
+  await f.manager.mutation(internal.liveNotifications.save, {
+    ...config,
+    discordGuildId: secondId,
+    liveNotificationsEnabled: false,
+  })
+  await f.t.action(internal.twitchEventSubActions.reconcile, { subscription })
+  assert.equal(f.externalSubscriptions.length, 0)
+  assert.deepEqual(
+    f.subscriptionRequests.map((request) => request.method),
+    ["POST", "DELETE"]
+  )
+  const stopped = await f.t.run((ctx) => ctx.db.get(subscription))
+  assert.equal(stopped?.status, "disabled")
+  assert.equal(stopped?.subscriptionId, undefined)
+})
+
+test("announcement enable saves dirty template atomically, template edits never alter EventSub, disable preserves override", async () => {
+  const f = await fixture()
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await assert.rejects(
+    owner.action(api.twitchEventSubActions.updateAnnouncement, {
+      key: "follow",
+      enabled: true,
+      template: "YO {user}",
+    }),
+    /Reconnect required/
+  )
+  assert.equal(
+    (
+      await f.t.run((ctx) =>
+        ctx.db.query("twitchAnnouncementConfigs").collect()
+      )
+    ).length,
+    0
+  )
+  f.setScopes(["channel:bot", "moderator:read:followers"])
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: true,
+    template: "YO {user}",
+  })
+  const saved = await owner.query(api.twitchEventSub.settings, {})
+  assert.ok(saved.configs[0]?.updatedAt)
+  assert.deepEqual(
+    saved.configs.map(({ updatedAt: _updatedAt, ...config }) => config),
+    [{ key: "follow", enabled: true, template: "YO {user}" }]
+  )
+  assert.equal(saved.subscriptions[0]?.status, "ready")
+  const active = (await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").unique()
+  ))!
+  await f.t.run((ctx) =>
+    ctx.db.insert("twitchEventSubscriptions", {
+      identity: "historical-callback",
+      key: "follow",
+      broadcasterId: "222",
+      callback: "https://old.example/eventsub",
+      condition: active.condition,
+      consumers: [],
+      revision: 1,
+      status: "disabled",
+      updatedAt: 0,
+    })
+  )
+  assert.equal(
+    (await owner.query(api.twitchEventSub.settings, {})).subscriptions[0]
+      ?.status,
+    "ready"
+  )
+  const receipt = {
+    secret: "test-runtime-secret",
+    messageId: "follow-event",
+    key: "follow",
+    broadcasterId: "222",
+  }
+  assert.deepEqual(
+    await f.t.action(api.twitchEventSubActions.reserveEvent, receipt),
+    { kind: "pending", template: "YO {user}" }
+  )
+  assert.equal(
+    await f.t.action(api.twitchEventSubActions.beginDispatch, {
+      secret: receipt.secret,
+      messageId: receipt.messageId,
+      attempt: "first-send",
+    }),
+    true
+  )
+  await f.t.action(api.twitchEventSubActions.finishDispatch, {
+    secret: receipt.secret,
+    messageId: receipt.messageId,
+    attempt: "first-send",
+    sent: true,
+  })
+  assert.deepEqual(
+    await f.t.action(api.twitchEventSubActions.reserveEvent, receipt),
+    { kind: "terminal" }
+  )
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: true,
+    template: "Welcome {user}!",
+  })
+  assert.equal(f.subscriptionRequests.length, 1)
+  // A restart sees the same persistent receipt, even after a template change.
+  assert.deepEqual(
+    await f.t.action(api.twitchEventSubActions.reserveEvent, receipt),
+    { kind: "terminal" }
+  )
+  assert.deepEqual(
+    await f.t.action(api.twitchEventSubActions.reserveEvent, {
+      ...receipt,
+      messageId: "next-event",
+    }),
+    { kind: "pending", template: "Welcome {user}!" }
+  )
+  f.setUnavailable()
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: false,
+    template: "Welcome {user}!",
+  })
+  assert.deepEqual(
+    (await owner.query(api.twitchEventSub.settings, {})).configs.map(
+      ({ updatedAt: _updatedAt, ...config }) => config
+    ),
+    [{ key: "follow", enabled: false, template: "Welcome {user}!" }]
+  )
+  assert.equal(f.externalSubscriptions.length, 0)
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: false,
+  })
+  assert.equal(
+    (await owner.query(api.twitchEventSub.settings, {})).configs[0]?.template,
+    "Welcome {user}!"
+  )
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: false,
+    template: null,
+  })
+  assert.equal(
+    (await owner.query(api.twitchEventSub.settings, {})).configs[0]?.template,
+    undefined
+  )
+  await assert.rejects(
+    owner.action(api.twitchEventSubActions.updateAnnouncement, {
+      key: "follow",
+      enabled: true,
+      template: "{bits}",
+    }),
+    /Unsupported/
+  )
+})
+
+test("subscription errors and revocations surface reactively; retries remain in Convex", async () => {
+  const f = await fixture()
+  f.setSubscriptionUnavailable(true)
+  await f.manager.action(api.liveNotificationActions.update, config)
+  assert.equal(
+    (
+      await f.manager.query(api.liveNotifications.projection, {
+        discordGuildId: guildDiscordId,
+      })
+    ).subscriptionStatus,
+    "providerUnavailable"
+  )
+  f.setSubscriptionUnavailable(false)
+  await f.manager.action(api.liveNotificationActions.update, {
+    ...config,
+    retry: true,
+  })
+  const row = (await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").unique()
+  ))!
+  assert.ok(row.subscriptionId)
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId,
+    revoked: true,
+  })
+  assert.equal(
+    (
+      await f.manager.query(api.liveNotifications.projection, {
+        discordGuildId: guildDiscordId,
+      })
+    ).subscriptionStatus,
+    "revoked"
+  )
+  assert.equal(
+    f.subscriptionRequests.filter((request) => request.method === "POST")
+      .length,
+    1
+  )
+  await assert.rejects(
+    f.t.action(api.twitchEventSubActions.reserveEvent, {
+      secret: "bad",
+      key: "follow",
+      broadcasterId: "222",
+      messageId: "bad",
+    }),
+    /Unauthorized/
+  )
+  await assert.rejects(
+    f.t.action(api.liveNotificationActions.receiveOnline, {
+      secret: "bad",
+      messageId: "bad",
+      event: {},
+    }),
+    /Unauthorized/
+  )
+  await f.t.action(api.liveNotificationActions.receiveOnline, {
+    secret: "test-runtime-secret",
+    messageId: "stream-online",
+    event: {
+      id: "9001",
+      type: "live",
+      broadcaster_user_id: "222",
+      broadcaster_user_login: "owner",
+      broadcaster_user_name: "Owner",
+      started_at: new Date().toISOString(),
+    },
+  })
+  await f.t.action(api.liveNotificationActions.receiveOnline, {
+    secret: "test-runtime-secret",
+    messageId: "stream-online",
+    event: {
+      id: "9001",
+      type: "live",
+      broadcaster_user_id: "222",
+      broadcaster_user_login: "owner",
+      broadcaster_user_name: "Owner",
+      started_at: new Date().toISOString(),
+    },
+  })
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchLiveEvents").collect())).length,
+    1
+  )
+})
+
+test("failed last-consumer deletion stays visible and an authorized disabled retry completes cleanup", async () => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  f.setSubscriptionUnavailable(true)
+  await f.manager.action(api.liveNotificationActions.update, {
+    ...config,
+    liveNotificationsEnabled: false,
+  })
+  const failed = await f.manager.query(api.liveNotifications.projection, {
+    discordGuildId: guildDiscordId,
+  })
+  assert.equal(failed.config.liveNotificationsEnabled, false)
+  assert.equal(failed.subscriptionStatus, "providerUnavailable")
+  assert.equal(f.externalSubscriptions.length, 1)
+  f.setSubscriptionUnavailable(false)
+  await f.manager.action(api.liveNotificationActions.update, {
+    ...config,
+    liveNotificationsEnabled: false,
+    retry: true,
+  })
+  assert.equal(f.externalSubscriptions.length, 0)
+  assert.equal(
+    (
+      await f.manager.query(api.liveNotifications.projection, {
+        discordGuildId: guildDiscordId,
+      })
+    ).subscriptionStatus,
+    "disabled"
+  )
+})
+
+test("early challenge readiness survives create settlement and concurrent desired changes release the subscription", async () => {
+  const f = await fixture()
+  await f.manager.mutation(internal.liveNotifications.save, {
+    ...config,
+    expectedBroadcasterId: "222",
+    expectedOwnerDiscordId: ownerDiscordId,
+  })
+  const row = (await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").unique()
+  ))!
+  const acquired = await f.t.mutation(internal.twitchEventSub.acquire, {
+    subscription: row._id,
+    lease: "first",
+  })
+  assert.ok(acquired)
+  assert.equal(
+    await f.t.mutation(internal.twitchEventSub.acquire, {
+      subscription: row._id,
+      lease: "second",
+    }),
+    null
+  )
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: "early-challenge",
+    key: "streamOnline",
+    broadcasterId: "222",
+    revoked: false,
+  })
+  await f.t.mutation(internal.twitchEventSub.settle, {
+    subscription: row._id,
+    lease: "wrong",
+    revision: row.revision,
+    status: "failed",
+  })
+  assert.equal((await f.t.run((ctx) => ctx.db.get(row._id)))?.lease, "first")
+  await f.t.mutation(internal.twitchEventSub.settle, {
+    subscription: row._id,
+    lease: "first",
+    revision: row.revision,
+    subscriptionId: "early-challenge",
+    status: "connecting",
+  })
+  assert.equal((await f.t.run((ctx) => ctx.db.get(row._id)))?.status, "ready")
+  await f.t.mutation(internal.twitchEventSub.acquire, {
+    subscription: row._id,
+    lease: "changing",
+  })
+  await f.manager.mutation(internal.liveNotifications.save, {
+    ...config,
+    liveNotificationsEnabled: false,
+  })
+  await f.t.mutation(internal.twitchEventSub.settle, {
+    subscription: row._id,
+    lease: "changing",
+    revision: row.revision,
+    subscriptionId: "early-challenge",
+    status: "ready",
+  })
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  const stopped = await f.t.run((ctx) => ctx.db.get(row._id))
+  assert.equal(stopped?.status, "disabled")
+  assert.equal(stopped?.subscriptionId, undefined)
+  assert.equal(stopped?.consumers.length, 0)
+})
+
+test("explicit migration restores existing enabled consumers once and supports safe repeated invocation", async () => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  await f.t.run(async (ctx) => {
+    for (const row of await ctx.db.query("twitchEventConsumers").collect())
+      await ctx.db.delete(row._id)
+    for (const row of await ctx.db.query("twitchEventSubscriptions").collect())
+      await ctx.db.delete(row._id)
+  })
+  assert.deepEqual(
+    await f.t.action(internal.liveNotificationActions.migrateConsumers, {}),
+    { migrated: 1, skipped: 0, cursor: null }
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect()))
+      .length,
+    1
+  )
+  assert.equal(f.subscriptionRequests.length, 1)
+  await f.t.action(internal.liveNotificationActions.migrateConsumers, {})
+  assert.equal(f.subscriptionRequests.length, 1)
+})
+
+test("rollout delivery migration pages legacy rows, resumes only pre-send states and settles interrupted sends", async () => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  const ids = await f.t.run(async (ctx) => {
+    const eventId = await ctx.db.insert("twitchLiveEvents", {
+      broadcasterId: "222",
+      streamId: "9001",
+      messageId: "rollout",
+      login: "owner",
+      displayName: "Owner",
+      startedAt: new Date().toISOString(),
+      state: "processed",
+      attempts: 1,
+      createdAt: 1,
+    })
+    const rows = []
+    for (let n = 0; n < 28; n++)
+      rows.push(
+        await ctx.db.insert("twitchLiveDeliveries", {
+          guildId: f.ids.guildId,
+          discordGuildId: guildDiscordId,
+          eventId,
+          broadcasterId: "222",
+          streamId: String(9001 + n),
+          login: "owner",
+          displayName: "Owner",
+          startedAt: new Date().toISOString(),
+          state:
+            n === 0
+              ? "sending"
+              : n === 1
+                ? "claimed"
+                : n === 2
+                  ? "sent"
+                  : "pending",
+          attempts: 1,
+          claimExpiresAt: n === 1 ? Date.now() + 10000 : undefined,
+          createdAt: 1,
+          updatedAt: 1,
+        })
+      )
+    return rows
+  })
+  const first = await f.t.mutation(
+    internal.liveNotifications.migrateDeliveries,
+    {}
+  )
+  assert.equal(first.scheduled, 23)
+  assert.equal(first.uncertain, 1)
+  assert.ok(first.cursor)
+  const last = await f.t.mutation(
+    internal.liveNotifications.migrateDeliveries,
+    { cursor: first.cursor }
+  )
+  assert.deepEqual(last, { scheduled: 3, uncertain: 0, cursor: null })
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(ids[0]!)))?.state,
+    "uncertain"
+  )
+  assert.equal((await f.t.run((ctx) => ctx.db.get(ids[2]!)))?.state, "sent")
+  const again = await f.t.mutation(
+    internal.liveNotifications.migrateDeliveries,
+    {}
+  )
+  assert.equal(again.uncertain, 0)
+  // Repeated migration can schedule duplicate jobs, but transactional claim
+  // prevents either job from entering the send phase twice.
+  const claims = await Promise.all([
+    f.t.mutation(internal.liveNotifications.claim, {
+      deliveryId: ids[3]!,
+      claim: "one",
+    }),
+    f.t.mutation(internal.liveNotifications.claim, {
+      deliveryId: ids[3]!,
+      claim: "two",
+    }),
+  ])
+  assert.equal(claims.filter(Boolean).length, 1)
+})
+
+test("consumer migration batches 25 guilds per page and reconciles each shared identity once", async () => {
+  const f = await fixture()
+  await f.t.run(async (ctx) => {
+    for (let n = 0; n < 30; n++) {
+      const guildId = await ctx.db.insert("guilds", {
+        discordGuildId: String(BigInt(guildDiscordId) + BigInt(n + 1)),
+        ownerDiscordId,
+        name: `Guild ${n}`,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      await ctx.db.insert("guildLiveNotificationConfigs", {
+        guildId,
+        liveNotificationsEnabled: true,
+        liveNotificationChannelId: channelId,
+        liveNotificationMentionMode: "none",
+        broadcasterId: "222",
+        ownerUserId: f.ids.ownerId,
+        ownerDiscordId,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    }
+  })
+  const provider = globalThis.fetch
+  let lists = 0
+  globalThis.fetch = async (input, init) => {
+    if (
+      new URL(String(input)).pathname.endsWith("eventsub/subscriptions") &&
+      (!init?.method || init.method === "GET")
+    )
+      lists++
+    return provider(input, init)
+  }
+  const first = await f.t.action(
+    internal.liveNotificationActions.migrateConsumers,
+    {}
+  )
+  assert.equal(first.migrated, 25)
+  assert.ok(first.cursor)
+  const second = await f.t.action(
+    internal.liveNotificationActions.migrateConsumers,
+    { cursor: first.cursor }
+  )
+  assert.deepEqual(second, { migrated: 5, skipped: 0, cursor: null })
+  assert.equal(lists, 2)
+  assert.equal(
+    f.subscriptionRequests.filter((row) => row.method === "POST").length,
+    1
+  )
+  const row = await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").first()
+  )
+  assert.equal(row?.consumers.length, 30)
+})
+
+test("broadcaster changes release the old shared subscription and reconcile the new identity exactly once", async () => {
+  const f = await fixture({ managerIsOwner: true })
+  await f.manager.action(api.liveNotificationActions.update, config)
+  f.setLinkedId("444")
+  f.setTokenId("444")
+  await f.t.run(async (ctx) => {
+    await ctx.db.patch(f.ids.twitchAccountId!, {
+      providerAccountId: "444",
+      displayName: "New owner",
+      username: "newowner",
+    })
+  })
+  await f.manager.action(api.liveNotificationActions.update, config)
+  assert.deepEqual(
+    f.subscriptionRequests.map((request) => request.method),
+    ["POST", "DELETE", "POST"]
+  )
+  const rows = await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").collect()
+  )
+  assert.equal(
+    rows.find((row) => row.broadcasterId === "222")?.consumers.length,
+    0
+  )
+  assert.equal(
+    rows.find((row) => row.broadcasterId === "444")?.consumers.length,
+    1
+  )
+  await f.manager.action(api.liveNotificationActions.update, {
+    ...config,
+    liveNotificationsEnabled: false,
+  })
+  f.setLinkedId("555")
+  f.setTokenId("555")
+  await f.t.run((ctx) =>
+    ctx.db.patch(f.ids.twitchAccountId!, {
+      providerAccountId: "555",
+      displayName: "Newest",
+      username: "newest",
+    })
+  )
+  await f.manager.action(api.liveNotificationActions.update, {
+    ...config,
+    liveNotificationsEnabled: false,
+  })
+  const stored = await f.t.run((ctx) =>
+    ctx.db.query("guildLiveNotificationConfigs").first()
+  )
+  assert.equal(stored?.broadcasterId, "555")
+  assert.equal(f.externalSubscriptions.length, 0)
+})
+
+test("bounded confirmation repairs lost webhook status writes and reports exhaustion truthfully", async () => {
+  const f = await fixture({ managerIsOwner: true })
+  f.setScopes(["channel:bot", "moderator:read:followers"])
+  await f.manager.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: true,
+  })
+  const row = await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").first()
+  )
+  assert.ok(row)
+  await f.t.run((ctx) => ctx.db.patch(row._id, { status: "connecting" }))
+  assert.equal(f.externalSubscriptions[0]?.status, "enabled")
+  await f.t.action(internal.twitchEventSubActions.confirmSubscription, {
+    subscription: row._id,
+    attempt: 0,
+  })
+  assert.equal((await f.t.run((ctx) => ctx.db.get(row._id)))?.status, "ready")
+  await f.t.run((ctx) => ctx.db.patch(row._id, { status: "connecting" }))
+  f.setSubscriptionUnavailable(true)
+  await f.t.action(internal.twitchEventSubActions.confirmSubscription, {
+    subscription: row._id,
+    attempt: 2,
+  })
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.status,
+    "providerUnavailable"
+  )
+})
+test("direct Discord delivery reserves before one REST send, persists success and never replays ambiguous sends", async () => {
+  for (const outcome of [
+    "sent",
+    "lostResponse",
+    "rateLimited",
+    "invalidMessage",
+    "preflightUnavailable",
+    "noPermission",
+  ] as const) {
+    const f = await fixture()
+    await f.manager.action(api.liveNotificationActions.update, config)
+    const id = await receiveEvent(f.t, event)
+    await f.t.action(internal.liveNotificationActions.processEvent, {
+      eventId: id,
+    })
+    const job = (await f.t.run((ctx) =>
+      ctx.db.query("twitchLiveDeliveries").unique()
+    ))!
+    const base = globalThis.fetch
+    let sends = 0
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input))
+      if (url.hostname === "discord.com") {
+        if (url.pathname.endsWith(`/guilds/${guildDiscordId}`)) {
+          if (outcome === "preflightUnavailable")
+            return Response.json({}, { status: 503 })
+          return Response.json({
+            owner_id: ownerDiscordId,
+            roles: [
+              {
+                id: guildDiscordId,
+                permissions: outcome === "noPermission" ? "0" : "134144",
+                mentionable: false,
+                managed: false,
+              },
+            ],
+          })
+        }
+        if (url.pathname.endsWith(`/channels/${channelId}`))
+          return Response.json({
+            guild_id: guildDiscordId,
+            type: 0,
+            permission_overwrites: [],
+          })
+        if (url.pathname.endsWith("/users/@me"))
+          return Response.json({ id: "999999999999999999" })
+        if (url.pathname.includes("/members/"))
+          return Response.json({ roles: [] })
+        if (url.pathname.endsWith("/messages")) {
+          sends++
+          assert.equal(
+            (await f.t.run((ctx) => ctx.db.get(job._id)))?.state,
+            "sending"
+          )
+          assert.equal(
+            new Headers(init?.headers).get("Authorization"),
+            "Bot test-discord-token"
+          )
+          const payload = JSON.parse(String(init?.body))
+          assert.equal(payload.flags, 32768)
+          assert.equal("embeds" in payload, false)
+          if (outcome === "lostResponse") throw new Error("ambiguous")
+          if (outcome === "rateLimited")
+            return Response.json({ retry_after: 1 }, { status: 429 })
+          return Response.json({
+            id: outcome === "invalidMessage" ? "bad" : "678901234567890123",
+          })
+        }
+      }
+      return base(input, init)
+    }
+    await f.t.action(internal.liveNotificationActions.deliver, {
+      deliveryId: job._id,
+    })
+    const stored = await f.t.run((ctx) => ctx.db.get(job._id))
+    assert.equal(
+      stored?.state,
+      outcome === "sent"
+        ? "sent"
+        : outcome === "preflightUnavailable"
+          ? "claimed"
+          : outcome === "noPermission"
+            ? "failed"
+            : "uncertain"
+    )
+    assert.equal(
+      sends,
+      outcome === "preflightUnavailable" || outcome === "noPermission" ? 0 : 1
+    )
+    await f.t.action(internal.liveNotificationActions.deliver, {
+      deliveryId: job._id,
+    })
+    assert.ok(sends <= 1)
+  }
+})
 test("source is fixed to guild owner through trusted indexes and live Clerk/provider evidence", async () => {
   const f = await fixture()
   const view = await f.manager.action(api.liveNotificationActions.get, {
@@ -349,10 +1171,6 @@ test("missing owner link, disabled user, missing permission and provider outages
       })
     ).source.status,
     "unavailable"
-  )
-  await assert.rejects(
-    f.t.action(internal.liveNotificationActions.runtimeSources, {}),
-    /unavailable/
   )
 })
 
@@ -565,14 +1383,16 @@ test("EventSub and stream-session dedupe survives duplicate processing, claims, 
     0
   )
   const input = {
-    secret,
     deliveryId: job._id,
     claim: job.claim,
     configUpdatedAt: job.config.updatedAt,
   }
-  assert.equal(await f.t.action(api.liveNotificationActions.begin, input), true)
   assert.equal(
-    await f.t.action(api.liveNotificationActions.begin, input),
+    await f.t.action(internal.liveNotificationActions.begin, input),
+    true
+  )
+  assert.equal(
+    await f.t.action(internal.liveNotificationActions.begin, input),
     false
   )
   await f.t.mutation(internal.liveNotifications.expire, {
@@ -592,8 +1412,7 @@ test("EventSub and stream-session dedupe survives duplicate processing, claims, 
     ).length,
     0
   )
-  await f.t.action(api.liveNotificationActions.finish, {
-    secret,
+  await f.t.mutation(internal.liveNotifications.finish, {
     deliveryId: job._id,
     claim: job.claim,
     messageId: "678901234567890123",
@@ -612,13 +1431,6 @@ test("EventSub and stream-session dedupe survives duplicate processing, claims, 
   )
   assert.equal(deliveries.length, 2)
   assert.equal(deliveries[1]?.title, undefined)
-  await assert.rejects(
-    claimJobs(f.t, {
-      secret: "wrong",
-      discordGuildIds: [guildDiscordId],
-    }),
-    /secret/
-  )
 })
 
 test("delivery preflight retries are bounded and disabled or changed authority cancels sending", async () => {
@@ -639,8 +1451,7 @@ test("delivery preflight retries are bounded and disabled or changed authority c
     if (attempt === 0) {
       f.setUnavailable()
       assert.equal(
-        await f.t.action(api.liveNotificationActions.begin, {
-          secret,
+        await f.t.action(internal.liveNotificationActions.begin, {
           deliveryId: job._id,
           claim: job.claim,
           configUpdatedAt: job.config.updatedAt,
@@ -662,6 +1473,7 @@ test("delivery preflight retries are bounded and disabled or changed authority c
   const second = await receiveEvent(f.t, {
     ...event,
     streamId: "9002",
+    messageId: "second-stream",
   })
   await f.t.action(internal.liveNotificationActions.processEvent, {
     eventId: second,
@@ -678,16 +1490,14 @@ test("delivery preflight retries are bounded and disabled or changed authority c
     liveNotificationsEnabled: false,
   })
   assert.equal(
-    await f.t.action(api.liveNotificationActions.begin, {
-      secret,
+    await f.t.action(internal.liveNotificationActions.begin, {
       deliveryId: job._id,
       claim: job.claim,
       configUpdatedAt: job.config.updatedAt,
     }),
     false
   )
-  await f.t.action(api.liveNotificationActions.finish, {
-    secret,
+  await f.t.mutation(internal.liveNotifications.finish, {
     deliveryId: job._id,
     claim: job.claim,
     failure: "destinationUnavailable",
@@ -736,189 +1546,17 @@ test("delayed deliveries remain eligible while the same stream is live and fail 
   })
   assert.ok(job)
   const input = {
-    secret,
     deliveryId: job._id,
     claim: job.claim,
     configUpdatedAt: job.config.updatedAt,
   }
   f.setUnavailable()
   assert.equal(
-    await f.t.action(api.liveNotificationActions.begin, input),
+    await f.t.action(internal.liveNotificationActions.begin, input),
     false
   )
   assert.equal((await f.t.run((ctx) => ctx.db.get(job._id)))?.state, "claimed")
 })
-
-test("authenticated runtime source contract validates requests, records health and fails visibly on outages", async () => {
-  const f = await fixture()
-  await f.manager.action(api.liveNotificationActions.update, config)
-  const request = (
-    body: string | ArrayBuffer,
-    authorization = "Bearer test-runtime-secret"
-  ) =>
-    f.t.fetch("/twitch-live-sources", {
-      method: "POST",
-      headers: { Authorization: authorization },
-      body,
-    })
-  for (const authorization of ["", "Bearer wrong", "test-runtime-secret"])
-    assert.equal((await request('{"states":[]}', authorization)).status, 401)
-  for (const body of [
-    "invalid",
-    "{}",
-    '{"states":[{"broadcasterId":"123","status":"forged"}]}',
-    '{"states":[{"broadcasterId":"nonsense","status":"ready"}]}',
-    '{"states":[],"cursor":123}',
-    '{"states":[],"cursor":{}}',
-    JSON.stringify({ states: [], cursor: "x".repeat(4097) }),
-    '{"states":[],"healthOnly":null}',
-    '{"states":[],"healthOnly":"true"}',
-  ])
-    assert.equal((await request(body)).status, 400)
-  assert.equal((await request("x".repeat(65537))).status, 413)
-  assert.equal((await request(new Uint8Array([0xc3, 0x28]).buffer)).status, 400)
-  const response = await request(
-    JSON.stringify({ states: [{ broadcasterId: "222", status: "ready" }] })
-  )
-  assert.equal(response.status, 200)
-  assert.deepEqual(await response.json(), {
-    broadcasterIds: ["222"],
-    continueCursor: null,
-  })
-  assert.equal(
-    (
-      await f.manager.action(api.liveNotificationActions.get, {
-        discordGuildId: guildDiscordId,
-      })
-    ).subscriptionStatus,
-    "ready"
-  )
-  await f.t.run(async (ctx) => {
-    for (let index = 0; index < 25; index++) {
-      const guildId = await ctx.db.insert("guilds", {
-        discordGuildId: `http-page-${index}`,
-        ownerDiscordId,
-        name: "Page target",
-        createdAt: 1,
-        updatedAt: 1,
-      })
-      const { discordGuildId: _discordGuildId, ...liveConfig } = config
-      await ctx.db.insert("guildLiveNotificationConfigs", {
-        guildId,
-        ...liveConfig,
-        createdAt: 1,
-        updatedAt: 1,
-      })
-    }
-  })
-  const page = await (await request('{"states":[],"cursor":null}')).json()
-  assert.ok(page.continueCursor)
-  assert.equal(
-    (
-      await f.t.run((ctx) =>
-        ctx.db.query("guildLiveNotificationConfigs").collect()
-      )
-    ).filter((row) => row.broadcasterId === "222").length,
-    25
-  )
-  const next = await request(
-    JSON.stringify({ states: [], cursor: page.continueCursor })
-  )
-  assert.equal(next.status, 200)
-  assert.equal((await next.json()).continueCursor, null)
-  assert.equal(
-    (
-      await f.t.run((ctx) =>
-        ctx.db.query("guildLiveNotificationConfigs").collect()
-      )
-    ).filter((row) => row.broadcasterId === "222").length,
-    26
-  )
-  f.setUnavailable()
-  await f.t.run(async (ctx) => {
-    const check = await ctx.db.query("twitchLiveOwnerChecks").unique()
-    if (check)
-      await ctx.db.patch(check._id, { checkedAt: Date.now() - 6 * 60000 })
-  })
-  assert.equal((await request('{"states":[]}')).status, 503)
-  const healthOnly = await request(
-    JSON.stringify({
-      states: [{ broadcasterId: "222", status: "unavailable" }],
-      healthOnly: true,
-    })
-  )
-  assert.equal(healthOnly.status, 200)
-  assert.deepEqual(await healthOnly.json(), {
-    broadcasterIds: [],
-    continueCursor: null,
-  })
-  assert.equal(
-    (
-      await f.t.query(internal.liveNotifications.subscription, {
-        broadcasterId: "222",
-      })
-    )?.status,
-    "unavailable"
-  )
-})
-
-test("verified stream.online HTTP ingress persists before acknowledgement and dedupes signed redelivery", async () => {
-  const f = await fixture()
-  const body = JSON.stringify({
-    subscription: {
-      id: "online-subscription",
-      type: "stream.online",
-      version: "1",
-      condition: { broadcaster_user_id: "222" },
-    },
-    event: {
-      id: "9001",
-      broadcaster_user_id: "222",
-      broadcaster_user_login: "verified_owner",
-      broadcaster_user_name: "Owner",
-      type: "live",
-      started_at: event.startedAt,
-    },
-  })
-  const timestamp = new Date().toISOString()
-  for (const id of ["first-message", "first-message", "second-message"]) {
-    const signature = createHmac("sha256", process.env.TWITCH_EVENTSUB_SECRET!)
-      .update(id + timestamp + body)
-      .digest("hex")
-    const response = await f.t.fetch("/twitch-eventsub", {
-      method: "POST",
-      body,
-      headers: {
-        "Twitch-Eventsub-Message-Id": id,
-        "Twitch-Eventsub-Message-Timestamp": timestamp,
-        "Twitch-Eventsub-Message-Signature": `sha256=${signature}`,
-        "Twitch-Eventsub-Message-Type": "notification",
-      },
-    })
-    assert.equal(response.status, 204)
-  }
-  const events = await f.t.run((ctx) =>
-    ctx.db.query("twitchLiveEvents").collect()
-  )
-  assert.equal(events.length, 1)
-  assert.equal(events[0]?.streamId, "9001")
-  assert.equal(events[0]?.state, "pending")
-})
-
-async function receiveEvent(
-  t: ReturnType<typeof convexTest>,
-  args: FunctionArgs<typeof internal.liveNotifications.receive>
-) {
-  const id = await t.mutation(internal.liveNotifications.receive, args)
-  assert.ok(id)
-  return id
-}
-async function claimJobs(
-  t: ReturnType<typeof convexTest>,
-  args: FunctionArgs<typeof api.liveNotificationActions.claim>
-) {
-  return (await t.action(api.liveNotificationActions.claim, args)).deliveries
-}
 
 test("owner candidates fail closed for missing Discord authority, disabled users, malformed and duplicate data", async () => {
   for (const change of [
@@ -1012,105 +1650,6 @@ test("current Clerk and OAuth evidence selects a replacement Twitch row while pr
   )
 })
 
-test("source reconciliation paginates beyond 500 guilds and verifies a repeated owner only once across pages", async () => {
-  const f = await fixture()
-  await f.manager.action(api.liveNotificationActions.update, config)
-  await f.t.run(async (ctx) => {
-    for (let i = 0; i < 525; i++) {
-      const guildId = await ctx.db.insert("guilds", {
-        discordGuildId: String(600000000000000000n + BigInt(i)),
-        ownerDiscordId,
-        name: "Owned server",
-        createdAt: 1,
-        updatedAt: 1,
-      })
-      await ctx.db.insert("guildLiveNotificationConfigs", {
-        guildId,
-        liveNotificationsEnabled: true,
-        liveNotificationChannelId: channelId,
-        liveNotificationMentionMode: "none",
-        createdAt: 1,
-        updatedAt: 1,
-      })
-    }
-  })
-  const fetch = globalThis.fetch
-  let verifications = 0
-  let streamLookups = 0
-  globalThis.fetch = async (input, init) => {
-    if (String(input).endsWith("/users/owner")) verifications++
-    if (String(input).includes("helix/streams")) streamLookups++
-    return fetch(input, init)
-  }
-  let cursor: string | null = null
-  let pages = 0
-  do {
-    const page: Awaited<
-      ReturnType<
-        typeof f.t.action<
-          typeof internal.liveNotificationActions.runtimeSources
-        >
-      >
-    > = await f.t.action(internal.liveNotificationActions.runtimeSources, {
-      cursor,
-    })
-    assert.deepEqual(page.broadcasterIds, ["222"])
-    cursor = page.continueCursor
-    pages++
-  } while (cursor)
-  assert.equal(pages, 22)
-  assert.equal(verifications, 1)
-  let matching = 0
-  cursor = null
-  do {
-    const page: FunctionReturnType<
-      typeof internal.liveNotifications.configured
-    > = await f.t.query(internal.liveNotifications.configured, {
-      cursor,
-      broadcasterId: "222",
-    })
-    matching += page.targets.length
-    cursor = page.isDone ? null : page.continueCursor
-  } while (cursor)
-  assert.equal(matching, 526)
-  verifications = 0
-  const eventId = await receiveEvent(f.t, event)
-  await f.t.action(internal.liveNotificationActions.processEvent, { eventId })
-  assert.equal(
-    (await f.t.run((ctx) => ctx.db.query("twitchLiveDeliveries").collect()))
-      .length,
-    526
-  )
-  assert.equal(verifications, 1)
-  assert.equal(streamLookups, 1)
-  assert.equal(
-    (
-      await f.t.query(internal.liveNotifications.configured, {
-        broadcasterId: "333",
-      })
-    ).targets.length,
-    0
-  )
-  f.setUnavailable()
-  await f.t.run(async (ctx) => {
-    const check = await ctx.db.query("twitchLiveOwnerChecks").unique()
-    assert.ok(check)
-    await ctx.db.patch(check._id, { checkedAt: 0 })
-  })
-  await assert.rejects(
-    f.t.action(internal.liveNotificationActions.runtimeSources, {}),
-    /unavailable/
-  )
-  assert.equal(
-    (
-      await f.t.query(internal.liveNotifications.configured, {
-        broadcasterId: "222",
-      })
-    ).targets.length,
-    25
-  )
-})
-
 test("bounded owner verification never exceeds its worker limit and preserves result order", async () => {
   let running = 0
   let peak = 0
@@ -1130,128 +1669,6 @@ test("bounded owner verification never exceeds its worker limit and preserves re
     Array.from({ length: 30 }, (_, i) => i * 2)
   )
   await assert.rejects(boundedMap([1], 0, async (value) => value))
-})
-
-test("queue claims are bounded to pending work, preserve runtime guild ownership and coalesce stale jobs", async () => {
-  const f = await fixture()
-  assert.deepEqual(
-    await f.t.action(api.liveNotificationActions.claim, {
-      secret,
-      discordGuildIds: [guildDiscordId],
-    }),
-    { deliveries: [], continueCursor: null }
-  )
-  await f.manager.action(api.liveNotificationActions.update, config)
-  const id = await receiveEvent(f.t, event)
-  await f.t.action(internal.liveNotificationActions.processEvent, {
-    eventId: id,
-  })
-  const template = await f.t.run((ctx) =>
-    ctx.db.query("twitchLiveDeliveries").unique()
-  )
-  assert.ok(template)
-  const { _id: _id, _creationTime: _creationTime, ...fields } = template
-  await f.t.run(async (ctx) => {
-    for (let i = 0; i < 24; i++)
-      await ctx.db.insert("twitchLiveDeliveries", {
-        ...fields,
-        streamId: String(10000 + i),
-        discordGuildId: i === 0 ? "999999999999999999" : guildDiscordId,
-      })
-  })
-  const pending = await f.t.query(internal.liveNotifications.pending, {})
-  assert.equal(pending.deliveries.length, 20)
-  assert.ok(pending.continueCursor)
-  const first = await f.t.action(api.liveNotificationActions.claim, {
-    secret,
-    discordGuildIds: [guildDiscordId],
-  })
-  assert.equal(first.deliveries.length, 4)
-  assert.equal(first.continueCursor, null)
-  const second = await f.t.action(api.liveNotificationActions.claim, {
-    secret,
-    discordGuildIds: [guildDiscordId],
-    cursor: first.continueCursor,
-  })
-  assert.equal(second.deliveries.length, 4)
-  assert.equal(second.continueCursor, null)
-  await f.manager.action(api.liveNotificationActions.update, {
-    ...config,
-    liveNotificationsEnabled: false,
-  })
-  for (const job of first.deliveries.slice(0, 2))
-    await f.t.mutation(internal.liveNotifications.expire, {
-      deliveryId: job._id,
-      claim: job.claim,
-    })
-  assert.deepEqual(
-    await claimJobs(f.t, { secret, discordGuildIds: [guildDiscordId] }),
-    []
-  )
-  assert.equal(
-    (await f.t.run((ctx) => ctx.db.get(first.deliveries[0]!._id)))?.state,
-    "cancelled"
-  )
-})
-
-test("queue cancels departed and deleted foreign guilds but leaves eligible foreign work pending", async () => {
-  const f = await fixture()
-  await f.manager.action(api.liveNotificationActions.update, config)
-  const id = await receiveEvent(f.t, event)
-  await f.t.action(internal.liveNotificationActions.processEvent, {
-    eventId: id,
-  })
-  const template = await f.t.run((ctx) =>
-    ctx.db.query("twitchLiveDeliveries").unique()
-  )
-  assert.ok(template)
-  const { _id: _id, _creationTime: _creationTime, ...fields } = template
-  const foreign = await f.t.run(async (ctx) => {
-    const result = []
-    const { discordGuildId: _discordGuildId, ...liveConfig } = config
-    for (const state of ["eligible", "left", "deleted"] as const) {
-      const guildId = await ctx.db.insert("guilds", {
-        discordGuildId: `foreign-${state}`,
-        ownerDiscordId,
-        name: state,
-        createdAt: 1,
-        updatedAt: 1,
-        ...(state === "left" ? { botLeftAt: 2 } : {}),
-      })
-      await ctx.db.insert("guildLiveNotificationConfigs", {
-        guildId,
-        ...liveConfig,
-        createdAt: 1,
-        updatedAt: 1,
-      })
-      const deliveryId = await ctx.db.insert("twitchLiveDeliveries", {
-        ...fields,
-        guildId,
-        discordGuildId: `foreign-${state}`,
-      })
-      if (state === "deleted") await ctx.db.delete(guildId)
-      result.push({ deliveryId, state })
-    }
-    return result
-  })
-  await f.t.action(api.liveNotificationActions.claim, {
-    secret,
-    discordGuildIds: [guildDiscordId],
-  })
-  for (const row of foreign)
-    assert.equal(
-      (await f.t.run((ctx) => ctx.db.get(row.deliveryId)))?.state,
-      row.state === "eligible" ? "pending" : "cancelled"
-    )
-  const cancellations = await f.t.run((ctx) =>
-    ctx.db.query("guildAuditEvents").collect()
-  )
-  assert.equal(
-    cancellations.filter(
-      (entry) => entry.eventType === "bot.twitch_live_notification.cancelled"
-    ).length,
-    1
-  )
 })
 
 test("send reservation rejects linked authority changed while provider verification was in flight", async () => {
@@ -1275,8 +1692,7 @@ test("send reservation rejects linked authority changed while provider verificat
     return fetchProvider(input, init)
   }
   assert.equal(
-    await f.t.action(api.liveNotificationActions.begin, {
-      secret,
+    await f.t.action(internal.liveNotificationActions.begin, {
       deliveryId: job._id,
       claim: job.claim,
       configUpdatedAt: job.config.updatedAt,
@@ -1305,16 +1721,14 @@ test("delivery state distinguishes retryable preflight, deterministic failure an
     assert.ok(job)
     if (failure === "sendOutcomeUnknown")
       assert.equal(
-        await f.t.action(api.liveNotificationActions.begin, {
-          secret,
+        await f.t.action(internal.liveNotificationActions.begin, {
           deliveryId: job._id,
           claim: job.claim,
           configUpdatedAt: job.config.updatedAt,
         }),
         true
       )
-    await f.t.action(api.liveNotificationActions.finish, {
-      secret,
+    await f.t.mutation(internal.liveNotifications.finish, {
       deliveryId: job._id,
       claim: job.claim,
       failure,
@@ -1368,8 +1782,7 @@ test("delayed notifications send only if their original stream session is still 
     })
     assert.ok(job)
     assert.equal(
-      await f.t.action(api.liveNotificationActions.begin, {
-        secret,
+      await f.t.action(internal.liveNotificationActions.begin, {
         deliveryId: job._id,
         claim: job.claim,
         configUpdatedAt: job.config.updatedAt,
@@ -1382,33 +1795,6 @@ test("delayed notifications send only if their original stream session is still 
         "streamEnded"
       )
   }
-})
-
-test("subscription health avoids unchanged heartbeat writes but records changes and freshness renewal", async () => {
-  const f = await fixture()
-  const states = [{ broadcasterId: "222", status: "ready" as const }]
-  await f.t.mutation(internal.liveNotifications.subscriptions, { states })
-  const before = await f.t.query(internal.liveNotifications.subscription, {
-    broadcasterId: "222",
-  })
-  await f.t.mutation(internal.liveNotifications.subscriptions, { states })
-  assert.deepEqual(
-    await f.t.query(internal.liveNotifications.subscription, {
-      broadcasterId: "222",
-    }),
-    before
-  )
-  await f.t.mutation(internal.liveNotifications.subscriptions, {
-    states: [{ broadcasterId: "222", status: "unavailable" }],
-  })
-  assert.equal(
-    (
-      await f.t.query(internal.liveNotifications.subscription, {
-        broadcasterId: "222",
-      })
-    )?.status,
-    "unavailable"
-  )
 })
 
 test("retention cleanup deletes bounded old dedupe batches and prevents old session resurrection", async (t) => {
@@ -1476,21 +1862,349 @@ test("retention cleanup deletes bounded old dedupe batches and prevents old sess
   )
 })
 
-test("runtime HTTP enforces streaming UTF-8 bytes and keeps internal errors out of responses", async () => {
+test("durable announcement reservation resumes before send and never replays an ambiguous or completed send", async () => {
   const f = await fixture()
-  for (const body of [
-    '{"states":[],"padding":"' + "é".repeat(33000) + '"}',
-    "x".repeat(65537),
-  ]) {
-    assert.equal(
-      (
-        await f.t.fetch("/twitch-live-sources", {
-          method: "POST",
-          body,
-          headers: { Authorization: "Bearer test-runtime-secret" },
-        })
-      ).status,
-      413
-    )
+  const owner = f.t.withIdentity({ subject: "owner" })
+  f.setScopes(["channel:bot", "moderator:read:followers"])
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: true,
+    template: "Hi {user}",
+  })
+  const eventJson = JSON.stringify({
+    broadcaster_user_id: "222",
+    broadcaster_user_login: "channel",
+    broadcaster_user_name: "Channel",
+    user_name: "Viewer",
+  })
+  const request = {
+    secret: "test-runtime-secret",
+    messageId: "restart-event",
+    key: "follow",
+    broadcasterId: "222",
+    eventJson,
   }
+  // Simulate a response lost after the real mutation commits, then a fresh worker.
+  const reserved = await f.t.action(
+    api.twitchEventSubActions.reserveEvent,
+    request
+  )
+  assert.equal(reserved.kind, "pending")
+  assert.equal(
+    (
+      await f.t.action(api.twitchEventSubActions.pendingEvents, {
+        secret: request.secret,
+      })
+    ).events[0]?.eventJson,
+    eventJson
+  )
+  assert.equal(
+    (await f.t.action(api.twitchEventSubActions.reserveEvent, request)).kind,
+    "pending"
+  )
+  const [first, concurrent] = await Promise.all(
+    ["first", "second"].map((attempt) =>
+      f.t.action(api.twitchEventSubActions.beginDispatch, {
+        secret: request.secret,
+        messageId: request.messageId,
+        attempt,
+      })
+    )
+  )
+  assert.equal(Number(first) + Number(concurrent), 1)
+  await f.t.action(api.twitchEventSubActions.finishDispatch, {
+    secret: request.secret,
+    messageId: request.messageId,
+    attempt: first ? "first" : "second",
+    sent: false,
+  })
+  assert.equal(
+    (await f.t.action(api.twitchEventSubActions.reserveEvent, request)).kind,
+    "terminal"
+  )
+  assert.equal(
+    (
+      await f.t.action(api.twitchEventSubActions.pendingEvents, {
+        secret: request.secret,
+      })
+    ).events.length,
+    0
+  )
+  const next = { ...request, messageId: "successful-event" }
+  await f.t.action(api.twitchEventSubActions.reserveEvent, next)
+  assert.equal(
+    await f.t.action(api.twitchEventSubActions.beginDispatch, {
+      secret: request.secret,
+      messageId: next.messageId,
+      attempt: "success",
+    }),
+    true
+  )
+  await f.t.action(api.twitchEventSubActions.finishDispatch, {
+    secret: request.secret,
+    messageId: next.messageId,
+    attempt: "success",
+    sent: true,
+  })
+  assert.equal(
+    (await f.t.action(api.twitchEventSubActions.reserveEvent, next)).kind,
+    "terminal"
+  )
+  assert.equal(
+    await f.t.action(api.twitchEventSubActions.beginDispatch, {
+      secret: request.secret,
+      messageId: next.messageId,
+      attempt: "repeat",
+    }),
+    false
+  )
+})
+
+test("central dispatch authorization ignores disabled, missing, stale, unlinked and inactive announcement owners", async () => {
+  const f = await fixture()
+  const owner = f.t.withIdentity({ subject: "owner" })
+  f.setScopes(["channel:bot", "channel:read:subscriptions"])
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "subscriptionGift",
+    enabled: true,
+  })
+  const receipt = {
+    secret: "test-runtime-secret",
+    key: "subscriptionGift",
+    broadcasterId: "222",
+    messageId: "gift-pending",
+  }
+  assert.equal(
+    (await f.t.action(api.twitchEventSubActions.reserveEvent, receipt)).kind,
+    "pending"
+  )
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "subscriptionGift",
+    enabled: false,
+  })
+  assert.equal(
+    await f.t.action(api.twitchEventSubActions.beginDispatch, {
+      secret: receipt.secret,
+      messageId: receipt.messageId,
+      attempt: "after-disable",
+    }),
+    false
+  )
+  assert.equal(
+    (
+      await f.t.action(api.twitchEventSubActions.reserveEvent, {
+        ...receipt,
+        messageId: "disabled",
+      })
+    ).kind,
+    "ignored"
+  )
+  assert.equal(
+    (
+      await f.t.action(api.twitchEventSubActions.reserveEvent, {
+        ...receipt,
+        key: "follow",
+        messageId: "missing",
+      })
+    ).kind,
+    "ignored"
+  )
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "subscriptionGift",
+    enabled: true,
+  })
+  f.setLinkedId("333")
+  assert.equal(
+    (
+      await f.t.action(api.twitchEventSubActions.reserveEvent, {
+        ...receipt,
+        messageId: "stale",
+      })
+    ).kind,
+    "ignored"
+  )
+  f.setLinkedId(undefined)
+  assert.equal(
+    (
+      await f.t.action(api.twitchEventSubActions.reserveEvent, {
+        ...receipt,
+        messageId: "unlinked",
+      })
+    ).kind,
+    "ignored"
+  )
+  f.setLinkedId("222")
+  await f.t.run((ctx) => ctx.db.patch(f.ids.ownerId, { status: "disabled" }))
+  assert.equal(
+    (
+      await f.t.action(api.twitchEventSubActions.reserveEvent, {
+        ...receipt,
+        messageId: "inactive",
+      })
+    ).kind,
+    "ignored"
+  )
+})
+
+test("same-state callback change releases old identity and reconciles one replacement; template-only edits touch nothing", async () => {
+  const f = await fixture()
+  const owner = f.t.withIdentity({ subject: "owner" })
+  f.setScopes(["channel:bot", "moderator:read:followers"])
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: true,
+  })
+  const result = await owner.mutation(internal.twitchEventSub.save, {
+    broadcasterId: "222",
+    key: "follow",
+    enabled: true,
+    template: "Hello {user}",
+    callback: "https://next.example/eventsub",
+    botId: "111",
+  })
+  assert.equal(result.subscriptions.length, 2)
+  for (const subscription of result.subscriptions)
+    await f.t.action(internal.twitchEventSubActions.reconcile, { subscription })
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(
+    f.externalSubscriptions[0]?.transport.callback,
+    "https://next.example/eventsub"
+  )
+  assert.equal(
+    (
+      await owner.mutation(internal.twitchEventSub.save, {
+        broadcasterId: "222",
+        key: "follow",
+        enabled: true,
+        template: "Welcome {user}",
+        callback: "https://next.example/eventsub",
+        botId: "111",
+      })
+    ).subscriptions.length,
+    0
+  )
+})
+
+test("retry targets paginate historical rows and exclude completed cleanups", async () => {
+  const f = await fixture()
+  const owner = f.t.withIdentity({ subject: "owner" })
+  f.setScopes(["channel:bot", "moderator:read:followers"])
+  await owner.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: true,
+  })
+  await f.t.run(async (ctx) => {
+    for (let n = 0; n < 60; n++)
+      await ctx.db.insert("twitchEventSubscriptions", {
+        identity: `old-${n}`,
+        key: "follow",
+        broadcasterId: "222",
+        callback: `https://old${n}.example/eventsub`,
+        condition: { broadcaster_user_id: "222", moderator_user_id: "222" },
+        consumers: [],
+        revision: 1,
+        status: n % 2 ? "disabled" : "failed",
+        updatedAt: n,
+      })
+  })
+  let cursor: string | undefined
+  let seen = 0
+  let pages = 0
+  do {
+    const page = await f.t.query(internal.twitchEventSub.retryTarget, {
+      key: "follow",
+      userId: f.ids.ownerId,
+      cursor,
+    })
+    assert.ok(page.targets.length <= 25)
+    seen += page.targets.length
+    pages++
+    cursor = page.cursor ?? undefined
+  } while (cursor)
+  assert.equal(pages, 3)
+  assert.equal(seen, 31)
+})
+
+test("projection never asserts cached owner or destination authority; client mismatch is provider unavailable", async () => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  const projection = await f.manager.query(api.liveNotifications.projection, {
+    discordGuildId: guildDiscordId,
+  })
+  assert.equal(projection.source.status, "stale")
+  assert.equal(projection.discordStatus, "unavailable")
+  f.setClientId("wrong-application")
+  assert.equal(
+    (
+      await f.manager.action(api.liveNotificationActions.get, {
+        discordGuildId: guildDiscordId,
+      })
+    ).source.status,
+    "unavailable"
+  )
+  f.setClientId("test-client")
+  const { verifyOwnerTwitch } = await import("./lib/verifyOwnerTwitch")
+  const current = await verifyOwnerTwitch(
+    await f.t.query(internal.liveNotifications.owner, {
+      guildId: f.ids.guildId,
+    }),
+    ["channel:bot"],
+    "test-client"
+  )
+  assert.equal(current.status, "ready")
+  if (current.status === "ready")
+    assert.deepEqual(current.scopes, ["channel:bot"])
+  f.setPermissions("0")
+  assert.equal(
+    (
+      await f.manager.action(api.liveNotificationActions.get, {
+        discordGuildId: guildDiscordId,
+      })
+    ).discordStatus,
+    "unavailable"
+  )
+  f.setLinkedId("333")
+  assert.equal(
+    (
+      await f.manager.action(api.liveNotificationActions.get, {
+        discordGuildId: guildDiscordId,
+      })
+    ).source.status,
+    "stale"
+  )
+})
+
+test("announcement authorization rejects account evidence changed during provider verification", async () => {
+  const f = await fixture({ managerIsOwner: true })
+  f.setScopes(["channel:bot", "moderator:read:followers"])
+  await f.manager.action(api.twitchEventSubActions.updateAnnouncement, {
+    key: "follow",
+    enabled: true,
+  })
+  const request = {
+    secret: "test-runtime-secret",
+    key: "follow",
+    broadcasterId: "222",
+    messageId: "authority-race",
+  }
+  await f.t.action(api.twitchEventSubActions.reserveEvent, request)
+  const provider = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    if (new URL(String(input)).pathname.endsWith("validate"))
+      await f.t.run((ctx) =>
+        ctx.db.patch(f.ids.ownerDiscordAccountId, {
+          updatedAt: 2,
+          providerAccountId: managerDiscordId,
+        })
+      )
+    return provider(input, init)
+  }
+  assert.equal(
+    await f.t.action(api.twitchEventSubActions.beginDispatch, {
+      secret: request.secret,
+      messageId: request.messageId,
+      attempt: "changed-authority",
+    }),
+    false
+  )
 })

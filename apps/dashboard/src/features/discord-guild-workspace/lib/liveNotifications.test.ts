@@ -14,18 +14,21 @@ test("live notification overview covers configuration, authority and runtime ava
     discordStatus: "ready",
   }
   assert.equal(getLiveNotificationState(undefined), "Loading")
-  assert.equal(getLiveNotificationState(undefined, true), "Unavailable")
+  assert.equal(
+    getLiveNotificationState(undefined, true),
+    "Provider unavailable"
+  )
   assert.equal(
     getLiveNotificationState({ ...view, botLeft: true }),
-    "Unavailable"
+    "Provider unavailable"
   )
   assert.equal(
     getLiveNotificationState({ ...view, source: { status: "needsLink" } }),
-    "Needs Twitch link"
+    "Connect Twitch"
   )
   assert.equal(
     getLiveNotificationState({ ...view, source: { status: "stale" } }),
-    "Unavailable"
+    "Reconnect required"
   )
   assert.equal(
     getLiveNotificationState({
@@ -43,8 +46,39 @@ test("live notification overview covers configuration, authority and runtime ava
   )
   assert.equal(getLiveNotificationState(view), "Ready")
   assert.equal(
+    getLiveNotificationState({
+      ...view,
+      config: { liveNotificationsEnabled: false },
+      subscriptionStatus: "failed",
+    }),
+    "Subscription failed"
+  )
+  assert.equal(
+    getLiveNotificationState({
+      ...view,
+      config: { liveNotificationsEnabled: false },
+      subscriptionStatus: "providerUnavailable",
+    }),
+    "Provider unavailable"
+  )
+  assert.equal(
+    getLiveNotificationState({
+      ...view,
+      source: { status: "missingPermission" },
+    }),
+    "Missing permission"
+  )
+  assert.equal(
+    getLiveNotificationState({ ...view, source: { status: "unavailable" } }),
+    "Provider unavailable"
+  )
+  assert.equal(
+    getLiveNotificationState({ ...view, subscriptionStatus: "failed" }),
+    "Subscription failed"
+  )
+  assert.equal(
     getLiveNotificationState({ ...view, discordStatus: "unavailable" }),
-    "Unavailable"
+    "Provider unavailable"
   )
   assert.equal(
     getLiveNotificationState({ ...view, discordStatus: "needsChannel" }),
@@ -55,11 +89,14 @@ test("live notification overview covers configuration, authority and runtime ava
     "Needs role"
   )
   assert.equal(
-    getLiveNotificationState({ ...view, subscriptionStatus: "pending" }),
+    getLiveNotificationState({ ...view, subscriptionStatus: "connecting" }),
     "Connecting"
   )
   assert.equal(
-    getLiveNotificationState({ ...view, subscriptionStatus: "unavailable" }),
-    "Unavailable"
+    getLiveNotificationState({
+      ...view,
+      subscriptionStatus: "providerUnavailable",
+    }),
+    "Provider unavailable"
   )
 })

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repository="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+bash "$repository/ops/twitch/host-contract.test.sh"
+node "$repository/.github/scripts/test-twitch-workflow.mjs"
 for script in "$repository"/ops/twitch/bin/* "$repository/ops/twitch/bootstrap-host.sh"; do
   [[ "$script" == *.mjs ]] || bash -n "$script"
 done
@@ -85,9 +87,16 @@ NODE
 controller="$repository/ops/twitch/bin/deploy-twitch-release"
 deploy() { bash "$controller" deploy "$1" "$test_root/artifacts/cleo-twitch-$1.tar.gz" "$test_root/artifacts/cleo-twitch-$1.tar.gz.sha256"; }
 expect_failure() { if "$@"; then echo 'Expected deployment failure.' >&2; exit 1; fi; }
-[[ "$(bash "$controller" contract-version)" == 2 ]]
+[[ "$(bash "$controller" contract-version)" == 3 ]]
 grep -Fx 'ConditionPathIsDirectory=/srv/cleo/twitch-bot/current' "$repository/ops/twitch/systemd/cleo-twitch.service" >/dev/null
 grep -F '/usr/bin/systemctl reset-failed cleo-twitch.service' "$repository/ops/twitch/sudoers/cleo-twitch-deploy" >/dev/null
+ingress="$repository/ops/twitch/nginx/eventsub.conf.example"
+grep -F 'listen 443 ssl;' "$ingress" >/dev/null
+grep -F 'ssl_certificate_key /etc/letsencrypt/live/YOUR_TWITCH_HOST/privkey.pem;' "$ingress" >/dev/null
+grep -F 'location = /eventsub {' "$ingress" >/dev/null
+grep -F 'limit_except POST { deny all; }' "$ingress" >/dev/null
+grep -F 'proxy_pass http://127.0.0.1:8087/eventsub;' "$ingress" >/dev/null
+grep -F 'location / { return 404; }' "$ingress" >/dev/null
 
 # Interrupted first deployment has no rollback target and must stop cleanly.
 export TEST_INTERRUPT_ON_RESTART=true

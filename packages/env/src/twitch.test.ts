@@ -15,19 +15,29 @@ const credentials = {
 const runtime = {
   ...credentials,
   TWITCH_BOOTSTRAP_BROADCASTER_USER_ID: "222",
-  TWITCH_EVENTSUB_CALLBACK_URL: "https://test.convex.site/twitch-eventsub",
+  TWITCH_EVENTSUB_CALLBACK_URL: "https://test.convex.site/eventsub",
   TWITCH_EVENTSUB_SECRET: "test-only-eventsub-secret",
+  TWITCH_WORKER_SECRET: "test-worker-secret",
+  CONVEX_URL: "https://test.convex.cloud",
   TWITCH_READINESS_PATH: "/private/bot.twitch-readiness.json",
 }
 
 test("Twitch environment keeps credentials scoped and supplies bounded defaults", () => {
-  for (const value of [undefined, "", "   ", "runtime-secret"])
-    assert.equal(
-      resolveTwitchRuntimeEnv({
-        ...runtime,
-        TWITCH_RUNTIME_CONVEX_SECRET: value,
-      }).TWITCH_RUNTIME_CONVEX_SECRET,
-      value?.trim() || undefined
+  assert.equal(
+    resolveTwitchRuntimeEnv({
+      ...runtime,
+      TWITCH_BOOTSTRAP_BROADCASTER_USER_ID: undefined,
+    }).TWITCH_BOOTSTRAP_BROADCASTER_USER_ID,
+    undefined
+  )
+  for (const value of [undefined, "", "   "])
+    assert.throws(() =>
+      resolveTwitchRuntimeEnv({ ...runtime, TWITCH_WORKER_SECRET: value })
+    )
+  assert.equal(resolveTwitchRuntimeEnv(runtime).TWITCH_WEBHOOK_PORT, 8087)
+  for (const value of ["0", "80", "65536", "bad"])
+    assert.throws(() =>
+      resolveTwitchRuntimeEnv({ ...runtime, TWITCH_WEBHOOK_PORT: value })
     )
   const parsed = resolveTwitchCredentials({
     ...credentials,
@@ -36,10 +46,6 @@ test("Twitch environment keeps credentials scoped and supplies bounded defaults"
   })
   assert.equal(parsed.TWITCH_HTTP_TIMEOUT_MS, 10000)
   assert.equal("TWITCH_EVENTSUB_SECRET" in parsed, false)
-  assert.equal(
-    resolveTwitchRuntimeEnv(runtime).TWITCH_STARTUP_TIMEOUT_MS,
-    90000
-  )
   assert.equal(
     resolveTwitchCredentials({
       ...credentials,
@@ -57,25 +63,22 @@ test("Twitch config rejects identity confusion, insecure callbacks and invalid s
     { TWITCH_BOOTSTRAP_BROADCASTER_USER_ID: "111" },
     { TWITCH_READINESS_PATH: "relative" },
     { TWITCH_HTTP_TIMEOUT_MS: "0" },
-    { TWITCH_STARTUP_TIMEOUT_MS: "180001" },
     { TWITCH_EVENTSUB_CALLBACK_URL: "invalid" },
-    { TWITCH_EVENTSUB_CALLBACK_URL: "http://127.0.0.1/twitch-eventsub" },
+    { TWITCH_EVENTSUB_CALLBACK_URL: "http://127.0.0.1/eventsub" },
     {
-      TWITCH_EVENTSUB_CALLBACK_URL:
-        "https://test.convex.site:8443/twitch-eventsub",
+      TWITCH_EVENTSUB_CALLBACK_URL: "https://test.convex.site:8443/eventsub",
     },
     { TWITCH_EVENTSUB_CALLBACK_URL: "https://test.convex.site/wrong" },
     {
       TWITCH_EVENTSUB_CALLBACK_URL:
-        "https://user:password@test.convex.site/twitch-eventsub",
+        "https://user:password@test.convex.site/eventsub",
+    },
+    {
+      TWITCH_EVENTSUB_CALLBACK_URL: "https://test.convex.site/eventsub?query=1",
     },
     {
       TWITCH_EVENTSUB_CALLBACK_URL:
-        "https://test.convex.site/twitch-eventsub?query=1",
-    },
-    {
-      TWITCH_EVENTSUB_CALLBACK_URL:
-        "https://test.convex.site/twitch-eventsub#fragment",
+        "https://test.convex.site/eventsub#fragment",
     },
     { TWITCH_EVENTSUB_SECRET: "short" },
     { TWITCH_EVENTSUB_SECRET: "secret with spaces" },

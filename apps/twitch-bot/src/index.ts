@@ -1,9 +1,7 @@
 import { resolveTwitchRuntimeEnv } from "@workspace/env/twitch"
 import { createLogger, serializeLogError } from "@workspace/logger"
 
-import { TwitchApi } from "./api"
-import { GrantStore } from "./grantStore"
-import { runRuntime } from "./runtime"
+import { TwitchClient } from "./classes/TwitchClient"
 
 export async function main(): Promise<void> {
   const logger = createLogger("twitch-bot")
@@ -13,12 +11,7 @@ export async function main(): Promise<void> {
   process.once("SIGINT", shutdown)
   try {
     const config = resolveTwitchRuntimeEnv()
-    await runRuntime(config, {
-      createApi: (signal) => new TwitchApi(config, fetch, signal),
-      store: new GrantStore(config.TWITCH_BOT_GRANT_PATH),
-      logger,
-      signal: abort.signal,
-    })
+    await new TwitchClient(config, logger).run(abort.signal)
   } catch (error) {
     logger.error(
       "Twitch startup or runtime failed. Check configuration and readiness.",

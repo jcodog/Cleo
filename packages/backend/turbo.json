@@ -1,0 +1,14 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "env": ["TWITCH_*"]
+    },
+    "test:coverage": {
+      "env": ["TWITCH_*"]
+    },
+    "dev": {
+      "passThroughEnv": ["TWITCH_*"]
+    }
+  }
+}

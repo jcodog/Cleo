@@ -26,18 +26,6 @@ export const guildLiveNotificationConfigs = defineTable({
   .index("by_enabled", ["liveNotificationsEnabled"])
   .index("by_broadcaster", ["broadcasterId", "liveNotificationsEnabled"])
 
-export const twitchLiveOwnerChecks = defineTable({
-  userId: v.id("users"),
-  evidenceKey: v.string(),
-  status: v.union(
-    v.literal("ready"),
-    v.literal("stale"),
-    v.literal("missingPermission")
-  ),
-  broadcasterId: v.optional(v.string()),
-  checkedAt: v.number(),
-}).index("by_user", ["userId"])
-
 export const twitchLiveEvents = defineTable({
   broadcasterId: v.string(),
   streamId: v.string(),
@@ -68,6 +56,9 @@ export const twitchLiveDeliveries = defineTable({
   startedAt: v.string(),
   title: v.optional(v.string()),
   category: v.optional(v.string()),
+  avatarUrl: v.optional(v.string()),
+  previewUrl: v.optional(v.string()),
+  viewerCount: v.optional(v.number()),
   state: v.union(
     v.literal("pending"),
     v.literal("claimed"),
@@ -89,13 +80,3 @@ export const twitchLiveDeliveries = defineTable({
   .index("by_guild_state", ["guildId", "state"])
   .index("by_state", ["state"])
   .index("by_created", ["createdAt"])
-
-export const twitchLiveSubscriptions = defineTable({
-  broadcasterId: v.string(),
-  status: v.union(
-    v.literal("ready"),
-    v.literal("pending"),
-    v.literal("unavailable")
-  ),
-  checkedAt: v.number(),
-}).index("by_broadcaster", ["broadcasterId"])
