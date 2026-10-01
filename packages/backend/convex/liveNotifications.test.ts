@@ -753,7 +753,7 @@ test("authenticated runtime source contract validates requests, records health a
   const f = await fixture()
   await f.manager.action(api.liveNotificationActions.update, config)
   const request = (
-    body: string,
+    body: string | ArrayBuffer,
     authorization = "Bearer test-runtime-secret"
   ) =>
     f.t.fetch("/twitch-live-sources", {
@@ -768,9 +768,15 @@ test("authenticated runtime source contract validates requests, records health a
     "{}",
     '{"states":[{"broadcasterId":"123","status":"forged"}]}',
     '{"states":[{"broadcasterId":"nonsense","status":"ready"}]}',
+    '{"states":[],"cursor":123}',
+    '{"states":[],"cursor":{}}',
+    JSON.stringify({ states: [], cursor: "x".repeat(4097) }),
+    '{"states":[],"healthOnly":null}',
+    '{"states":[],"healthOnly":"true"}',
   ])
     assert.equal((await request(body)).status, 400)
   assert.equal((await request("x".repeat(65537))).status, 413)
+  assert.equal((await request(new Uint8Array([0xc3, 0x28]).buffer)).status, 400)
   const response = await request(
     JSON.stringify({ states: [{ broadcasterId: "222", status: "ready" }] })
   )
@@ -787,6 +793,47 @@ test("authenticated runtime source contract validates requests, records health a
     ).subscriptionStatus,
     "ready"
   )
+  await f.t.run(async (ctx) => {
+    for (let index = 0; index < 25; index++) {
+      const guildId = await ctx.db.insert("guilds", {
+        discordGuildId: `http-page-${index}`,
+        ownerDiscordId,
+        name: "Page target",
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      const { discordGuildId: _discordGuildId, ...liveConfig } = config
+      await ctx.db.insert("guildLiveNotificationConfigs", {
+        guildId,
+        ...liveConfig,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    }
+  })
+  const page = await (await request('{"states":[],"cursor":null}')).json()
+  assert.ok(page.continueCursor)
+  assert.equal(
+    (
+      await f.t.run((ctx) =>
+        ctx.db.query("guildLiveNotificationConfigs").collect()
+      )
+    ).filter((row) => row.broadcasterId === "222").length,
+    25
+  )
+  const next = await request(
+    JSON.stringify({ states: [], cursor: page.continueCursor })
+  )
+  assert.equal(next.status, 200)
+  assert.equal((await next.json()).continueCursor, null)
+  assert.equal(
+    (
+      await f.t.run((ctx) =>
+        ctx.db.query("guildLiveNotificationConfigs").collect()
+      )
+    ).filter((row) => row.broadcasterId === "222").length,
+    26
+  )
   f.setUnavailable()
   await f.t.run(async (ctx) => {
     const check = await ctx.db.query("twitchLiveOwnerChecks").unique()
@@ -794,6 +841,25 @@ test("authenticated runtime source contract validates requests, records health a
       await ctx.db.patch(check._id, { checkedAt: Date.now() - 6 * 60000 })
   })
   assert.equal((await request('{"states":[]}')).status, 503)
+  const healthOnly = await request(
+    JSON.stringify({
+      states: [{ broadcasterId: "222", status: "unavailable" }],
+      healthOnly: true,
+    })
+  )
+  assert.equal(healthOnly.status, 200)
+  assert.deepEqual(await healthOnly.json(), {
+    broadcasterIds: [],
+    continueCursor: null,
+  })
+  assert.equal(
+    (
+      await f.t.query(internal.liveNotifications.subscription, {
+        broadcasterId: "222",
+      })
+    )?.status,
+    "unavailable"
+  )
 })
 
 test("verified stream.online HTTP ingress persists before acknowledgement and dedupes signed redelivery", async () => {

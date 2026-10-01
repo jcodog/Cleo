@@ -47,13 +47,17 @@ http.route({
       difference |= (actual[index] ?? 0) ^ (expected[index] ?? 0)
     if (difference !== 0) return new Response("Unauthorized.", { status: 401 })
     try {
-      let body: string
+      let bytes: Awaited<ReturnType<typeof boundedBody>>
       try {
-        body = new TextDecoder("utf-8", { fatal: true }).decode(
-          await boundedBody(request, 65536)
-        )
+        bytes = await boundedBody(request, 65536)
       } catch {
         return new Response("Invalid body.", { status: 413 })
+      }
+      let body: string
+      try {
+        body = new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+      } catch {
+        return new Response("Invalid body.", { status: 400 })
       }
       let value: unknown
       try {

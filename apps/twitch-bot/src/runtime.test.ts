@@ -498,3 +498,73 @@ test("slow source reconciliation cannot block chat readiness and failed health p
     ])
   })
 })
+
+test(
+  "chat health failure aborts outstanding live source and EventSub requests before exit",
+  { timeout: 5000 },
+  async () => {
+    for (const boundary of ["source", "eventsub"] as const)
+      await withGrant(async (store) => {
+        await store.write(createGrant(botToken, apiConfig))
+        let failChat = false
+        let aborted = false
+        let started: () => void = () => {}
+        const liveStarted = new Promise<void>((resolve) => {
+          started = resolve
+        })
+        const stalled = <T>(signal: AbortSignal | undefined | null) =>
+          new Promise<T>((_resolve, reject) => {
+            assert.ok(signal)
+            signal.addEventListener(
+              "abort",
+              () => {
+                aborted = true
+                reject(new Error("Live request aborted"))
+              },
+              { once: true }
+            )
+            started()
+          })
+        const base = runtimeHttp()
+        const http = httpFake((url, init) => {
+          if (
+            failChat &&
+            url.pathname.endsWith("validate") &&
+            new Headers(init.headers).get("Authorization") ===
+              "OAuth test-only-app"
+          )
+            return json({}, 503)
+          if (
+            boundary === "eventsub" &&
+            url.searchParams.get("type") === "stream.online"
+          )
+            return stalled<Response>(init.signal)
+          return base(url.href, init)
+        })
+        await assert.rejects(
+          runRuntime(
+            {
+              ...runtimeEnv(store.path),
+              TWITCH_RUNTIME_CONVEX_SECRET: "runtime",
+            },
+            {
+              store,
+              createApi: (signal) => new TwitchApi(apiConfig, http, signal),
+              signal: new AbortController().signal,
+              logger: silentLogger,
+              writeState: async () => {},
+              loadLive: async (_callback, _secret, _states, signal) =>
+                boundary === "source" ? stalled<string[]>(signal) : ["333"],
+              publishLive: async () => {},
+              sleep: async () => {
+                await liveStarted
+                failChat = true
+              },
+            }
+          ),
+          /apiUnavailable/
+        )
+        assert.equal(aborted, true, boundary)
+      })
+  }
+)

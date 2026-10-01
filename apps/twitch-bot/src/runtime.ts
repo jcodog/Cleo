@@ -43,11 +43,16 @@ export async function runRuntime(
   const persist = dependencies.writeState ?? writeReadiness
   const startedAt = now()
   const deadline = new AbortController()
+  const lifetime = new AbortController()
   const startupTimer = setTimeout(
     () => deadline.abort(),
     config.TWITCH_STARTUP_TIMEOUT_MS
   )
-  const operationSignal = AbortSignal.any([signal, deadline.signal])
+  const operationSignal = AbortSignal.any([
+    signal,
+    deadline.signal,
+    lifetime.signal,
+  ])
   const api = dependencies.createApi(operationSignal)
   const identity = {
     version: 1,
@@ -194,6 +199,7 @@ export async function runRuntime(
     }
   } finally {
     clearTimeout(startupTimer)
+    lifetime.abort()
     await liveTask
     if (signal.aborted) {
       await state("stopped")

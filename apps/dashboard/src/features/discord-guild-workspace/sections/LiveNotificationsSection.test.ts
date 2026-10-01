@@ -402,6 +402,16 @@ test("live notification form fixes owner source, handles linking, destinations, 
       ?.props.value,
     "dirty-channel"
   )
+  error = true
+  tree = render()
+  assert.match(text(tree), /Connection refresh failed/)
+  assert.equal(
+    elements(tree).find((node) => node.type === selectors.DiscordChannelSelect)
+      ?.props.value,
+    "dirty-channel"
+  )
+  error = false
+  tree = render()
   await tree.props.onSubmit?.({ preventDefault() {} })
   render()
   tree = render()
