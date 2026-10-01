@@ -96,6 +96,18 @@ test("missing media, title, category, viewer count or invalid time degrades with
       buildTwitchLiveCard({ ...view, mentionMode: "role", roleId })
     )
   assert.throws(() => buildTwitchLiveCard({ ...view, login: "bad/url" }))
+  const untrusted = JSON.stringify(
+    buildTwitchLiveCard({
+      ...view,
+      title: "safe\u061cevil\u202espoof\u206f",
+      displayName: "Name\u2066",
+      category: "Game\u200f",
+    })
+  )
+  assert.doesNotMatch(
+    untrusted,
+    /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u206f]/
+  )
   assert.doesNotMatch(
     JSON.stringify(buildTwitchLiveCard({ ...view, title: "A\0B\u0085C\nD" })),
     /\\u0000|\\u0085/

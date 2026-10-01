@@ -35,7 +35,8 @@ const logger = createLogger("twitch-live-delivery-authority")
 
 async function getDiscordDestinationStatus(
   config: Infer<typeof liveWorkspace>["config"],
-  discordGuildId: string
+  discordGuildId: string,
+  ownerDiscordId: string | undefined
 ): Promise<Infer<typeof liveWorkspace>["discordStatus"]> {
   if (!config.liveNotificationsEnabled) return "ready"
   if (!config.liveNotificationChannelId) return "needsChannel"
@@ -64,7 +65,19 @@ async function getDiscordDestinationStatus(
     )
       return "needsRole"
   }
-  return "ready"
+  try {
+    await validateLiveDestination({
+      guildId: discordGuildId,
+      ownerDiscordId,
+      channelId: config.liveNotificationChannelId,
+      mentionMode: config.liveNotificationMentionMode,
+      roleId: config.liveNotificationRoleId,
+      token,
+    })
+    return "ready"
+  } catch {
+    return "unavailable"
+  }
 }
 
 export const get = action({
@@ -85,7 +98,8 @@ export const get = action({
       botLeft: context.guild.botLeftAt !== undefined,
       discordStatus: await getDiscordDestinationStatus(
         context.config,
-        args.discordGuildId
+        args.discordGuildId,
+        context.guild.ownerDiscordId
       ),
       subscriptionStatus: view.subscriptionStatus,
     }
@@ -201,15 +215,9 @@ export const update = action({
           : {}),
       }
     )
-    if (
-      retry ||
-      context.config.liveNotificationsEnabled !==
-        args.liveNotificationsEnabled ||
-      (source.status === "ready" &&
-        "broadcasterId" in context.config &&
-        context.config.broadcasterId !== source.broadcasterId)
-    ) {
-      const subscriptions = await ctx.runQuery(
+    const targets = new Set(savedRevision.subscriptions)
+    if (retry)
+      for (const subscription of await ctx.runQuery(
         internal.twitchEventSub.guildTargets,
         {
           broadcasterId:
@@ -219,13 +227,12 @@ export const update = action({
                 ? context.config.broadcasterId
                 : undefined,
         }
-      )
-      for (const subscription of subscriptions)
-        await ctx.runAction(internal.twitchEventSubActions.reconcile, {
-          subscription,
-        })
-    }
-    return savedRevision
+      ))
+        targets.add(subscription)
+    await boundedMap([...targets], 4, (subscription) =>
+      ctx.runAction(internal.twitchEventSubActions.reconcile, { subscription })
+    )
+    return savedRevision.revision
   },
 })
 
@@ -320,6 +327,7 @@ export const migrateConsumers = internalAction({
     })
     let migrated = 0
     let skipped = 0
+    const targets = []
     const owners = new Map<
       string,
       Awaited<ReturnType<typeof verifyOwnerTwitch>>
@@ -338,22 +346,22 @@ export const migrateConsumers = internalAction({
         skipped++
         continue
       }
-      const subscriptions = await ctx.runMutation(
-        internal.liveNotifications.ensureConsumer,
-        {
-          configId: target.config._id,
-          broadcasterId: source.broadcasterId,
-          expectedOwnerEvidenceKey: ownerEvidenceKey(target.owner),
-          callback: config.callback,
-          botId: config.botId,
-        }
-      )
-      for (const subscription of subscriptions)
-        await ctx.runAction(internal.twitchEventSubActions.reconcile, {
-          subscription,
-        })
+      targets.push({
+        configId: target.config._id,
+        broadcasterId: source.broadcasterId,
+        expectedOwnerEvidenceKey: ownerEvidenceKey(target.owner),
+        callback: config.callback,
+        botId: config.botId,
+      })
       migrated++
     }
+    const subscriptions = await ctx.runMutation(
+      internal.liveNotifications.ensureConsumerBatch,
+      { targets }
+    )
+    await boundedMap(subscriptions, 4, (subscription) =>
+      ctx.runAction(internal.twitchEventSubActions.reconcile, { subscription })
+    )
     return {
       migrated,
       skipped,

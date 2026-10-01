@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { createHmac } from "node:crypto"
-import { createServer, type Server } from "node:http"
+import { createServer, request as httpRequest, type Server } from "node:http"
 import {
   TwitchWebhookServer,
   boundedBody,
@@ -69,8 +69,13 @@ function fixture() {
         const duplicate = receipts.has(id)
         receipts.add(id)
         calls.push({ reserve: id, key, broadcaster })
-        return { duplicate, template: "Hello {user}" }
+        return duplicate
+          ? { kind: "terminal" as const }
+          : { kind: "pending" as const, template: "Hello {user}" }
       },
+      begin: async () => true,
+      finish: async () => {},
+      pendingEvents: async () => ({ events: [], cursor: null }),
       subscriptionState: async (...args) => {
         if (fail) throw new Error("unavailable")
         calls.push({ state: args })
@@ -163,6 +168,178 @@ test("valid challenge is returned verbatim, valid events dispatch once, revocati
   )
   await f.server.stop()
 })
+
+test("pending dispatch resumes across restart, honors send reservation and never replays an ambiguous POST", async () => {
+  const outcomes: { messageId: string; sent: boolean }[] = []
+  let phase: "send" | "deny" | "fail" | "suppress" | "before" | "finishFail" =
+    "send"
+  let pending = true
+  let failReserve = false
+  let pages = 0
+  let begins = 0
+  let sends = 0
+  const convex = {
+    reserve: async () => {
+      if (failReserve) throw new Error("unavailable")
+      return pending
+        ? { kind: "pending" as const, template: "Hi {user}" }
+        : { kind: "terminal" as const }
+    },
+    begin: async () => {
+      begins++
+      pending = false
+      return phase !== "deny"
+    },
+    finish: async (messageId: string, _attempt: string, sent: boolean) => {
+      outcomes.push({ messageId, sent })
+      if (phase === "finishFail") throw new Error("finish unavailable")
+    },
+    pendingEvents: async (cursor?: string) => {
+      pages++
+      return {
+        events: cursor
+          ? [
+              {
+                messageId: "ignored",
+                key: "follow",
+                broadcasterId: "222",
+                eventJson: JSON.stringify(event),
+              },
+            ]
+          : [
+              {
+                messageId: "unknown",
+                key: "fake",
+                broadcasterId: "222",
+                eventJson: "{}",
+              },
+              {
+                messageId: "recovered",
+                key: "follow",
+                broadcasterId: "222",
+                eventJson: JSON.stringify(event),
+              },
+            ],
+        cursor: cursor ? null : "next",
+      }
+    },
+    subscriptionState: async () => {},
+  }
+  const server = new TwitchWebhookServer(
+    secret,
+    convex,
+    {
+      dispatch: async (_event, _key, _id, _template, beforeSend) => {
+        if (phase === "before") throw new Error("render/auth unavailable")
+        if (phase === "suppress") return
+        if (await beforeSend!()) {
+          sends++
+          if (phase === "fail") throw new Error("ambiguous actual send")
+        }
+      },
+    },
+    silentLogger
+  )
+  await server.recoverPending()
+  assert.equal(pages, 2)
+  assert.equal(sends, 1)
+  assert.deepEqual(outcomes, [{ messageId: "recovered", sent: true }])
+  for (const current of [
+    "deny",
+    "fail",
+    "suppress",
+    "finishFail",
+    "before",
+  ] as const) {
+    phase = current
+    pending = true
+    assert.equal(
+      (await server.handle(request(body, { id: current }))).status,
+      204
+    )
+    await server.stop()
+  }
+  assert.ok(outcomes.some((value) => value.messageId === "fail" && !value.sent))
+  assert.ok(
+    outcomes.some((value) => value.messageId === "suppress" && value.sent)
+  )
+  assert.equal(begins, 5)
+  phase = "before"
+  pending = true
+  failReserve = false
+  // A provider failure during preparation followed by failed durable re-read
+  // leaves the stored payload recoverable, without authorizing any send.
+  const original = convex.reserve
+  convex.reserve = async () => {
+    const result = await original()
+    failReserve = true
+    return result
+  }
+  assert.equal(
+    (await server.handle(request(body, { id: "deferred" }))).status,
+    204
+  )
+  await server.stop()
+})
+
+test("stream.online observes backpressure and shutdown waits for accepted backend work", async () => {
+  const f = fixture()
+  f.setStall()
+  const online = {
+    subscription: { ...body.subscription, type: "stream.online", version: "1" },
+    event: {
+      ...event,
+      id: "9001",
+      type: "live",
+      started_at: new Date().toISOString(),
+    },
+  }
+  const requests = Array.from({ length: 256 }, (_, i) =>
+    f.server.handle(request(online, { id: `stream-${i}` }))
+  )
+  assert.equal(
+    (await f.server.handle(request(online, { id: "overflow" }))).status,
+    503
+  )
+  let stopped = false
+  const stop = f.server.stop().then(() => {
+    stopped = true
+  })
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(stopped, false)
+  f.release()
+  assert.ok(
+    (await Promise.all(requests)).every((response) => response.status === 204)
+  )
+  await stop
+})
+
+test("oversized chunked HTTP request is rejected and disconnected without waiting for its final chunk", async () => {
+  const f = fixture()
+  await f.server.start(0)
+  const address = (Reflect.get(f.server, "server") as Server).address()
+  assert.ok(address && typeof address !== "string")
+  await new Promise<void>((resolve, reject) => {
+    const req = httpRequest(
+      {
+        host: "127.0.0.1",
+        port: address.port,
+        path: "/eventsub",
+        method: "POST",
+      },
+      (res) => {
+        assert.equal(res.statusCode, 413)
+        assert.equal(res.headers.connection, "close")
+        res.resume()
+        res.once("end", resolve)
+      }
+    )
+    req.once("error", reject)
+    req.write(Buffer.alloc(MAX_WEBHOOK_BYTES + 1))
+    // Deliberately never end the request: the receiver must close it.
+  })
+  await f.server.stop()
+})
 test("signature, timestamp, replay window, route, payload and condition failures have no side effects", async () => {
   const f = fixture()
   assert.equal(
@@ -238,7 +415,7 @@ test("signature, timestamp, replay window, route, payload and condition failures
   assert.equal(
     (await f.server.handle(request(body, { raw: new Uint8Array([255]) })))
       .status,
-    503
+    400
   )
   assert.equal(
     (

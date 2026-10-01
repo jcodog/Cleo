@@ -4,7 +4,6 @@ import {
   type EventKey,
 } from "@workspace/shared/twitchEventSub"
 import type { MutationCtx } from "../_generated/server"
-import { internal } from "../_generated/api"
 
 export async function setEventConsumer(
   ctx: MutationCtx,
@@ -92,9 +91,5 @@ export async function setEventConsumer(
       touched.push(row._id)
     }
   }
-  for (const subscription of touched)
-    await ctx.scheduler.runAfter(0, internal.twitchEventSubActions.reconcile, {
-      subscription,
-    })
   return touched
 }

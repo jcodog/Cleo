@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http"
-import { createHmac, timingSafeEqual } from "node:crypto"
+import { createHmac, timingSafeEqual, randomUUID } from "node:crypto"
 import { z } from "zod"
-import type { Logger } from "@workspace/logger"
+import { serializeLogError, type Logger } from "@workspace/logger"
 import { routes, type EventSubRouter } from "./EventSubRouter"
 import type { ConvexService } from "../ConvexService"
 
@@ -18,7 +18,7 @@ const envelope = z.object({
 })
 export class TwitchWebhookServer {
   private server?: Server
-  private readonly pending = new Set<Promise<void>>()
+  private readonly pending = new Set<Promise<unknown>>()
   get isListening(): boolean {
     return this.server?.listening === true
   }
@@ -26,7 +26,7 @@ export class TwitchWebhookServer {
     private readonly secret: string,
     private readonly convex: Pick<
       ConvexService,
-      "reserve" | "subscriptionState"
+      "reserve" | "subscriptionState" | "begin" | "finish" | "pendingEvents"
     >,
     private readonly router: Pick<EventSubRouter, "dispatch">,
     private readonly logger: Logger
@@ -71,9 +71,13 @@ export class TwitchWebhookServer {
     if (!timingSafeEqual(expected, Buffer.from(signature.slice(7), "hex")))
       return new Response(null, { status: 403 })
     try {
-      const value = envelope.parse(
-        JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw))
-      )
+      let text: string
+      try {
+        text = new TextDecoder("utf-8", { fatal: true }).decode(raw)
+      } catch {
+        return new Response(null, { status: 400 })
+      }
+      const value = envelope.parse(JSON.parse(text))
       const route = routes.find(
         (route) =>
           route.type === value.subscription.type &&
@@ -104,7 +108,9 @@ export class TwitchWebhookServer {
         })
       }
       if (type === "revocation") {
-        await this.convex.subscriptionState(value.subscription.id, true)
+        const work = this.convex.subscriptionState(value.subscription.id, true)
+        this.track(work)
+        await work
         this.logger.warn("EventSub revoked", {
           type: route.type,
           subscription: value.subscription.id,
@@ -120,34 +126,39 @@ export class TwitchWebhookServer {
         return new Response(null, { status: 400 })
       this.logger.info("EventSub received", {
         type: route.type,
-        broadcasterId: parsed.broadcasterId,
       })
-      if (route.key === "streamOnline") {
-        await this.router.dispatch(parsed, route.key, messageId)
-        this.logger.info("Convex stream.online action accepted", {
-          messageId,
-          broadcasterId: parsed.broadcasterId,
-        })
-        return new Response(null, { status: 204 })
-      }
-      const receipt = await this.convex.reserve(
-        messageId,
-        route.key,
-        parsed.broadcasterId
-      )
-      if (receipt.duplicate) return new Response(null, { status: 204 })
-      const task = this.router
-        .dispatch(parsed, route.key, messageId, receipt.template)
-        .catch(() => {
-          this.logger.error("Event handler failed after durable reservation", {
+      const work = (async () => {
+        if (route.key === "streamOnline") {
+          await this.router.dispatch(parsed, route.key, messageId)
+          this.logger.info("Convex stream.online action accepted", {
             messageId,
-            type: route.type,
           })
-        })
-        .finally(() => this.pending.delete(task))
-      this.pending.add(task)
-      return new Response(null, { status: 204 })
+        } else {
+          const receipt = await this.convex.reserve(
+            messageId,
+            route.key,
+            parsed.broadcasterId,
+            JSON.stringify(value.event)
+          )
+          if (receipt.kind === "pending")
+            this.track(
+              this.dispatchPending(
+                parsed,
+                route.key,
+                messageId,
+                receipt.template
+              )
+            )
+        }
+        return new Response(null, { status: 204 })
+      })()
+      this.track(work)
+      return await work
     } catch (error) {
+      if (!(error instanceof z.ZodError) && !(error instanceof SyntaxError))
+        this.logger.error("EventSub backend action failed", {
+          error: serializeLogError(error),
+        })
       return new Response(null, {
         status:
           error instanceof z.ZodError || error instanceof SyntaxError
@@ -156,15 +167,111 @@ export class TwitchWebhookServer {
       })
     }
   }
+  private track<T>(work: Promise<T>): void {
+    this.pending.add(work)
+    void work.then(
+      () => this.pending.delete(work),
+      () => this.pending.delete(work)
+    )
+  }
+  private async dispatchPending(
+    parsed: ReturnType<(typeof routes)[number]["parse"]>,
+    key: (typeof routes)[number]["key"],
+    messageId: string,
+    template?: string,
+    retry = 0
+  ): Promise<void> {
+    const attempt = randomUUID()
+    let started = false
+    let considered = false
+    try {
+      await this.router.dispatch(parsed, key, messageId, template, async () => {
+        considered = true
+        started = await this.convex.begin(messageId, attempt)
+        return started
+      })
+      // Handlers that deliberately suppress output still settle their receipt.
+      if (!considered) started = await this.convex.begin(messageId, attempt)
+      if (started) await this.convex.finish(messageId, attempt, true)
+    } catch (error) {
+      if (started)
+        await this.convex.finish(messageId, attempt, false).catch(() => {})
+      this.logger.error("Event dispatch failed", {
+        messageId,
+        type: key,
+        error: serializeLogError(error),
+      })
+      // Before send reservation the durable pending payload is recoverable.
+      // After reservation an ambiguous POST is terminal and never replayed.
+      if (!started && retry < 2) {
+        try {
+          const receipt = await this.convex.reserve(
+            messageId,
+            key,
+            parsed.broadcasterId
+          )
+          if (receipt.kind === "pending")
+            await this.dispatchPending(
+              parsed,
+              key,
+              messageId,
+              receipt.template,
+              retry + 1
+            )
+        } catch (failure) {
+          this.logger.error("Event retry deferred until recovery", {
+            messageId,
+            error: serializeLogError(failure),
+          })
+        }
+      }
+    }
+  }
+  async recoverPending(): Promise<void> {
+    let cursor: string | undefined
+    do {
+      const page = await this.convex.pendingEvents(cursor)
+      await Promise.all(
+        page.events.map(async (event) => {
+          const route = routes.find((route) => route.key === event.key)
+          if (!route) return
+          const parsed = route.parse(JSON.parse(event.eventJson))
+          const receipt = await this.convex.reserve(
+            event.messageId,
+            route.key,
+            parsed.broadcasterId,
+            event.eventJson
+          )
+          if (receipt.kind === "pending") {
+            const task = this.dispatchPending(
+              parsed,
+              route.key,
+              event.messageId,
+              receipt.template
+            )
+            this.track(task)
+            await task
+          }
+        })
+      )
+      cursor = page.cursor ?? undefined
+    } while (cursor)
+  }
   async start(port: number, host = "127.0.0.1"): Promise<void> {
     this.server = createServer(async (incoming, outgoing) => {
       try {
         const chunks: Buffer[] = []
         let size = 0
-        for await (const chunk of incoming) {
+        for await (const chunk of incoming.iterator({
+          destroyOnReturn: false,
+        })) {
           size += chunk.length
           if (size > MAX_WEBHOOK_BYTES) {
-            outgoing.writeHead(413).end()
+            outgoing.shouldKeepAlive = false
+            incoming.pause()
+            outgoing
+              .writeHead(413, { Connection: "close" })
+              .end(() => incoming.destroy())
             return
           }
           chunks.push(chunk)
@@ -198,6 +305,7 @@ export class TwitchWebhookServer {
     this.logger.info("Twitch webhook listener ready", { host, port })
   }
   async stop(): Promise<void> {
+    this.server?.closeAllConnections()
     if (this.server?.listening)
       await new Promise<void>((resolve, reject) =>
         this.server!.close((error) => (error ? reject(error) : resolve()))

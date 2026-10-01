@@ -9,16 +9,18 @@ import { EventSubRouter } from "../services/eventsub/EventSubRouter"
 import { TwitchWebhookServer } from "../services/eventsub/TwitchWebhookServer"
 import { GrantStore } from "../auth/grantStore"
 import { writeReadiness } from "../runtime/readiness"
+import { serializeLogError } from "@workspace/logger"
 
 export class TwitchClient {
   readonly auth: TwitchAuthService
   readonly webhook: TwitchWebhookServer
+  private readonly shutdown = new AbortController()
   constructor(
     private readonly config: TwitchRuntimeEnv,
     private readonly logger: Logger,
     request: typeof fetch = fetch
   ) {
-    const api = new TwitchApiService(config, request)
+    const api = new TwitchApiService(config, request, this.shutdown.signal)
     this.auth = new TwitchAuthService(
       api,
       new GrantStore(config.TWITCH_BOT_GRANT_PATH),
@@ -27,7 +29,8 @@ export class TwitchClient {
     const convex = new ConvexService(
       config.CONVEX_URL,
       config.TWITCH_WORKER_SECRET,
-      request
+      request,
+      this.shutdown.signal
     )
     const announcements = new AnnouncementService(api, this.auth, logger)
     const router = new EventSubRouter({ convex, announcements }, logger)
@@ -39,6 +42,9 @@ export class TwitchClient {
     )
   }
   async run(signal: AbortSignal): Promise<void> {
+    const abort = () => this.shutdown.abort()
+    signal.addEventListener("abort", abort, { once: true })
+    if (signal.aborted) abort()
     const identity = {
       version: 1 as const,
       pid: process.pid,
@@ -54,6 +60,7 @@ export class TwitchClient {
       await state("starting")
       await this.auth.maintain()
       await this.webhook.start(this.config.TWITCH_WEBHOOK_PORT)
+      await this.webhook.recoverPending()
       await state("ready")
       this.logger.info("Twitch runtime ready")
       while (!signal.aborted) {
@@ -66,15 +73,30 @@ export class TwitchClient {
       }
     } catch (error) {
       if (!signal.aborted) {
-        await state("unhealthy")
+        await state("unhealthy").catch((failure) =>
+          this.logger.error("Readiness update failed", {
+            error: serializeLogError(failure),
+          })
+        )
         throw error
       }
     } finally {
-      await this.webhook.stop()
+      await this.webhook
+        .stop()
+        .catch((failure) =>
+          this.logger.error("Webhook shutdown failed", {
+            error: serializeLogError(failure),
+          })
+        )
       if (signal.aborted) {
-        await state("stopped")
+        await state("stopped").catch((failure) =>
+          this.logger.error("Readiness update failed", {
+            error: serializeLogError(failure),
+          })
+        )
         this.logger.info("Twitch runtime stopped")
       }
+      signal.removeEventListener("abort", abort)
     }
   }
 }

@@ -284,3 +284,59 @@ test("currency values use Twitch decimal representation including zero and nonst
     "$1.234"
   )
 })
+
+test("every EventSub schema rejects malformed and partial boundary payloads", () => {
+  for (const definition of Object.values(eventDefinitions)) {
+    for (const value of [
+      null,
+      undefined,
+      [],
+      42,
+      {},
+      { broadcaster_user_id: "222" },
+    ])
+      assert.throws(() => definition.parse(value))
+  }
+  const valid = eventDefinitions.charityDonation.parse(common)
+  for (const amount of [
+    { value: -1, decimal_places: 2, currency: "USD" },
+    { value: 1.5, decimal_places: 2, currency: "USD" },
+    { value: 10, decimal_places: -1, currency: "USD" },
+    { value: 10, currency: "USD" },
+  ])
+    assert.throws(() =>
+      eventDefinitions.charityDonation.parse({ ...valid, amount })
+    )
+})
+
+test("one normalization contract removes all bidi controls while retaining legitimate text punctuation", () => {
+  assert.equal(
+    normalizeChatText("a\u061cb\u206ac\u206bd\u206ce\u206df\u206eg\u206fh"),
+    "a b c d e f g h"
+  )
+  const definition = eventDefinitions.follow
+  assert.equal(
+    renderTemplate(
+      definition,
+      { user: "!delete @viewer", channel: "Channel" },
+      "{user}"
+    ),
+    "Announcement: !delete @viewer"
+  )
+  assert.equal(
+    renderTemplate(
+      definition,
+      { user: "Viewer", channel: "Channel" },
+      "Hello {user}! @community / ."
+    ),
+    "Hello Viewer! @community / ."
+  )
+  assert.equal(
+    renderTemplate(
+      definition,
+      { user: "\u202eViewer", channel: "Channel" },
+      "{user}"
+    ),
+    "Viewer"
+  )
+})

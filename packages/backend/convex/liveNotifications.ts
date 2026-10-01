@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values"
+import { ConvexError, v, type Infer } from "convex/values"
 import { internal } from "./_generated/api"
 import { query, internalMutation, internalQuery } from "./_generated/server"
 import { requireCurrentUser, requireDiscordGuildManager } from "./lib/auth"
@@ -42,7 +42,12 @@ export const projection = query({
     source: liveSource,
     isOwner: v.boolean(),
     botLeft: v.boolean(),
-    discordStatus: v.literal("ready"),
+    discordStatus: v.union(
+      v.literal("ready"),
+      v.literal("unavailable"),
+      v.literal("needsChannel"),
+      v.literal("needsRole")
+    ),
     subscriptionStatus,
   }),
   handler: async (ctx, args) => {
@@ -71,23 +76,14 @@ export const projection = query({
             ? owner.twitch
             : undefined
         : undefined
-    const source = twitch
-      ? twitch.scopes.includes("channel:bot")
-        ? {
-            status: "ready" as const,
-            broadcasterId: twitch.providerAccountId,
-            login: twitch.username ?? "",
-            displayName:
-              twitch.displayName ?? twitch.username ?? "Twitch channel",
-            avatarUrl: twitch.avatarUrl,
-          }
-        : { status: "missingPermission" as const }
-      : {
-          status:
-            owner.status === "needsLink"
-              ? ("needsLink" as const)
-              : ("unavailable" as const),
-        }
+    // A query cannot verify Clerk/Twitch or live Discord permissions. Never
+    // present stored account evidence as fresh authority; get() verifies it.
+    const source = {
+      status:
+        owner.status === "needsLink"
+          ? ("needsLink" as const)
+          : ("stale" as const),
+    }
     const broadcasterId =
       "broadcasterId" in config
         ? config.broadcasterId
@@ -114,7 +110,9 @@ export const projection = query({
       source,
       isOwner: membership.discordUserId === guild.ownerDiscordId,
       botLeft: guild.botLeftAt !== undefined,
-      discordStatus: "ready" as const,
+      discordStatus: config.liveNotificationsEnabled
+        ? ("unavailable" as const)
+        : ("ready" as const),
       subscriptionStatus: subscription?.status ?? ("disabled" as const),
     }
   },
@@ -152,41 +150,57 @@ export const owner = internalQuery({
   args: { guildId: v.id("guilds") },
   handler: (ctx, args) => getOwnerTwitch(ctx, args.guildId),
 })
+const consumerArgs = {
+  configId: v.id("guildLiveNotificationConfigs"),
+  broadcasterId: v.string(),
+  expectedOwnerEvidenceKey: v.string(),
+  callback: v.string(),
+  botId: v.string(),
+}
+const consumerValidator = v.object(consumerArgs)
+async function ensureConsumerFor(
+  ctx: MutationCtx,
+  args: Infer<typeof consumerValidator>
+): Promise<Id<"twitchEventSubscriptions">[]> {
+  const config = await ctx.db.get(args.configId)
+  if (!config?.liveNotificationsEnabled) return []
+  const owner = await getOwnerTwitch(ctx, config.guildId)
+  if (
+    owner.status !== "linked" ||
+    owner.guild.botLeftAt !== undefined ||
+    ownerEvidenceKey(owner) !== args.expectedOwnerEvidenceKey ||
+    !owner.twitchAccounts.some(
+      (account) => account.providerAccountId === args.broadcasterId
+    )
+  )
+    return []
+  await ctx.db.patch(config._id, {
+    broadcasterId: args.broadcasterId,
+    ownerUserId: owner.user._id,
+    ownerDiscordId: owner.guild.ownerDiscordId,
+  })
+  return setEventConsumer(ctx, {
+    consumer: `guild:${config.guildId}`,
+    key: "streamOnline",
+    enabled: true,
+    broadcasterId: args.broadcasterId,
+    callback: args.callback,
+    botId: args.botId,
+  })
+}
 export const ensureConsumer = internalMutation({
-  args: {
-    configId: v.id("guildLiveNotificationConfigs"),
-    broadcasterId: v.string(),
-    expectedOwnerEvidenceKey: v.string(),
-    callback: v.string(),
-    botId: v.string(),
-  },
+  args: consumerArgs,
+  returns: v.array(v.id("twitchEventSubscriptions")),
+  handler: ensureConsumerFor,
+})
+export const ensureConsumerBatch = internalMutation({
+  args: { targets: v.array(v.object(consumerArgs)) },
   returns: v.array(v.id("twitchEventSubscriptions")),
   handler: async (ctx, args) => {
-    const config = await ctx.db.get(args.configId)
-    if (!config?.liveNotificationsEnabled) return []
-    const owner = await getOwnerTwitch(ctx, config.guildId)
-    if (
-      owner.status !== "linked" ||
-      owner.guild.botLeftAt !== undefined ||
-      ownerEvidenceKey(owner) !== args.expectedOwnerEvidenceKey ||
-      !owner.twitchAccounts.some(
-        (account) => account.providerAccountId === args.broadcasterId
-      )
-    )
-      return []
-    await ctx.db.patch(config._id, {
-      broadcasterId: args.broadcasterId,
-      ownerUserId: owner.user._id,
-      ownerDiscordId: owner.guild.ownerDiscordId,
-    })
-    return setEventConsumer(ctx, {
-      consumer: `guild:${config.guildId}`,
-      key: "streamOnline",
-      enabled: true,
-      broadcasterId: args.broadcasterId,
-      callback: args.callback,
-      botId: args.botId,
-    })
+    const touched = new Set<Id<"twitchEventSubscriptions">>()
+    for (const target of args.targets)
+      for (const id of await ensureConsumerFor(ctx, target)) touched.add(id)
+    return [...touched]
   },
 })
 
@@ -245,7 +259,10 @@ export const configured = internalQuery({
 })
 
 export const save = internalMutation({
-  returns: v.number(),
+  returns: v.object({
+    revision: v.number(),
+    subscriptions: v.array(v.id("twitchEventSubscriptions")),
+  }),
   args: {
     discordGuildId: v.string(),
     ...liveConfigFields,
@@ -283,7 +300,7 @@ export const save = internalMutation({
     const next = {
       broadcasterId: args.liveNotificationsEnabled
         ? args.expectedBroadcasterId
-        : previous?.broadcasterId,
+        : (args.expectedBroadcasterId ?? previous?.broadcasterId),
       ownerUserId:
         args.liveNotificationsEnabled && source.status === "linked"
           ? source.user._id
@@ -318,20 +335,15 @@ export const save = internalMutation({
         next: auditConfig(next),
       },
     })
-    if (
-      previous?.liveNotificationsEnabled !== next.liveNotificationsEnabled ||
-      previous?.broadcasterId !== next.broadcasterId
-    ) {
-      await setEventConsumer(ctx, {
-        consumer: `guild:${guild._id}`,
-        key: "streamOnline",
-        broadcasterId: next.broadcasterId,
-        enabled: next.liveNotificationsEnabled,
-        callback: backendEnv.TWITCH_EVENTSUB_CALLBACK_URL ?? "",
-        botId: backendEnv.TWITCH_BOT_USER_ID ?? "",
-      })
-    }
-    return now
+    const subscriptions = await setEventConsumer(ctx, {
+      consumer: `guild:${guild._id}`,
+      key: "streamOnline",
+      broadcasterId: next.broadcasterId,
+      enabled: next.liveNotificationsEnabled,
+      callback: backendEnv.TWITCH_EVENTSUB_CALLBACK_URL ?? "",
+      botId: backendEnv.TWITCH_BOT_USER_ID ?? "",
+    })
+    return { revision: now, subscriptions }
   },
 })
 
@@ -775,5 +787,53 @@ export const expire = internalMutation({
         },
       })
     return null
+  },
+})
+
+// Explicit rollout operation for rows formerly owned by the removed Gateway worker.
+export const migrateDeliveries = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.object({
+    scheduled: v.number(),
+    uncertain: v.number(),
+    cursor: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("twitchLiveDeliveries")
+      .paginate({ numItems: 25, cursor: args.cursor ?? null })
+    let scheduled = 0,
+      uncertain = 0
+    for (const row of page.page) {
+      if (row.state === "sending") {
+        await ctx.db.patch(row._id, {
+          state: "uncertain",
+          failure: "rolloutInterruptedSend",
+          updatedAt: Date.now(),
+        })
+        uncertain++
+      } else if (row.state === "pending" || row.state === "claimed") {
+        // The retired worker had not reserved a POST in claimed state. Releasing
+        // its claim also makes any late old-worker begin call fail atomically.
+        if (row.state === "claimed")
+          await ctx.db.patch(row._id, {
+            state: "pending",
+            claim: undefined,
+            claimExpiresAt: undefined,
+            updatedAt: Date.now(),
+          })
+        await ctx.scheduler.runAfter(
+          0,
+          internal.liveNotificationActions.deliver,
+          { deliveryId: row._id }
+        )
+        scheduled++
+      }
+    }
+    return {
+      scheduled,
+      uncertain,
+      cursor: page.isDone ? null : page.continueCursor,
+    }
   },
 })

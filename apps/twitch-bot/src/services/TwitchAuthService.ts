@@ -4,12 +4,23 @@ import { TwitchApiService, TwitchFailure } from "./TwitchApiService"
 
 export class TwitchAuthService {
   private token?: string
+  private inFlight?: Promise<string>
   constructor(
     private readonly api: TwitchApiService,
     private readonly store: GrantStore,
     private readonly config: TwitchRuntimeEnv
   ) {}
   async maintain(): Promise<string> {
+    if (this.inFlight) return this.inFlight
+    const work = this.maintainToken()
+    this.inFlight = work
+    try {
+      return await work
+    } finally {
+      this.inFlight = undefined
+    }
+  }
+  private async maintainToken(): Promise<string> {
     await ensureBotGrant(this.api, this.store, this.config)
     if (this.token) {
       try {

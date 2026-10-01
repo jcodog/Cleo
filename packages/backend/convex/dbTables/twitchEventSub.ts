@@ -31,6 +31,7 @@ export const twitchEventSubscriptions = defineTable({
   .index("by_identity", ["identity"])
   .index("by_subscription", ["subscriptionId"])
   .index("by_broadcaster", ["broadcasterId"])
+  .index("by_broadcaster_key", ["broadcasterId", "key"])
 export const twitchAnnouncementConfigs = defineTable({
   userId: v.id("users"),
   broadcasterId: v.string(),
@@ -44,6 +45,20 @@ export const twitchAnnouncementConfigs = defineTable({
 export const twitchWebhookReceipts = defineTable({
   messageId: v.string(),
   createdAt: v.number(),
+  key: v.optional(v.string()),
+  broadcasterId: v.optional(v.string()),
+  eventJson: v.optional(v.string()),
+  state: v.optional(
+    v.union(
+      v.literal("pending"),
+      v.literal("sending"),
+      v.literal("sent"),
+      v.literal("uncertain"),
+      v.literal("ignored")
+    )
+  ),
+  attempt: v.optional(v.string()),
 })
   .index("by_message", ["messageId"])
   .index("by_created", ["createdAt"])
+  .index("by_state", ["state"])

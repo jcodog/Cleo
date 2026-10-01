@@ -126,6 +126,8 @@ export function runtimeHttp(
         { data: options.subscriptions ?? [subscription] },
         options.listStatus
       )
+    if (url.pathname === "/api/action")
+      return json({ status: "success", value: { events: [], cursor: null } })
     options.onSend?.()
     throw new Error("Runtime must never send a chat message.")
   })

@@ -105,4 +105,20 @@ test("announcement service renders plain outbound text with the dedicated bot ap
     { user: "Viewer\nName" }
   )
   assert.deepEqual(sent, [["app-token", "222", "Hello Viewer Name"]])
+  await service.send(
+    "222",
+    { defaultTemplate: "Hello {user}", allowedTemplateTags: ["user"] },
+    { user: "Viewer" },
+    undefined,
+    async () => false
+  )
+  assert.equal(sent.length, 1)
+  await service.send(
+    "222",
+    { defaultTemplate: "Hello {user}", allowedTemplateTags: ["user"] },
+    { user: "Viewer" },
+    undefined,
+    async () => true
+  )
+  assert.equal(sent.length, 2)
 })

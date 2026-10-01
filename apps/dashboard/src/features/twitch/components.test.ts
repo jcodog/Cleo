@@ -8,6 +8,8 @@ function elements(node: ReactNode): React.ReactElement<{
   onClick?: () => Promise<void>
   disabled?: boolean
   src?: string
+  onReconnect?: (key: "follow" | "cheer") => void
+  onPermissionRequired?: (key: "follow" | "cheer") => void
 }>[] {
   if (!isValidElement<{ children?: ReactNode }>(node)) return []
   return [
@@ -42,6 +44,7 @@ test("actual Twitch callback and workspace handle provider evidence, actions and
   let linkFailure = false
   let syncStatus = "ready"
   let pendingSync: Promise<void> | undefined
+  const scopes: string[][] = []
   let connection:
     | {
         providerAccountId: string
@@ -65,7 +68,10 @@ test("actual Twitch callback and workspace handle provider evidence, actions and
     get externalAccounts() {
       return accounts.map((account) => ({
         ...account,
-        reauthorize: async () => authorizationRedirect(),
+        reauthorize: async (params: { additionalScopes: string[] }) => {
+          scopes.push(params.additionalScopes)
+          return authorizationRedirect()
+        },
       }))
     },
     reload: async () => {
@@ -84,7 +90,8 @@ test("actual Twitch callback and workspace handle provider evidence, actions and
         return [
           slots[slot],
           (value: unknown) => {
-            slots[slot] = value
+            slots[slot] =
+              typeof value === "function" ? value(slots[slot]) : value
           },
         ]
       },
@@ -370,6 +377,51 @@ test("actual Twitch callback and workspace handle provider evidence, actions and
         false
       )
       assert.equal(text(render(TwitchWorkspace)).includes("private"), false)
+    }
+  )
+  await t.test(
+    "synced announcements reconnect requests every desired scope and preserves busy/error behavior",
+    async () => {
+      reset()
+      connection = {
+        providerAccountId: "222",
+        hasBootstrapPermission: true,
+        displayName: "Owner",
+        avatarUrl: "https://example.test/avatar",
+      }
+      const panel = () =>
+        elements(render(TwitchWorkspace)).find(
+          (node) => node.props.onReconnect
+        )!
+      assert.ok(panel())
+      panel().props.onPermissionRequired!("follow")
+      panel().props.onPermissionRequired!("cheer")
+      panel().props.onReconnect!("follow")
+      await settle()
+      assert.deepEqual(scopes.at(-1), [
+        "channel:bot",
+        "moderator:read:followers",
+        "bits:read",
+      ])
+      assert.equal(
+        elements(render(TwitchWorkspace)).find(
+          (node) =>
+            node.type === "button" && text(node).includes("Reconnect Twitch")
+        )?.props.disabled,
+        true
+      )
+      reset()
+      linkFailure = true
+      panel().props.onReconnect!("cheer")
+      await settle()
+      assert.match(text(render(TwitchWorkspace)), /connection could not start/)
+      assert.equal(
+        elements(render(TwitchWorkspace)).find(
+          (node) =>
+            node.type === "button" && text(node).includes("Reconnect Twitch")
+        )?.props.disabled,
+        false
+      )
     }
   )
 })

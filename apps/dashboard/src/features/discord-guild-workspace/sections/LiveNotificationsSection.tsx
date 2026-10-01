@@ -43,7 +43,14 @@ export function LiveNotificationsSection({
   overview: GuildOverview
   isBotLeft: boolean
 }) {
-  const { view } = useLiveNotifications(overview.discordGuildId)
+  const { view, error, reload } = useLiveNotifications(overview.discordGuildId)
+  if (error)
+    return (
+      <div role="alert">
+        Provider unavailable{" "}
+        <Button onClick={reload}>Retry provider check</Button>
+      </div>
+    )
   if (!view) return <Skeleton className="h-48 w-full max-w-3xl" />
   return (
     <LiveNotificationsForm
@@ -66,7 +73,8 @@ function LiveNotificationsForm({
 }) {
   const clerk = useClerk()
   const update = useAction(api.liveNotificationActions.update)
-  const options = useDiscordConfigOptions(discordGuildId, 0)
+  const [selectorRevision, setSelectorRevision] = useState(0)
+  const options = useDiscordConfigOptions(discordGuildId, selectorRevision)
   const [enabled, setEnabled] = useState(view.config.liveNotificationsEnabled)
   const [channelId, setChannelId] = useState(
     "liveNotificationChannelId" in view.config
@@ -173,6 +181,14 @@ function LiveNotificationsForm({
   }
   return (
     <form className="flex max-w-3xl flex-col gap-6" onSubmit={save}>
+      {options.status === "unavailable" && (
+        <Button
+          type="button"
+          onClick={() => setSelectorRevision((value) => value + 1)}
+        >
+          Retry Discord selectors
+        </Button>
+      )}
       <div className="flex items-center justify-between gap-4 border-b pb-6">
         <div>
           <h2 className="font-heading text-lg font-medium">

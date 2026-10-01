@@ -363,7 +363,8 @@ export function normalizeChatText(value: string): string {
         (code >= 127 && code <= 159) ||
         (code >= 0x200b && code <= 0x200f) ||
         (code >= 0x202a && code <= 0x202e) ||
-        (code >= 0x2066 && code <= 0x2069) ||
+        (code >= 0x2066 && code <= 0x206f) ||
+        code === 0x061c ||
         code === 0xfeff ||
         (code >= 0xd800 && code <= 0xdfff)
         ? " "
@@ -404,18 +405,27 @@ export function renderTemplate(
   custom?: string
 ): string {
   const render = (source: string) => {
+    source = normalizeChatText(source)
     if (/[{}]/.test(source.replace(/\{([a-zA-Z]+)\}/g, ""))) {
       throw new Error("Invalid template tag syntax.")
     }
     return normalizeChatText(
-      source.replace(/\{([a-zA-Z]+)\}/g, (_match, tag: string) => {
-        if (
-          !definition.allowedTemplateTags.includes(tag) ||
-          values[tag] === undefined
-        )
-          throw new Error(`Unsupported or unavailable tag {${tag}}.`)
-        return normalizeChatText(values[tag])
-      })
+      source.replace(
+        /\{([a-zA-Z]+)\}/g,
+        (_match, tag: string, offset: number) => {
+          if (
+            !definition.allowedTemplateTags.includes(tag) ||
+            values[tag] === undefined
+          )
+            throw new Error(`Unsupported or unavailable tag {${tag}}.`)
+          const value = normalizeChatText(values[tag])
+          // API text is never executed internally. Prevent a viewer-controlled
+          // leading tag from becoming a command/mention prefix for other chat bots.
+          return offset === 0 && /^[/.!@]/.test(value)
+            ? `Announcement: ${value}`
+            : value
+        }
+      )
     )
   }
   const fallback = () =>

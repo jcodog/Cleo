@@ -68,12 +68,27 @@ export class EventSubRouter {
     parsed: ReturnType<(typeof routes)[number]["parse"]>,
     key: EventKey,
     messageId: string,
-    template?: string
+    template?: string,
+    beforeSend?: () => Promise<boolean>
   ): Promise<void> {
-    await parsed.dispatch({ ...this.services, messageId, template })
+    const announcements: HandlerContext["announcements"] = {
+      send: (broadcaster, definition, values, custom) =>
+        this.services.announcements.send(
+          broadcaster,
+          definition,
+          values,
+          custom,
+          beforeSend
+        ),
+    }
+    await parsed.dispatch({
+      ...this.services,
+      announcements,
+      messageId,
+      template,
+    })
     this.logger.info("Event dispatched", {
       event: key,
-      broadcasterId: parsed.broadcasterId,
     })
   }
 }

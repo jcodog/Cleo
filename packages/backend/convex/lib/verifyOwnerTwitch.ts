@@ -98,7 +98,7 @@ export async function verifyOwnerTwitch(
     )
       return { status: "unavailable" }
     if (expectedClientId && value.client_id !== expectedClientId)
-      return { status: "missingPermission" }
+      return { status: "unavailable" }
     const scopes = value.scopes
     if (!requiredScopes.every((scope) => scopes.includes(scope)))
       return { status: "missingPermission" }

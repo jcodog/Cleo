@@ -8,6 +8,7 @@ import {
   previewTemplate,
   validateTemplate,
   TEMPLATE_LIMIT,
+  resolveBroadcasterScopes,
   type AnnouncementKey,
 } from "@workspace/shared/twitchEventSub"
 import { Button } from "@workspace/ui/components/button"
@@ -18,8 +19,12 @@ import type { FunctionReturnType } from "convex/server"
 type Settings = FunctionReturnType<typeof api.twitchEventSub.settings>
 export function ChatAnnouncements({
   onReconnect,
+  approvedScopes,
+  onPermissionRequired,
 }: {
   onReconnect: (key: AnnouncementKey) => void
+  approvedScopes?: readonly string[]
+  onPermissionRequired?: (key: AnnouncementKey) => void
 }) {
   const settings = useQuery(api.twitchEventSub.settings, {})
   if (!settings) return <p>Loading chat announcements…</p>
@@ -46,6 +51,8 @@ export function ChatAnnouncements({
                 eventKey={key}
                 settings={settings}
                 onReconnect={onReconnect}
+                approvedScopes={approvedScopes}
+                onPermissionRequired={onPermissionRequired}
               />
             ))}
         </section>
@@ -57,10 +64,14 @@ export function AnnouncementRow({
   eventKey,
   settings,
   onReconnect,
+  approvedScopes,
+  onPermissionRequired,
 }: {
   eventKey: AnnouncementKey
   settings: Settings
   onReconnect: (key: AnnouncementKey) => void
+  approvedScopes?: readonly string[]
+  onPermissionRequired?: (key: AnnouncementKey) => void
 }) {
   const definition = eventDefinitions[eventKey]
   const config = settings.configs.find((config) => config.key === eventKey)
@@ -69,11 +80,17 @@ export function AnnouncementRow({
   const [baseline, setBaseline] = useState(stored)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [remoteRevision, setRemoteRevision] = useState(config?.updatedAt ?? 0)
+  const [persistedEnabled, setPersistedEnabled] = useState(
+    config?.enabled ?? false
+  )
   const update = useAction(api.twitchEventSubActions.updateAnnouncement)
   const dirty = draft !== baseline
-  if (!dirty && baseline !== stored && !busy) {
+  if (!dirty && (config?.updatedAt ?? 0) > remoteRevision && !busy) {
     setBaseline(stored)
     setDraft(stored)
+    setRemoteRevision(config?.updatedAt ?? 0)
+    setPersistedEnabled(config?.enabled ?? false)
   }
   let preview = ""
   let invalid: string | undefined
@@ -85,25 +102,42 @@ export function AnnouncementRow({
   const status = settings.subscriptions.find(
     (subscription) => subscription.key === eventKey
   )?.status
-  const enabled = config?.enabled ?? false
+  const enabled = persistedEnabled
+  const missingScopes = approvedScopes
+    ? resolveBroadcasterScopes([eventKey]).filter(
+        (scope) => !approvedScopes.includes(scope)
+      )
+    : []
   async function persist(
     nextEnabled: boolean,
     useDraft: boolean,
     retry = false
   ) {
     if (busy || (useDraft && invalid)) return
+    if (nextEnabled && missingScopes.length) {
+      onPermissionRequired?.(eventKey)
+      setError("Reconnect required. Missing permission.")
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      const source = useDraft ? draft : stored
-      await update({
+      const source = useDraft ? draft : baseline
+      const revision = await update({
         key: eventKey,
         enabled: nextEnabled,
         template: validateTemplate(eventKey, source) ?? null,
         retry,
       })
       if (useDraft) setBaseline(draft)
+      setRemoteRevision(revision)
+      setPersistedEnabled(nextEnabled)
     } catch (failure) {
+      if (
+        failure instanceof Error &&
+        failure.message.includes("Reconnect required")
+      )
+        onPermissionRequired?.(eventKey)
       setError(
         failure instanceof Error ? failure.message : "Subscription failed."
       )
@@ -125,17 +159,22 @@ export function AnnouncementRow({
         />
       </div>
       <p className="text-sm text-muted-foreground" role="status">
-        {status === "providerUnavailable"
-          ? "Provider unavailable"
-          : status === "failed"
-            ? "Subscription failed"
-            : !enabled
-              ? "Disabled"
-              : status === "ready"
-                ? "Ready"
-                : status === "connecting"
-                  ? "Connecting"
-                  : "Subscription failed"}
+        {status === "revoked" || missingScopes.length
+          ? "Reconnect required"
+          : status === "providerUnavailable"
+            ? "Provider unavailable"
+            : status === "failed"
+              ? "Subscription failed"
+              : !enabled
+                ? "Disabled"
+                : status === "ready"
+                  ? "Ready"
+                  : status === "connecting"
+                    ? "Connecting"
+                    : "Subscription failed"}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Required permissions: {resolveBroadcasterScopes([eventKey]).join(", ")}
       </p>
       <label htmlFor={`${eventKey}-message`} className="text-sm font-medium">
         Message{" "}
@@ -201,7 +240,9 @@ export function AnnouncementRow({
         >
           Reset to default
         </Button>
-        {error?.includes("Reconnect required") && (
+        {(status === "revoked" ||
+          missingScopes.length ||
+          error?.includes("Reconnect required")) && (
           <Button
             type="button"
             variant="outline"
@@ -210,9 +251,7 @@ export function AnnouncementRow({
             Reconnect Twitch
           </Button>
         )}
-        {(status === "failed" ||
-          status === "providerUnavailable" ||
-          (enabled && status === "revoked")) && (
+        {(status === "failed" || status === "providerUnavailable") && (
           <Button
             type="button"
             variant="outline"

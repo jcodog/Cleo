@@ -32,7 +32,12 @@ test("announcement rows expose per-event tags, preview, reset and immediate togg
   let slots: unknown[] = []
   let index = 0
   const settings: {
-    configs: { key: string; enabled: boolean; template?: string }[]
+    configs: {
+      key: string
+      enabled: boolean
+      template?: string
+      updatedAt?: number
+    }[]
     subscriptions: {
       key: string
       status:
@@ -48,6 +53,8 @@ test("announcement rows expose per-event tags, preview, reset and immediate togg
   let loaded = false
   let failure = false
   let reconnect = ""
+  let revision = 0
+  let delayQuery = false
   t.mock.module("react", {
     exports: {
       ...React,
@@ -70,14 +77,17 @@ test("announcement rows expose per-event tags, preview, reset and immediate togg
       useAction: () => async (input: (typeof writes)[number]) => {
         if (failure) throw new Error("Reconnect required. Missing permission.")
         writes.push(input)
-        settings.configs = [
-          {
-            key: input.key,
-            enabled: input.enabled,
-            ...(input.template ? { template: input.template } : {}),
-          },
-        ]
-        return null
+        revision++
+        if (!delayQuery)
+          settings.configs = [
+            {
+              key: input.key,
+              enabled: input.enabled,
+              updatedAt: revision,
+              ...(input.template ? { template: input.template } : {}),
+            },
+          ]
+        return revision
       },
     },
   })
@@ -202,4 +212,51 @@ test("announcement rows expose per-event tags, preview, reset and immediate togg
   button("Retry subscription").props.onClick!()
   await flush()
   assert.equal(writes.at(-1)?.retry, true)
+  settings.subscriptions = [{ key: "follow", status: "revoked" }]
+  assert.match(text(render()), /Reconnect required/)
+  assert.equal(
+    elements(render()).some((node) => text(node) === "Retry subscription"),
+    false
+  )
+  button("Reconnect Twitch").props.onClick!()
+  assert.equal(reconnect, "follow")
+  settings.subscriptions = []
+  delayQuery = true
+  edit("New saved {user}")
+  button("Save message").props.onClick!()
+  await flush()
+  assert.equal(button("Save message").props.disabled, true)
+  assert.equal(
+    elements(render()).find((node) => node.type === "Textarea")?.props.value,
+    "New saved {user}"
+  )
+  edit("Next visible {user}")
+  assert.equal(
+    elements(render()).find((node) => node.type === "Textarea")?.props.value,
+    "Next visible {user}"
+  )
+  assert.equal(button("Save message").props.disabled, false)
+  slots = []
+  index = 0
+  const desired: string[] = []
+  const missing = () => {
+    index = 0
+    return AnnouncementRow({
+      eventKey: "follow",
+      settings,
+      onReconnect,
+      approvedScopes: ["channel:bot"],
+      onPermissionRequired: (key) => desired.push(key),
+    })
+  }
+  assert.match(
+    text(missing()),
+    /Reconnect required.*Required permissions:.*moderator:read:followers/
+  )
+  const before = writes.length
+  elements(missing()).find((node) => node.type === "Switch")!.props
+    .onCheckedChange!(true)
+  await flush()
+  assert.equal(writes.length, before)
+  assert.deepEqual(desired, ["follow"])
 })

@@ -2380,6 +2380,7 @@ export type DataModel = {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_broadcaster: ["broadcasterId", "_creationTime"];
+      by_broadcaster_key: ["broadcasterId", "key", "_creationTime"];
       by_identity: ["identity", "_creationTime"];
       by_subscription: ["subscriptionId", "_creationTime"];
     };
@@ -2498,17 +2499,32 @@ export type DataModel = {
   };
   twitchWebhookReceipts: {
     document: {
-      createdAt: number;
       messageId: string;
+      createdAt: number;
+      key?: string;
+      broadcasterId?: string;
+      eventJson?: string;
+      state?: "pending" | "sending" | "sent" | "uncertain" | "ignored";
+      attempt?: string;
       _id: Id<"twitchWebhookReceipts">;
       _creationTime: number;
     };
-    fieldPaths: "_creationTime" | "_id" | "createdAt" | "messageId";
+    fieldPaths:
+      | "_id"
+      | "_creationTime"
+      | "messageId"
+      | "createdAt"
+      | "key"
+      | "broadcasterId"
+      | "eventJson"
+      | "state"
+      | "attempt";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_created: ["createdAt", "_creationTime"];
       by_message: ["messageId", "_creationTime"];
+      by_state: ["state", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

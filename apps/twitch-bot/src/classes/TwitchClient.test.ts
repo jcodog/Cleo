@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { join } from "node:path"
-import { readFile } from "node:fs/promises"
+import { readFile, mkdir } from "node:fs/promises"
 import {
   withGrant,
   runtimeEnv,
@@ -44,11 +44,8 @@ test("client startup, token maintenance, local health, clean shutdown and failur
     }
     await client.run(controller.signal)
     assert.equal(JSON.parse(await readFile(path, "utf8")).state, "stopped")
-    assert.ok(
-      calls.every(
-        (url) => !url.includes("convex") && !url.includes("subscriptions")
-      )
-    )
+    assert.ok(calls.every((url) => !url.includes("subscriptions")))
+    assert.equal(calls.filter((url) => url.includes("convex")).length, 1)
     assert.equal(client.webhook.isListening, false)
     const failed = new TwitchClient(config, silentLogger, async () => {
       throw new Error("network")
@@ -67,5 +64,57 @@ test("client startup, token maintenance, local health, clean shutdown and failur
       lost.run(new AbortController().signal),
       /listener unavailable/
     )
+    const invalidPath = join(directory, "directory-is-not-file")
+    await mkdir(invalidPath)
+    const original = new Error("primary runtime exception")
+    const errors: string[] = []
+    const broken = new TwitchClient(
+      { ...config, TWITCH_READINESS_PATH: invalidPath },
+      {
+        ...silentLogger,
+        error: (message) => {
+          errors.push(message)
+        },
+      },
+      request
+    )
+    t.mock.method(broken.webhook, "stop", async () => {
+      throw new Error("secondary shutdown")
+    })
+    // Starting readiness itself fails; neither unhealthy nor stop may mask it.
+    await assert.rejects(
+      broken.run(new AbortController().signal),
+      (error) =>
+        error instanceof Error && !error.message.includes("secondary shutdown")
+    )
+    assert.ok(errors.includes("Readiness update failed"))
+    assert.ok(errors.includes("Webhook shutdown failed"))
+    const preserving = new TwitchClient(config, silentLogger, request)
+    t.mock.method(preserving.auth, "maintain", async () => {
+      throw original
+    })
+    t.mock.method(preserving.webhook, "stop", async () => {
+      throw new Error("secondary")
+    })
+    await assert.rejects(
+      preserving.run(new AbortController().signal),
+      (error) => error === original
+    )
+    const stoppedFailure = new AbortController()
+    stoppedFailure.abort()
+    await broken.run(stoppedFailure.signal)
+    const aborted = new AbortController()
+    let observedAbort = false
+    const cancel = new TwitchClient(
+      config,
+      silentLogger,
+      async (_url, init) => {
+        aborted.abort()
+        observedAbort = init?.signal?.aborted === true
+        throw new Error("cancelled")
+      }
+    )
+    await cancel.run(aborted.signal)
+    assert.equal(observedAbort, true)
   })
 })

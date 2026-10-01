@@ -20,7 +20,10 @@ import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { ChatAnnouncements } from "./ChatAnnouncements"
-import type { EventKey } from "@workspace/shared/twitchEventSub"
+import {
+  type EventKey,
+  type AnnouncementKey,
+} from "@workspace/shared/twitchEventSub"
 
 import {
   beginTwitchLink,
@@ -42,6 +45,7 @@ export function TwitchWorkspace() {
   const sync = useAction(api.actions.dashboard.account.syncLinkedAccounts.sync)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [desiredScopes, setDesiredScopes] = useState<AnnouncementKey[]>([])
   const connect = useReverification(async (keys: readonly EventKey[] = []) => {
     if (!user) throw new Error("Sign in before linking Twitch.")
     return beginTwitchLink(user, window.location.origin, keys)
@@ -64,7 +68,9 @@ export function TwitchWorkspace() {
     setBusy(true)
     setError(null)
     try {
-      window.location.assign(await connect(keys))
+      window.location.assign(
+        await connect([...new Set([...desiredScopes, ...keys])])
+      )
     } catch {
       setError(
         "Twitch connection could not start. Try again, or check whether Twitch is enabled for this account."
@@ -168,7 +174,17 @@ export function TwitchWorkspace() {
           handles chat messages.
         </p>
       </div>
-      {synced && <ChatAnnouncements onReconnect={(key) => void link([key])} />}
+      {synced && (
+        <ChatAnnouncements
+          approvedScopes={liveAccount?.approvedScopes
+            .split(/\s+/)
+            .filter(Boolean)}
+          onPermissionRequired={(key) =>
+            setDesiredScopes((current) => [...new Set([...current, key])])
+          }
+          onReconnect={(key) => void link([key])}
+        />
+      )}
     </section>
   )
 }

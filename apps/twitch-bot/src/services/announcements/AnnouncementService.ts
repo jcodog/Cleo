@@ -14,14 +14,13 @@ export class AnnouncementService {
     broadcasterId: string,
     definition: Definition,
     values: Record<string, string>,
-    template?: string
+    template?: string,
+    beforeSend?: () => Promise<boolean>
   ): Promise<void> {
     const message = renderTemplate(definition, values, template)
-    await this.api.sendChatMessage(
-      await this.auth.appToken(),
-      broadcasterId,
-      message
-    )
-    this.logger.info("Twitch chat message sent", { broadcasterId })
+    const token = await this.auth.appToken()
+    if (beforeSend && !(await beforeSend())) return
+    await this.api.sendChatMessage(token, broadcasterId, message)
+    this.logger.info("Twitch chat message sent")
   }
 }

@@ -43,7 +43,7 @@ done
 install -o root -g root -m 0644 "$repository/apps/twitch-bot/src/deployment/validateArtifact.mjs" "$tools/validateArtifact.mjs"
 install -o root -g root -m 0644 "$repository/ops/twitch/bin/validate-twitch-artifact.mjs" "$tools/validate-twitch-artifact.mjs"
 install -d -o root -g cleo -m 0750 /etc/cleo
-install -o root -g root -m 0644 "$repository/ops/twitch/nginx/eventsub.conf.example" /etc/cleo/twitch-eventsub.nginx.example
+install -o root -g root -m 0644 "$repository/ops/twitch/nginx/eventsub.conf.example" /usr/local/libexec/cleo/twitch/eventsub.nginx.example
 env_file=/etc/cleo/twitch-bot.env
 if [[ ! -e "$env_file" && ! -L "$env_file" ]]; then
   install -o root -g cleo -m 0640 "$repository/ops/twitch/twitch-bot.env.example" "$env_file"

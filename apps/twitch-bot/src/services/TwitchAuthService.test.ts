@@ -64,3 +64,45 @@ test("auth keeps a validated app token, refreshes expired authorization and does
     assert.equal(tokens, 3)
   })
 })
+
+test("concurrent maintenance shares one token acquisition and retries after a failed flight", async () => {
+  await withGrant(async (store) => {
+    await store.write(createGrant(botToken, apiConfig))
+    let tokens = 0
+    let fail = true
+    const api = new TwitchApiService(
+      apiConfig,
+      httpFake((url, init) => {
+        if (url.pathname.endsWith("token")) {
+          tokens++
+          return fail
+            ? json({}, 503)
+            : json({
+                access_token: "app",
+                token_type: "bearer",
+                expires_in: 1000,
+              })
+        }
+        return json(
+          new Headers(init.headers).get("Authorization") === "OAuth app"
+            ? validApp
+            : validBot
+        )
+      })
+    )
+    const auth = new TwitchAuthService(api, store, runtimeEnv(store.path))
+    const first = await Promise.allSettled([
+      auth.maintain(),
+      auth.maintain(),
+      auth.appToken(),
+    ])
+    assert.ok(first.every((result) => result.status === "rejected"))
+    assert.equal(tokens, 1)
+    fail = false
+    assert.deepEqual(
+      await Promise.all([auth.maintain(), auth.maintain(), auth.appToken()]),
+      ["app", "app", "app"]
+    )
+    assert.equal(tokens, 2)
+  })
+})

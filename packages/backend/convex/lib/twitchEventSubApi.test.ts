@@ -146,3 +146,15 @@ test("pagination, repeated cursors, conflict recovery and provider errors fail c
   ])
     assert.throws(() => new TwitchEventSubApi({ ...config, callback }))
 })
+
+test("EventSub list pagination stops at 100 requests even with endless distinct cursors", async () => {
+  let requests = 0
+  const api = new TwitchEventSubApi(config, async () =>
+    Response.json({ data: [], pagination: { cursor: `cursor-${++requests}` } })
+  )
+  await assert.rejects(
+    api.find("app", "streamOnline", row.condition),
+    (error) => error instanceof EventSubProviderError
+  )
+  assert.equal(requests, 100)
+})

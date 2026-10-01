@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repository="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+bash "$repository/ops/twitch/host-contract.test.sh"
+node "$repository/.github/scripts/test-twitch-workflow.mjs"
 for script in "$repository"/ops/twitch/bin/* "$repository/ops/twitch/bootstrap-host.sh"; do
   [[ "$script" == *.mjs ]] || bash -n "$script"
 done

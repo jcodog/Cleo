@@ -54,9 +54,9 @@ async function getOwnerAccounts(
 }
 
 export function ownerEvidenceKey(
-  owner: Extract<
-    Awaited<ReturnType<typeof getOwnerTwitch>>,
-    { status: "linked" }
+  owner: Omit<
+    Extract<Awaited<ReturnType<typeof getOwnerTwitch>>, { status: "linked" }>,
+    "guild"
   >
 ): string {
   return JSON.stringify([

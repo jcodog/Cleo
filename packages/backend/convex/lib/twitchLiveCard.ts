@@ -14,6 +14,7 @@ import {
   escapeMarkdown,
 } from "discord.js"
 import { createHash } from "node:crypto"
+import { normalizeChatText } from "@workspace/shared/twitchEventSub"
 
 export type TwitchLiveCard = {
   deliveryId: string
@@ -30,7 +31,7 @@ export type TwitchLiveCard = {
 }
 function safeText(value: string, limit: number) {
   return escapeMarkdown(
-    [...value]
+    [...normalizeChatText(value)]
       .slice(0, limit)
       .map((character) => {
         const code = character.codePointAt(0)!

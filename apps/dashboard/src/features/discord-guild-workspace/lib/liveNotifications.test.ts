@@ -24,11 +24,11 @@ test("live notification overview covers configuration, authority and runtime ava
   )
   assert.equal(
     getLiveNotificationState({ ...view, source: { status: "needsLink" } }),
-    "Missing permission"
+    "Connect Twitch"
   )
   assert.equal(
     getLiveNotificationState({ ...view, source: { status: "stale" } }),
-    "Missing permission"
+    "Reconnect required"
   )
   assert.equal(
     getLiveNotificationState({

@@ -21,12 +21,9 @@ export function getLiveNotificationState(
       : view.subscriptionStatus === "failed"
         ? "Subscription failed"
         : "Disabled"
-  if (
-    view.source.status === "missingPermission" ||
-    view.source.status === "needsLink" ||
-    view.source.status === "stale"
-  )
-    return "Missing permission"
+  if (view.source.status === "needsLink") return "Connect Twitch"
+  if (view.source.status === "stale") return "Reconnect required"
+  if (view.source.status === "missingPermission") return "Missing permission"
   if (view.source.status !== "ready") return "Provider unavailable"
   if (view.discordStatus === "unavailable") return "Provider unavailable"
   if (view.discordStatus === "needsChannel") return "Needs channel"

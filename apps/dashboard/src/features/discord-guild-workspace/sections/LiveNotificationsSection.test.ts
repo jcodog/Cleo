@@ -7,6 +7,7 @@ import type { GuildOverview } from "../types"
 type Props = {
   children?: React.ReactNode
   disabled?: boolean
+  checked?: boolean
   value?: string
   type?: string
   href?: string
@@ -38,6 +39,8 @@ test("live notification form fixes owner source, handles linking, destinations, 
   let view: LiveNotificationsView | undefined
   let saveFailure = false
   let accountOpens = 0
+  let hookError = false
+  let reloads = 0
   const saves: unknown[] = []
   let optionsStatus = "ready"
   const ready: LiveNotificationsView = {
@@ -123,6 +126,10 @@ test("live notification form fixes owner source, handles linking, destinations, 
     exports: {
       useLiveNotifications: () => ({
         view,
+        error: hookError,
+        reload: () => {
+          reloads++
+        },
       }),
     },
   })
@@ -294,6 +301,14 @@ test("live notification form fixes owner source, handles linking, destinations, 
   saveFailure = false
   await save()
   assert.equal(button().props.disabled, true)
+  saveFailure = true
+  await toggle(true)
+  assert.ok(slots.includes("Save failed"))
+  assert.equal(
+    elements(render()).find((node) => node.type === "Switch")?.props.checked,
+    false
+  )
+  saveFailure = false
   view = { ...ready, botLeft: true }
   render(true)
   assert.equal(button().props.disabled, true)
@@ -307,7 +322,19 @@ test("live notification form fixes owner source, handles linking, destinations, 
   optionsStatus = "unavailable"
   assert.match(text(render(true)), /Retry subscription/)
   assert.match(text(render()), /Discord channels and roles are unavailable/)
+  elements(render()).find((node) => text(node) === "Retry Discord selectors")!
+    .props.onClick!()
+  assert.equal(slots[0], 1)
   optionsStatus = "ready"
+  elements(render()).find((node) => text(node) === "Retry subscription")!.props
+    .onClick!()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal((saves.at(-1) as { retry?: boolean }).retry, true)
+  hookError = true
+  elements(render()).find((node) => text(node) === "Retry provider check")!
+    .props.onClick!()
+  assert.equal(reloads, 1)
+  hookError = false
   const state = {
     status: "ready" as const,
     options: {

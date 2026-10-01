@@ -23,7 +23,7 @@ done
 unsafe="$(find "$root/releases" -mindepth 1 \( -type l -o ! -user github-runner -o ! -group cleo-runtime -o \( -type d ! -perm 0750 \) -o \( -type f ! -perm 0640 \) \) -print -quit)"
 [[ -z "$unsafe" ]] || fail 'unsafe release ownership or permissions'
 env_file=/etc/cleo/twitch-bot.env
-[[ -f /etc/cleo/twitch-eventsub.nginx.example && ! -L /etc/cleo/twitch-eventsub.nginx.example && "$(stat -c %U:%G:%a /etc/cleo/twitch-eventsub.nginx.example)" == root:root:644 ]] || fail 'missing reviewed ingress contract'
+[[ -f /usr/local/libexec/cleo/twitch/eventsub.nginx.example && ! -L /usr/local/libexec/cleo/twitch/eventsub.nginx.example && "$(stat -c %U:%G:%a /usr/local/libexec/cleo/twitch/eventsub.nginx.example)" == root:root:644 ]] || fail 'missing reviewed ingress contract'
 [[ ! -r "$env_file" ]] || fail 'runner can read the secret environment'
 sudo -n -u cleo "$tools/check-twitch-secrets" || fail 'unsafe or missing secret files'
 unit() { systemctl show cleo-twitch.service --property "$1" --value; }

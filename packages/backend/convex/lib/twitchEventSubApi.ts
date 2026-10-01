@@ -100,7 +100,7 @@ export class TwitchEventSubApi {
       }
       cursor = page.pagination?.cursor
       if (cursor) {
-        if (cursors.has(cursor) || cursors.size >= 100)
+        if (cursors.has(cursor) || cursors.size >= 99)
           throw new EventSubProviderError("failed")
         cursors.add(cursor)
       }
