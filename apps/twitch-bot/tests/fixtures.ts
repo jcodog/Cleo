@@ -3,8 +3,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { resolveTwitchRuntimeEnv } from "@workspace/env/twitch"
 import type { Logger } from "@workspace/logger"
-import { BOT_SCOPES, type BotToken } from "../src/api"
-import { GrantStore } from "../src/grantStore"
+import { BOT_SCOPES, type BotToken } from "../src/services/TwitchApiService"
+import { GrantStore } from "../src/auth/grantStore"
 
 export const apiConfig = {
   NODE_ENV: "test",
@@ -40,7 +40,7 @@ export const subscription = {
   condition: { broadcaster_user_id: "222", user_id: "111" },
   transport: {
     method: "webhook",
-    callback: "https://test.convex.site/twitch-eventsub",
+    callback: "https://test.example/eventsub",
   },
 }
 export const desiredSubscription = {
@@ -86,12 +86,13 @@ export function runtimeEnv(
   return resolveTwitchRuntimeEnv({
     ...apiConfig,
     TWITCH_HTTP_TIMEOUT_MS: "1000",
-    TWITCH_STARTUP_TIMEOUT_MS: "1000",
     TWITCH_BOT_GRANT_PATH: grantPath,
     TWITCH_READINESS_PATH: statePath,
     TWITCH_BOOTSTRAP_BROADCASTER_USER_ID: "222",
     TWITCH_EVENTSUB_CALLBACK_URL: subscription.transport.callback,
     TWITCH_EVENTSUB_SECRET: "test-only-eventsub-secret",
+    TWITCH_WORKER_SECRET: "test-only-worker-secret",
+    CONVEX_URL: "https://test.convex.cloud",
   })
 }
 

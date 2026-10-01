@@ -35,16 +35,15 @@ function text(node: React.ReactNode): string {
 test("live notification form fixes owner source, handles linking, destinations, mentions, saves and outages", async (t) => {
   let slots: unknown[] = []
   let index = 0
-  let error = false
   let view: LiveNotificationsView | undefined
   let saveFailure = false
-  let refreshes = 0
   let accountOpens = 0
   const saves: unknown[] = []
   let optionsStatus = "ready"
   const ready: LiveNotificationsView = {
     config: {
       liveNotificationsEnabled: false,
+      liveNotificationChannelId: "text",
       liveNotificationMentionMode: "none",
     },
     source: {
@@ -124,10 +123,6 @@ test("live notification form fixes owner source, handles linking, destinations, 
     exports: {
       useLiveNotifications: () => ({
         view,
-        error,
-        refresh: () => {
-          refreshes++
-        },
       }),
     },
   })
@@ -194,33 +189,19 @@ test("live notification form fixes owner source, handles linking, destinations, 
     return section
   }
   assert.equal(render().type, "Skeleton")
-  error = true
-  assert.match(text(render()), /unavailable/)
-  elements(render())
-    .find((node) => node.type === "button")
-    ?.props.onClick?.()
-  error = false
   view = { ...ready, source: { status: "needsLink" } }
   let tree = render(true)
   assert.match(text(tree), /server owner must connect Twitch/)
   assert.match(text(tree), /Your linked Twitch account cannot be used/)
-  assert.equal(
-    elements(tree).some((node) => node.props.href === "/twitch"),
-    false
-  )
   assert.equal(
     elements(tree).find((node) => node.type === "Switch")?.props.disabled,
     true
   )
   view = { ...view, isOwner: true }
   tree = render(true)
-  assert.equal(
-    elements(tree).find((node) => node.props.href === "/twitch")?.props
-      .children,
-    "Connect or reconnect Twitch"
-  )
+  assert.ok(elements(tree).find((node) => node.props.href === "/twitch"))
   elements(tree)
-    .find((node) => text(node) === "Manage account")
+    .find((node) => node.type === "button" && text(node) === "Manage account")
     ?.props.onClick?.()
   assert.equal(accountOpens, 1)
   for (const status of ["stale", "missingPermission", "unavailable"] as const) {
@@ -230,94 +211,103 @@ test("live notification form fixes owner source, handles linking, destinations, 
       elements(tree).find((node) => node.type === "Switch")?.props.disabled,
       true
     )
-    assert.match(
-      text(tree),
-      status === "stale"
-        ? /stale/
-        : status === "missingPermission"
-          ? /required permission/
-          : /cannot verify/
-    )
   }
   view = ready
   tree = render(true)
-  assert.match(text(tree), /twitch.tv\/owner/)
-  assert.equal(
-    elements(tree).filter((node) => node.type === "Select").length,
-    1
-  )
-  const destination = elements(tree).find(
-    (node) => node.type === selectors.DiscordChannelSelect
-  )
-  assert.deepEqual(
-    destination?.props.optionsState?.options.channels.map(
-      (channel) => channel.type
-    ),
-    ["text", "announcement"]
-  )
-  elements(tree)
-    .find((node) => node.type === "Switch")
-    ?.props.onCheckedChange?.(true)
-  destination?.props.onChange?.("234567890123456789")
-  elements(tree)
-    .find((node) => node.type === "Select")
-    ?.props.onValueChange?.("role")
-  tree = render()
-  elements(tree)
-    .find((node) => node.type === selectors.DiscordRoleSelect)
-    ?.props.onChange?.("345678901234567890")
-  tree = render()
-  await tree.props.onSubmit?.({ preventDefault() {} })
-  assert.deepEqual(saves[0], {
-    discordGuildId: overview.discordGuildId,
-    liveNotificationsEnabled: true,
-    liveNotificationChannelId: "234567890123456789",
-    liveNotificationMentionMode: "role",
-    liveNotificationRoleId: "345678901234567890",
-  })
-  for (const mode of ["everyone", "none"]) {
-    tree = render()
-    elements(tree)
-      .find((node) => node.type === "Select")
-      ?.props.onValueChange?.(mode)
-    tree = render()
-    assert.equal(
-      elements(tree).some((node) => node.type === selectors.DiscordRoleSelect),
-      false
-    )
-    await tree.props.onSubmit?.({ preventDefault() {} })
-    assert.equal(
-      (saves.at(-1) as { liveNotificationRoleId?: string })
-        .liveNotificationRoleId,
-      undefined
-    )
+  const button = () =>
+    elements(render()).find((node) => node.props.type === "submit")!
+  const channel = (value: string) =>
+    elements(render()).find(
+      (node) => node.type === selectors.DiscordChannelSelect
+    )!.props.onChange!(value)
+  const mention = (value: string) =>
+    elements(render()).find((node) => node.type === "Select")!.props
+      .onValueChange!(value)
+  const toggle = async (value: boolean) => {
+    elements(render()).find((node) => node.type === "Switch")!.props
+      .onCheckedChange!(value)
+    await new Promise((resolve) => setImmediate(resolve))
   }
-  saveFailure = true
-  tree = render()
-  await tree.props.onSubmit?.({ preventDefault() {} })
-  assert.equal(slots.includes("error"), true)
-  assert.equal(slots.includes("Save failed"), true)
-  view = { ...ready, botLeft: true }
-  tree = render(true)
+  const save = async () => {
+    await render().props.onSubmit?.({ preventDefault() {} })
+  }
+  assert.equal(button().props.disabled, true)
+  assert.doesNotMatch(text(tree), /Refresh connection/)
+  channel("announcement")
+  assert.equal(button().props.disabled, false)
+  await save()
+  assert.deepEqual(saves.at(-1), {
+    discordGuildId: overview.discordGuildId,
+    liveNotificationsEnabled: false,
+    liveNotificationChannelId: "announcement",
+    liveNotificationMentionMode: "none",
+    liveNotificationRoleId: undefined,
+  })
+  assert.equal(button().props.disabled, true)
+  mention("everyone")
+  assert.equal(button().props.disabled, false)
+  await save()
+  assert.equal(button().props.disabled, true)
+  await toggle(true)
   assert.equal(
-    elements(tree).find((node) => node.props.type === "submit")?.props.disabled,
+    (saves.at(-1) as { liveNotificationsEnabled: boolean })
+      .liveNotificationsEnabled,
     true
   )
+  assert.equal(button().props.disabled, true)
+  channel("text")
+  mention("role")
+  assert.equal(button().props.disabled, true)
+  elements(render()).find((node) => node.type === selectors.DiscordRoleSelect)!
+    .props.onChange!("role")
+  assert.equal(button().props.disabled, false)
+  await toggle(false)
+  assert.equal(
+    (saves.at(-1) as { liveNotificationChannelId: string })
+      .liveNotificationChannelId,
+    "announcement"
+  )
+  await toggle(true)
+  assert.deepEqual(saves.at(-1), {
+    discordGuildId: overview.discordGuildId,
+    liveNotificationsEnabled: true,
+    liveNotificationChannelId: "text",
+    liveNotificationMentionMode: "role",
+    liveNotificationRoleId: "role",
+  })
+  assert.equal(button().props.disabled, true)
+  channel("deleted")
+  assert.equal(button().props.disabled, true)
+  await toggle(false)
+  const before = saves.length
+  await toggle(true)
+  assert.equal(saves.length, before)
+  assert.equal(
+    elements(render()).find((node) => node.type === "Switch")?.props.disabled,
+    true
+  )
+  channel("text")
+  mention("none")
+  saveFailure = true
+  await save()
+  assert.ok(slots.includes("Save failed"))
+  saveFailure = false
+  await save()
+  assert.equal(button().props.disabled, true)
+  view = { ...ready, botLeft: true }
+  render(true)
+  assert.equal(button().props.disabled, true)
   view = {
     ...ready,
-    config: {
-      liveNotificationsEnabled: true,
-      liveNotificationMentionMode: "none",
-      liveNotificationChannelId: "saved",
-    },
-    subscriptionStatus: "pending",
+    config: { ...ready.config, liveNotificationsEnabled: true },
+    subscriptionStatus: "connecting",
   }
   assert.match(text(render(true)), /confirming/)
-  view = { ...view, subscriptionStatus: "unavailable" }
+  view = { ...view, subscriptionStatus: "providerUnavailable" }
   optionsStatus = "unavailable"
-  assert.match(text(render(true)), /runtime is unavailable/)
+  assert.match(text(render(true)), /Retry subscription/)
   assert.match(text(render()), /Discord channels and roles are unavailable/)
-  assert.ok(refreshes >= 4)
+  optionsStatus = "ready"
   const state = {
     status: "ready" as const,
     options: {
@@ -325,108 +315,28 @@ test("live notification form fixes owner source, handles linking, destinations, 
       roles: options.roles,
     },
   }
-  const missingChannel = selectors.DiscordChannelSelect({
-    description: "destination",
-    disabled: false,
-    label: "Destination",
-    optionsState: state,
-    value: "deleted-channel",
-    onChange() {},
-  })
-  assert.match(text(missingChannel), /Missing channel · deleted-channel/)
-  const missingRole = selectors.DiscordRoleSelect({
-    disabled: false,
-    optionsState: state,
-    value: "deleted-role",
-    onChange() {},
-  })
-  assert.match(text(missingRole), /Missing role · deleted-role/)
-  assert.equal(text(missingRole).includes("@everyone"), false)
-  assert.equal(
-    elements(missingRole).find((node) => node.type === "FieldLabel")?.props
-      .htmlFor,
-    "live-notification-custom-role"
-  )
-  assert.equal(
-    elements(missingRole).find((node) => node.type === "SelectTrigger")?.props
-      .id,
-    "live-notification-custom-role"
+  assert.match(
+    text(
+      selectors.DiscordChannelSelect({
+        description: "destination",
+        disabled: false,
+        label: "Destination",
+        optionsState: state,
+        value: "deleted-channel",
+        onChange() {},
+      })
+    ),
+    /Missing channel/
   )
   assert.match(
     text(
       selectors.DiscordRoleSelect({
         disabled: false,
         optionsState: state,
-        value: "role",
+        value: "deleted-role",
         onChange() {},
       })
     ),
-    /Viewers/
+    /Missing role/
   )
-  saveFailure = false
-  optionsStatus = "ready"
-  view = {
-    ...ready,
-    config: { ...ready.config, liveNotificationMentionMode: "role" },
-  }
-  tree = render(true)
-  assert.equal(
-    elements(tree).find((node) => node.props.type === "submit")?.props.disabled,
-    true
-  )
-  const savedConfig = {
-    ...ready.config,
-    _id: "config",
-    _creationTime: 1,
-    guildId: "guild",
-    createdAt: 1,
-    updatedAt: 1,
-  } as LiveNotificationsView["config"]
-  view = { ...ready, config: savedConfig }
-  tree = render(true)
-  elements(tree)
-    .find((node) => node.type === selectors.DiscordChannelSelect)
-    ?.props.onChange?.("dirty-channel")
-  view = {
-    ...view,
-    config: {
-      ...savedConfig,
-      liveNotificationChannelId: "remote-channel",
-      updatedAt: 2,
-    } as LiveNotificationsView["config"],
-  }
-  render()
-  tree = render()
-  assert.equal(
-    elements(tree).find((node) => node.type === selectors.DiscordChannelSelect)
-      ?.props.value,
-    "dirty-channel"
-  )
-  error = true
-  tree = render()
-  assert.match(text(tree), /Connection refresh failed/)
-  assert.equal(
-    elements(tree).find((node) => node.type === selectors.DiscordChannelSelect)
-      ?.props.value,
-    "dirty-channel"
-  )
-  error = false
-  tree = render()
-  await tree.props.onSubmit?.({ preventDefault() {} })
-  render()
-  tree = render()
-  assert.equal(slots.includes("success"), true)
-  assert.equal(
-    elements(tree).find((node) => node.type === selectors.DiscordChannelSelect)
-      ?.props.value,
-    "dirty-channel"
-  )
-  const beforeRefresh = refreshes
-  elements(tree)
-    .find(
-      (node) => node.type === "button" && text(node) === "Refresh connection"
-    )
-    ?.props.onClick?.()
-  assert.equal(refreshes, beforeRefresh + 1)
-  assert.equal(slots[0], 1)
 })

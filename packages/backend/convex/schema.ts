@@ -1,12 +1,16 @@
 import { defineSchema } from "convex/server"
 import { users } from "./dbTables/users"
+import {
+  twitchEventSubscriptions,
+  twitchAnnouncementConfigs,
+  twitchWebhookReceipts,
+  twitchEventConsumers,
+} from "./dbTables/twitchEventSub"
 import { linkedAccounts } from "./dbTables/linkedAccounts"
 import {
   guildLiveNotificationConfigs,
   twitchLiveEvents,
   twitchLiveDeliveries,
-  twitchLiveSubscriptions,
-  twitchLiveOwnerChecks,
 } from "./dbTables/twitchLiveNotifications"
 import { guilds } from "./dbTables/guilds"
 import { guildConfigs } from "./dbTables/guildConfigs"
@@ -31,13 +35,15 @@ import {
 } from "./dbTables/cleoPets"
 
 export default defineSchema({
+  twitchEventSubscriptions,
+  twitchEventConsumers,
+  twitchAnnouncementConfigs,
+  twitchWebhookReceipts,
   users,
   linkedAccounts,
   guildLiveNotificationConfigs,
   twitchLiveEvents,
   twitchLiveDeliveries,
-  twitchLiveSubscriptions,
-  twitchLiveOwnerChecks,
   guilds,
   guildConfigs,
   discordGuildMemberships,

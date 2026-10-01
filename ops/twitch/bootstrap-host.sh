@@ -43,6 +43,7 @@ done
 install -o root -g root -m 0644 "$repository/apps/twitch-bot/src/deployment/validateArtifact.mjs" "$tools/validateArtifact.mjs"
 install -o root -g root -m 0644 "$repository/ops/twitch/bin/validate-twitch-artifact.mjs" "$tools/validate-twitch-artifact.mjs"
 install -d -o root -g cleo -m 0750 /etc/cleo
+install -o root -g root -m 0644 "$repository/ops/twitch/nginx/eventsub.conf.example" /etc/cleo/twitch-eventsub.nginx.example
 env_file=/etc/cleo/twitch-bot.env
 if [[ ! -e "$env_file" && ! -L "$env_file" ]]; then
   install -o root -g cleo -m 0640 "$repository/ops/twitch/twitch-bot.env.example" "$env_file"
@@ -56,4 +57,4 @@ visudo -cf "$repository/ops/twitch/sudoers/cleo-twitch-deploy"
 install -o root -g root -m 0440 "$repository/ops/twitch/sudoers/cleo-twitch-deploy" /etc/sudoers.d/cleo-twitch-deploy
 systemctl daemon-reload
 systemctl enable cleo-twitch.service
-echo 'Twitch host contract 2 installed. Configure secrets and the private bot grant. Restart the runner session to apply groups. Service has not been started.'
+echo 'Twitch host contract 3 installed. Configure secrets, the private bot grant and the reviewed HTTPS ingress example. Restart the runner session to apply groups. Service has not been started.'

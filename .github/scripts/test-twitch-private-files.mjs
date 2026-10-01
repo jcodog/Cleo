@@ -5,7 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 const moduleUrl = new URL(
-  "../../apps/twitch-bot/src/privateFile.ts",
+  "../../apps/twitch-bot/src/auth/privateFile.ts",
   import.meta.url
 ).href
 const temporary = await mkdtemp(join(tmpdir(), "cleo-twitch-private-file-"))

@@ -4,7 +4,10 @@ import { getClerkUser, getClerkTwitchAccessToken } from "./clerkOAuth"
 import { getClerkLinkedProvider } from "./clerkProviders"
 import type { getOwnerTwitch } from "./ownerTwitch"
 
-type Owner = Awaited<ReturnType<typeof getOwnerTwitch>>
+type GuildOwner = Awaited<ReturnType<typeof getOwnerTwitch>>
+type Owner =
+  | Exclude<GuildOwner, { status: "linked" }>
+  | Omit<Extract<GuildOwner, { status: "linked" }>, "guild">
 export type VerifiedOwnerTwitch =
   | { status: "needsLink" | "unavailable" | "stale" | "missingPermission" }
   | {
@@ -15,10 +18,13 @@ export type VerifiedOwnerTwitch =
       avatarUrl?: string
       accessToken: string
       clientId: string
+      scopes: string[]
     }
 
 export async function verifyOwnerTwitch(
-  owner: Owner
+  owner: Owner,
+  requiredScopes: readonly string[] = ["channel:bot"],
+  expectedClientId?: string
 ): Promise<VerifiedOwnerTwitch> {
   if (owner.status !== "linked") return owner
   const clerk = await getClerkUser(owner.user.clerkUserId)
@@ -91,7 +97,10 @@ export async function verifyOwnerTwitch(
       !value.scopes.every((scope) => typeof scope === "string")
     )
       return { status: "unavailable" }
-    if (!value.scopes.includes("channel:bot"))
+    if (expectedClientId && value.client_id !== expectedClientId)
+      return { status: "missingPermission" }
+    const scopes = value.scopes
+    if (!requiredScopes.every((scope) => scopes.includes(scope)))
       return { status: "missingPermission" }
     return {
       status: "ready",
@@ -101,6 +110,7 @@ export async function verifyOwnerTwitch(
       ...(twitch.avatarUrl ? { avatarUrl: twitch.avatarUrl } : {}),
       accessToken: token.accessToken,
       clientId: value.client_id,
+      scopes: value.scopes,
     }
   } catch {
     return { status: "unavailable" }

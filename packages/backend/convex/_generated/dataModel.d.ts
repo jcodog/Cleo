@@ -2290,9 +2290,106 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  twitchAnnouncementConfigs: {
+    document: {
+      broadcasterId: string;
+      enabled: boolean;
+      key: string;
+      template?: string;
+      updatedAt: number;
+      userId: Id<"users">;
+      _id: Id<"twitchAnnouncementConfigs">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "enabled"
+      | "key"
+      | "template"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_broadcaster_key: ["broadcasterId", "key", "_creationTime"];
+      by_user_key: ["userId", "key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchEventConsumers: {
+    document: {
+      consumer: string;
+      subscription: Id<"twitchEventSubscriptions">;
+      _id: Id<"twitchEventConsumers">;
+      _creationTime: number;
+    };
+    fieldPaths: "_creationTime" | "_id" | "consumer" | "subscription";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_consumer: ["consumer", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchEventSubscriptions: {
+    document: {
+      broadcasterId: string;
+      callback: string;
+      condition: Record<string, string>;
+      consumers: Array<string>;
+      failure?: string;
+      identity: string;
+      key: string;
+      lease?: string;
+      leaseExpiresAt?: number;
+      revision: number;
+      status:
+        | "disabled"
+        | "connecting"
+        | "ready"
+        | "failed"
+        | "providerUnavailable"
+        | "revoked";
+      subscriptionId?: string;
+      updatedAt: number;
+      _id: Id<"twitchEventSubscriptions">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "callback"
+      | "condition"
+      | `condition.${string}`
+      | "consumers"
+      | "failure"
+      | "identity"
+      | "key"
+      | "lease"
+      | "leaseExpiresAt"
+      | "revision"
+      | "status"
+      | "subscriptionId"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_broadcaster: ["broadcasterId", "_creationTime"];
+      by_identity: ["identity", "_creationTime"];
+      by_subscription: ["subscriptionId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   twitchLiveDeliveries: {
     document: {
       attempts: number;
+      avatarUrl?: string;
       broadcasterId: string;
       category?: string;
       claim?: string;
@@ -2305,6 +2402,7 @@ export type DataModel = {
       guildId: Id<"guilds">;
       login: string;
       messageId?: string;
+      previewUrl?: string;
       startedAt: string;
       state:
         | "pending"
@@ -2317,6 +2415,7 @@ export type DataModel = {
       streamId: string;
       title?: string;
       updatedAt: number;
+      viewerCount?: number;
       _id: Id<"twitchLiveDeliveries">;
       _creationTime: number;
     };
@@ -2324,6 +2423,7 @@ export type DataModel = {
       | "_creationTime"
       | "_id"
       | "attempts"
+      | "avatarUrl"
       | "broadcasterId"
       | "category"
       | "claim"
@@ -2336,11 +2436,13 @@ export type DataModel = {
       | "guildId"
       | "login"
       | "messageId"
+      | "previewUrl"
       | "startedAt"
       | "state"
       | "streamId"
       | "title"
-      | "updatedAt";
+      | "updatedAt"
+      | "viewerCount";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
@@ -2394,46 +2496,19 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
-  twitchLiveOwnerChecks: {
+  twitchWebhookReceipts: {
     document: {
-      broadcasterId?: string;
-      checkedAt: number;
-      evidenceKey: string;
-      status: "ready" | "stale" | "missingPermission";
-      userId: Id<"users">;
-      _id: Id<"twitchLiveOwnerChecks">;
+      createdAt: number;
+      messageId: string;
+      _id: Id<"twitchWebhookReceipts">;
       _creationTime: number;
     };
-    fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "broadcasterId"
-      | "checkedAt"
-      | "evidenceKey"
-      | "status"
-      | "userId";
+    fieldPaths: "_creationTime" | "_id" | "createdAt" | "messageId";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
-      by_user: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
-  twitchLiveSubscriptions: {
-    document: {
-      broadcasterId: string;
-      checkedAt: number;
-      status: "ready" | "pending" | "unavailable";
-      _id: Id<"twitchLiveSubscriptions">;
-      _creationTime: number;
-    };
-    fieldPaths:
-      "_creationTime" | "_id" | "broadcasterId" | "checkedAt" | "status";
-    indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_broadcaster: ["broadcasterId", "_creationTime"];
+      by_created: ["createdAt", "_creationTime"];
+      by_message: ["messageId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

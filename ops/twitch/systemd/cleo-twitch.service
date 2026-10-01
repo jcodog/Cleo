@@ -1,5 +1,5 @@
 [Unit]
-Description=Cleo Twitch Cloud Chatbot
+Description=Cleo Twitch Chat Bot and EventSub Listener
 Wants=network-online.target
 After=network-online.target
 ConditionPathIsDirectory=/srv/cleo/twitch-bot/current

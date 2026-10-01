@@ -85,7 +85,7 @@ NODE
 controller="$repository/ops/twitch/bin/deploy-twitch-release"
 deploy() { bash "$controller" deploy "$1" "$test_root/artifacts/cleo-twitch-$1.tar.gz" "$test_root/artifacts/cleo-twitch-$1.tar.gz.sha256"; }
 expect_failure() { if "$@"; then echo 'Expected deployment failure.' >&2; exit 1; fi; }
-[[ "$(bash "$controller" contract-version)" == 2 ]]
+[[ "$(bash "$controller" contract-version)" == 3 ]]
 grep -Fx 'ConditionPathIsDirectory=/srv/cleo/twitch-bot/current' "$repository/ops/twitch/systemd/cleo-twitch.service" >/dev/null
 grep -F '/usr/bin/systemctl reset-failed cleo-twitch.service' "$repository/ops/twitch/sudoers/cleo-twitch-deploy" >/dev/null
 

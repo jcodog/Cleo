@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto"
 import { ConvexError, v } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
 import { action, internalAction } from "./_generated/server"
-import { internal } from "./_generated/api"
+import { api, internal } from "./_generated/api"
 import { liveConfigFields } from "./dbTables/twitchLiveNotifications"
 import type { Infer } from "convex/values"
 import { publicOwnerTwitch, verifyOwnerTwitch } from "./lib/verifyOwnerTwitch"
@@ -16,14 +16,21 @@ import {
   fetchDiscordGuildChannels,
   fetchDiscordGuildRoles,
 } from "./lib/discordRest"
-import { assertValidBotSecret } from "./actions/bot/discord/lib/auth"
-import { claimedLiveDelivery, liveWorkspace } from "./lib/twitchLiveValidators"
+import { liveWorkspace } from "./lib/twitchLiveValidators"
 import type { Doc } from "./_generated/dataModel"
 import type { FunctionReturnType } from "convex/server"
 import { ownerEvidenceKey } from "./lib/ownerTwitch"
 import { boundedMap } from "./lib/boundedMap"
 import { createLogger } from "@workspace/logger"
 
+import { controlPlaneConfig, assertWorkerSecret } from "./twitchEventSubActions"
+import {
+  eventDefinitions,
+  resolveBroadcasterScopes,
+} from "@workspace/shared/twitchEventSub"
+import { z } from "zod"
+import { buildTwitchLiveCard } from "./lib/twitchLiveCard"
+import { validateLiveDestination } from "./lib/twitchDiscordDestination"
 const logger = createLogger("twitch-live-delivery-authority")
 
 async function getDiscordDestinationStatus(
@@ -65,13 +72,12 @@ export const get = action({
   args: { discordGuildId: v.string() },
   handler: async (ctx, args) => {
     const context = await ctx.runQuery(internal.liveNotifications.managed, args)
-    const source = await verifyOwnerTwitch(context.owner)
-    const subscription =
-      source.status === "ready"
-        ? await ctx.runQuery(internal.liveNotifications.subscription, {
-            broadcasterId: source.broadcasterId,
-          })
-        : null
+    const source = await verifyOwnerTwitch(
+      context.owner,
+      resolveBroadcasterScopes(["streamOnline"]),
+      backendEnv.TWITCH_CLIENT_ID ?? "unconfigured"
+    )
+    const view = await ctx.runQuery(api.liveNotifications.projection, args)
     return {
       config: context.config,
       source: publicOwnerTwitch(source),
@@ -81,17 +87,18 @@ export const get = action({
         context.config,
         args.discordGuildId
       ),
-      subscriptionStatus:
-        subscription && Date.now() - subscription.checkedAt < 15 * 60000
-          ? subscription.status
-          : ("unavailable" as const),
+      subscriptionStatus: view.subscriptionStatus,
     }
   },
 })
 
 export const update = action({
   returns: v.number(),
-  args: { discordGuildId: v.string(), ...liveConfigFields },
+  args: {
+    discordGuildId: v.string(),
+    ...liveConfigFields,
+    retry: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const context = await ctx.runQuery(internal.liveNotifications.managed, {
       discordGuildId: args.discordGuildId,
@@ -115,7 +122,11 @@ export const update = action({
       throw new ConvexError(
         "The server owner changed. Refresh the server before configuring notifications."
       )
-    const source = await verifyOwnerTwitch(context.owner)
+    const source = await verifyOwnerTwitch(
+      context.owner,
+      resolveBroadcasterScopes(["streamOnline"]),
+      args.liveNotificationsEnabled ? controlPlaneConfig().clientId : undefined
+    )
     if (args.liveNotificationsEnabled && source.status !== "ready")
       throw new ConvexError(
         "The server owner must connect or reconnect Twitch before enabling notifications."
@@ -176,85 +187,45 @@ export const update = action({
       )
         throw new ConvexError("Choose an existing custom role in this server.")
     }
-    return ctx.runMutation(internal.liveNotifications.save, {
-      ...args,
-      liveNotificationRoleId: roleId,
-      ...(source.status === "ready"
-        ? {
-            expectedBroadcasterId: source.broadcasterId,
-            expectedOwnerDiscordId: context.guild.ownerDiscordId,
-          }
-        : {}),
-    })
-  },
-})
-
-export const runtimeSources = internalAction({
-  returns: v.object({
-    broadcasterIds: v.array(v.string()),
-    continueCursor: v.union(v.null(), v.string()),
-  }),
-  args: { cursor: v.optional(v.union(v.null(), v.string())) },
-  handler: async (ctx, args) => {
-    const page = await ctx.runQuery(internal.liveNotifications.configured, args)
-    const owners = new Map(
-      page.targets.map((target) => [target.owner.user._id, target])
-    )
-    const checked = await boundedMap(
-      [...owners.values()],
-      8,
-      async (target) => {
-        const key = ownerEvidenceKey(target.owner)
-        const check = target.check
-        if (
-          check?.evidenceKey === key &&
-          Date.now() - check.checkedAt < 5 * 60000
-        )
-          return {
-            userId: target.owner.user._id,
-            key,
-            status: check.status,
-            broadcasterId: check.broadcasterId,
-          }
-        const source = await verifyOwnerTwitch(target.owner)
-        if (source.status === "unavailable")
-          throw new Error("Owner Twitch authority is unavailable.")
-        return {
-          userId: target.owner.user._id,
-          key,
-          status:
-            source.status === "ready"
-              ? ("ready" as const)
-              : source.status === "missingPermission"
-                ? ("missingPermission" as const)
-                : ("stale" as const),
-          broadcasterId:
-            source.status === "ready" ? source.broadcasterId : undefined,
-        }
+    const { retry, ...configuration } = args
+    const savedRevision = await ctx.runMutation(
+      internal.liveNotifications.save,
+      {
+        ...configuration,
+        liveNotificationRoleId: roleId,
+        ...(source.status === "ready"
+          ? {
+              expectedBroadcasterId: source.broadcasterId,
+              expectedOwnerDiscordId: context.guild.ownerDiscordId,
+            }
+          : {}),
       }
     )
-    const byOwner = new Map(checked.map((check) => [check.userId, check]))
-    await ctx.runMutation(internal.liveNotifications.projectSources, {
-      sources: page.targets.map((target) => {
-        const source = byOwner.get(target.owner.user._id)!
-        return {
-          configId: target.config._id,
-          evidenceKey: source.key,
-          status: source.status,
-          broadcasterId: source.broadcasterId,
+    if (
+      retry ||
+      context.config.liveNotificationsEnabled !==
+        args.liveNotificationsEnabled ||
+      (source.status === "ready" &&
+        "broadcasterId" in context.config &&
+        context.config.broadcasterId !== source.broadcasterId)
+    ) {
+      const subscriptions = await ctx.runQuery(
+        internal.twitchEventSub.guildTargets,
+        {
+          broadcasterId:
+            source.status === "ready"
+              ? source.broadcasterId
+              : "broadcasterId" in context.config
+                ? context.config.broadcasterId
+                : undefined,
         }
-      }),
-    })
-    return {
-      broadcasterIds: [
-        ...new Set(
-          checked
-            .filter((check) => check.status === "ready")
-            .map((check) => check.broadcasterId!)
-        ),
-      ],
-      continueCursor: page.isDone ? null : page.continueCursor,
+      )
+      for (const subscription of subscriptions)
+        await ctx.runAction(internal.twitchEventSubActions.reconcile, {
+          subscription,
+        })
     }
+    return savedRevision
   },
 })
 
@@ -265,6 +236,9 @@ type Target = {
   displayName: string
   title?: string
   category?: string
+  avatarUrl?: string
+  previewUrl?: string
+  viewerCount?: number
 }
 
 async function streamSession(
@@ -309,6 +283,20 @@ async function streamSession(
             ...("title" in stream && typeof stream.title === "string"
               ? { title: stream.title.slice(0, 500) }
               : {}),
+            ...("thumbnail_url" in stream &&
+            typeof stream.thumbnail_url === "string"
+              ? {
+                  previewUrl: stream.thumbnail_url
+                    .replaceAll("{width}", "640")
+                    .replaceAll("{height}", "360"),
+                }
+              : {}),
+            ...("viewer_count" in stream &&
+            typeof stream.viewer_count === "number" &&
+            Number.isSafeInteger(stream.viewer_count) &&
+            stream.viewer_count >= 0
+              ? { viewerCount: stream.viewer_count }
+              : {}),
             ...("game_name" in stream && typeof stream.game_name === "string"
               ? { category: stream.game_name.slice(0, 100) }
               : {}),
@@ -316,6 +304,63 @@ async function streamSession(
         : {},
   }
 }
+
+// Explicit migration/repair operation. Never scheduled as a recurring sync.
+export const migrateConsumers = internalAction({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.object({
+    migrated: v.number(),
+    skipped: v.number(),
+    cursor: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const config = controlPlaneConfig()
+    const page = await ctx.runQuery(internal.liveNotifications.configured, {
+      cursor: args.cursor,
+    })
+    let migrated = 0
+    let skipped = 0
+    const owners = new Map<
+      string,
+      Awaited<ReturnType<typeof verifyOwnerTwitch>>
+    >()
+    for (const target of page.targets) {
+      let source = owners.get(target.owner.user._id)
+      if (!source) {
+        source = await verifyOwnerTwitch(
+          target.owner,
+          resolveBroadcasterScopes(["streamOnline"]),
+          config.clientId
+        )
+        owners.set(target.owner.user._id, source)
+      }
+      if (source.status !== "ready") {
+        skipped++
+        continue
+      }
+      const subscriptions = await ctx.runMutation(
+        internal.liveNotifications.ensureConsumer,
+        {
+          configId: target.config._id,
+          broadcasterId: source.broadcasterId,
+          expectedOwnerEvidenceKey: ownerEvidenceKey(target.owner),
+          callback: config.callback,
+          botId: config.botId,
+        }
+      )
+      for (const subscription of subscriptions)
+        await ctx.runAction(internal.twitchEventSubActions.reconcile, {
+          subscription,
+        })
+      migrated++
+    }
+    return {
+      migrated,
+      skipped,
+      cursor: page.isDone ? null : page.continueCursor,
+    }
+  },
+})
 
 export const processEvent = internalAction({
   returns: v.null(),
@@ -327,7 +372,15 @@ export const processEvent = internalAction({
       string,
       Awaited<ReturnType<typeof verifyOwnerTwitch>>
     >()
-    let metadata: { title?: string; category?: string } | undefined
+    let metadata:
+      | {
+          title?: string
+          category?: string
+          previewUrl?: string
+          avatarUrl?: string
+          viewerCount?: number
+        }
+      | undefined
     let cursor: string | null = null
     let retry = false
     try {
@@ -344,7 +397,14 @@ export const processEvent = internalAction({
           ).values(),
         ].filter((owner) => !owners.has(owner.user._id))
         await boundedMap(unique, 8, async (owner) => {
-          owners.set(owner.user._id, await verifyOwnerTwitch(owner))
+          owners.set(
+            owner.user._id,
+            await verifyOwnerTwitch(
+              owner,
+              resolveBroadcasterScopes(["streamOnline"]),
+              backendEnv.TWITCH_CLIENT_ID ?? "unconfigured"
+            )
+          )
         })
         const targets: Target[] = []
         for (const target of page.targets) {
@@ -361,6 +421,31 @@ export const processEvent = internalAction({
           if (!metadata) {
             try {
               metadata = (await streamSession(source, event.streamId)).metadata
+              try {
+                const response = await fetch(
+                  `https://api.twitch.tv/helix/users?id=${event.broadcasterId}`,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${source.accessToken}`,
+                      "Client-Id": source.clientId,
+                    },
+                    signal: AbortSignal.timeout(10000),
+                    redirect: "error",
+                  }
+                )
+                if (response.ok) {
+                  const users = z
+                    .object({
+                      data: z.array(
+                        z.object({ profile_image_url: z.string() })
+                      ),
+                    })
+                    .parse(await response.json())
+                  metadata.avatarUrl = users.data[0]?.profile_image_url
+                }
+              } catch {
+                /* Avatar is optional. */
+              }
             } catch {
               metadata = {}
             }
@@ -369,7 +454,7 @@ export const processEvent = internalAction({
             guildId: target.config.guildId,
             ownerDiscordId: target.owner.discord.providerAccountId,
             login: source.login,
-            displayName: source.displayName,
+            displayName: event.displayName,
             ...metadata,
           })
         }
@@ -393,51 +478,14 @@ export const processEvent = internalAction({
   },
 })
 
-export const claim = action({
-  returns: v.object({
-    deliveries: v.array(claimedLiveDelivery),
-    continueCursor: v.union(v.null(), v.string()),
-  }),
-  args: {
-    secret: v.string(),
-    discordGuildIds: v.array(v.string()),
-    cursor: v.optional(v.union(v.null(), v.string())),
-  },
-  handler: async (ctx, args) => {
-    assertValidBotSecret(args.secret)
-    const pending = await ctx.runQuery(internal.liveNotifications.pending, {
-      cursor: args.cursor,
-    })
-    if (!pending.deliveries.length)
-      return { deliveries: [], continueCursor: pending.continueCursor }
-    const jobs = await ctx.runMutation(internal.liveNotifications.claimBatch, {
-      discordGuildIds: args.discordGuildIds,
-      jobs: pending.deliveries.map((delivery) => ({
-        deliveryId: delivery._id,
-        claim: randomUUID(),
-      })),
-    })
-    // Fresh provider authority is checked at begin, immediately before reserving a send.
-    // A delayed claim is also checked there against its actual live stream session.
-    return {
-      deliveries: jobs,
-      // Drain a full local batch before advancing past still-pending matches.
-      continueCursor:
-        jobs.length === 4 ? (args.cursor ?? null) : pending.continueCursor,
-    }
-  },
-})
-
-export const begin = action({
+export const begin = internalAction({
   returns: v.boolean(),
   args: {
-    secret: v.string(),
     deliveryId: v.id("twitchLiveDeliveries"),
     claim: v.string(),
     configUpdatedAt: v.number(),
   },
   handler: async (ctx, args) => {
-    assertValidBotSecret(args.secret)
     const delivery = await ctx.runQuery(internal.liveNotifications.delivery, {
       deliveryId: args.deliveryId,
     })
@@ -445,7 +493,11 @@ export const begin = action({
     const owner = await ctx.runQuery(internal.liveNotifications.owner, {
       guildId: delivery.guildId,
     })
-    const source = await verifyOwnerTwitch(owner)
+    const source = await verifyOwnerTwitch(
+      owner,
+      resolveBroadcasterScopes(["streamOnline"]),
+      backendEnv.TWITCH_CLIENT_ID ?? "unconfigured"
+    )
     if (
       source.status !== "ready" ||
       source.broadcasterId !== delivery.broadcasterId
@@ -476,7 +528,7 @@ export const begin = action({
         return false
       }
     }
-    const { secret: _secret, ...input } = args
+    const input = args
     return ctx.runMutation(internal.liveNotifications.begin, {
       ...input,
       expectedOwnerEvidenceKey:
@@ -485,18 +537,119 @@ export const begin = action({
   },
 })
 
-export const finish = action({
-  returns: v.union(v.null(), v.boolean()),
-  args: {
-    secret: v.string(),
-    deliveryId: v.id("twitchLiveDeliveries"),
-    claim: v.string(),
-    messageId: v.optional(v.string()),
-    failure: v.optional(v.string()),
-  },
+export const receiveOnline = action({
+  args: { secret: v.string(), messageId: v.string(), event: v.any() },
+  returns: v.null(),
   handler: async (ctx, args) => {
-    assertValidBotSecret(args.secret)
-    const { secret: _secret, ...input } = args
-    return ctx.runMutation(internal.liveNotifications.finish, input)
+    assertWorkerSecret(args.secret)
+    const event = eventDefinitions.streamOnline.parse(args.event)
+    await ctx.runMutation(internal.liveNotifications.receive, {
+      broadcasterId: event.broadcaster_user_id,
+      streamId: event.id,
+      messageId: args.messageId,
+      login: event.broadcaster_user_login.toLowerCase(),
+      displayName: event.broadcaster_user_name,
+      startedAt: event.started_at,
+    })
+    return null
+  },
+})
+
+export const deliver = internalAction({
+  args: { deliveryId: v.id("twitchLiveDeliveries") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const claim = randomUUID()
+    const job = await ctx.runMutation(internal.liveNotifications.claim, {
+      ...args,
+      claim,
+    })
+    if (!job) return null
+    const outcome = { deliveryId: job._id, claim }
+    let reserved = false
+    try {
+      const token = backendEnv.DISCORD_BOT_TOKEN
+      if (!token) throw new Error("providerUnavailable")
+      if (!job.config.liveNotificationChannelId)
+        throw new Error("destinationUnavailable")
+      await validateLiveDestination({
+        guildId: job.discordGuildId,
+        ownerDiscordId: job.ownerDiscordId,
+        channelId: job.config.liveNotificationChannelId,
+        mentionMode: job.config.liveNotificationMentionMode,
+        roleId: job.config.liveNotificationRoleId,
+        token,
+      })
+      const payload = buildTwitchLiveCard({
+        deliveryId: job._id,
+        login: job.login,
+        displayName: job.displayName,
+        title: job.title,
+        category: job.category,
+        startedAt: job.startedAt,
+        previewUrl: job.previewUrl,
+        avatarUrl: job.avatarUrl,
+        viewerCount: job.viewerCount,
+        mentionMode: job.config.liveNotificationMentionMode,
+        roleId: job.config.liveNotificationRoleId,
+      })
+      if (
+        !(await ctx.runAction(internal.liveNotificationActions.begin, {
+          ...outcome,
+          configUpdatedAt: job.config.updatedAt,
+        }))
+      )
+        return null
+      reserved = true
+      // One POST. Never retry after send reservation, including a lost response or 429.
+      const response = await fetch(
+        `https://discord.com/api/v10/channels/${job.config.liveNotificationChannelId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(10000),
+          redirect: "error",
+        }
+      )
+      if (!response.ok) throw new Error("sendOutcomeUnknown")
+      const message = z
+        .object({ id: z.string().regex(/^\d{17,20}$/) })
+        .parse(await response.json())
+      await ctx.runMutation(internal.liveNotifications.finish, {
+        ...outcome,
+        messageId: message.id,
+      })
+    } catch (error) {
+      const failure =
+        error instanceof Error ? error.message : "providerUnavailable"
+      if (reserved)
+        await ctx.runMutation(internal.liveNotifications.finish, {
+          ...outcome,
+          failure: "sendOutcomeUnknown",
+        })
+      else if (
+        [
+          "destinationUnavailable",
+          "ownerChanged",
+          "missingDiscordPermission",
+          "missingMentionPermission",
+          "roleUnavailable",
+        ].includes(failure)
+      )
+        await ctx.runMutation(internal.liveNotifications.finish, {
+          ...outcome,
+          failure,
+        })
+      // Transient preflight failure leaves the lease for durable bounded expiry/retry.
+      logger.warn("Discord live delivery unavailable", {
+        deliveryId: job._id,
+        reserved,
+      })
+    }
+    return null
   },
 })

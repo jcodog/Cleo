@@ -43,16 +43,7 @@ export function LiveNotificationsSection({
   overview: GuildOverview
   isBotLeft: boolean
 }) {
-  const { view, error, refresh } = useLiveNotifications(overview.discordGuildId)
-  if (error && !view)
-    return (
-      <div role="alert">
-        <p>Live notification settings are unavailable.</p>
-        <Button variant="outline" onClick={refresh}>
-          Try again
-        </Button>
-      </div>
-    )
+  const { view } = useLiveNotifications(overview.discordGuildId)
   if (!view) return <Skeleton className="h-48 w-full max-w-3xl" />
   return (
     <LiveNotificationsForm
@@ -60,8 +51,6 @@ export function LiveNotificationsSection({
       discordGuildId={overview.discordGuildId}
       isBotLeft={isBotLeft || view.botLeft}
       view={view}
-      refresh={refresh}
-      refreshError={error}
     />
   )
 }
@@ -70,19 +59,14 @@ function LiveNotificationsForm({
   discordGuildId,
   isBotLeft,
   view,
-  refresh,
-  refreshError,
 }: {
   discordGuildId: string
   isBotLeft: boolean
   view: LiveNotificationsView
-  refresh: () => void
-  refreshError: boolean
 }) {
   const clerk = useClerk()
   const update = useAction(api.liveNotificationActions.update)
-  const [optionsRevision, setOptionsRevision] = useState(0)
-  const options = useDiscordConfigOptions(discordGuildId, optionsRevision)
+  const options = useDiscordConfigOptions(discordGuildId, 0)
   const [enabled, setEnabled] = useState(view.config.liveNotificationsEnabled)
   const [channelId, setChannelId] = useState(
     "liveNotificationChannelId" in view.config
@@ -99,7 +83,27 @@ function LiveNotificationsForm({
   )
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [error, setError] = useState<string | null>(null)
-  const [dirty, setDirty] = useState(false)
+  const [persisted, setPersisted] = useState({
+    channelId: view.config.liveNotificationChannelId ?? "",
+    mode: view.config.liveNotificationMentionMode,
+    roleId: view.config.liveNotificationRoleId ?? "",
+  })
+  const dirty =
+    channelId !== persisted.channelId ||
+    mode !== persisted.mode ||
+    (mode === "role" ? roleId : "") !==
+      (persisted.mode === "role" ? persisted.roleId : "")
+  const valid =
+    options.status === "ready" &&
+    options.options.channels.some(
+      (channel) =>
+        channel.id === channelId &&
+        (channel.type === "text" || channel.type === "announcement")
+    ) &&
+    (mode !== "role" ||
+      options.options.roles.some(
+        (role) => role.id === roleId && role.name !== "@everyone"
+      ))
   const configRevision = "updatedAt" in view.config ? view.config.updatedAt : 0
   const [remoteRevision, setRemoteRevision] = useState(configRevision)
   if (!dirty && saveState !== "saving" && configRevision > remoteRevision) {
@@ -108,6 +112,11 @@ function LiveNotificationsForm({
     setMode(view.config.liveNotificationMentionMode)
     setRoleId(view.config.liveNotificationRoleId ?? "")
     setRemoteRevision(configRevision)
+    setPersisted({
+      channelId: view.config.liveNotificationChannelId ?? "",
+      mode: view.config.liveNotificationMentionMode,
+      roleId: view.config.liveNotificationRoleId ?? "",
+    })
   }
   const disabled = isBotLeft || saveState === "saving"
   const sourceReady = view.source.status === "ready"
@@ -125,41 +134,45 @@ function LiveNotificationsForm({
         }
       : options
   const markDirty = () => {
-    setDirty(true)
     setSaveState("idle")
     setError(null)
   }
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (disabled || (mode === "role" && !roleId)) return
+  async function persist(
+    nextEnabled: boolean,
+    useDraft: boolean,
+    retry = false
+  ) {
+    if (disabled || (useDraft && !valid)) return
     setSaveState("saving")
     setError(null)
     try {
       const savedRevision = await update({
         discordGuildId,
-        liveNotificationsEnabled: enabled,
-        liveNotificationChannelId: channelId || undefined,
-        liveNotificationMentionMode: mode,
+        liveNotificationsEnabled: nextEnabled,
+        ...(retry ? { retry: true } : {}),
+        liveNotificationChannelId:
+          (useDraft ? channelId : persisted.channelId) || undefined,
+        liveNotificationMentionMode: useDraft ? mode : persisted.mode,
         liveNotificationRoleId:
-          mode === "role" ? roleId || undefined : undefined,
+          (useDraft ? mode : persisted.mode) === "role"
+            ? (useDraft ? roleId : persisted.roleId) || undefined
+            : undefined,
       })
       setSaveState("success")
       setRemoteRevision(savedRevision)
-      setDirty(false)
-      refresh()
+      setEnabled(nextEnabled)
+      if (useDraft) setPersisted({ channelId, mode, roleId })
     } catch (failure) {
       setSaveState("error")
       setError(getErrorMessage(failure))
     }
   }
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (dirty) await persist(enabled, true)
+  }
   return (
     <form className="flex max-w-3xl flex-col gap-6" onSubmit={save}>
-      {refreshError && (
-        <p role="alert">
-          Connection refresh failed. Your edits are preserved. Try Refresh
-          connection again.
-        </p>
-      )}
       <div className="flex items-center justify-between gap-4 border-b pb-6">
         <div>
           <h2 className="font-heading text-lg font-medium">
@@ -198,7 +211,7 @@ function LiveNotificationsForm({
                   ? "The server owner must reconnect Twitch to approve Cleo's required permission."
                   : view.source.status === "stale"
                     ? "The owner's saved Twitch connection is stale. Reconnect and sync it in Cleo."
-                    : "Clerk or Twitch cannot verify the owner's connection. Try refreshing later."}
+                    : "Clerk or Twitch cannot verify the owner's connection. Reconnect Twitch to verify it."}
           </p>
         </div>
       </div>
@@ -236,11 +249,10 @@ function LiveNotificationsForm({
         <Switch
           id="live-enabled"
           checked={enabled}
-          disabled={disabled || (!sourceReady && !enabled)}
+          disabled={disabled || (!enabled && (!sourceReady || !valid))}
           onCheckedChange={(checked) => {
             if (checked && !sourceReady) return
-            setEnabled(checked)
-            markDirty()
+            void persist(checked, checked)
           }}
         />
       </div>
@@ -303,9 +315,9 @@ function LiveNotificationsForm({
       )}
       {view.subscriptionStatus !== "ready" && enabled && sourceReady && (
         <p role="status" className="text-sm text-muted-foreground">
-          {view.subscriptionStatus === "pending"
+          {view.subscriptionStatus === "connecting"
             ? "Twitch is confirming the live-event subscription."
-            : "The Twitch live-event runtime is unavailable. Notifications will resume after its connection recovers."}
+            : "The Twitch subscription is unavailable. Retry the subscription or reconnect Twitch if its permission was revoked."}
         </p>
       )}
       <SaveStatus state={saveState} errorMessage={error} />
@@ -314,7 +326,8 @@ function LiveNotificationsForm({
           type="submit"
           disabled={
             disabled ||
-            (mode === "role" && !roleId) ||
+            !dirty ||
+            !valid ||
             (enabled &&
               (!sourceReady || options.status !== "ready" || !channelId))
           }
@@ -322,17 +335,18 @@ function LiveNotificationsForm({
           {" "}
           {saveState === "saving" ? "Saving…" : "Save live notifications"}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          onClick={() => {
-            setOptionsRevision((value) => value + 1)
-            refresh()
-          }}
-        >
-          Refresh connection
-        </Button>
+        {["failed", "providerUnavailable", "revoked"].includes(
+          view.subscriptionStatus
+        ) && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => void persist(enabled, false, true)}
+          >
+            Retry subscription
+          </Button>
+        )}
       </div>
     </form>
   )

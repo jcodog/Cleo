@@ -1,8 +1,8 @@
 import { resolveTwitchRuntimeEnv } from "@workspace/env/twitch"
 import { createLogger } from "@workspace/logger"
 
-import { TwitchApi } from "../api"
-import { ensureBotGrant, GrantStore } from "../grantStore"
+import { TwitchApiService } from "../services/TwitchApiService"
+import { ensureBotGrant, GrantStore } from "../auth/grantStore"
 
 export async function sendSmokeMessage(
   env: Record<string, string | undefined>,
@@ -10,7 +10,9 @@ export async function sendSmokeMessage(
   requestFetch: typeof fetch = fetch
 ): Promise<string> {
   const config = resolveTwitchRuntimeEnv(env)
-  const api = new TwitchApi(config, requestFetch)
+  if (!config.TWITCH_BOOTSTRAP_BROADCASTER_USER_ID)
+    throw new Error("An explicit smoke broadcaster is required.")
+  const api = new TwitchApiService(config, requestFetch)
   await ensureBotGrant(
     api,
     new GrantStore(config.TWITCH_BOT_GRANT_PATH),
