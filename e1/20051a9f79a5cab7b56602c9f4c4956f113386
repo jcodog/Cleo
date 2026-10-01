@@ -1,0 +1,21 @@
+apps/twitch-bot/src/authorization.ts
+  s_32720aa4a12247::t_44886756cd93ee 106
+packages/env/src/twitch.ts
+  s_32720aa4a12247::t_18d582638bde2d 92,101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e120051a9f79a5cab7b56602c9f4c4956f113386",
+  "prompts": {},
+  "sessions": {
+    "s_32720aa4a12247": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f30d-28b6-78d1-974a-8110eec7dd38",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
