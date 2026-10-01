@@ -1,0 +1,29 @@
+ops/twitch/test.sh
+  s_34fa6e60961d38::t_ec525c09ee895e 91-97
+ops/twitch/nginx/eventsub.conf.example
+  s_34fa6e60961d38::t_ec525c09ee895e 1-3,5-12,26
+  s_34fa6e60961d38::t_831ae7f1aae06b 13-25
+docs/twitch/bootstrap.md
+  s_34fa6e60961d38::t_ec525c09ee895e 44,47
+.gitignore
+  s_34fa6e60961d38::t_c558e9d81456a6 50
+  s_34fa6e60961d38::t_71542d8a7c269a 51
+docs/twitch/architecture.md
+  s_34fa6e60961d38::t_ec525c09ee895e 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1614c2fe578c803c1bc965e6e7c945d5cce23a36",
+  "prompts": {},
+  "sessions": {
+    "s_34fa6e60961d38": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f8d1-9c4e-7d82-8e05-4dd6bab0c2c6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
