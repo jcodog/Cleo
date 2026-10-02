@@ -23,13 +23,17 @@ export function readTwitchControlPlaneConfig(
     TWITCH_WORKER_SECRET: workerSecret,
   } = env
   if (
-    !clientId?.trim() ||
-    !clientSecret?.trim() ||
-    !botId?.trim() ||
-    !callback?.trim() ||
-    !secret?.trim() ||
-    !workerSecret?.trim()
+    !isConfiguredValue(clientId) ||
+    !isConfiguredValue(clientSecret) ||
+    !isConfiguredValue(botId) ||
+    !isConfiguredValue(callback) ||
+    !isConfiguredValue(secret) ||
+    !isConfiguredValue(workerSecret)
   )
     return null
   return { clientId, clientSecret, botId, callback, secret }
+}
+
+function isConfiguredValue(value: string | undefined): value is string {
+  return typeof value === "string" && value.length > 0 && value === value.trim()
 }

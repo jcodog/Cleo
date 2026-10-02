@@ -2,7 +2,10 @@ import type { LiveNotificationsView } from "../sections/useLiveNotifications"
 
 export function getTwitchSourceFeedback(
   status: LiveNotificationsView["source"]["status"]
-) {
+): {
+  description: string | null
+  recovery: "retry" | "connect" | "reconnect" | null
+} {
   switch (status) {
     case "ready":
       return { description: null, recovery: null }
@@ -36,10 +39,6 @@ export function getTwitchSourceFeedback(
           "The server owner must reconnect Twitch to grant the required permission, then sync the connection.",
         recovery: "reconnect" as const,
       }
-    default: {
-      const exhaustive: never = status
-      return exhaustive
-    }
   }
 }
 

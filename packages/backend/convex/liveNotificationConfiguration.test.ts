@@ -90,11 +90,26 @@ test("missing Twitch Client ID returns safe server configuration status without 
     TWITCH_EVENTSUB_SECRET: randomUUID(),
     TWITCH_WORKER_SECRET: randomUUID(),
   }
-  assert.ok(readTwitchControlPlaneConfig(available))
-  for (const key of keys)
-    assert.equal(
-      readTwitchControlPlaneConfig({ ...available, [key]: undefined }),
-      null,
-      key
-    )
+  assert.deepEqual(readTwitchControlPlaneConfig(available), {
+    clientId: available.TWITCH_CLIENT_ID,
+    clientSecret: available.TWITCH_CLIENT_SECRET,
+    botId: available.TWITCH_BOT_USER_ID,
+    callback: available.TWITCH_EVENTSUB_CALLBACK_URL,
+    secret: available.TWITCH_EVENTSUB_SECRET,
+  })
+  for (const key of keys) {
+    for (const value of [
+      undefined,
+      "",
+      " ",
+      ` ${available[key]}`,
+      `${available[key]} `,
+      `\t${available[key]}\n`,
+    ])
+      assert.equal(
+        readTwitchControlPlaneConfig({ ...available, [key]: value }),
+        null,
+        `${key} must reject missing, empty and whitespace-padded configuration`
+      )
+  }
 })
