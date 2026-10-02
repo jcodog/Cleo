@@ -2499,26 +2499,26 @@ export type DataModel = {
   };
   twitchWebhookReceipts: {
     document: {
-      messageId: string;
-      createdAt: number;
-      key?: string;
-      broadcasterId?: string;
-      eventJson?: string;
-      state?: "pending" | "sending" | "sent" | "uncertain" | "ignored";
       attempt?: string;
+      broadcasterId?: string;
+      createdAt: number;
+      eventJson?: string;
+      key?: string;
+      messageId: string;
+      state?: "pending" | "sending" | "sent" | "uncertain" | "ignored";
       _id: Id<"twitchWebhookReceipts">;
       _creationTime: number;
     };
     fieldPaths:
-      | "_id"
       | "_creationTime"
-      | "messageId"
-      | "createdAt"
-      | "key"
+      | "_id"
+      | "attempt"
       | "broadcasterId"
+      | "createdAt"
       | "eventJson"
-      | "state"
-      | "attempt";
+      | "key"
+      | "messageId"
+      | "state";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
