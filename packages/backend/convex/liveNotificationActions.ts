@@ -7,7 +7,11 @@ import { action, internalAction } from "./_generated/server"
 import { api, internal } from "./_generated/api"
 import { liveConfigFields } from "./dbTables/twitchLiveNotifications"
 import type { Infer } from "convex/values"
-import { publicOwnerTwitch, verifyOwnerTwitch } from "./lib/verifyOwnerTwitch"
+import {
+  publicOwnerTwitch,
+  verifyOwnerTwitch,
+  verifyLiveNotificationSource,
+} from "./lib/verifyOwnerTwitch"
 import {
   verifyBotCanAccessDiscordGuild,
   verifyUserCanManageDiscordGuild,
@@ -85,11 +89,7 @@ export const get = action({
   args: { discordGuildId: v.string() },
   handler: async (ctx, args) => {
     const context = await ctx.runQuery(internal.liveNotifications.managed, args)
-    const source = await verifyOwnerTwitch(
-      context.owner,
-      resolveBroadcasterScopes(["streamOnline"]),
-      backendEnv.TWITCH_CLIENT_ID ?? "unconfigured"
-    )
+    const source = await verifyLiveNotificationSource(context.owner)
     const view = await ctx.runQuery(api.liveNotifications.projection, args)
     return {
       config: context.config,
@@ -143,7 +143,11 @@ export const update = action({
     )
     if (args.liveNotificationsEnabled && source.status !== "ready")
       throw new ConvexError(
-        "The server owner must connect or reconnect Twitch before enabling notifications."
+        source.status === "configurationUnavailable"
+          ? "Twitch server configuration is unavailable. Try again later."
+          : source.status === "unavailable"
+            ? "Twitch verification is temporarily unavailable. Try again later."
+            : "The server owner must connect or reconnect Twitch and sync the connection before enabling notifications."
       )
     const channelId = args.liveNotificationChannelId
     const roleId =
@@ -405,19 +409,15 @@ export const processEvent = internalAction({
           ).values(),
         ].filter((owner) => !owners.has(owner.user._id))
         await boundedMap(unique, 8, async (owner) => {
-          owners.set(
-            owner.user._id,
-            await verifyOwnerTwitch(
-              owner,
-              resolveBroadcasterScopes(["streamOnline"]),
-              backendEnv.TWITCH_CLIENT_ID ?? "unconfigured"
-            )
-          )
+          owners.set(owner.user._id, await verifyLiveNotificationSource(owner))
         })
         const targets: Target[] = []
         for (const target of page.targets) {
           const source = owners.get(target.owner.user._id)!
-          if (source.status === "unavailable") {
+          if (
+            source.status === "unavailable" ||
+            source.status === "configurationUnavailable"
+          ) {
             retry = true
             continue
           }
@@ -501,16 +501,15 @@ export const begin = internalAction({
     const owner = await ctx.runQuery(internal.liveNotifications.owner, {
       guildId: delivery.guildId,
     })
-    const source = await verifyOwnerTwitch(
-      owner,
-      resolveBroadcasterScopes(["streamOnline"]),
-      backendEnv.TWITCH_CLIENT_ID ?? "unconfigured"
-    )
+    const source = await verifyLiveNotificationSource(owner)
     if (
       source.status !== "ready" ||
       source.broadcasterId !== delivery.broadcasterId
     ) {
-      if (source.status !== "unavailable")
+      if (
+        source.status !== "unavailable" &&
+        source.status !== "configurationUnavailable"
+      )
         await ctx.runMutation(internal.liveNotifications.finish, {
           deliveryId: delivery._id,
           claim: args.claim,

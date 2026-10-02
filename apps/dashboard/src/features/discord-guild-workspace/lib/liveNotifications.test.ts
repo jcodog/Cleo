@@ -45,6 +45,15 @@ test("live notification overview covers configuration, authority and runtime ava
     "Needs channel"
   )
   assert.equal(getLiveNotificationState(view), "Ready")
+  for (const liveNotificationsEnabled of [true, false])
+    assert.equal(
+      getLiveNotificationState({
+        ...view,
+        config: { ...view.config, liveNotificationsEnabled },
+        source: { status: "configurationUnavailable" },
+      }),
+      "Server configuration unavailable"
+    )
   assert.equal(
     getLiveNotificationState({
       ...view,

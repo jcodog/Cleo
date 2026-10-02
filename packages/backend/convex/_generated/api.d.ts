@@ -1557,7 +1557,11 @@ export declare const api: {
         source:
           | {
               status:
-                "needsLink" | "unavailable" | "stale" | "missingPermission";
+                | "needsLink"
+                | "unavailable"
+                | "configurationUnavailable"
+                | "stale"
+                | "missingPermission";
             }
           | {
               avatarUrl?: string;
@@ -1628,7 +1632,11 @@ export declare const api: {
         source:
           | {
               status:
-                "needsLink" | "unavailable" | "stale" | "missingPermission";
+                | "needsLink"
+                | "unavailable"
+                | "configurationUnavailable"
+                | "stale"
+                | "missingPermission";
             }
           | {
               avatarUrl?: string;

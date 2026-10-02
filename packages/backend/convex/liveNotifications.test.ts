@@ -174,6 +174,7 @@ async function fixture(options: FixtureOptions = {}) {
   let providerUnavailable = false
   let tokenUserId = "222"
   let clientId = "test-client"
+  let validationOverride: (() => Response) | undefined
   let permissions = "32"
   let channelType = 0
   let rolesAvailable = true
@@ -244,13 +245,16 @@ async function fixture(options: FixtureOptions = {}) {
       return Response.json({ data: externalSubscriptions, pagination: {} })
     }
     if (url.pathname.endsWith("validate"))
-      return Response.json({
-        user_id: tokenUserId,
-        login: "verified_owner",
-        client_id: clientId,
-        expires_in: 100,
-        scopes,
-      })
+      return (
+        validationOverride?.() ??
+        Response.json({
+          user_id: tokenUserId,
+          login: "verified_owner",
+          client_id: clientId,
+          expires_in: 100,
+          scopes,
+        })
+      )
     if (url.pathname.endsWith("streams"))
       return Response.json({
         data: [
@@ -308,6 +312,9 @@ async function fixture(options: FixtureOptions = {}) {
     },
     setClientId: (id: string) => {
       clientId = id
+    },
+    setValidationOverride: (value: () => Response) => {
+      validationOverride = value
     },
     setTokenId: (id: string) => {
       tokenUserId = id
@@ -1090,6 +1097,13 @@ test("source is fixed to guild owner through trusted indexes and live Clerk/prov
   if (view.source.status === "ready") {
     assert.equal(view.source.broadcasterId, "222")
     assert.equal(view.source.login, "verified_owner")
+    assert.deepEqual(Object.keys(view.source).sort(), [
+      "avatarUrl",
+      "broadcasterId",
+      "displayName",
+      "login",
+      "status",
+    ])
   }
   assert.equal(
     JSON.stringify(view).includes("private-owner-twitch-token"),
@@ -1149,7 +1163,7 @@ test("missing owner link, disabled user, missing permission and provider outages
     if (!options.managerIsOwner)
       await assert.rejects(
         f.manager.action(api.liveNotificationActions.update, config),
-        /owner/
+        options.ownerDisabled ? /temporarily unavailable/ : /owner/
       )
   }
   const f = await fixture()
@@ -1172,6 +1186,63 @@ test("missing owner link, disabled user, missing permission and provider outages
     ).source.status,
     "unavailable"
   )
+})
+
+test("Twitch validation outages and malformed responses are safe retry states; invalid tokens require reconnect", async () => {
+  const f = await fixture({ managerIsOwner: true })
+  const cases = [
+    {
+      response: () => {
+        throw new Error("provider network failure")
+      },
+      status: "unavailable",
+    },
+    {
+      response: () => Response.json({}, { status: 503 }),
+      status: "unavailable",
+    },
+    { response: () => new Response("invalid json"), status: "unavailable" },
+    {
+      response: () => Response.json({ user_id: "222" }),
+      status: "unavailable",
+    },
+    {
+      response: () =>
+        Response.json({
+          user_id: "222",
+          login: "owner",
+          client_id: "test-client",
+          expires_in: "bad",
+          scopes: ["channel:bot"],
+        }),
+      status: "unavailable",
+    },
+    { response: () => Response.json({}, { status: 401 }), status: "stale" },
+    {
+      response: () =>
+        Response.json({
+          user_id: "222",
+          login: "owner",
+          client_id: "test-client",
+          expires_in: 0,
+          scopes: ["channel:bot"],
+        }),
+      status: "stale",
+    },
+  ]
+  for (const entry of cases) {
+    f.setValidationOverride(entry.response)
+    const view = await f.manager.action(api.liveNotificationActions.get, {
+      discordGuildId: guildDiscordId,
+    })
+    assert.deepEqual(view.source, { status: entry.status })
+    await assert.rejects(
+      f.manager.action(api.liveNotificationActions.update, config),
+      entry.status === "unavailable"
+        ? /temporarily unavailable/
+        : /reconnect Twitch and sync/
+    )
+  }
 })
 
 test("save validates real Discord destination and role, clears custom role and preserves unrelated config with audit", async () => {
@@ -2125,7 +2196,7 @@ test("retry targets paginate historical rows and exclude completed cleanups", as
   assert.equal(seen, 31)
 })
 
-test("projection never asserts cached owner or destination authority; client mismatch is provider unavailable", async () => {
+test("projection never asserts cached authority; client mismatch requires reconnect and remains rejected", async () => {
   const f = await fixture()
   await f.manager.action(api.liveNotificationActions.update, config)
   const projection = await f.manager.query(api.liveNotifications.projection, {
@@ -2134,13 +2205,17 @@ test("projection never asserts cached owner or destination authority; client mis
   assert.equal(projection.source.status, "stale")
   assert.equal(projection.discordStatus, "unavailable")
   f.setClientId("wrong-application")
-  assert.equal(
+  assert.deepEqual(
     (
       await f.manager.action(api.liveNotificationActions.get, {
         discordGuildId: guildDiscordId,
       })
-    ).source.status,
-    "unavailable"
+    ).source,
+    { status: "stale" }
+  )
+  await assert.rejects(
+    f.manager.action(api.liveNotificationActions.update, config),
+    /reconnect Twitch and sync/
   )
   f.setClientId("test-client")
   const { verifyOwnerTwitch } = await import("./lib/verifyOwnerTwitch")

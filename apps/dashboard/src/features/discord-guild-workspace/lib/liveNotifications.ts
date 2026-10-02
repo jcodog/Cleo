@@ -1,3 +1,48 @@
+import type { LiveNotificationsView } from "../sections/useLiveNotifications"
+
+export function getTwitchSourceFeedback(
+  status: LiveNotificationsView["source"]["status"]
+) {
+  switch (status) {
+    case "ready":
+      return { description: null, recovery: null }
+    case "configurationUnavailable":
+      return {
+        description:
+          "Cleo's Twitch server configuration is unavailable. Try again later.",
+        recovery: "retry" as const,
+      }
+    case "unavailable":
+      return {
+        description:
+          "Twitch connection verification is temporarily unavailable. Try again later.",
+        recovery: "retry" as const,
+      }
+    case "needsLink":
+      return {
+        description:
+          "The Discord server owner must connect Twitch to enable this feature.",
+        recovery: "connect" as const,
+      }
+    case "stale":
+      return {
+        description:
+          "The owner's saved Twitch connection is stale. Reconnect and sync it in Cleo.",
+        recovery: "reconnect" as const,
+      }
+    case "missingPermission":
+      return {
+        description:
+          "The server owner must reconnect Twitch to grant the required permission, then sync the connection.",
+        recovery: "reconnect" as const,
+      }
+    default: {
+      const exhaustive: never = status
+      return exhaustive
+    }
+  }
+}
+
 export function getLiveNotificationState(
   view:
     | {
@@ -15,6 +60,8 @@ export function getLiveNotificationState(
 ): string {
   if (error || view?.botLeft) return "Provider unavailable"
   if (!view) return "Loading"
+  if (view.source.status === "configurationUnavailable")
+    return "Server configuration unavailable"
   if (!view.config.liveNotificationsEnabled)
     return view.subscriptionStatus === "providerUnavailable"
       ? "Provider unavailable"
