@@ -1,0 +1,54 @@
+packages/backend/convex/liveNotificationActions.ts
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 10-14,92,146-150,412,417-420,504,509-512
+packages/backend/convex/_generated/api.d.ts
+  s_e2a1ce85205e3b::t_06864dddb7b82a 1560-1564,1635-1639
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_e2a1ce85205e3b::t_856c4e927b5dc1 224-236
+packages/backend/convex/lib/verifyOwnerTwitch.ts
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 6-7,14-21,40-44,56,71,78-79,102-103,105,114-115,117,136-147
+packages/backend/convex/lib/twitchControlPlaneConfig.ts
+  s_e2a1ce85205e3b::t_1c2395cafe9df2 1-35
+packages/backend/convex/liveNotificationConfiguration.test.ts
+  s_e2a1ce85205e3b::t_abd6aed61d7b86 1-75,79-82,85-94,100
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 76-78,83-84,95-99
+apps/dashboard/src/features/discord-guild-workspace/sections/LiveNotificationsSection.tsx
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 34-37,52-53,55-62,72,81,86,145,207,215-219,244,251,254,256-263,273-281,283-290,366
+apps/dashboard/src/features/discord-guild-workspace/sections/LiveNotificationsSection.test.ts
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 209-226,231-243,245-275,278-284,399-405,408
+packages/backend/convex/twitchEventSubActions.ts
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 24,27-32,212-213,286-289,320-323
+apps/dashboard/src/features/discord-guild-workspace/lib/liveNotifications.test.ts
+  s_e2a1ce85205e3b::t_b0cd034e088c37 48-56
+packages/backend/convex/liveNotifications.test.ts
+  s_e2a1ce85205e3b::t_aed892bb1071e1 1100-1106
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 177,248-257,316-318,1191-1247,2199,2208,2213-2218
+  s_e2a1ce85205e3b::t_4f348c4532661c 1166
+packages/backend/convex/lib/twitchLiveValidators.ts
+  s_e2a1ce85205e3b::t_1c2395cafe9df2 52
+apps/dashboard/src/features/discord-guild-workspace/lib/liveNotifications.ts
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 1-45,63-64
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_e2a1ce85205e3b::t_c5068fe70f06f1 1-5,7-10,15-19,25,29,34-41,56-59,72-88,107-109
+  s_e2a1ce85205e3b::t_c44b281a6932f7 89-93,96-99
+  s_e2a1ce85205e3b::t_07088b337652df 94-95,100-106
+  s_e2a1ce85205e3b::t_159e200bf78485 42-43,54-55
+  s_e2a1ce85205e3b::t_c0bc1e0de8eeb8 44-53
+  s_e2a1ce85205e3b::t_7acd85cda5f02d 11-14,20-24,26-28,30-33,60,62-66,68-71
+  s_e2a1ce85205e3b::t_4f348c4532661c 6,61,67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "51cfe646a2ac4a1ce9bca5c46507ff3249a791d9",
+  "prompts": {},
+  "sessions": {
+    "s_e2a1ce85205e3b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f9f4-617c-7d02-b732-5414c132e082",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
