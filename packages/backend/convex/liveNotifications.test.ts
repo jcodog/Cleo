@@ -6,6 +6,7 @@ import schema from "./schema"
 import { randomUUID } from "node:crypto"
 import type { FunctionArgs } from "convex/server"
 import { boundedMap } from "./lib/boundedMap"
+import type { TestContext } from "node:test"
 
 process.env.CLERK_SECRET_KEY = "test-clerk-secret"
 process.env.DISCORD_BOT_TOKEN = "test-discord-token"
@@ -35,6 +36,22 @@ const channelId = "456789012345678901"
 const roleId = "567890123456789012"
 const secret = "test-bot-secret"
 const originalFetch = globalThis.fetch
+async function overrideTwitchClientId(
+  t: TestContext,
+  value: string | undefined
+) {
+  const { backendEnv } = await import("@workspace/env/backend")
+  const previous = Object.getOwnPropertyDescriptor(
+    backendEnv,
+    "TWITCH_CLIENT_ID"
+  )
+  assert.ok(previous)
+  const restore = () =>
+    Object.defineProperty(backendEnv, "TWITCH_CLIENT_ID", previous)
+  t.after(restore)
+  Object.defineProperty(backendEnv, "TWITCH_CLIENT_ID", { ...previous, value })
+  return restore
+}
 async function receiveEvent(
   t: ReturnType<typeof convexTest>,
   args: FunctionArgs<typeof internal.liveNotifications.receive>
@@ -174,6 +191,7 @@ async function fixture(options: FixtureOptions = {}) {
   let providerUnavailable = false
   let tokenUserId = "222"
   let clientId = "test-client"
+  let validationOverride: (() => Response) | undefined
   let permissions = "32"
   let channelType = 0
   let rolesAvailable = true
@@ -188,8 +206,10 @@ async function fixture(options: FixtureOptions = {}) {
   }[] = []
   const subscriptionRequests: { method: string; body?: unknown }[] = []
   let subscriptionUnavailable = false
+  const providerRequests: string[] = []
   globalThis.fetch = async (input, init) => {
     const url = new URL(String(input))
+    providerRequests.push(url.toString())
     if (providerUnavailable && url.hostname === "api.clerk.com")
       return Response.json({}, { status: 503 })
     if (url.pathname.includes("oauth_access_tokens"))
@@ -244,13 +264,16 @@ async function fixture(options: FixtureOptions = {}) {
       return Response.json({ data: externalSubscriptions, pagination: {} })
     }
     if (url.pathname.endsWith("validate"))
-      return Response.json({
-        user_id: tokenUserId,
-        login: "verified_owner",
-        client_id: clientId,
-        expires_in: 100,
-        scopes,
-      })
+      return (
+        validationOverride?.() ??
+        Response.json({
+          user_id: tokenUserId,
+          login: "verified_owner",
+          client_id: clientId,
+          expires_in: 100,
+          scopes,
+        })
+      )
     if (url.pathname.endsWith("streams"))
       return Response.json({
         data: [
@@ -297,6 +320,7 @@ async function fixture(options: FixtureOptions = {}) {
     ids,
     subscriptionRequests,
     externalSubscriptions,
+    providerRequests,
     setSubscriptionUnavailable: (value: boolean) => {
       subscriptionUnavailable = value
     },
@@ -308,6 +332,9 @@ async function fixture(options: FixtureOptions = {}) {
     },
     setClientId: (id: string) => {
       clientId = id
+    },
+    setValidationOverride: (value: () => Response) => {
+      validationOverride = value
     },
     setTokenId: (id: string) => {
       tokenUserId = id
@@ -1090,6 +1117,13 @@ test("source is fixed to guild owner through trusted indexes and live Clerk/prov
   if (view.source.status === "ready") {
     assert.equal(view.source.broadcasterId, "222")
     assert.equal(view.source.login, "verified_owner")
+    assert.deepEqual(Object.keys(view.source).sort(), [
+      "avatarUrl",
+      "broadcasterId",
+      "displayName",
+      "login",
+      "status",
+    ])
   }
   assert.equal(
     JSON.stringify(view).includes("private-owner-twitch-token"),
@@ -1149,7 +1183,7 @@ test("missing owner link, disabled user, missing permission and provider outages
     if (!options.managerIsOwner)
       await assert.rejects(
         f.manager.action(api.liveNotificationActions.update, config),
-        /owner/
+        options.ownerDisabled ? /temporarily unavailable/ : /owner/
       )
   }
   const f = await fixture()
@@ -1172,6 +1206,63 @@ test("missing owner link, disabled user, missing permission and provider outages
     ).source.status,
     "unavailable"
   )
+})
+
+test("Twitch validation outages and malformed responses are safe retry states; invalid tokens require reconnect", async () => {
+  const f = await fixture({ managerIsOwner: true })
+  const cases = [
+    {
+      response: () => {
+        throw new Error("provider network failure")
+      },
+      status: "unavailable",
+    },
+    {
+      response: () => Response.json({}, { status: 503 }),
+      status: "unavailable",
+    },
+    { response: () => new Response("invalid json"), status: "unavailable" },
+    {
+      response: () => Response.json({ user_id: "222" }),
+      status: "unavailable",
+    },
+    {
+      response: () =>
+        Response.json({
+          user_id: "222",
+          login: "owner",
+          client_id: "test-client",
+          expires_in: "bad",
+          scopes: ["channel:bot"],
+        }),
+      status: "unavailable",
+    },
+    { response: () => Response.json({}, { status: 401 }), status: "stale" },
+    {
+      response: () =>
+        Response.json({
+          user_id: "222",
+          login: "owner",
+          client_id: "test-client",
+          expires_in: 0,
+          scopes: ["channel:bot"],
+        }),
+      status: "stale",
+    },
+  ]
+  for (const entry of cases) {
+    f.setValidationOverride(entry.response)
+    const view = await f.manager.action(api.liveNotificationActions.get, {
+      discordGuildId: guildDiscordId,
+    })
+    assert.deepEqual(view.source, { status: entry.status })
+    await assert.rejects(
+      f.manager.action(api.liveNotificationActions.update, config),
+      entry.status === "unavailable"
+        ? /temporarily unavailable/
+        : /reconnect Twitch and sync/
+    )
+  }
 })
 
 test("save validates real Discord destination and role, clears custom role and preserves unrelated config with audit", async () => {
@@ -1506,6 +1597,168 @@ test("delivery preflight retries are bounded and disabled or changed authority c
     (await f.t.run((ctx) => ctx.db.get(job._id)))?.failure,
     "destinationUnavailable"
   )
+})
+
+test("enabling live notifications with missing control-plane configuration returns a safe error before Twitch lookup", async (t) => {
+  const f = await fixture()
+  await overrideTwitchClientId(t, undefined)
+  await assert.rejects(
+    f.manager.action(api.liveNotificationActions.update, config),
+    {
+      data: "Twitch server configuration is unavailable. Try again later.",
+    }
+  )
+  assert.equal(
+    f.providerRequests.some((request) => {
+      const url = new URL(request)
+      return (
+        url.hostname.endsWith("twitch.tv") ||
+        url.pathname.endsWith("oauth_twitch") ||
+        url.pathname === "/v1/users/owner"
+      )
+    }),
+    false
+  )
+  assert.deepEqual(
+    await f.t.run((ctx) =>
+      ctx.db.query("guildLiveNotificationConfigs").collect()
+    ),
+    []
+  )
+  assert.deepEqual(f.subscriptionRequests, [])
+})
+
+test("configuration-unavailable event processing schedules retries and recovers without losing the delivery", async (t) => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  const id = await receiveEvent(f.t, event)
+  const restore = await overrideTwitchClientId(t, undefined)
+  f.providerRequests.length = 0
+  const scheduledBefore = await f.t.run((ctx) =>
+    ctx.db.system.query("_scheduled_functions").collect()
+  )
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await f.t.action(internal.liveNotificationActions.processEvent, {
+      eventId: id,
+    })
+    const pending = await f.t.run((ctx) => ctx.db.get(id))
+    assert.equal(pending?.state, "pending")
+    assert.equal(pending?.attempts, attempt)
+    assert.equal(pending?.failure, undefined)
+    const scheduled = await f.t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect()
+    )
+    assert.equal(scheduled.length, scheduledBefore.length + attempt)
+    const retry = scheduled.at(-1)
+    assert.ok(retry)
+    assert.equal(retry.name, "liveNotificationActions:processEvent")
+    assert.deepEqual(retry.args, [{ eventId: id }])
+    assert.ok(
+      retry.scheduledTime >= (pending?.createdAt ?? 0) + attempt * 30000
+    )
+  }
+  assert.deepEqual(f.providerRequests, [])
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.query("twitchLiveDeliveries").collect()),
+    []
+  )
+  restore()
+  await f.t.action(internal.liveNotificationActions.processEvent, {
+    eventId: id,
+  })
+  const processed = await f.t.run((ctx) => ctx.db.get(id))
+  assert.equal(processed?.state, "processed")
+  assert.equal(processed?.attempts, 3)
+  const deliveries = await f.t.run((ctx) =>
+    ctx.db.query("twitchLiveDeliveries").collect()
+  )
+  assert.equal(deliveries.length, 1)
+  assert.equal(deliveries[0]?.eventId, id)
+  assert.equal(deliveries[0]?.state, "pending")
+})
+
+test("configuration-unavailable event processing retains durable failure evidence after bounded retry exhaustion", async (t) => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  const id = await receiveEvent(f.t, event)
+  await overrideTwitchClientId(t, undefined)
+  f.providerRequests.length = 0
+  for (let attempt = 0; attempt < 3; attempt++)
+    await f.t.action(internal.liveNotificationActions.processEvent, {
+      eventId: id,
+    })
+  const failed = await f.t.run((ctx) => ctx.db.get(id))
+  assert.equal(failed?.state, "failed")
+  assert.equal(failed?.attempts, 3)
+  assert.equal(failed?.failure, "providerUnavailable")
+  await f.t.action(internal.liveNotificationActions.processEvent, {
+    eventId: id,
+  })
+  assert.deepEqual(await f.t.run((ctx) => ctx.db.get(id)), failed)
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.query("twitchLiveDeliveries").collect()),
+    []
+  )
+  assert.deepEqual(f.providerRequests, [])
+})
+
+test("configuration-unavailable begin preserves the claim for expiry and retry instead of terminal finish", async (t) => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  const id = await receiveEvent(f.t, event)
+  await f.t.action(internal.liveNotificationActions.processEvent, {
+    eventId: id,
+  })
+  const [job] = await claimJobs(f.t, {
+    secret,
+    discordGuildIds: [guildDiscordId],
+  })
+  assert.ok(job)
+  const claimed = await f.t.run((ctx) => ctx.db.get(job._id))
+  assert.equal(claimed?.state, "claimed")
+  const restore = await overrideTwitchClientId(t, undefined)
+  f.providerRequests.length = 0
+  assert.equal(
+    await f.t.action(internal.liveNotificationActions.begin, {
+      deliveryId: job._id,
+      claim: job.claim,
+      configUpdatedAt: job.config.updatedAt,
+    }),
+    false
+  )
+  assert.deepEqual(await f.t.run((ctx) => ctx.db.get(job._id)), claimed)
+  assert.deepEqual(f.providerRequests, [])
+  await f.t.mutation(internal.liveNotifications.expire, {
+    deliveryId: job._id,
+    claim: job.claim,
+  })
+  assert.equal((await f.t.run((ctx) => ctx.db.get(job._id)))?.state, "pending")
+  restore()
+  const [retry] = await claimJobs(f.t, {
+    secret,
+    discordGuildIds: [guildDiscordId],
+  })
+  assert.ok(retry)
+  assert.equal(retry._id, job._id)
+  assert.equal(
+    await f.t.action(internal.liveNotificationActions.begin, {
+      deliveryId: retry._id,
+      claim: retry.claim,
+      configUpdatedAt: retry.config.updatedAt,
+    }),
+    true
+  )
+  assert.equal((await f.t.run((ctx) => ctx.db.get(job._id)))?.state, "sending")
+})
+
+test("padded Twitch configuration returns only safe configuration-unavailable metadata without provider lookup", async (t) => {
+  const f = await fixture({ managerIsOwner: true })
+  await overrideTwitchClientId(t, " test-client ")
+  const view = await f.manager.action(api.liveNotificationActions.get, {
+    discordGuildId: guildDiscordId,
+  })
+  assert.deepEqual(view.source, { status: "configurationUnavailable" })
+  assert.deepEqual(f.providerRequests, [])
 })
 
 test("processing provider outages leaves durable evidence after bounded retry exhaustion", async () => {
@@ -2125,7 +2378,7 @@ test("retry targets paginate historical rows and exclude completed cleanups", as
   assert.equal(seen, 31)
 })
 
-test("projection never asserts cached owner or destination authority; client mismatch is provider unavailable", async () => {
+test("projection never asserts cached authority; client mismatch requires reconnect and remains rejected", async () => {
   const f = await fixture()
   await f.manager.action(api.liveNotificationActions.update, config)
   const projection = await f.manager.query(api.liveNotifications.projection, {
@@ -2134,13 +2387,17 @@ test("projection never asserts cached owner or destination authority; client mis
   assert.equal(projection.source.status, "stale")
   assert.equal(projection.discordStatus, "unavailable")
   f.setClientId("wrong-application")
-  assert.equal(
+  assert.deepEqual(
     (
       await f.manager.action(api.liveNotificationActions.get, {
         discordGuildId: guildDiscordId,
       })
-    ).source.status,
-    "unavailable"
+    ).source,
+    { status: "stale" }
+  )
+  await assert.rejects(
+    f.manager.action(api.liveNotificationActions.update, config),
+    /reconnect Twitch and sync/
   )
   f.setClientId("test-client")
   const { verifyOwnerTwitch } = await import("./lib/verifyOwnerTwitch")

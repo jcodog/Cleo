@@ -221,7 +221,19 @@ export function DashboardShellClient({
     discord: discordNavSections,
     staff: staffNavSections,
     kick: [],
-    twitch: [],
+    twitch: [
+      {
+        title: "Twitch account",
+        items: [
+          {
+            title: "Twitch settings",
+            href: "/twitch",
+            icon: IconSettings,
+            isActive: pathname === "/twitch",
+          },
+        ],
+      },
+    ],
   }
 
   return (

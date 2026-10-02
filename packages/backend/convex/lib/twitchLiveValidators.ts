@@ -49,6 +49,7 @@ export const liveSource = v.union(
     status: v.union(
       v.literal("needsLink"),
       v.literal("unavailable"),
+      v.literal("configurationUnavailable"),
       v.literal("stale"),
       v.literal("missingPermission")
     ),

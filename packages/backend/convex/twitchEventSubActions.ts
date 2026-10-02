@@ -21,18 +21,15 @@ import { ownerEvidenceKey } from "./lib/ownerTwitch"
 import type { Id } from "./_generated/dataModel"
 import { boundedMap } from "./lib/boundedMap"
 import { dispatchDecision } from "./lib/twitchDispatch"
+import { readTwitchControlPlaneConfig } from "./lib/twitchControlPlaneConfig"
 
 export function controlPlaneConfig() {
-  const {
-    TWITCH_CLIENT_ID: clientId,
-    TWITCH_CLIENT_SECRET: clientSecret,
-    TWITCH_EVENTSUB_CALLBACK_URL: callback,
-    TWITCH_EVENTSUB_SECRET: secret,
-    TWITCH_BOT_USER_ID: botId,
-  } = backendEnv
-  if (!clientId || !clientSecret || !callback || !secret || !botId)
-    throw new ConvexError("Twitch provider unavailable.")
-  return { clientId, clientSecret, callback, secret, botId }
+  const config = readTwitchControlPlaneConfig()
+  if (!config)
+    throw new ConvexError(
+      "Twitch server configuration is unavailable. Try again later."
+    )
+  return config
 }
 export const reconcile = internalAction({
   args: { subscription: v.id("twitchEventSubscriptions") },
@@ -212,7 +209,8 @@ export const updateAnnouncement = action({
     )
     if (source.status !== "ready")
       throw new ConvexError(
-        source.status === "unavailable"
+        source.status === "unavailable" ||
+          source.status === "configurationUnavailable"
           ? "Provider unavailable."
           : "Reconnect required. Missing permission."
       )
@@ -285,7 +283,10 @@ export const reserveEvent = action({
             controlPlaneConfig().clientId
           )
         : null
-    if (source?.status === "unavailable")
+    if (
+      source?.status === "unavailable" ||
+      source?.status === "configurationUnavailable"
+    )
       throw new ConvexError("Twitch provider unavailable.")
     return ctx.runMutation(internal.twitchEventSub.reserveEvent, {
       ...args,
@@ -316,7 +317,10 @@ export const beginDispatch = action({
             controlPlaneConfig().clientId
           )
         : null
-    if (source?.status === "unavailable")
+    if (
+      source?.status === "unavailable" ||
+      source?.status === "configurationUnavailable"
+    )
       throw new ConvexError("Twitch provider unavailable.")
     return ctx.runMutation(internal.twitchEventSub.beginDispatch, {
       ...args,

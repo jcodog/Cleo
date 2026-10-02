@@ -31,7 +31,10 @@ import {
   useLiveNotifications,
   type LiveNotificationsView,
 } from "./useLiveNotifications"
-import { getLiveNotificationState } from "../lib/liveNotifications"
+import {
+  getLiveNotificationState,
+  getTwitchSourceFeedback,
+} from "../lib/liveNotifications"
 import { SaveStatus } from "../components/workspace-ui"
 import { getErrorMessage } from "../lib/format"
 import type { GuildOverview, SaveState } from "../types"
@@ -46,9 +49,17 @@ export function LiveNotificationsSection({
   const { view, error, reload } = useLiveNotifications(overview.discordGuildId)
   if (error)
     return (
-      <div role="alert">
-        Provider unavailable{" "}
+      <div role="alert" className="flex flex-wrap items-center gap-3">
+        Connection verification is temporarily unavailable. Try again later.
         <Button onClick={reload}>Retry provider check</Button>
+        {view?.isOwner && (
+          <Link
+            className={buttonVariants({ variant: "outline" })}
+            href="/twitch"
+          >
+            Manage Twitch
+          </Link>
+        )}
       </div>
     )
   if (!view) return <Skeleton className="h-48 w-full max-w-3xl" />
@@ -58,6 +69,7 @@ export function LiveNotificationsSection({
       discordGuildId={overview.discordGuildId}
       isBotLeft={isBotLeft || view.botLeft}
       view={view}
+      reload={reload}
     />
   )
 }
@@ -66,10 +78,12 @@ function LiveNotificationsForm({
   discordGuildId,
   isBotLeft,
   view,
+  reload,
 }: {
   discordGuildId: string
   isBotLeft: boolean
   view: LiveNotificationsView
+  reload: () => void
 }) {
   const clerk = useClerk()
   const update = useAction(api.liveNotificationActions.update)
@@ -128,6 +142,7 @@ function LiveNotificationsForm({
   }
   const disabled = isBotLeft || saveState === "saving"
   const sourceReady = view.source.status === "ready"
+  const feedback = getTwitchSourceFeedback(view.source.status)
   const destinations =
     options.status === "ready"
       ? {
@@ -189,13 +204,18 @@ function LiveNotificationsForm({
           Retry Discord selectors
         </Button>
       )}
-      <div className="flex items-center justify-between gap-4 border-b pb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-6">
         <div>
           <h2 className="font-heading text-lg font-medium">
             Live notifications
           </h2>
           <p className="text-sm text-muted-foreground">
             Let your server know when its owner's Twitch channel goes live.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Destination and mention settings apply to this Discord server.
+            Twitch connection and chat announcements are managed in the owner's
+            Twitch account workspace.
           </p>
         </div>
         <Badge variant="outline">{getLiveNotificationState(view)}</Badge>
@@ -221,28 +241,26 @@ function LiveNotificationsForm({
           <p className="text-sm text-muted-foreground">
             {view.source.status === "ready"
               ? `twitch.tv/${view.source.login} · Linked to the server owner`
-              : view.source.status === "needsLink"
-                ? "The Discord server owner must connect Twitch to enable this feature."
-                : view.source.status === "missingPermission"
-                  ? "The server owner must reconnect Twitch to approve Cleo's required permission."
-                  : view.source.status === "stale"
-                    ? "The owner's saved Twitch connection is stale. Reconnect and sync it in Cleo."
-                    : "Clerk or Twitch cannot verify the owner's connection. Reconnect Twitch to verify it."}
+              : feedback.description}
           </p>
         </div>
       </div>
       {view.isOwner && (
         <div className="flex flex-wrap gap-3">
           <Link
-            className={buttonVariants({
-              variant: sourceReady ? "outline" : "default",
-            })}
+            className={buttonVariants({ variant: "outline" })}
             href="/twitch"
           >
-            {sourceReady
-              ? "Manage Twitch connection"
-              : "Connect or reconnect Twitch"}
+            Manage Twitch
           </Link>
+          {(feedback.recovery === "connect" ||
+            feedback.recovery === "reconnect") && (
+            <Link className={buttonVariants()} href="/twitch">
+              {feedback.recovery === "connect"
+                ? "Connect Twitch"
+                : "Reconnect Twitch"}
+            </Link>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -252,12 +270,24 @@ function LiveNotificationsForm({
           </Button>
         </div>
       )}
-      {!view.isOwner && !sourceReady && (
-        <p className="text-sm text-muted-foreground">
-          Ask the server owner to open Cleo's Twitch connection page. Your
-          linked Twitch account cannot be used for this server.
-        </p>
+      {feedback.recovery === "retry" && (
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={reload}
+        >
+          Retry provider check
+        </Button>
       )}
+      {!view.isOwner &&
+        (feedback.recovery === "connect" ||
+          feedback.recovery === "reconnect") && (
+          <p className="text-sm text-muted-foreground">
+            Ask the server owner to open Cleo's Twitch connection page. Your
+            linked Twitch account cannot be used for this server.
+          </p>
+        )}
       <div className="flex items-center justify-between gap-4">
         <label htmlFor="live-enabled" className="text-sm font-medium">
           Twitch live notifications
@@ -333,7 +363,7 @@ function LiveNotificationsForm({
         <p role="status" className="text-sm text-muted-foreground">
           {view.subscriptionStatus === "connecting"
             ? "Twitch is confirming the live-event subscription."
-            : "The Twitch subscription is unavailable. Retry the subscription or reconnect Twitch if its permission was revoked."}
+            : "The Twitch subscription is unavailable. Retry the subscription or try again later."}
         </p>
       )}
       <SaveStatus state={saveState} errorMessage={error} />

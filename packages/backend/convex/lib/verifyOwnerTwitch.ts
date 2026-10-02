@@ -3,13 +3,22 @@
 import { getClerkUser, getClerkTwitchAccessToken } from "./clerkOAuth"
 import { getClerkLinkedProvider } from "./clerkProviders"
 import type { getOwnerTwitch } from "./ownerTwitch"
+import { readTwitchControlPlaneConfig } from "./twitchControlPlaneConfig"
+import { resolveBroadcasterScopes } from "@workspace/shared/twitchEventSub"
 
 type GuildOwner = Awaited<ReturnType<typeof getOwnerTwitch>>
 type Owner =
   | Exclude<GuildOwner, { status: "linked" }>
   | Omit<Extract<GuildOwner, { status: "linked" }>, "guild">
 export type VerifiedOwnerTwitch =
-  | { status: "needsLink" | "unavailable" | "stale" | "missingPermission" }
+  | {
+      status:
+        | "needsLink"
+        | "configurationUnavailable"
+        | "unavailable"
+        | "stale"
+        | "missingPermission"
+    }
   | {
       status: "ready"
       broadcasterId: string
@@ -28,6 +37,11 @@ export async function verifyOwnerTwitch(
 ): Promise<VerifiedOwnerTwitch> {
   if (owner.status !== "linked") return owner
   const clerk = await getClerkUser(owner.user.clerkUserId)
+  if (
+    clerk.status === "unavailable" &&
+    clerk.reason === "clerkSecretUnavailable"
+  )
+    return { status: "configurationUnavailable" }
   if (clerk.status !== "ready" || clerk.user.id !== owner.user.clerkUserId)
     return { status: "unavailable" }
   const accounts = clerk.user.external_accounts ?? clerk.user.externalAccounts
@@ -39,7 +53,7 @@ export async function verifyOwnerTwitch(
     (account) => getClerkLinkedProvider(account.provider) === "twitch"
   )
   if (discord.length !== 1 || twitchEvidence.length > 1)
-    return { status: "unavailable" }
+    return { status: "stale" }
   const current = twitchEvidence[0]
   const currentId = current?.provider_user_id ?? current?.providerUserId
   if (
@@ -54,13 +68,15 @@ export async function verifyOwnerTwitch(
   const twitch = matches[0]
   if (matches.length === 0) return { status: "stale" }
   if (matches.length !== 1 || !twitch || !/^[1-9]\d*$/.test(currentId))
-    return { status: "unavailable" }
+    return { status: "stale" }
   const token = await getClerkTwitchAccessToken(owner.user.clerkUserId)
   if (
     token.status === "providerNotLinked" ||
     token.status === "tokenUnavailable"
   )
     return { status: "stale" }
+  if (token.status === "secretUnavailable")
+    return { status: "configurationUnavailable" }
   if (token.status !== "ready") return { status: "unavailable" }
   try {
     const response = await fetch("https://id.twitch.tv/oauth2/validate", {
@@ -83,12 +99,10 @@ export async function verifyOwnerTwitch(
     )
       return { status: "unavailable" }
     if (
-      value.user_id !== twitch.providerAccountId ||
+      typeof value.user_id !== "string" ||
+      !/^[1-9]\d*$/.test(value.user_id) ||
       typeof value.expires_in !== "number" ||
-      value.expires_in <= 0
-    )
-      return { status: "stale" }
-    if (
+      !Number.isFinite(value.expires_in) ||
       typeof value.login !== "string" ||
       !/^[a-zA-Z0-9_]{1,25}$/.test(value.login) ||
       typeof value.client_id !== "string" ||
@@ -97,8 +111,10 @@ export async function verifyOwnerTwitch(
       !value.scopes.every((scope) => typeof scope === "string")
     )
       return { status: "unavailable" }
+    if (value.user_id !== twitch.providerAccountId || value.expires_in <= 0)
+      return { status: "stale" }
     if (expectedClientId && value.client_id !== expectedClientId)
-      return { status: "unavailable" }
+      return { status: "stale" }
     const scopes = value.scopes
     if (!requiredScopes.every((scope) => scopes.includes(scope)))
       return { status: "missingPermission" }
@@ -115,6 +131,18 @@ export async function verifyOwnerTwitch(
   } catch {
     return { status: "unavailable" }
   }
+}
+
+export async function verifyLiveNotificationSource(
+  owner: Owner
+): Promise<VerifiedOwnerTwitch> {
+  const config = readTwitchControlPlaneConfig()
+  if (!config) return { status: "configurationUnavailable" }
+  return verifyOwnerTwitch(
+    owner,
+    resolveBroadcasterScopes(["streamOnline"]),
+    config.clientId
+  )
 }
 
 export function publicOwnerTwitch(source: VerifiedOwnerTwitch) {

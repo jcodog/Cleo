@@ -206,17 +206,82 @@ test("live notification form fixes owner source, handles linking, destinations, 
   )
   view = { ...view, isOwner: true }
   tree = render(true)
-  assert.ok(elements(tree).find((node) => node.props.href === "/twitch"))
+  assert.ok(
+    elements(tree).find(
+      (node) => node.props.href === "/twitch" && text(node) === "Manage Twitch"
+    )
+  )
+  assert.ok(
+    elements(tree).find(
+      (node) => node.props.href === "/twitch" && text(node) === "Connect Twitch"
+    )
+  )
+  assert.match(
+    text(tree),
+    /Destination and mention settings apply to this Discord server/
+  )
+  assert.match(
+    text(tree),
+    /chat announcements are managed in the owner's Twitch account workspace/
+  )
   elements(tree)
     .find((node) => node.type === "button" && text(node) === "Manage account")
     ?.props.onClick?.()
   assert.equal(accountOpens, 1)
-  for (const status of ["stale", "missingPermission", "unavailable"] as const) {
-    view = { ...ready, source: { status } }
+  for (const status of [
+    "ready",
+    "needsLink",
+    "stale",
+    "missingPermission",
+    "unavailable",
+    "configurationUnavailable",
+  ] as const) {
+    view = {
+      ...ready,
+      isOwner: true,
+      source: status === "ready" ? ready.source : { status },
+    }
     tree = render(true)
+    assert.ok(
+      elements(tree).find(
+        (node) =>
+          node.props.href === "/twitch" && text(node) === "Manage Twitch"
+      ),
+      status
+    )
+    const reconnect = elements(tree).find(
+      (node) => text(node) === "Reconnect Twitch"
+    )
+    assert.equal(
+      !!reconnect,
+      status === "stale" || status === "missingPermission",
+      status
+    )
+    if (reconnect) assert.equal(reconnect.props.href, "/twitch")
+    const retry = elements(tree).find(
+      (node) => node.type === "button" && text(node) === "Retry provider check"
+    )
+    assert.equal(
+      !!retry,
+      status === "unavailable" || status === "configurationUnavailable",
+      status
+    )
+    if (retry) {
+      const previousReloads = reloads
+      retry.props.onClick?.()
+      assert.equal(reloads, previousReloads + 1)
+      assert.doesNotMatch(text(tree), /[Rr]econnect/)
+      assert.doesNotMatch(text(tree), /Clerk/)
+    }
     assert.equal(
       elements(tree).find((node) => node.type === "Switch")?.props.disabled,
-      true
+      status !== "ready"
+    )
+    view = { ...view, isOwner: false }
+    tree = render(true)
+    assert.equal(
+      elements(tree).some((node) => node.props.href === "/twitch"),
+      false
     )
   }
   view = ready
@@ -331,9 +396,16 @@ test("live notification form fixes owner source, handles linking, destinations, 
   await new Promise((resolve) => setImmediate(resolve))
   assert.equal((saves.at(-1) as { retry?: boolean }).retry, true)
   hookError = true
+  view = { ...ready, isOwner: true }
+  assert.ok(
+    elements(render()).find(
+      (node) => node.props.href === "/twitch" && text(node) === "Manage Twitch"
+    )
+  )
+  const beforeReload = reloads
   elements(render()).find((node) => text(node) === "Retry provider check")!
     .props.onClick!()
-  assert.equal(reloads, 1)
+  assert.equal(reloads, beforeReload + 1)
   hookError = false
   const state = {
     status: "ready" as const,
