@@ -1,0 +1,5 @@
+/* Landing accents must stay readable over the light marketing surfaces. */
+.landing-theme:not(.dark) {
+  --cleo-cyan: var(--primary);
+  --muted-foreground: oklch(0.48 0 0);
+}

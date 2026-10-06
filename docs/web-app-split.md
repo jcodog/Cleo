@@ -15,7 +15,7 @@ lives in `@workspace/shared/appRoutes`. No landing-to-dashboard source dependenc
 
 LandingSessionProvider is a client boundary using the existing Cleo Clerk public key. The marketing page remains statically rendered without server auth or Clerk middleware. LandingAuthActions waits for useAuth().isLoaded, reserving the existing placeholder sizes. Signed-out visitors see Sign in/Get started; signed-in visitors see Open dashboard and a local Explore product anchor in the hero/final CTA. All auth/product URLs use appOrigin(). No Convex queries, provider-token access or dashboard imports enter landing.
 
-Landing copies the existing dashboard ThemeProvider, ThemeToggle and pre-paint resolver locally. Its root layout exposes the toggle on all public pages, with the same saved/system preference and D shortcut. Dashboard theme code stays unchanged. Browser theme preferences are stored per origin.
+Landing copies the existing dashboard ThemeProvider, ThemeToggle and pre-paint resolver locally. Its root layout exposes the toggle on all public pages, with the same saved/system preference and D shortcut. Dashboard theme code stays unchanged. Browser theme preferences are stored per origin. Landing-only light accent tokens and theme-aware surfaces/borders keep the marketing content readable; explicit dark variants preserve the original dark palette.
 
 ## Routing and SEO
 
@@ -206,5 +206,5 @@ only its public Clerk key and stays static; no secret key is required. CTA tests
 cover signed-in, signed-out and unloaded states with Production, Preview and local
 app origins. Dashboard provider tests verify sign-out returns to the supplied
 site origin. Browser checks verified landing theme switching, reload persistence,
-the D shortcut and the toggle on the not-found page. Compile-only Clerk fixtures
+the D shortcut and the toggle on the not-found page. The hero, product, platform and final sections were also inspected in both light and dark themes; light-mode sections no longer combine dark backgrounds with dark text. Compile-only Clerk fixtures
 were used for builds, so live cross-domain session verification remains pending.

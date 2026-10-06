@@ -46,7 +46,7 @@ function LandingNavigation() {
       >
         <Image
           alt=""
-          className="size-9 rounded-full border border-white/15 object-cover"
+          className="size-9 rounded-full border border-border object-cover dark:border-white/15"
           height={36}
           priority
           src="/android-chrome-192x192.png"
@@ -120,10 +120,10 @@ function CleoHeroVisual() {
       />
       <div
         aria-hidden
-        className="absolute right-[10%] size-[64%] rounded-full border border-white/10"
+        className="absolute right-[10%] size-[64%] rounded-full border border-border dark:border-white/10"
       />
 
-      <div className="cleo-portrait-float relative z-0 mr-[2%] size-[min(72vw,19rem)] overflow-hidden rounded-full border border-white/15 bg-card shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:size-[28rem] lg:size-[32rem]">
+      <div className="cleo-portrait-float relative z-0 mr-[2%] size-[min(72vw,19rem)] overflow-hidden rounded-full border border-border bg-card shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:size-[28rem] lg:size-[32rem] dark:border-white/15">
         <Image
           alt="Cleo, the community assistant"
           className="size-full object-cover"
@@ -135,11 +135,11 @@ function CleoHeroVisual() {
         />
         <div
           aria-hidden
-          className="absolute inset-0 rounded-full ring-1 ring-white/15 ring-inset"
+          className="absolute inset-0 rounded-full ring-1 ring-border ring-inset dark:ring-white/15"
         />
       </div>
 
-      <div className="absolute bottom-[1%] left-1/2 z-20 grid w-[min(21rem,94%)] -translate-x-1/2 grid-cols-3 overflow-hidden rounded-xl border border-white/12 bg-neutral-950/94 shadow-xl shadow-black/40 backdrop-blur-xl sm:bottom-[4%] lg:left-[54%]">
+      <div className="absolute bottom-[1%] left-1/2 z-20 grid w-[min(21rem,94%)] -translate-x-1/2 grid-cols-3 overflow-hidden rounded-xl border border-border bg-card/94 shadow-xl shadow-black/40 backdrop-blur-xl sm:bottom-[4%] lg:left-[54%] dark:border-white/12 dark:bg-neutral-950/94">
         <PlatformMark icon={IconBrandDiscord} label="Discord" tone="cyan" />
         <PlatformMark icon={IconBrandTwitch} label="Twitch" tone="indigo" />
         <PlatformMark icon={IconBrandKick} label="Kick" tone="emerald" />
@@ -171,14 +171,14 @@ function PlatformMark({
   tone: "cyan" | "emerald" | "indigo"
 }) {
   return (
-    <div className="flex min-w-0 flex-col items-center gap-2 border-r border-white/10 px-2 py-3.5 last:border-r-0 sm:py-4">
+    <div className="flex min-w-0 flex-col items-center gap-2 border-r border-border px-2 py-3.5 last:border-r-0 sm:py-4 dark:border-white/10">
       <Icon
         aria-hidden
         className={cn(
           "size-6",
           tone === "cyan" && "text-cleo-cyan",
           tone === "indigo" && "text-cleo-indigo",
-          tone === "emerald" && "text-emerald-400"
+          tone === "emerald" && "text-emerald-700 dark:text-emerald-400"
         )}
       />
       <span className="text-sm font-medium">{label}</span>
@@ -215,7 +215,7 @@ const VALUE_AREAS = [
 function ValueSummary() {
   return (
     <section
-      className="relative scroll-mt-20 border-t border-white/10"
+      className="relative scroll-mt-20 border-t border-border dark:border-white/10"
       id="features"
     >
       <div className="mx-auto grid w-full max-w-7xl gap-12 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-20 lg:px-10 lg:py-28">
@@ -229,15 +229,15 @@ function ValueSummary() {
           </p>
         </div>
 
-        <div className="border-t border-white/12">
+        <div className="border-t border-border dark:border-white/12">
           {VALUE_AREAS.map(({ description, icon: Icon, title }) => (
             <article
-              className="group grid gap-4 border-b border-white/10 py-7 sm:grid-cols-[2.5rem_minmax(0,0.82fr)_minmax(0,1.18fr)] sm:items-start sm:gap-6 sm:py-8"
+              className="group grid gap-4 border-b border-border py-7 sm:grid-cols-[2.5rem_minmax(0,0.82fr)_minmax(0,1.18fr)] sm:items-start sm:gap-6 sm:py-8 dark:border-white/10"
               key={title}
             >
               <Icon
                 aria-hidden
-                className="size-6 text-cleo-cyan transition-colors duration-200 group-hover:text-white"
+                className="size-6 text-cleo-cyan transition-colors duration-200 group-hover:text-foreground dark:group-hover:text-white"
                 stroke={1.5}
               />
               <h3 className="font-heading text-xl font-semibold tracking-[-0.02em]">
@@ -257,7 +257,7 @@ function ValueSummary() {
 function ProductShowcase() {
   return (
     <section
-      className="relative scroll-mt-20 overflow-hidden border-y border-white/10 bg-neutral-950/55"
+      className="relative scroll-mt-20 overflow-hidden border-y border-border bg-muted/55 dark:border-white/10 dark:bg-neutral-950/55"
       id="product"
     >
       <div
@@ -275,11 +275,20 @@ function ProductShowcase() {
           </p>
         </div>
 
-        <figure className="mt-12 overflow-hidden rounded-xl border border-white/14 bg-black shadow-[0_28px_90px_rgba(0,0,0,0.46)] sm:mt-16">
-          <div className="flex h-11 items-center gap-2 border-b border-white/10 bg-neutral-950 px-4">
-            <span aria-hidden className="size-2 rounded-full bg-white/18" />
-            <span aria-hidden className="size-2 rounded-full bg-white/12" />
-            <span aria-hidden className="size-2 rounded-full bg-white/8" />
+        <figure className="mt-12 overflow-hidden rounded-xl border border-border bg-black shadow-[0_28px_90px_rgba(0,0,0,0.46)] sm:mt-16 dark:border-white/14">
+          <div className="flex h-11 items-center gap-2 border-b border-border bg-muted px-4 dark:border-white/10 dark:bg-neutral-950">
+            <span
+              aria-hidden
+              className="size-2 rounded-full bg-foreground/18 dark:bg-white/18"
+            />
+            <span
+              aria-hidden
+              className="size-2 rounded-full bg-foreground/12 dark:bg-white/12"
+            />
+            <span
+              aria-hidden
+              className="size-2 rounded-full bg-foreground/8 dark:bg-white/8"
+            />
             <span className="ml-3 text-sm text-muted-foreground">
               Cleo dashboard
             </span>
@@ -346,11 +355,11 @@ function CoreCapabilities() {
           Set up the parts of your server people rely on.
         </h2>
 
-        <div className="mt-12 border-t border-white/12 sm:mt-16">
+        <div className="mt-12 border-t border-border sm:mt-16 dark:border-white/12">
           {CAPABILITY_PANELS.map(
             ({ bullets, description, icon: Icon, title }) => (
               <article
-                className="grid gap-7 border-b border-white/10 py-9 sm:py-11 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20 lg:py-14"
+                className="grid gap-7 border-b border-border py-9 sm:py-11 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20 lg:py-14 dark:border-white/10"
                 key={title}
               >
                 <div className="flex items-start gap-5 sm:gap-7">
@@ -395,7 +404,7 @@ function CoreCapabilities() {
 function PlatformEcosystem() {
   return (
     <section
-      className="relative scroll-mt-20 overflow-hidden border-y border-white/10 bg-neutral-950/58"
+      className="relative scroll-mt-20 overflow-hidden border-y border-border bg-muted/58 dark:border-white/10 dark:bg-neutral-950/58"
       id="platforms"
     >
       <div className="mx-auto grid w-full max-w-7xl items-start gap-14 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-24 lg:px-10 lg:py-32">
@@ -412,7 +421,7 @@ function PlatformEcosystem() {
               aria-hidden
               className="absolute top-1/2 left-24 size-52 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_70%)] blur-xl"
             />
-            <div className="absolute inset-y-0 left-0 size-52 overflow-hidden rounded-full border border-white/14 bg-neutral-950 shadow-[0_0_70px_color-mix(in_oklab,var(--primary)_12%,transparent)]">
+            <div className="absolute inset-y-0 left-0 size-52 overflow-hidden rounded-full border border-border bg-neutral-950 shadow-[0_0_70px_color-mix(in_oklab,var(--primary)_12%,transparent)] dark:border-white/14">
               <Image
                 alt="Cleo"
                 className="size-full object-cover"
@@ -429,7 +438,7 @@ function PlatformEcosystem() {
           </div>
         </div>
 
-        <div className="border-t border-white/12">
+        <div className="border-t border-border dark:border-white/12">
           <PlatformRow
             description="The main dashboard for server configuration, moderation, support, welcome, and logs."
             icon={IconBrandDiscord}
@@ -471,14 +480,14 @@ function PlatformRow({
   tone: "cyan" | "emerald" | "indigo"
 }) {
   return (
-    <article className="group grid gap-4 border-b border-white/10 py-8 sm:grid-cols-[2.75rem_minmax(0,0.65fr)_minmax(0,1.35fr)] sm:gap-6 sm:py-10">
+    <article className="group grid gap-4 border-b border-border py-8 sm:grid-cols-[2.75rem_minmax(0,0.65fr)_minmax(0,1.35fr)] sm:gap-6 sm:py-10 dark:border-white/10">
       <Icon
         aria-hidden
         className={cn(
-          "size-7 transition-colors duration-200 group-hover:text-white",
+          "size-7 transition-colors duration-200 group-hover:text-foreground dark:group-hover:text-white",
           tone === "cyan" && "text-cleo-cyan",
           tone === "indigo" && "text-cleo-indigo",
-          tone === "emerald" && "text-emerald-400"
+          tone === "emerald" && "text-emerald-700 dark:text-emerald-400"
         )}
       />
       <div>
@@ -520,10 +529,10 @@ function TrustAndControl() {
         <h2 className="font-heading text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
           You can see who can do what.
         </h2>
-        <div className="mt-10 grid border-y border-white/10 md:grid-cols-3 md:divide-x md:divide-white/10">
+        <div className="mt-10 grid border-y border-border md:grid-cols-3 md:divide-x md:divide-border dark:border-white/10 dark:md:divide-white/10">
           {TRUST_ITEMS.map(({ description, icon: Icon, title }) => (
             <article
-              className="border-b border-white/10 py-7 last:border-b-0 md:border-b-0 md:px-7 md:first:pl-0 md:last:pr-0"
+              className="border-b border-border py-7 last:border-b-0 md:border-b-0 md:px-7 md:first:pl-0 md:last:pr-0 dark:border-white/10"
               key={title}
             >
               <Icon
@@ -548,10 +557,10 @@ function TrustAndControl() {
 function CleoPersonality() {
   return (
     <aside className="mx-auto w-full max-w-7xl px-5 pb-20 sm:px-8 sm:pb-24 lg:px-10">
-      <div className="flex items-center gap-5 border-t border-white/10 pt-8 sm:gap-7">
+      <div className="flex items-center gap-5 border-t border-border pt-8 sm:gap-7 dark:border-white/10">
         <Image
           alt=""
-          className="size-16 shrink-0 rounded-full border border-white/12 object-cover sm:size-20"
+          className="size-16 shrink-0 rounded-full border border-border object-cover sm:size-20 dark:border-white/12"
           height={80}
           loading="eager"
           src="/android-chrome-192x192.png"
@@ -569,7 +578,7 @@ function CleoPersonality() {
 
 function FinalCallToAction() {
   return (
-    <section className="relative overflow-hidden border-y border-white/10 bg-neutral-950/70">
+    <section className="relative overflow-hidden border-y border-border bg-muted/70 dark:border-white/10 dark:bg-neutral-950/70">
       <div
         aria-hidden
         className="absolute top-1/2 right-[-10rem] size-80 -translate-y-1/2 rounded-full border border-primary/18 shadow-[0_0_90px_color-mix(in_oklab,var(--primary)_10%,transparent)]"

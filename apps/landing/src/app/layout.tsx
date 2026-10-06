@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono, Outfit } from "next/font/google"
 import type { Metadata, Viewport } from "next"
 import "@workspace/ui/globals.css"
+import "./landing.css"
 import { appOrigin, siteMetadata } from "@/lib/siteMetadata"
 import { landingEnv } from "@workspace/env/landing"
 import { LandingSessionProvider } from "@/components/LandingSessionProvider"
@@ -41,7 +42,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn(
         fontMono.variable,
-        "font-sans",
+        "landing-theme font-sans",
         geist.variable,
         outfitHeading.variable
       )}
