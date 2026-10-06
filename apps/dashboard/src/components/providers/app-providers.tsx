@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, type ReactNode } from "react"
-import { ClerkProvider, useAuth, useClerk } from "@clerk/nextjs"
+import type { ReactNode } from "react"
+import { ClerkProvider, useAuth } from "@clerk/nextjs"
 import { dark, shadcn } from "@clerk/ui/themes"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
 
@@ -23,30 +23,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
       afterSignOutUrl="/?s=sign-out"
     >
       <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
-        <PendingRequestsGuard client={convexClient} />
         {children}
       </ConvexProviderWithClerk>
     </ClerkProvider>
   )
-}
-
-export function PendingRequestsGuard({
-  client,
-}: {
-  client: { connectionState: () => { hasInflightRequests: boolean } }
-}) {
-  const clerk = useClerk()
-
-  useEffect(() => {
-    const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (!clerk.session || !client.connectionState().hasInflightRequests)
-        return
-      event.preventDefault()
-      event.returnValue = "Your changes may not be saved."
-    }
-    window.addEventListener("beforeunload", beforeUnload)
-    return () => window.removeEventListener("beforeunload", beforeUnload)
-  }, [client, clerk])
-
-  return null
 }

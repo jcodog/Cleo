@@ -212,7 +212,7 @@ test("actual dashboard proxy keeps signed-out deep links and overwrites untruste
   assert.deepEqual(robots(), { rules: { userAgent: "*", allow: "/" } })
 })
 
-test("Convex uses the session-aware provider guard instead of its permanent unload warning", async (t) => {
+test("Convex disables its request-based leave-page warning", async (t) => {
   t.mock.module("@workspace/env/dashboard", {
     exports: {
       dashboardEnv: { NEXT_PUBLIC_CONVEX_URL: "https://test.convex.cloud" },

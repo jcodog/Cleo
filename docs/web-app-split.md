@@ -89,8 +89,13 @@ environment setting. Keep `dev.cleoai.cloud` bound to
 Clerk production authority stays `clerk.cleoai.cloud`. Convex continues to validate
 the existing issuer and `convex` audience. SSR requests use the current Clerk token
 directly when it has that audience, otherwise the existing Convex JWT template.
-Dashboard sign-out first returns to app `/?s=sign-out`. App root redirects that marker to `NEXT_PUBLIC_SITE_URL` only after Clerk confirms sign-out. Ordinary app-root routing is unchanged and signed-in marker visits still require onboarding. Convex pending-request protection remains active while a Clerk session exists, and stops immediately when that session clears, preventing the leave-page prompt during sign-out. The provider owns this guard rather than using Convex's permanent default unload listener. Session refresh
-and account switching retain the existing Clerk/Convex provider integration.
+Dashboard sign-out first returns to app `/?s=sign-out`. App root redirects that
+marker to `NEXT_PUBLIC_SITE_URL` only after Clerk confirms sign-out. Ordinary
+app-root routing is unchanged and signed-in marker visits still require onboarding.
+Convex's request-based leave-page warning is disabled, and the provider does not
+register an unload guard. Pending requests do not mean a form has unsaved edits.
+Session refresh and account switching retain the existing Clerk/Convex provider
+integration.
 
 Discord identity and provider tokens remain Clerk `oauth_discord`. The audited
 guild-install URL requests `bot applications.commands`, fixes the guild and
@@ -200,8 +205,11 @@ switching and production-domain verification remain pending authenticated previe
 The session-awareness follow-up passed the same root checks. Landing builds with
 only its public Clerk key and stays static; no secret key is required. CTA tests
 cover signed-in, signed-out and unloaded states with Production, Preview and local
-app origins. Dashboard tests verify the local sign-out handoff, configured Production/dev/local site destinations, rejection of untrusted query destinations, and the session-aware pending-request warning. Browser checks verified landing theme switching, reload persistence,
-the D shortcut and the toggle on the not-found page. The hero, product, platform and final sections were also inspected in both light and dark themes; light-mode sections no longer combine dark backgrounds with dark text. Compile-only Clerk fixtures
+app origins. Dashboard tests verify the local sign-out handoff, configured
+Production/dev/local site destinations, rejection of untrusted query destinations,
+and disabled request-based unload warnings. Browser checks verified landing theme
+switching, reload persistence, the D shortcut and the toggle on the not-found page.
+The hero, product, platform and final sections were also inspected in both light and dark themes; light-mode sections no longer combine dark backgrounds with dark text. Compile-only Clerk fixtures
 were used for builds, so live cross-domain session verification remains pending.
 
 For the operator's dev-app.cleoai.cloud deployment, set dashboard Preview
