@@ -1,0 +1,157 @@
+apps/dashboard/src/app/robots.ts
+  s_76a59ffe06f6bb::t_2ca49593c0280e 1-5
+apps/landing/src/app/page.tsx
+  s_76a59ffe06f6bb::t_2f13c79090da46 1-8
+apps/dashboard/src/features/auth/applicationEntry.ts
+  s_76a59ffe06f6bb::t_718f5e76516c43 1-4,8-13,18-22
+  s_76a59ffe06f6bb::t_2f13c79090da46 5-7,14-17,23-33
+packages/env/src/dashboard.ts
+  s_76a59ffe06f6bb::t_2f13c79090da46 9,15,25,28
+apps/landing/src/proxy.ts
+  s_76a59ffe06f6bb::t_718f5e76516c43 7-10,12-16,20-22
+  s_76a59ffe06f6bb::t_c13e4441966106 11
+  s_76a59ffe06f6bb::t_2f13c79090da46 1-6,17-19,23
+apps/dashboard/src/features/auth/applicationEntry.test.ts
+  s_76a59ffe06f6bb::t_2d6d06f68450b8 1-2,9-11,32,55-57,71-76,93-96
+  s_76a59ffe06f6bb::t_718f5e76516c43 3-8,12-31,33-54,58-70,77-92
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_76a59ffe06f6bb::t_4657eefd2dfc08 31-34
+packages/env/src/origins.ts
+  s_76a59ffe06f6bb::t_0205e09d2a0419 15
+  s_76a59ffe06f6bb::t_718f5e76516c43 9-11,13-14,16
+  s_76a59ffe06f6bb::t_11b6610860a081 4
+  s_76a59ffe06f6bb::t_c13e4441966106 12
+  s_76a59ffe06f6bb::t_2f13c79090da46 1-3,5-8,17
+apps/landing/src/lib/siteMetadata.test.ts
+  s_76a59ffe06f6bb::t_d5c4306af1c7cb 19
+  s_76a59ffe06f6bb::t_2d6d06f68450b8 1-5,12-18,20-23,27,38-41
+  s_76a59ffe06f6bb::t_718f5e76516c43 6-11,24-26,28-37
+apps/dashboard/src/app/layout.tsx
+  s_76a59ffe06f6bb::t_718f5e76516c43 6,21-23,25,83-84
+  s_76a59ffe06f6bb::t_c13e4441966106 24
+README.md
+  s_76a59ffe06f6bb::t_d5c4306af1c7cb 109-110
+packages/env/src/landing.ts
+  s_76a59ffe06f6bb::t_2f13c79090da46 1-22
+apps/dashboard/src/features/auth/serverRouting.test.ts
+  s_76a59ffe06f6bb::t_d5c4306af1c7cb 1-11,22-24,29-30,53,55-60,69-76,100,104-110,114-115,120,130-135,146-148,155-157
+  s_76a59ffe06f6bb::t_718f5e76516c43 12-21,25-28,31-52,54,61-68,101-103,111-113,116-119,121-129,136-145,149-154
+  s_76a59ffe06f6bb::t_3ea2d1f40b3bcd 77-98
+  s_76a59ffe06f6bb::t_ef088b971d9954 99
+apps/dashboard/src/proxy.ts
+  s_76a59ffe06f6bb::t_718f5e76516c43 2-4,6-19
+.oxlintrc.json
+  s_76a59ffe06f6bb::t_5fe57b73493ffc 104-107,186-187
+packages/shared/src/appRoutes.test.ts
+  s_76a59ffe06f6bb::t_718f5e76516c43 3-7,10-21,25-30,34-48,50-57,62-82
+  s_76a59ffe06f6bb::t_2d6d06f68450b8 1-2,8-9,22-24,31-33,49,58-61,83
+.gitignore
+  s_76a59ffe06f6bb::t_d5c4306af1c7cb 29,52
+apps/dashboard/src/app/page.tsx
+  s_76a59ffe06f6bb::t_718f5e76516c43 1-6,8-17
+apps/landing/src/app/sitemap.ts
+  s_76a59ffe06f6bb::t_2ca49593c0280e 1-6
+.github/coverage-baseline.md
+  s_76a59ffe06f6bb::t_7a71320c8582f8 11,25-29
+apps/landing/vercel.json
+  s_76a59ffe06f6bb::t_7a71320c8582f8 1-6
+apps/landing/src/features/landing/LandingPage.tsx
+  s_76a59ffe06f6bb::t_2d6d06f68450b8 1-619
+turbo.json
+  s_76a59ffe06f6bb::t_2f13c79090da46 8-10
+apps/dashboard/package.json
+  s_76a59ffe06f6bb::t_19720ab74905c7 13
+packages/shared/src/appRoutes.ts
+  s_76a59ffe06f6bb::t_718f5e76516c43 3-11,16-18,29-32
+  s_76a59ffe06f6bb::t_2f13c79090da46 1-2,12-15,19-28,33-39
+.github/scripts/build-coverage-site.mjs
+  s_76a59ffe06f6bb::t_d5c4306af1c7cb 6
+apps/landing/src/features/landing/LandingAuthActions.tsx
+  s_76a59ffe06f6bb::t_718f5e76516c43 1,3-71
+  s_76a59ffe06f6bb::t_5fe57b73493ffc 2
+apps/dashboard/src/app/(onboarding)/onboarding/page.tsx
+  s_76a59ffe06f6bb::t_718f5e76516c43 2-9,18-35
+apps/dashboard/src/features/auth/DiscordAuthPage.tsx
+  s_76a59ffe06f6bb::t_2ca49593c0280e 61
+apps/landing/src/app/robots.ts
+  s_76a59ffe06f6bb::t_2ca49593c0280e 1-6,13-15
+  s_76a59ffe06f6bb::t_718f5e76516c43 7-12
+apps/dashboard/.env.example
+  s_76a59ffe06f6bb::t_2ca49593c0280e 5-6
+apps/landing/src/app/layout.tsx
+  s_76a59ffe06f6bb::t_718f5e76516c43 1-15,17-24,26-47
+  s_76a59ffe06f6bb::t_5fe57b73493ffc 16,25
+apps/landing/package.json
+  s_76a59ffe06f6bb::t_5fe57b73493ffc 1-33
+packages/shared/package.json
+  s_76a59ffe06f6bb::t_2f13c79090da46 20
+apps/landing/src/lib/siteMetadata.ts
+  s_76a59ffe06f6bb::t_2ca49593c0280e 1-5,11-13,18-20,23-24,29-41,45-46,75-77
+  s_76a59ffe06f6bb::t_718f5e76516c43 6-8,10,14-15,17,21-22,25-28,42-44,47-74
+  s_76a59ffe06f6bb::t_c13e4441966106 9,16
+apps/dashboard/src/app/(app)/layout.tsx
+  s_76a59ffe06f6bb::t_718f5e76516c43 3-5,10-13,31-49
+apps/dashboard/src/features/onboarding/OnboardingGuard.tsx
+  s_76a59ffe06f6bb::t_718f5e76516c43 11-12,31-32,66-70
+apps/landing/.env.example
+  s_76a59ffe06f6bb::t_2ca49593c0280e 1-4
+.github/workflows/twitch-production.yml
+  s_76a59ffe06f6bb::t_4657eefd2dfc08 55,90,97,100,172
+packages/env/src/origins.test.ts
+  s_76a59ffe06f6bb::t_2d6d06f68450b8 1-5,58-66
+  s_76a59ffe06f6bb::t_718f5e76516c43 6-8,10-16,18-24,26-32,34-37,43-44,49-53,55-57
+  s_76a59ffe06f6bb::t_11b6610860a081 42
+  s_76a59ffe06f6bb::t_c13e4441966106 9,17,25,33,54
+  s_76a59ffe06f6bb::t_0205e09d2a0419 38-41,45-48
+apps/dashboard/src/features/auth/AuthShell.tsx
+  s_76a59ffe06f6bb::t_c13e4441966106 12
+  s_76a59ffe06f6bb::t_718f5e76516c43 6-7,10-11,13,19,33
+apps/dashboard/src/features/onboarding/OnboardingExperience.tsx
+  s_76a59ffe06f6bb::t_718f5e76516c43 31,48-53,121,123,135
+.github/workflows/regression.yml
+  s_76a59ffe06f6bb::t_ef088b971d9954 68-78
+  s_76a59ffe06f6bb::t_d5c4306af1c7cb 96,105,281
+docs/web-app-split.md
+  s_76a59ffe06f6bb::t_96a3e24ba2d18e 50-55
+  s_76a59ffe06f6bb::t_e259ab3e52cac0 171-185
+  s_76a59ffe06f6bb::t_1f5c1c60f7d70c 1-49,56-170
+packages/env/package.json
+  s_76a59ffe06f6bb::t_2f13c79090da46 25-26
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_76a59ffe06f6bb::t_0205e09d2a0419 4-31,33-53,75-100
+  s_76a59ffe06f6bb::t_3ea2d1f40b3bcd 132,155,197-217,236-245
+  s_76a59ffe06f6bb::t_f5e468294764e4 32,54-74
+apps/discord-bot/src/deployment/webOnlyChanges.test.ts
+  s_76a59ffe06f6bb::t_0205e09d2a0419 3
+  s_76a59ffe06f6bb::t_1da194e753a00e 129-136
+  s_76a59ffe06f6bb::t_2f64256df8042e 6-21,25-27,29-120,125-126
+  s_76a59ffe06f6bb::t_7a71320c8582f8 1-2,4-5,22-24,28,121-124,127-128,137
+apps/dashboard/vercel.json
+  s_76a59ffe06f6bb::t_7a71320c8582f8 1-6
+apps/landing/next.config.mjs
+  s_76a59ffe06f6bb::t_f20d14a55c05e2 1-11
+apps/landing/postcss.config.mjs
+  s_76a59ffe06f6bb::t_93b24b9b07ade0 1
+apps/landing/public/site.webmanifest
+  s_76a59ffe06f6bb::t_2eb0a61c428504 1-19
+apps/landing/tsconfig.json
+  s_76a59ffe06f6bb::t_9ff3d894d93a14 1-22
+bun.lock
+  s_76a59ffe06f6bb::t_25b1a0c247525e 50-70,837-838
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "73e85150fc9ad69d309518ea5d621fe0e743d4e0",
+  "prompts": {},
+  "sessions": {
+    "s_76a59ffe06f6bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1119b-840b-7cb0-a540-b897a4f79d76",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
