@@ -52,11 +52,54 @@ test("actual server entry uses Clerk and a Convex token, rejects missing tokens 
       },
     },
   })
+  const origins = {
+    NEXT_PUBLIC_SITE_URL: "https://dev.cleoai.cloud",
+    VERCEL_ENV: "preview",
+    VERCEL_URL: "dev-app.cleoai.cloud",
+  }
+  t.mock.module("@workspace/env/dashboard", {
+    exports: { dashboardEnv: origins },
+  })
   const { default: root } = await import("../../app/page")
-  await assert.rejects(root(), { message: "redirect:/sign-in" })
+  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+    message: "redirect:/sign-in",
+  })
   assert.equal(reads, 0)
+  for (const siteOrigin of [
+    "https://dev.cleoai.cloud",
+    "https://cleoai.cloud",
+  ]) {
+    origins.NEXT_PUBLIC_SITE_URL = siteOrigin
+    await assert.rejects(
+      root({ searchParams: Promise.resolve({ s: "sign-out" }) }),
+      { message: `redirect:${siteOrigin}` }
+    )
+    assert.equal(reads, 0)
+  }
+  for (const s of [
+    "https://evil.example",
+    "//evil.example",
+    ["sign-out", "sign-out"],
+  ]) {
+    await assert.rejects(root({ searchParams: Promise.resolve({ s }) }), {
+      message: "redirect:/sign-in",
+    })
+  }
+  origins.NEXT_PUBLIC_SITE_URL = ""
+  await assert.rejects(
+    root({ searchParams: Promise.resolve({ s: "sign-out" }) }),
+    /NEXT_PUBLIC_SITE_URL must be configured/
+  )
+  origins.VERCEL_ENV = ""
+  origins.VERCEL_URL = ""
+  await assert.rejects(
+    root({ searchParams: Promise.resolve({ s: "sign-out" }) }),
+    { message: "redirect:http://localhost:3001" }
+  )
   userId = "user_123"
-  await assert.rejects(root(), { message: "redirect:/onboarding" })
+  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+    message: "redirect:/onboarding",
+  })
   assert.deepEqual(tokenOptions, { template: "convex" })
   state = {
     status: "ready",
@@ -66,14 +109,24 @@ test("actual server entry uses Clerk and a Convex token, rejects missing tokens 
       onboardingProvenance: "post-rollout",
     },
   }
-  await assert.rejects(root(), { message: "redirect:/onboarding" })
+  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+    message: "redirect:/onboarding",
+  })
   state.account.onboardingCompletedAt = 1
   state.account.onboardingVersion = 1
   audience = ["convex"]
-  await assert.rejects(root(), { message: "redirect:/dashboard" })
+  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+    message: "redirect:/dashboard",
+  })
   assert.equal(tokenOptions, undefined)
+  await assert.rejects(
+    root({ searchParams: Promise.resolve({ s: "sign-out" }) }),
+    { message: "redirect:/dashboard" }
+  )
   audience = "convex"
-  await assert.rejects(root(), { message: "redirect:/dashboard" })
+  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+    message: "redirect:/dashboard",
+  })
   t.mock.module(
     new URL("../onboarding/OnboardingExperience.tsx", import.meta.url).href,
     { exports: { OnboardingExperience: () => null } }
@@ -98,12 +151,14 @@ test("actual server entry uses Clerk and a Convex token, rejects missing tokens 
     )
   }
   token = null
-  await assert.rejects(root(), {
+  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
     message: "Clerk did not return a Convex authentication token",
   })
   token = "convex-jwt"
   backendFailure = true
-  await assert.rejects(root(), { message: "backend unavailable" })
+  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+    message: "backend unavailable",
+  })
 })
 
 test("actual dashboard proxy keeps signed-out deep links and overwrites untrusted return headers", async (t) => {
@@ -155,4 +210,23 @@ test("actual dashboard proxy keeps signed-out deep links and overwrites untruste
   )
   const { default: robots } = await import("../../app/robots")
   assert.deepEqual(robots(), { rules: { userAgent: "*", allow: "/" } })
+})
+
+test("Convex uses the session-aware provider guard instead of its permanent unload warning", async (t) => {
+  t.mock.module("@workspace/env/dashboard", {
+    exports: {
+      dashboardEnv: { NEXT_PUBLIC_CONVEX_URL: "https://test.convex.cloud" },
+    },
+  })
+  let receivedOptions: unknown
+  class ConvexReactClient {
+    constructor(url: string, options: unknown) {
+      assert.equal(url, "https://test.convex.cloud")
+      receivedOptions = options
+    }
+  }
+  t.mock.module("convex/react", { exports: { ConvexReactClient } })
+  const { convexClient } = await import("../../lib/convexClient")
+  assert.ok(convexClient instanceof ConvexReactClient)
+  assert.deepEqual(receivedOptions, { unsavedChangesWarning: false })
 })

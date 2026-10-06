@@ -124,18 +124,7 @@ export default function RootLayout({
       </head>
       <body className="flex h-full min-h-screen w-full min-w-full flex-col overflow-x-hidden scroll-smooth bg-background text-foreground antialiased">
         <ThemeProvider>
-          <AppProviders
-            siteOrigin={resolveWebOrigin({
-              configuredUrl: dashboardEnv.NEXT_PUBLIC_SITE_URL,
-              vercelUrl: dashboardEnv.VERCEL_URL,
-              vercelEnv: dashboardEnv.VERCEL_ENV,
-              allowVercelUrl: false,
-              variableName: "NEXT_PUBLIC_SITE_URL",
-              localOrigin: "http://localhost:3001",
-            })}
-          >
-            {children}
-          </AppProviders>
+          <AppProviders>{children}</AppProviders>
         </ThemeProvider>
       </body>
     </html>
