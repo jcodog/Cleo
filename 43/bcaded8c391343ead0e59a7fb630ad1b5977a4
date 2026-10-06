@@ -1,0 +1,27 @@
+docs/web-app-split.md
+  s_76a59ffe06f6bb::t_df1efd46764971 188,211-215
+apps/landing/src/components/providers/theme-provider.test.ts
+  s_76a59ffe06f6bb::t_b6de1d9cdeb21c 12,204-212
+  s_76a59ffe06f6bb::t_d8ae22766eac72 1-11,13-203,213-215
+apps/landing/src/features/landing/LandingAuthActions.test.ts
+  s_76a59ffe06f6bb::t_b6de1d9cdeb21c 44-45,56-59
+apps/landing/src/features/landing/LandingAuthActions.tsx
+  s_76a59ffe06f6bb::t_da3af4d0e110fe 23
+  s_76a59ffe06f6bb::t_b69448f283765e 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43bcaded8c391343ead0e59a7fb630ad1b5977a4",
+  "prompts": {},
+  "sessions": {
+    "s_76a59ffe06f6bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1119b-840b-7cb0-a540-b897a4f79d76",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
