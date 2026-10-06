@@ -10,10 +10,11 @@
     "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
-    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src/lib --include=\"src/lib/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/landing\" --temp-directory=\"../../.coverage-tmp/apps/landing\" node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src/lib --src=src/features/landing --src=src/components --include=\"src/lib/**/*.ts\" --include=\"src/features/landing/LandingAuthActions.tsx\" --include=\"src/components/LandingSessionProvider.tsx\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/landing\" --temp-directory=\"../../.coverage-tmp/apps/landing\" node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.9.11",
     "@tabler/icons-react": "^3.49.0",
     "@workspace/env": "workspace:*",
     "@workspace/shared": "workspace:*",

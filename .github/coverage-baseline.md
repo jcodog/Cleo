@@ -25,7 +25,8 @@ enforced policy changes.
 JCN-227 adds dashboard auth/onboarding entry decisions, landing metadata and origin
 selection, and shared legacy app route classification to the enforced include sets.
 Integration tests also exercise server redirects, Clerk token selection and the
-actual Next.js compatibility proxy.
+actual Next.js compatibility proxy. Landing session CTA states and its client-only
+Clerk provider are also enforced at 100%.
 
 The Twitch bootstrap enforces all runtime source and its native artifact
 validator at 100% across all four measures. Behavior tests cover dedicated bot

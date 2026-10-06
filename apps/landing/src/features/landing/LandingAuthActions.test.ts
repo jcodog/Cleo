@@ -2,17 +2,20 @@ import * as React from "react"
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { Children, isValidElement, type ReactNode } from "react"
-import { LandingAuthActions } from "./LandingAuthActions"
 
-function links(node: ReactNode): string[] {
-  if (!isValidElement<{ children?: ReactNode; href?: string }>(node)) return []
-  return [
-    ...(node.props.href ? [node.props.href] : []),
-    ...Children.toArray(node.props.children).flatMap(links),
-  ]
+function text(node: ReactNode): string {
+  if (typeof node === "string") return node
+  if (!isValidElement<{ children?: ReactNode }>(node)) return ""
+  return Children.toArray(node.props.children).map(text).join("")
 }
 
-test("rendered landing CTAs point every placement at the configured authenticated app", (t) => {
+function links(node: ReactNode): { href: string; label: string }[] {
+  if (!isValidElement<{ children?: ReactNode; href?: string }>(node)) return []
+  if (node.props.href) return [{ href: node.props.href, label: text(node) }]
+  return Children.toArray(node.props.children).flatMap(links)
+}
+
+test("landing CTAs follow the loaded Clerk session and configured application origin", async (t) => {
   const previousReact = Object.getOwnPropertyDescriptor(globalThis, "React")
   Object.defineProperty(globalThis, "React", {
     configurable: true,
@@ -22,22 +25,53 @@ test("rendered landing CTAs point every placement at the configured authenticate
     if (previousReact) Object.defineProperty(globalThis, "React", previousReact)
     else Reflect.deleteProperty(globalThis, "React")
   })
-  for (const origin of [
-    "https://app.cleoai.cloud",
-    "https://app-preview.vercel.app",
-    "https://localhost:3000",
-  ]) {
-    assert.deepEqual(
-      links(LandingAuthActions({ origin, placement: "navigation" })),
-      [`${origin}/sign-in`, `${origin}/sign-up`]
-    )
-    assert.deepEqual(links(LandingAuthActions({ origin, placement: "hero" })), [
-      `${origin}/sign-up`,
-      `${origin}/sign-in`,
-    ])
-    assert.deepEqual(
-      links(LandingAuthActions({ origin, placement: "footer" })),
-      [`${origin}/sign-in`]
-    )
+  const session = { isLoaded: false, isSignedIn: false }
+  t.mock.module("@clerk/nextjs", { exports: { useAuth: () => session } })
+  const { LandingAuthActions } = await import("./LandingAuthActions")
+  const placements = ["navigation", "hero", "footer"] as const
+
+  for (const isSignedIn of [false, true]) {
+    session.isSignedIn = isSignedIn
+    session.isLoaded = false
+    for (const placement of placements) {
+      const placeholder = LandingAuthActions({
+        origin: "https://app.example",
+        placement,
+      })
+      assert.deepEqual(links(placeholder), [])
+      assert.equal(text(placeholder), "")
+      assert.equal(placeholder.props["aria-hidden"], true)
+      if (placement === "footer")
+        assert.match(placeholder.props.className, /w-32/)
+      assert.match(placeholder.props.className, /invisible h-(5|8|11) w-/)
+    }
+    session.isLoaded = true
+    for (const origin of [
+      "https://app.cleoai.cloud",
+      "https://paired-app.vercel.app",
+      "https://localhost:3000",
+    ]) {
+      const signIn = { href: `${origin}/sign-in`, label: "Sign in" }
+      const getStarted = { href: `${origin}/sign-up`, label: "Get started" }
+      assert.match(
+        LandingAuthActions({ origin, placement: "footer" }).props.className,
+        /min-w-32/
+      )
+      const dashboard = { href: `${origin}/dashboard`, label: "Open dashboard" }
+      assert.deepEqual(
+        links(LandingAuthActions({ origin, placement: "navigation" })),
+        isSignedIn ? [dashboard] : [signIn, getStarted]
+      )
+      assert.deepEqual(
+        links(LandingAuthActions({ origin, placement: "hero" })),
+        isSignedIn
+          ? [dashboard, { href: "#product", label: "Explore product" }]
+          : [getStarted, signIn]
+      )
+      assert.deepEqual(
+        links(LandingAuthActions({ origin, placement: "footer" })),
+        isSignedIn ? [dashboard] : [signIn]
+      )
+    }
   }
 })
