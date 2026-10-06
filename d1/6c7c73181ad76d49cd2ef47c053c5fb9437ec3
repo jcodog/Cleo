@@ -1,0 +1,41 @@
+apps/dashboard/src/app/page.tsx
+  s_76a59ffe06f6bb::t_8f0dfe0dc6eaa5 10-12,18-27
+  s_76a59ffe06f6bb::t_3a30580e4dff97 7-8,13-14,16-17,28-30
+apps/dashboard/src/components/providers/app-providers.tsx
+  s_76a59ffe06f6bb::t_a547ccf7f98139 4,38,42-43,49
+  s_76a59ffe06f6bb::t_8f0dfe0dc6eaa5 33-35,37
+  s_76a59ffe06f6bb::t_3a30580e4dff97 3,11,23,26,32,39-41,44-48,50-51
+  s_76a59ffe06f6bb::t_83244e95b20acb 36
+  s_76a59ffe06f6bb::t_ef71722ca897bf 52
+apps/dashboard/src/lib/convexClient.ts
+  s_76a59ffe06f6bb::t_3a30580e4dff97 6-9
+apps/dashboard/src/components/providers/app-providers.test.ts
+  s_76a59ffe06f6bb::t_a547ccf7f98139 48,55,81-92,95-96
+  s_76a59ffe06f6bb::t_83244e95b20acb 5,7,12-31,35-37,39-47,50-51,62,64-80
+apps/dashboard/src/app/layout.tsx
+  s_76a59ffe06f6bb::t_8f0dfe0dc6eaa5 127
+apps/dashboard/src/features/auth/serverRouting.test.ts
+  s_76a59ffe06f6bb::t_8f0dfe0dc6eaa5 55-62,64-66,68-98,100-102,112-114,118-120,122-125,127-129,154,159-161
+  s_76a59ffe06f6bb::t_31ad2e318fa2a3 214-232
+docs/web-app-split.md
+  s_76a59ffe06f6bb::t_31ad2e318fa2a3 92,188,203,206-210
+  s_76a59ffe06f6bb::t_1b25a4210e3fd0 72,85,124,134
+apps/landing/.env.example
+  s_76a59ffe06f6bb::t_1b25a4210e3fd0 9-11,13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d16c7c73181ad76d49cd2ef47c053c5fb9437ec3",
+  "prompts": {},
+  "sessions": {
+    "s_76a59ffe06f6bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1119b-840b-7cb0-a540-b897a4f79d76",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
