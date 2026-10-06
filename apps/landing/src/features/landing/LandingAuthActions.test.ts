@@ -41,6 +41,8 @@ test("landing CTAs follow the loaded Clerk session and configured application or
       assert.deepEqual(links(placeholder), [])
       assert.equal(text(placeholder), "")
       assert.equal(placeholder.props["aria-hidden"], true)
+      if (placement === "footer")
+        assert.match(placeholder.props.className, /w-32/)
       assert.match(placeholder.props.className, /invisible h-(5|8|11) w-/)
     }
     session.isLoaded = true
@@ -51,6 +53,10 @@ test("landing CTAs follow the loaded Clerk session and configured application or
     ]) {
       const signIn = { href: `${origin}/sign-in`, label: "Sign in" }
       const getStarted = { href: `${origin}/sign-up`, label: "Get started" }
+      assert.match(
+        LandingAuthActions({ origin, placement: "footer" }).props.className,
+        /min-w-32/
+      )
       const dashboard = { href: `${origin}/dashboard`, label: "Open dashboard" }
       assert.deepEqual(
         links(LandingAuthActions({ origin, placement: "navigation" })),

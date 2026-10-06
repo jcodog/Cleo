@@ -185,7 +185,7 @@ been verified.
 ## Repository validation
 
 Local root `typecheck`, `lint`, `test`, `test:coverage` and `build` passed. The test
-run contains 706 cases across nine workspaces; every configured coverage include
+run contains 707 cases across nine workspaces; every configured coverage include
 set achieved 100% in all four measures. Thresholds were preserved and the dashboard
 include set expanded to cover application entry decisions. Tests and coverage used
 Turbo's loose environment mode only to pass a process-scoped Git safe.directory
@@ -208,3 +208,8 @@ For the operator's dev-app.cleoai.cloud deployment, set dashboard Preview
 NEXT_PUBLIC_SITE_URL=https://dev.cleoai.cloud and rebuild. Production uses
 https://cleoai.cloud. These are build-time values; the redirect does not infer
 the site from the app hostname. No environment values were changed here.
+
+Automated landing theme tests exercise the copied provider and toggle handlers,
+including saved preference loading, click/D switching, ignored typing and modified
+keys, system preference changes, blocked storage and listener cleanup. The footer
+reserves the Open dashboard width during loading and after session resolution.

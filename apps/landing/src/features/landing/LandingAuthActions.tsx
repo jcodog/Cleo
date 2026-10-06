@@ -20,12 +20,12 @@ export function LandingAuthActions({
 
   if (placement === "footer") {
     if (!isLoaded) {
-      return <span aria-hidden className="invisible h-5 w-14" />
+      return <span aria-hidden className="invisible h-5 w-32 shrink-0" />
     }
 
     return (
       <Link
-        className="rounded-sm transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="inline-block min-w-32 rounded-sm transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         href={isSignedIn ? `${origin}/dashboard` : `${origin}/sign-in`}
       >
         {isSignedIn ? "Open dashboard" : "Sign in"}
