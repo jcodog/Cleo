@@ -28,26 +28,22 @@ const AppLayout = async ({
   children,
 }: Readonly<{ children: React.ReactNode }>) => {
   const token = await getConvexAuthToken()
-  const preloadedOnboarding = await preloadQuery(
-    api.queries.dashboard.account.onboarding.get,
-    {},
-    { token }
-  )
+  const [preloadedOnboarding, preloadedStaffAccess, preloadedManageableGuilds] =
+    await Promise.all([
+      preloadQuery(api.queries.dashboard.account.onboarding.get, {}, { token }),
+      preloadQuery(api.queries.dashboard.staff.access.get, {}, { token }),
+      preloadQuery(
+        api.queries.dashboard.discord.guilds.manageable.list,
+        {},
+        { token }
+      ),
+    ])
   if (
     applicationEntryPath(preloadedQueryResult(preloadedOnboarding)) ===
     "/onboarding"
   ) {
     redirect(onboardingPath((await headers()).get("x-cleo-return-path")))
   }
-  const [preloadedStaffAccess, preloadedManageableGuilds] = await Promise.all([
-    preloadQuery(api.queries.dashboard.staff.access.get, {}, { token }),
-    preloadQuery(
-      api.queries.dashboard.discord.guilds.manageable.list,
-      {},
-      { token }
-    ),
-  ])
-
   return (
     <OnboardingGuard preloadedOnboarding={preloadedOnboarding}>
       <DashboardShellClient

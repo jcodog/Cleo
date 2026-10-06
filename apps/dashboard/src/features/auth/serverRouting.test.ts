@@ -131,6 +131,7 @@ test("actual dashboard proxy keeps signed-out deep links and overwrites untruste
     assert.equal(location.origin, "https://app.cleoai.cloud")
     assert.equal(location.pathname, "/sign-in")
     assert.equal(location.searchParams.get("returnTo"), path)
+    assert.equal(response.headers.get("X-Robots-Tag"), "noindex, nofollow")
   }
   userId = "user_123"
   const response = await handler(
@@ -153,5 +154,5 @@ test("actual dashboard proxy keeps signed-out deep links and overwrites untruste
     null
   )
   const { default: robots } = await import("../../app/robots")
-  assert.deepEqual(robots(), { rules: { userAgent: "*", disallow: "/" } })
+  assert.deepEqual(robots(), { rules: { userAgent: "*", allow: "/" } })
 })

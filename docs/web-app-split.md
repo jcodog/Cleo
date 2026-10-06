@@ -30,6 +30,11 @@ unresolved provenance go through the existing onboarding hydration flow.
 The dashboard proxy sends signed-out product routes to the existing Discord auth UI
 with a validated `returnTo`. SSR checks onboarding before mounting the application
 shell, and preserves the requested path/query through onboarding completion.
+The rendered Clerk SignIn/SignUp routes validate `returnTo` and pass it through
+Clerk's [forceRedirectUrl and alternate-flow redirect props](https://clerk.com/docs/guides/development/customize-redirect-urls). Their alternate auth
+links carry the same validated destination. Missing or rejected paths use app `/`
+for sign-in and `/onboarding` for sign-up, overriding untrusted Clerk redirect
+query values. The unused custom DiscordAuthPage retains its previous behavior.
 Return paths reject external/protocol-relative URLs, encoded slash/backslash
 redirects, control characters and auth/onboarding loops. Existing authorization
 checks still govern the final destination.
@@ -42,8 +47,10 @@ stay public. `/`, product, pricing, legal and other public paths stay on the sit
 
 Landing owns canonical metadata, robots and sitemap. Its sitemap lists only the
 existing homepage. Vercel landing previews are noindex/nofollow. Dashboard root
-metadata and page response headers are noindex/nofollow, and robots disallows all
-paths. The app root no longer emits the apex canonical.
+metadata and page response headers are noindex/nofollow. Robots allows crawling
+so search engines can read those directives; it does not expose protected content.
+Landing previews also allow crawling to make their noindex directives visible.
+The app root no longer emits the apex canonical.
 
 ## Environment and development
 
@@ -60,7 +67,8 @@ redirects use APP_URL. Turbo declares the new site URL and Vercel context variab
 
 Run the existing dashboard HTTPS development server on port 3000 and landing HTTP
 on port 3001 using their workspace `dev` scripts. Default cross-app local origins
-match those protocols. When overriding ports or testing HTTP production servers,
+match those protocols. Local `next start` metadata defaults to HTTP. When overriding
+ports,
 set both public URL variables to the actual origins in local env files. Do not run
 duplicate development servers.
 
@@ -68,7 +76,11 @@ Use Vercel's generated branch aliases as a paired preview environment. Set landi
 APP_URL to the matching dashboard alias and dashboard SITE_URL to the matching
 landing alias. Set each project's own URL explicitly to its matching alias, or
 leave it unset so VERCEL_URL supplies its own metadata origin. Never infer the other
-project's alias from the current project's VERCEL_URL.
+project's alias from the current project's VERCEL_URL. Missing cross-app origins
+on Vercel fail explicitly, rather than publishing localhost links or redirects.
+Production also requires the app's own configured origin; only Preview may use
+its own VERCEL_URL fallback. VERCEL_URL passes through Turbo globally but is hashed
+only by each web app's build task, since those artifacts may embed metadata URLs.
 
 The existing cleo Preview APP_URL remains `https://dev.cleoai.cloud` until an
 operator changes it. Override it for JCN-227 only, using a branch-scoped Preview
@@ -152,14 +164,21 @@ authenticated Vercel access. Keep this change in draft until those checks pass.
    the working combined deployment while this is checked.
 6. Record the current production deployment URL/ID, domain bindings, environment
    values and legacy dev binding as the rollback reference. Obtain cutover review.
-7. Coordinate merge/production promotion carefully: merging deploys the app-only
-   dashboard and would remove marketing from apex while apex remains attached to
-   cleo. Do not merge ahead of the prepared landing/domain handoff. Set cleo
-   Production APP_URL from `https://cleoai.cloud` to `https://app.cleoai.cloud` and
-   redeploy the reviewed dashboard. Keep SITE_URL at `https://cleoai.cloud`.
-8. Prepare and validate the landing Production deployment with its two target
-   origins. Only then move apex and www from cleo to cleo-landing. Configure www
-   as a 308 redirect to apex. Leave app on cleo and dev on its existing branch.
+7. Before merging or promoting any dashboard-only build on cleo, create and
+   validate the landing Production deployment with
+   `NEXT_PUBLIC_SITE_URL=https://cleoai.cloud` and
+   `NEXT_PUBLIC_APP_URL=https://app.cleoai.cloud`. Use the reviewed feature commit
+   while main lacks apps/landing. Keep apex/www on the working combined deployment
+   throughout preparation. Also prepare the reviewed dashboard deployment with
+   production Clerk/Convex authority and the target origins, without replacing
+   the deployment serving apex. Both production deployments must be proven first.
+8. At the reviewed coordinated cutover, move apex and www to the proven landing
+   Production deployment first; configure www as a 308 redirect to apex. Then
+   merge/promote the dashboard-only build on cleo. Set cleo Production
+   `NEXT_PUBLIC_APP_URL` from `https://cleoai.cloud` to `https://app.cleoai.cloud`
+   for that build; keep `NEXT_PUBLIC_SITE_URL=https://cleoai.cloud`. Leave app on
+   cleo and dev on its existing branch. Do not let an automatic main deployment
+   promote dashboard-only cleo before the apex/www handoff is complete.
 9. Verify production canonical/SEO, root routing, auth/linking and bookmarked app
    paths immediately. If validation fails, restore apex/www to cleo and restore
    the recorded combined deployment and old APP_URL, without changing Clerk
@@ -172,7 +191,7 @@ been verified.
 ## Repository validation
 
 Local root `typecheck`, `lint`, `test`, `test:coverage` and `build` passed. The test
-run contains 694 cases across nine workspaces; every configured coverage include
+run contains 703 cases across nine workspaces; every configured coverage include
 set achieved 100% in all four measures. Thresholds were preserved and the dashboard
 include set expanded to cover application entry decisions. Tests and coverage used
 Turbo's loose environment mode only to pass a process-scoped Git safe.directory

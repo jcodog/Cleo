@@ -21,7 +21,12 @@ const metadataBase = new URL(
   resolveWebOrigin({
     configuredUrl: dashboardEnv.NEXT_PUBLIC_APP_URL,
     vercelUrl: dashboardEnv.VERCEL_URL,
-    localOrigin: "https://localhost:3000",
+    vercelEnv: dashboardEnv.VERCEL_ENV,
+    variableName: "NEXT_PUBLIC_APP_URL",
+    localOrigin:
+      dashboardEnv.NODE_ENV === "development"
+        ? "https://localhost:3000"
+        : "http://localhost:3000",
   })
 )
 

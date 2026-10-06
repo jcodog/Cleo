@@ -176,6 +176,7 @@ For normal development, prefer running the workspace you are actively changing. 
 
 ```bash
 bun run --filter @workspace/dashboard dev
+bun run --filter @workspace/landing dev
 bun run --filter @workspace/backend dev
 bun run --filter @workspace/discord-bot dev
 ```
@@ -204,6 +205,10 @@ Prefer targeted validation for the workspace you are changing:
 bun run --filter @workspace/dashboard typecheck
 bun run --filter @workspace/dashboard lint
 bun run --filter @workspace/dashboard test
+
+bun run --filter @workspace/landing typecheck
+bun run --filter @workspace/landing lint
+bun run --filter @workspace/landing test
 
 bun run --filter @workspace/backend typecheck
 bun run --filter @workspace/backend lint

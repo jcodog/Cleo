@@ -9,6 +9,10 @@ import { resolveWebOrigin } from "@workspace/env/origins"
 export function AuthShell({ children }: { children: React.ReactNode }) {
   const siteUrl = resolveWebOrigin({
     configuredUrl: dashboardEnv.NEXT_PUBLIC_SITE_URL,
+    vercelUrl: dashboardEnv.VERCEL_URL,
+    vercelEnv: dashboardEnv.VERCEL_ENV,
+    allowVercelUrl: false,
+    variableName: "NEXT_PUBLIC_SITE_URL",
     localOrigin: "http://localhost:3001",
   })
   return (

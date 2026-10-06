@@ -28,12 +28,88 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
+// Follow Bun's package-location keys, including nested versions and workspace links.
+function lockPackagesUsedBy(
+  workspaces: Record<string, unknown>,
+  packages: Record<string, unknown>,
+  roots: unknown[]
+): Set<string> {
+  const used = new Set<string>()
+  function visitDependencies(metadata: unknown, context: string) {
+    if (!isRecord(metadata)) return
+    for (const field of [
+      "dependencies",
+      "devDependencies",
+      "optionalDependencies",
+      "peerDependencies",
+    ]) {
+      const dependencies = metadata[field]
+      if (dependencies === undefined) continue
+      if (!isRecord(dependencies))
+        throw new Error("Invalid lockfile dependencies")
+      for (const name of Object.keys(dependencies)) {
+        const ancestors = context.match(/(?:@[^/]+\/)?[^/]+/g) ?? []
+        let key = name
+        while (ancestors.length > 0) {
+          const candidate = `${ancestors.join("/")}/${name}`
+          if (candidate in packages) {
+            key = candidate
+            break
+          }
+          ancestors.pop()
+        }
+        const entry = packages[key]
+        if (
+          entry === undefined &&
+          ["optionalDependencies", "peerDependencies"].includes(field)
+        )
+          continue
+        if (!Array.isArray(entry) || typeof entry[0] !== "string")
+          throw new Error("Unresolved lockfile dependency")
+        if (used.has(key)) continue
+        used.add(key)
+        if (entry[0].startsWith("workspace:")) {
+          const workspace = workspaces[entry[0].slice("workspace:".length)]
+          if (!isRecord(workspace))
+            throw new Error("Unresolved lockfile workspace")
+          visitDependencies(workspace, key)
+        } else {
+          visitDependencies(entry[2], key)
+        }
+      }
+    }
+  }
+  for (const root of roots) {
+    if (!isRecord(root)) throw new Error("Invalid lockfile workspace")
+    visitDependencies(root, typeof root.name === "string" ? root.name : "")
+  }
+  return used
+}
+
 function configWithoutWebEntries(file: string, source: string): unknown {
   const config: unknown = JSON.parse(withoutTrailingCommas(source))
   if (!isRecord(config)) throw new Error("Invalid configuration")
   if (file === "bun.lock") {
     if (!isRecord(config.workspaces) || !isRecord(config.packages))
       throw new Error("Invalid lockfile")
+    const landing = config.workspaces["apps/landing"]
+    if (landing !== undefined) {
+      const landingPackages = lockPackagesUsedBy(
+        config.workspaces,
+        config.packages,
+        [landing]
+      )
+      const runtimePackages = lockPackagesUsedBy(
+        config.workspaces,
+        config.packages,
+        Object.entries(config.workspaces)
+          .filter(([name]) => name !== "apps/landing")
+          .map(([, workspace]) => workspace)
+      )
+      for (const key of landingPackages) {
+        if (!runtimePackages.has(key)) delete config.packages[key]
+      }
+    }
     delete config.workspaces["apps/landing"]
     delete config.packages["@workspace/landing"]
   } else if (file === "turbo.json") {
@@ -45,6 +121,13 @@ function configWithoutWebEntries(file: string, source: string): unknown {
           String(name)
         )
     )
+    if (Array.isArray(config.globalPassThroughEnv)) {
+      const passThrough = config.globalPassThroughEnv.filter(
+        (name) => name !== "VERCEL_URL"
+      )
+      config.globalPassThroughEnv = passThrough
+      if (passThrough.length === 0) delete config.globalPassThroughEnv
+    }
   } else {
     if (!isRecord(config.exports)) throw new Error("Invalid package exports")
     for (const key of ["./landing", "./origins", "./appRoutes"])
@@ -166,6 +249,15 @@ export function isCommandRegistrationPath(file: string): boolean {
   )
 }
 
+export function isTwitchDeployPath(file: string): boolean {
+  return (
+    !isWebOnlyPath(file) &&
+    (file.startsWith("apps/twitch-bot/") ||
+      file.startsWith("ops/twitch/") ||
+      isConvexDeployPath(file))
+  )
+}
+
 export function classifyChangedPaths(files: string[]) {
   return {
     deploy: files.some(isDiscordDeployPath),
@@ -234,12 +326,7 @@ if (isDirectEntrypoint()) {
       : mode === "backend"
         ? changedPaths.some(isConvexDeployPath)
         : mode === "twitch"
-          ? changedPaths.some(
-              (file) =>
-                file.startsWith("apps/twitch-bot/") ||
-                file.startsWith("ops/twitch/") ||
-                isConvexDeployPath(file)
-            )
+          ? changedPaths.some(isTwitchDeployPath)
           : mode === "deploy"
             ? classifyChangedPaths(changedPaths).deploy
             : classifyChangedPaths(changedPaths).registerCommands

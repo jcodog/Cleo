@@ -1,5 +1,3 @@
-"use client"
-
 import type { JSX } from "react"
 import { IconArrowRight } from "@tabler/icons-react"
 import { buttonVariants } from "@workspace/ui/components/button"

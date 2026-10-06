@@ -16,11 +16,8 @@ const fontMono = Geist_Mono({
 export const metadata: Metadata = siteMetadata()
 
 export const viewport: Viewport = {
-  colorScheme: "dark light",
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-  ],
+  colorScheme: "dark",
+  themeColor: "#0a0a0b",
 }
 
 export default function RootLayout({

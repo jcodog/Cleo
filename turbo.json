@@ -6,7 +6,6 @@
     "NEXT_PUBLIC_CONVEX_URL",
     "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_SITE_URL",
-    "VERCEL_URL",
     "VERCEL_ENV",
     "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
@@ -21,6 +20,7 @@
     "CONVEX_URL",
     "PORT"
   ],
+  "globalPassThroughEnv": ["VERCEL_URL"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

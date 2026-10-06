@@ -7,8 +7,13 @@ export default clerkMiddleware(async (auth, request) => {
   const returnTo = `${request.nextUrl.pathname}${request.nextUrl.search}`
   if (isProtectedAppPath(request.nextUrl.pathname)) {
     const { userId } = await auth()
-    if (!userId)
-      return NextResponse.redirect(new URL(signInPath(returnTo), request.url))
+    if (!userId) {
+      const response = NextResponse.redirect(
+        new URL(signInPath(returnTo), request.url)
+      )
+      response.headers.set("X-Robots-Tag", "noindex, nofollow")
+      return response
+    }
   }
   const headers = new Headers(request.headers)
   // Replace caller-supplied values so SSR only trusts the path observed here.

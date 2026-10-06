@@ -6,6 +6,8 @@ export function siteOrigin(): string {
   return resolveWebOrigin({
     configuredUrl: landingEnv.NEXT_PUBLIC_SITE_URL,
     vercelUrl: landingEnv.VERCEL_URL,
+    vercelEnv: landingEnv.VERCEL_ENV,
+    variableName: "NEXT_PUBLIC_SITE_URL",
     localOrigin: "http://localhost:3001",
   })
 }
@@ -13,7 +15,14 @@ export function siteOrigin(): string {
 export function appOrigin(): string {
   return resolveWebOrigin({
     configuredUrl: landingEnv.NEXT_PUBLIC_APP_URL,
-    localOrigin: "https://localhost:3000",
+    vercelUrl: landingEnv.VERCEL_URL,
+    vercelEnv: landingEnv.VERCEL_ENV,
+    allowVercelUrl: false,
+    variableName: "NEXT_PUBLIC_APP_URL",
+    localOrigin:
+      landingEnv.NODE_ENV === "development"
+        ? "https://localhost:3000"
+        : "http://localhost:3000",
   })
 }
 

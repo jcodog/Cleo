@@ -7,6 +7,7 @@ export const dashboardEnv = createEnv({
     NODE_ENV: nodeEnv,
     CLERK_SECRET_KEY: optionalString,
     VERCEL_URL: optionalString,
+    VERCEL_ENV: optionalString,
   },
   clientPrefix: "NEXT_PUBLIC_",
   client: {
@@ -23,6 +24,7 @@ export const dashboardEnv = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     VERCEL_URL: process.env.VERCEL_URL,
+    VERCEL_ENV: process.env.VERCEL_ENV,
     NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,

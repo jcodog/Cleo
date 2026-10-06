@@ -1,19 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { landingEnv } from "@workspace/env/landing"
-import { resolveWebOrigin } from "@workspace/env/origins"
 import { legacyAppRedirect } from "@workspace/shared/appRoutes"
+import { appOrigin } from "@/lib/siteMetadata"
+import { landingEnv } from "@workspace/env/landing"
 
 export default function proxy(request: NextRequest) {
-  const destination = legacyAppRedirect(
-    request.url,
-    resolveWebOrigin({
-      configuredUrl: landingEnv.NEXT_PUBLIC_APP_URL,
-      localOrigin: "https://localhost:3000",
-    })
-  )
-  return destination
+  const destination = legacyAppRedirect(request.url, appOrigin())
+  const response = destination
     ? NextResponse.redirect(destination, 308)
     : NextResponse.next()
+  if (landingEnv.VERCEL_ENV === "preview") {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow")
+  }
+  return response
 }
 
 export const config = {

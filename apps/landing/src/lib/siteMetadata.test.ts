@@ -6,8 +6,9 @@ test("landing metadata, robots, sitemap and compatibility proxy use the separate
   const values = {
     NEXT_PUBLIC_SITE_URL: "https://cleoai.cloud",
     NEXT_PUBLIC_APP_URL: "https://app.cleoai.cloud",
-    VERCEL_URL: undefined,
+    VERCEL_URL: "",
     VERCEL_ENV: "production",
+    NODE_ENV: "production",
   }
   t.mock.module("@workspace/env/landing", { exports: { landingEnv: values } })
   const { siteMetadata, siteOrigin, appOrigin } = await import("./siteMetadata")
@@ -36,6 +37,30 @@ test("landing metadata, robots, sitemap and compatibility proxy use the separate
     null
   )
   values.VERCEL_ENV = "preview"
+  assert.equal(
+    proxy(new NextRequest("https://site.vercel.app/")).headers.get(
+      "X-Robots-Tag"
+    ),
+    "noindex, nofollow"
+  )
   assert.deepEqual(siteMetadata().robots, { index: false, follow: false })
-  assert.deepEqual(robots().rules, { userAgent: "*", disallow: "/" })
+  assert.deepEqual(robots().rules, { userAgent: "*", allow: "/" })
+  values.NEXT_PUBLIC_APP_URL = ""
+  assert.throws(appOrigin, /NEXT_PUBLIC_APP_URL must be configured/)
+  assert.throws(
+    () => proxy(new NextRequest("https://site.vercel.app/twitch")),
+    /NEXT_PUBLIC_APP_URL must be configured/
+  )
+  values.VERCEL_URL = "landing-preview.vercel.app"
+  values.NEXT_PUBLIC_SITE_URL = ""
+  assert.equal(siteOrigin(), "https://landing-preview.vercel.app")
+  values.VERCEL_ENV = "production"
+  assert.throws(siteOrigin, /NEXT_PUBLIC_SITE_URL must be configured/)
+  values.VERCEL_ENV = ""
+  values.VERCEL_URL = ""
+  values.NODE_ENV = "development"
+  assert.equal(appOrigin(), "https://localhost:3000")
+  assert.equal(siteOrigin(), "http://localhost:3001")
+  values.NODE_ENV = "production"
+  assert.equal(appOrigin(), "http://localhost:3000")
 })
