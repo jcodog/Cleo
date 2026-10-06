@@ -11,6 +11,7 @@ export const landingEnv = createEnv({
   client: {
     NEXT_PUBLIC_SITE_URL: optionalUrl,
     NEXT_PUBLIC_APP_URL: optionalUrl,
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
@@ -18,5 +19,7 @@ export const landingEnv = createEnv({
     VERCEL_ENV: process.env.VERCEL_ENV,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   },
 })

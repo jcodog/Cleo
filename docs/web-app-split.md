@@ -6,19 +6,16 @@ screenshot moved with it. No unfinished public pages were added.
 
 `apps/dashboard` owns authentication, onboarding, Discord server management,
 Twitch, Kick and staff tools on `app.cleoai.cloud`. Clerk and Convex remain its
-identity and backend authorities. The landing app has no Clerk or Convex dependency
-and receives no authenticated-app secrets.
+identity and backend authorities. Landing uses Clerk only for client-side session awareness and receives no authenticated-app secrets or Convex dependency.
 
 Both apps consume `packages/ui`, `packages/env` and `packages/shared`. The new
-`@workspace/env/landing` contract exposes only the public origins and Vercel build
-context. `@workspace/env/origins` selects configured origins, the current project's
+`@workspace/env/landing` contract exposes public origins, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and Vercel build context. `@workspace/env/origins` selects configured origins, the current project's
 Vercel URL where appropriate, or explicit local origins. Shared route classification
 lives in `@workspace/shared/appRoutes`. No landing-to-dashboard source dependency.
 
-The landing cannot inspect the dashboard session without adding Clerk to the public
-site. Its existing Sign in/Get started buttons now link to the authenticated app.
-An existing session continues through that app's entry/onboarding checks. This is
-the only session-dependent marketing behavior changed by the split.
+LandingSessionProvider is a client boundary using the existing Cleo Clerk public key. The marketing page remains statically rendered without server auth or Clerk middleware. LandingAuthActions waits for useAuth().isLoaded, reserving the existing placeholder sizes. Signed-out visitors see Sign in/Get started; signed-in visitors see Open dashboard and a local Explore product anchor in the hero/final CTA. All auth/product URLs use appOrigin(). No Convex queries, provider-token access or dashboard imports enter landing.
+
+Landing copies the existing dashboard ThemeProvider, ThemeToggle and pre-paint resolver locally. Its root layout exposes the toggle on all public pages, with the same saved/system preference and D shortcut. Dashboard theme code stays unchanged. Browser theme preferences are stored per origin.
 
 ## Routing and SEO
 
@@ -94,7 +91,7 @@ domains during this migration.
 Clerk production authority stays `clerk.cleoai.cloud`. Convex continues to validate
 the existing issuer and `convex` audience. SSR requests use the current Clerk token
 directly when it has that audience, otherwise the existing Convex JWT template.
-Sign-out still returns to app `/`, which now resolves to sign-in. Session refresh
+Dashboard sign-out returns to the configured public site origin, cleoai.cloud in Production and the paired landing origin in Preview/local development. Session refresh
 and account switching retain the existing Clerk/Convex provider integration.
 
 Discord identity and provider tokens remain Clerk `oauth_discord`. The audited
@@ -126,9 +123,7 @@ unaffected projects setting for both projects. The package graph allows changes
 inside one app to avoid rebuilding the other; shared-package changes may rebuild
 both. See [Vercel monorepo documentation](https://vercel.com/docs/monorepos).
 
-Landing Production needs only the two public URL variables. Landing Preview needs
-the paired public URL variables. Do not copy Clerk keys, Clerk issuer/secret,
-Convex URLs/deploy keys, provider secrets or runtime credentials into landing.
+Landing Production requires only NEXT_PUBLIC_SITE_URL=https://cleoai.cloud, NEXT_PUBLIC_APP_URL=https://app.cleoai.cloud and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY from the existing production Clerk application. Preview requires paired public origins and the public key from the same Clerk instance as its dashboard preview. Do not copy CLERK_SECRET_KEY, Clerk issuer settings, Convex URLs/deploy keys, provider secrets or runtime credentials into landing.
 
 Regression CI now builds both apps with clearly labelled compile-only public
 fixtures and checks both coverage reports. Bot deployment classification ignores
@@ -153,6 +148,8 @@ authenticated Vercel access. Keep this change in draft until those checks pass.
    settings and legacy dev alias.
 3. Verify landing design, canonical/robots/sitemap, every CTA, public routes and
    legacy redirects including duplicate/encoded query parameters on real previews.
+   Check signed-in, signed-out and loading CTAs with the paired Clerk instance,
+   theme switching with the toggle/D shortcut, and sign-out returning to landing.
 4. Verify dashboard signed-out root and deep links, Discord sign-in and sign-up,
    onboarding, completed-account entry, refresh, authenticated SSR, sign-out,
    account switching, Clerk session tasks and Convex handoff. Verify Discord install
@@ -167,7 +164,8 @@ authenticated Vercel access. Keep this change in draft until those checks pass.
 7. Before merging or promoting any dashboard-only build on cleo, create and
    validate the landing Production deployment with
    `NEXT_PUBLIC_SITE_URL=https://cleoai.cloud` and
-   `NEXT_PUBLIC_APP_URL=https://app.cleoai.cloud`. Use the reviewed feature commit
+   `NEXT_PUBLIC_APP_URL=https://app.cleoai.cloud` plus the existing Production
+   `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. Use the reviewed feature commit
    while main lacks apps/landing. Keep apex/www on the working combined deployment
    throughout preparation. Also prepare the reviewed dashboard deployment with
    production Clerk/Convex authority and the target origins, without replacing
@@ -191,7 +189,7 @@ been verified.
 ## Repository validation
 
 Local root `typecheck`, `lint`, `test`, `test:coverage` and `build` passed. The test
-run contains 703 cases across nine workspaces; every configured coverage include
+run contains 705 cases across nine workspaces; every configured coverage include
 set achieved 100% in all four measures. Thresholds were preserved and the dashboard
 include set expanded to cover application entry decisions. Tests and coverage used
 Turbo's loose environment mode only to pass a process-scoped Git safe.directory
@@ -202,3 +200,11 @@ preservation, public-route boundaries, the signed-out dashboard root, protected
 deep-link returns, auth metadata noindex and dashboard robots. The landing design
 was inspected in the running production build. Live provider sign-in, account
 switching and production-domain verification remain pending authenticated previews.
+
+The session-awareness follow-up passed the same root checks. Landing builds with
+only its public Clerk key and stays static; no secret key is required. CTA tests
+cover signed-in, signed-out and unloaded states with Production, Preview and local
+app origins. Dashboard provider tests verify sign-out returns to the supplied
+site origin. Browser checks verified landing theme switching, reload persistence,
+the D shortcut and the toggle on the not-found page. Compile-only Clerk fixtures
+were used for builds, so live cross-domain session verification remains pending.

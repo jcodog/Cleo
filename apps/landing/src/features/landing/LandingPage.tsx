@@ -20,7 +20,7 @@ import { appOrigin } from "@/lib/siteMetadata"
 
 export function LandingPage() {
   return (
-    <main className="dark min-h-svh overflow-hidden bg-background text-foreground">
+    <main className="min-h-svh overflow-hidden bg-background text-foreground">
       <div className="cleo-atmosphere relative isolate overflow-hidden">
         <LandingNavigation />
         <Hero />

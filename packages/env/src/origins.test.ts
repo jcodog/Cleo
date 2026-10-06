@@ -57,10 +57,11 @@ test("site and application origins stay distinct in production, previews and loc
   )
 })
 
-test("landing environment loads without Clerk or Convex credentials", async () => {
+test("landing exposes the Clerk public key without server auth or backend credentials", async () => {
   const { landingEnv } = await import("./landing")
   assert.ok("NEXT_PUBLIC_SITE_URL" in landingEnv)
   assert.ok("NEXT_PUBLIC_APP_URL" in landingEnv)
+  assert.ok("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" in landingEnv)
   assert.equal("CLERK_SECRET_KEY" in landingEnv, false)
   assert.equal("NEXT_PUBLIC_CONVEX_URL" in landingEnv, false)
 })

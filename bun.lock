@@ -51,6 +51,7 @@
       "name": "@workspace/landing",
       "version": "0.0.1",
       "dependencies": {
+        "@clerk/nextjs": "^7.9.11",
         "@tabler/icons-react": "^3.49.0",
         "@workspace/env": "workspace:*",
         "@workspace/shared": "workspace:*",

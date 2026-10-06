@@ -1,4 +1,7 @@
+"use client"
+
 import type { JSX } from "react"
+import { useAuth } from "@clerk/nextjs"
 import { IconArrowRight } from "@tabler/icons-react"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
@@ -13,18 +16,39 @@ export function LandingAuthActions({
   placement,
   origin,
 }: LandingAuthActionsProps): JSX.Element {
+  const { isLoaded, isSignedIn } = useAuth()
+
   if (placement === "footer") {
+    if (!isLoaded) {
+      return <span aria-hidden className="invisible h-5 w-14" />
+    }
+
     return (
       <Link
         className="rounded-sm transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-        href={`${origin}/sign-in`}
+        href={isSignedIn ? `${origin}/dashboard` : `${origin}/sign-in`}
       >
-        Sign in
+        {isSignedIn ? "Open dashboard" : "Sign in"}
       </Link>
     )
   }
 
   if (placement === "navigation") {
+    if (!isLoaded) {
+      return <span aria-hidden className="invisible h-8 w-40" />
+    }
+
+    if (isSignedIn) {
+      return (
+        <Link
+          className={buttonVariants({ size: "sm" })}
+          href={`${origin}/dashboard`}
+        >
+          Open dashboard
+        </Link>
+      )
+    }
+
     return (
       <>
         <Link
@@ -40,6 +64,36 @@ export function LandingAuthActions({
           Get started
         </Link>
       </>
+    )
+  }
+
+  if (!isLoaded) {
+    return <div aria-hidden className="invisible h-11 w-full max-w-sm" />
+  }
+
+  if (isSignedIn) {
+    return (
+      <div className="flex w-full gap-2 sm:w-auto sm:gap-3">
+        <Link
+          className={cn(
+            buttonVariants({ size: "lg" }),
+            "h-11 min-w-0 flex-1 justify-center px-3 sm:min-w-44 sm:flex-none sm:px-4"
+          )}
+          href={`${origin}/dashboard`}
+        >
+          Open dashboard
+          <IconArrowRight aria-hidden data-icon="inline-end" />
+        </Link>
+        <a
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "lg" }),
+            "h-11 shrink-0 justify-center px-3 sm:min-w-32 sm:px-4"
+          )}
+          href="#product"
+        >
+          Explore product
+        </a>
+      </div>
     )
   }
 
