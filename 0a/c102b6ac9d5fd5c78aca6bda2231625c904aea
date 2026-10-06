@@ -1,0 +1,106 @@
+apps/dashboard/src/app/robots.ts
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 4
+turbo.json
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 23
+apps/dashboard/src/features/auth/serverRouting.test.ts
+  s_76a59ffe06f6bb::t_1a065345b5b28f 134
+  s_76a59ffe06f6bb::t_06ca2312a37f3c 157
+apps/dashboard/src/features/auth/clerkEntry.test.ts
+  s_76a59ffe06f6bb::t_be58038f07ea51 95-100,106-111
+  s_76a59ffe06f6bb::t_894caae1e726ea 1,8-16,20-29,31-34,36,38-46,50-58,60-66,70-76,79-82,84-94,101,105,112
+  s_76a59ffe06f6bb::t_55307af39568ab 2-7,17-19,30,35,37,47-49,59,67-69,77-78,83,102-104,113-117
+apps/landing/src/app/layout.tsx
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 19-20
+packages/env/src/dashboard.ts
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 10,27
+README.md
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 179,209-212
+apps/dashboard/src/app/layout.tsx
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 24-25
+  s_76a59ffe06f6bb::t_894caae1e726ea 26-29
+apps/dashboard/src/features/auth/AuthShell.test.ts
+  s_76a59ffe06f6bb::t_55307af39568ab 2-6,28-29,36,41,46,51-52,57
+  s_76a59ffe06f6bb::t_894caae1e726ea 1,7-27,30-35,37-40,42-45,47-50,53-56
+apps/dashboard/src/features/auth/AuthShell.tsx
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 12-15
+apps/dashboard/src/app/(auth)/sign-in/[[...sign-in]]/page.tsx
+  s_76a59ffe06f6bb::t_894caae1e726ea 6-7,14-22,25-32
+packages/env/src/origins.test.ts
+  s_76a59ffe06f6bb::t_55307af39568ab 67-69,108,117,146
+  s_76a59ffe06f6bb::t_894caae1e726ea 70-107,109-116,118-145
+apps/dashboard/src/proxy.ts
+  s_76a59ffe06f6bb::t_1a065345b5b28f 10,14-16
+  s_76a59ffe06f6bb::t_1e09f3551f21c7 11-13
+apps/dashboard/src/app/(app)/layout.tsx
+  s_76a59ffe06f6bb::t_894caae1e726ea 31-40
+apps/dashboard/src/app/(auth)/sign-up/[[...sign-up]]/page.tsx
+  s_76a59ffe06f6bb::t_894caae1e726ea 6-7,14-22,25-32
+apps/dashboard/src/features/auth/appLayout.test.ts
+  s_76a59ffe06f6bb::t_2652cf21860891 2-7,17-20,46,60-61,69-72,74-78,82,84-86,94-98
+  s_76a59ffe06f6bb::t_894caae1e726ea 1,8-16,21-45,47-59,62-68,73,79-81,83,87-93
+.github/workflows/twitch-production.yml
+  s_76a59ffe06f6bb::t_4504f567342464 102,105,108,117,120,123,128,139,141-143
+apps/landing/src/lib/siteMetadata.ts
+  s_76a59ffe06f6bb::t_894caae1e726ea 22-25
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 9-10,18-21
+apps/landing/src/proxy.ts
+  s_76a59ffe06f6bb::t_894caae1e726ea 7
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 3
+  s_76a59ffe06f6bb::t_1a065345b5b28f 4,8,11-14
+packages/env/src/origins.ts
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 4-6,15-17,20,23-30,37,41-42
+  s_76a59ffe06f6bb::t_894caae1e726ea 21-22,31-36,38-40
+apps/landing/.env.example
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 2-3
+apps/landing/src/lib/siteMetadata.test.ts
+  s_76a59ffe06f6bb::t_1e09f3551f21c7 40-45
+  s_76a59ffe06f6bb::t_46f0d41be6fb7c 9,59-65
+  s_76a59ffe06f6bb::t_06ca2312a37f3c 11,47-49,54-58
+  s_76a59ffe06f6bb::t_894caae1e726ea 50-53
+apps/landing/src/app/robots.ts
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 8
+apps/landing/public/site.webmanifest
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 2
+apps/landing/turbo.json
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 1-6
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_76a59ffe06f6bb::t_6328dfe85d463c 128-129
+  s_76a59ffe06f6bb::t_894caae1e726ea 32-36,40-45,48-49,55-58,62-68,73-74,97-108,125-127,253-257
+  s_76a59ffe06f6bb::t_4504f567342464 31,37-39,46-47,50-54,59-61,69-72,75-88,95-96,109-112,124,130,252,259,329
+  s_76a59ffe06f6bb::t_d3df91effb6d1a 258,260
+docs/web-app-split.md
+  s_76a59ffe06f6bb::t_47fe7012de33e5 34,70-71,194
+  s_76a59ffe06f6bb::t_4adca7df80c020 33,35-37,50-51,79-83,167-181
+  s_76a59ffe06f6bb::t_23621b2aca1ac8 52-53
+apps/discord-bot/src/deployment/webOnlyChanges.test.ts
+  s_76a59ffe06f6bb::t_2652cf21860891 8,143-145,153-155,219-220,229-232,256,293-295,332,341
+  s_76a59ffe06f6bb::t_894caae1e726ea 3-7,146-152,156-218,221-228,233-255,257-292,296-316,318-331,333-340
+  s_76a59ffe06f6bb::t_1fdb3958db02a1 317
+apps/landing/src/features/landing/LandingAuthActions.test.ts
+  s_76a59ffe06f6bb::t_894caae1e726ea 1,8-12,15-41
+  s_76a59ffe06f6bb::t_55307af39568ab 2-7,13-14,42-43
+apps/dashboard/src/features/onboarding/OnboardingExperience.test.ts
+  s_76a59ffe06f6bb::t_23621b2aca1ac8 98,102,114
+  s_76a59ffe06f6bb::t_894caae1e726ea 7-15,22-31,33-73,75-81,84-86,91,93-97
+  s_76a59ffe06f6bb::t_2652cf21860891 1-6,16-21,32,74,82-83,87-90,92,99-101,103-113,115-125
+apps/dashboard/turbo.json
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 1-6
+apps/dashboard/src/features/auth/DiscordAuthPage.tsx
+  s_76a59ffe06f6bb::t_c5272b925ed1a9 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ac102b6ac9d5fd5c78aca6bda2231625c904aea",
+  "prompts": {},
+  "sessions": {
+    "s_76a59ffe06f6bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1119b-840b-7cb0-a540-b897a4f79d76",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
