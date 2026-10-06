@@ -1,0 +1,67 @@
+apps/landing/package.json
+  s_76a59ffe06f6bb::t_9d1fdd27f63434 13,17
+apps/landing/src/components/LandingSessionProvider.test.ts
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 7-10,18-27,37-45,47
+  s_76a59ffe06f6bb::t_ce4bd83feb514d 1-6,11-17,28-36,46
+apps/landing/src/features/landing/LandingAuthActions.test.ts
+  s_76a59ffe06f6bb::t_ce4bd83feb514d 6-12,14-15,18,28-36,41-46,52-54,69
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 37-40,47-51,55-68
+apps/landing/.env.example
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 1,4-10
+.github/coverage-baseline.md
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 28
+  s_76a59ffe06f6bb::t_0af0bc66064bac 29
+apps/landing/src/features/landing/LandingAuthActions.tsx
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 23,38,43-46,71
+  s_76a59ffe06f6bb::t_14e62d50fc8e96 1-2,4,19-20,22,24-25,29,31,37,39-42,47-51,70,72-96,98
+  s_76a59ffe06f6bb::t_ffca00fa37bb2f 97,99
+apps/dashboard/src/app/layout.tsx
+  s_76a59ffe06f6bb::t_c37258e9c58f47 127-138
+apps/landing/src/app/layout.tsx
+  s_76a59ffe06f6bb::t_0af0bc66064bac 7-8,11-13
+  s_76a59ffe06f6bb::t_16473d436b3b9d 4-6,26-30,44,49-51,53-63
+apps/dashboard/src/components/providers/app-providers.tsx
+  s_76a59ffe06f6bb::t_1b07732fcb2a78 11-17
+  s_76a59ffe06f6bb::t_ddd2b52e1acdf8 29
+apps/landing/src/components/ThemeToggle.tsx
+  s_76a59ffe06f6bb::t_c37258e9c58f47 36
+  s_76a59ffe06f6bb::t_0af0bc66064bac 1-35
+apps/landing/src/components/LandingSessionProvider.tsx
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 16-18
+  s_76a59ffe06f6bb::t_16473d436b3b9d 1-15,19-30
+packages/env/src/landing.ts
+  s_76a59ffe06f6bb::t_16473d436b3b9d 14
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 22-23
+apps/dashboard/src/components/providers/app-providers.test.ts
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 1-36,38-48
+  s_76a59ffe06f6bb::t_c37258e9c58f47 37
+docs/web-app-split.md
+  s_76a59ffe06f6bb::t_d8b7ac05b7b2c5 9,12,16,94,126,151-152,167-168
+  s_76a59ffe06f6bb::t_0af0bc66064bac 18
+  s_76a59ffe06f6bb::t_e00b69ee54f87b 192,203-210
+  s_76a59ffe06f6bb::t_395cd282c5068f 17
+apps/landing/src/components/providers/theme-provider.tsx
+  s_76a59ffe06f6bb::t_0af0bc66064bac 1-177
+packages/env/src/origins.test.ts
+  s_76a59ffe06f6bb::t_16473d436b3b9d 60,64
+apps/landing/src/features/landing/LandingPage.tsx
+  s_76a59ffe06f6bb::t_16473d436b3b9d 23
+bun.lock
+  s_76a59ffe06f6bb::t_0c9430a4d621a9 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4ba6877b2a382030841d6cc39216d9f1e72f2ce1",
+  "prompts": {},
+  "sessions": {
+    "s_76a59ffe06f6bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1119b-840b-7cb0-a540-b897a4f79d76",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
