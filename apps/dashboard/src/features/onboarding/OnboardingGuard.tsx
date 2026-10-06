@@ -8,7 +8,8 @@ import {
   useMutation,
   usePreloadedQuery,
 } from "convex/react"
-import { redirect } from "next/navigation"
+import { redirect, usePathname, useSearchParams } from "next/navigation"
+import { onboardingPath } from "@/features/auth/applicationEntry"
 import { Button } from "@workspace/ui/components/button"
 
 import { DashboardDiscordHydrator } from "@/features/app-shell/DashboardDiscordHydrator"
@@ -27,6 +28,8 @@ export function OnboardingGuard({
     typeof api.queries.dashboard.account.onboarding.get
   >
 }) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const onboarding = usePreloadedQuery(preloadedOnboarding)
   const { isAuthenticated } = useConvexAuth()
   const resolveProvenance = useMutation(
@@ -60,7 +63,11 @@ export function OnboardingGuard({
   }, [decision, isAuthenticated, provenanceResolutionStatus, resolveProvenance])
 
   if (view === "redirect-onboarding") {
-    redirect("/onboarding")
+    redirect(
+      onboardingPath(
+        `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`
+      )
+    )
   }
 
   function retryProvenanceResolution() {

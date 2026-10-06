@@ -52,6 +52,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       backend: ${{ steps.changes.outputs.backend }}
+      runtime: ${{ steps.changes.outputs.runtime }}
       deploy_enabled: ${{ steps.gate.outputs.enabled }}
     steps:
       - name: Resolve protected environment deploy gate
@@ -86,14 +87,17 @@ jobs:
         run: |
           set -euo pipefail
           backend=false
+          runtime=true
           if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
             backend="$MANUAL_BACKEND"
           elif [[ "$BEFORE_SHA" == 0000000000000000000000000000000000000000 ]]; then
             backend=true
           else
             backend="$(node apps/discord-bot/src/deployment/classifyChanges.ts backend "$BEFORE_SHA" "$RELEASE_SHA")"
+            runtime="$(node apps/discord-bot/src/deployment/classifyChanges.ts twitch "$BEFORE_SHA" "$RELEASE_SHA")"
           fi
           echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
       - name: Frozen dependency install
         run: bun ci
       - name: Verify the build source matches the trusted commit
@@ -165,6 +169,7 @@ jobs:
       needs.validate-package.result == 'success' &&
       (needs.backend.result == 'success' || needs.backend.result == 'skipped') &&
       needs.validate-package.outputs.deploy_enabled == 'true' &&
+      needs.validate-package.outputs.runtime == 'true' &&
       (github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy')
     environment: twitch-production
     runs-on: cleo-prod

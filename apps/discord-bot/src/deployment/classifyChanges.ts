@@ -1,6 +1,103 @@
 import { execFileSync } from "node:child_process"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { isDeepStrictEqual } from "node:util"
+
+const webFiles = new Set([
+  "packages/env/src/dashboard.ts",
+  "packages/env/src/landing.ts",
+  "packages/env/src/origins.ts",
+  "packages/env/src/origins.test.ts",
+  "packages/shared/src/appRoutes.ts",
+  "packages/shared/src/appRoutes.test.ts",
+  "apps/discord-bot/src/deployment/classifyChanges.ts",
+  "apps/discord-bot/src/deployment/classifyChanges.test.ts",
+  "apps/discord-bot/src/deployment/webOnlyChanges.ts",
+  "apps/discord-bot/src/deployment/webOnlyChanges.test.ts",
+])
+
+export function isWebOnlyPath(file: string): boolean {
+  return (
+    file.startsWith("apps/landing/") ||
+    file.startsWith("apps/dashboard/") ||
+    webFiles.has(file)
+  )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function configWithoutWebEntries(file: string, source: string): unknown {
+  const config: unknown = JSON.parse(withoutTrailingCommas(source))
+  if (!isRecord(config)) throw new Error("Invalid configuration")
+  if (file === "bun.lock") {
+    if (!isRecord(config.workspaces) || !isRecord(config.packages))
+      throw new Error("Invalid lockfile")
+    delete config.workspaces["apps/landing"]
+    delete config.packages["@workspace/landing"]
+  } else if (file === "turbo.json") {
+    if (!Array.isArray(config.globalEnv))
+      throw new Error("Invalid Turbo environment")
+    config.globalEnv = config.globalEnv.filter(
+      (name: unknown) =>
+        !["NEXT_PUBLIC_SITE_URL", "VERCEL_URL", "VERCEL_ENV"].includes(
+          String(name)
+        )
+    )
+  } else {
+    if (!isRecord(config.exports)) throw new Error("Invalid package exports")
+    for (const key of ["./landing", "./origins", "./appRoutes"])
+      delete config.exports[key]
+  }
+  return config
+}
+
+function withoutTrailingCommas(source: string): string {
+  let quoted = false
+  let escaped = false
+  let result = ""
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index]
+    if (quoted) {
+      if (escaped) escaped = false
+      else if (character === "\\") escaped = true
+      else if (character === '"') quoted = false
+    } else if (character === '"') quoted = true
+    else if (character === ",") {
+      let next = index + 1
+      while (next < source.length && /\s/.test(source[next] ?? "")) next++
+      if (source[next] === "}" || source[next] === "]") continue
+    }
+    result += character
+  }
+  return result
+}
+
+export function isWebOnlyConfigChange(
+  file: string,
+  before: string,
+  after: string
+): boolean {
+  if (
+    ![
+      "bun.lock",
+      "turbo.json",
+      "packages/env/package.json",
+      "packages/shared/package.json",
+    ].includes(file)
+  )
+    return false
+  try {
+    return isDeepStrictEqual(
+      configWithoutWebEntries(file, before),
+      configWithoutWebEntries(file, after)
+    )
+  } catch {
+    // Unknown/invalid inputs retain the existing conservative deployment behavior.
+    return false
+  }
+}
 
 const DEPLOY_PREFIXES = [
   "apps/discord-bot/",
@@ -32,6 +129,7 @@ const COMMAND_FILES = new Set<string>([
 ])
 
 export function isConvexDeployPath(file: string): boolean {
+  if (isWebOnlyPath(file)) return false
   return (
     [
       "packages/backend/",
@@ -54,6 +152,7 @@ export function isConvexDeployPath(file: string): boolean {
 }
 
 export function isDiscordDeployPath(file: string): boolean {
+  if (isWebOnlyPath(file)) return false
   return (
     DEPLOY_FILES.has(file) ||
     DEPLOY_PREFIXES.some((prefix) => file.startsWith(prefix))
@@ -95,6 +194,27 @@ function changedPathsBetween(
   })
     .split(/\r?\n/)
     .filter(Boolean)
+    .filter((file) => {
+      if (isWebOnlyPath(file)) return false
+      if (
+        ![
+          "bun.lock",
+          "turbo.json",
+          "packages/env/package.json",
+          "packages/shared/package.json",
+        ].includes(file)
+      )
+        return true
+      return !isWebOnlyConfigChange(
+        file,
+        execFileSync("git", ["show", `${baseSha}:${file}`], {
+          encoding: "utf8",
+        }),
+        execFileSync("git", ["show", `${headSha}:${file}`], {
+          encoding: "utf8",
+        })
+      )
+    })
 }
 
 function isDirectEntrypoint(): boolean {
@@ -113,8 +233,15 @@ if (isDirectEntrypoint()) {
       ? true
       : mode === "backend"
         ? changedPaths.some(isConvexDeployPath)
-        : mode === "deploy"
-          ? classifyChangedPaths(changedPaths).deploy
-          : classifyChangedPaths(changedPaths).registerCommands
+        : mode === "twitch"
+          ? changedPaths.some(
+              (file) =>
+                file.startsWith("apps/twitch-bot/") ||
+                file.startsWith("ops/twitch/") ||
+                isConvexDeployPath(file)
+            )
+          : mode === "deploy"
+            ? classifyChangedPaths(changedPaths).deploy
+            : classifyChangedPaths(changedPaths).registerCommands
   process.stdout.write(String(changed))
 }

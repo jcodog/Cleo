@@ -3,14 +3,20 @@ import Image from "next/image"
 import Link from "next/link"
 
 import { DotGrid } from "@/components/backgrounds/DotGrid"
+import { dashboardEnv } from "@workspace/env/dashboard"
+import { resolveWebOrigin } from "@workspace/env/origins"
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
+  const siteUrl = resolveWebOrigin({
+    configuredUrl: dashboardEnv.NEXT_PUBLIC_SITE_URL,
+    localOrigin: "http://localhost:3001",
+  })
   return (
     <main className="dark relative grid min-h-svh overflow-hidden bg-[#07090c] text-foreground lg:grid-cols-[1.04fr_0.96fr]">
       <header className="absolute inset-x-0 top-0 z-20 flex h-20 items-center justify-between px-5 sm:h-24 sm:px-10 lg:px-14 xl:px-20">
         <Link
           className="flex items-center gap-2.5 rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          href="/"
+          href={siteUrl}
         >
           <Image
             alt=""
@@ -24,7 +30,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </Link>
         <Link
           className="flex items-center gap-2 rounded-lg text-sm text-foreground/72 transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-          href="/"
+          href={siteUrl}
         >
           <IconArrowLeft aria-hidden className="size-4" />
           Back to landing

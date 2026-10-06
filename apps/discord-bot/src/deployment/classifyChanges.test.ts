@@ -23,12 +23,15 @@ test("Convex classification includes imported packages, dependency resolution an
     "convex.json",
     "tsconfig.json",
     "tsconfig.build.json",
-    "apps/dashboard/package.json",
     "packages/ui/package.json",
   ])
     assert.equal(isConvexDeployPath(path), true, path)
   for (const path of [
     "apps/dashboard/src/page.tsx",
+    "apps/dashboard/package.json",
+    "apps/landing/package.json",
+    "packages/env/src/landing.ts",
+    "packages/shared/src/appRoutes.ts",
     "ops/twitch/test.sh",
     "docs/twitch/bootstrap.md",
     "packages/ui/src/button.tsx",

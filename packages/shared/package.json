@@ -17,6 +17,7 @@
     "zod": "^4.6.5"
   },
   "exports": {
+    "./appRoutes": "./src/appRoutes.ts",
     "./twitchEventSub": "./src/twitchEventSub.ts",
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",

@@ -1,0 +1,33 @@
+{
+  "name": "@workspace/landing",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack --port 3001",
+    "build": "next build",
+    "start": "next start",
+    "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
+    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "test": "node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
+    "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src/lib --include=\"src/lib/**/*.ts\" --exclude=\"src/**/*.test.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/landing\" --temp-directory=\"../../.coverage-tmp/apps/landing\" node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@tabler/icons-react": "^3.49.0",
+    "@workspace/env": "workspace:*",
+    "@workspace/shared": "workspace:*",
+    "@workspace/ui": "workspace:*",
+    "next": "16.3.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

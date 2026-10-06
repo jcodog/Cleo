@@ -22,6 +22,8 @@
     ".": "./src/index.ts",
     "./shared": "./src/shared.ts",
     "./dashboard": "./src/dashboard.ts",
+    "./landing": "./src/landing.ts",
+    "./origins": "./src/origins.ts",
     "./web": "./src/web.ts",
     "./backend": "./src/backend.ts",
     "./discord": "./src/discord.ts",

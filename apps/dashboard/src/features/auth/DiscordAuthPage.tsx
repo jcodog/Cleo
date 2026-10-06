@@ -58,7 +58,7 @@ export function DiscordAuthPage({ mode }: { mode: AuthMode }) {
   } = useSignUp()
   const [localError, setLocalError] = useState<string | null>(null)
   const returnTo =
-    getSafeInternalPath(searchParams.get("returnTo")) ?? "/onboarding"
+    getSafeInternalPath(searchParams.get("returnTo")) ?? (mode === "sign-in" ? "/" : "/onboarding")
   const isFetching =
     mode === "sign-in"
       ? signInFetchStatus === "fetching"

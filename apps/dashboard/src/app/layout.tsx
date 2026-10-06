@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import "@clerk/ui/themes/shadcn.css"
 import "@workspace/ui/globals.css"
 import { dashboardEnv } from "@workspace/env/dashboard"
+import { resolveWebOrigin } from "@workspace/env/origins"
 import { AppProviders } from "@/components/providers/app-providers"
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import { cn } from "@workspace/ui/lib/utils"
@@ -17,7 +18,11 @@ const fontMono = Geist_Mono({
 })
 
 const metadataBase = new URL(
-  dashboardEnv.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+  resolveWebOrigin({
+    configuredUrl: dashboardEnv.NEXT_PUBLIC_APP_URL,
+    vercelUrl: dashboardEnv.VERCEL_URL,
+    localOrigin: "https://localhost:3000",
+  })
 )
 
 // Keep this pre-paint resolver aligned with ThemeProvider's storage and system rules.
@@ -75,8 +80,8 @@ export const metadata: Metadata = {
     images: ["/android-chrome-512x512.png"],
   },
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
   },
   appleWebApp: {
     capable: true,
