@@ -16,6 +16,7 @@ import Image from "next/image"
 import Link from "next/link"
 
 import { LandingAuthActions } from "./LandingAuthActions"
+import { appOrigin } from "@/lib/siteMetadata"
 
 export function LandingPage() {
   return (
@@ -69,7 +70,7 @@ function LandingNavigation() {
         <a className={navigationLinkClassName} href="#safety">
           Safety
         </a>
-        <LandingAuthActions placement="navigation" />
+        <LandingAuthActions origin={appOrigin()} placement="navigation" />
       </nav>
     </header>
   )
@@ -98,7 +99,7 @@ function Hero() {
           </p>
         </div>
 
-        <LandingAuthActions placement="hero" />
+        <LandingAuthActions origin={appOrigin()} placement="hero" />
       </div>
 
       <CleoHeroVisual />
@@ -582,7 +583,7 @@ function FinalCallToAction() {
             Sign in with Discord and set up the features your community needs.
           </p>
         </div>
-        <LandingAuthActions placement="hero" />
+        <LandingAuthActions origin={appOrigin()} placement="hero" />
       </div>
     </section>
   )
@@ -608,7 +609,7 @@ function LandingFooter() {
         <a className={footerLinkClassName} href="#safety">
           Safety
         </a>
-        <LandingAuthActions placement="footer" />
+        <LandingAuthActions origin={appOrigin()} placement="footer" />
       </nav>
     </footer>
   )

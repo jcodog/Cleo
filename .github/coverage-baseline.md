@@ -8,6 +8,7 @@ regression tests are added.
 | Workspace          | Enforced lines | Enforced statements | Enforced functions | Enforced branches |
 | ------------------ | -------------: | ------------------: | -----------------: | ----------------: |
 | `apps/dashboard`   |            100 |                 100 |                100 |               100 |
+| `apps/landing`     |            100 |                 100 |                100 |               100 |
 | `apps/discord-bot` |            100 |                 100 |                100 |               100 |
 | `apps/twitch-bot`  |            100 |                 100 |                100 |               100 |
 | `packages/backend` |            100 |                 100 |                100 |               100 |
@@ -20,6 +21,11 @@ Do not lower these thresholds to absorb uncovered changes. Add focused tests and
 expand the scoped include sets when a new module becomes a stable regression
 boundary. Re-run `bun run test:coverage` and update this document whenever the
 enforced policy changes.
+
+JCN-227 adds dashboard auth/onboarding entry decisions, landing metadata and origin
+selection, and shared legacy app route classification to the enforced include sets.
+Integration tests also exercise server redirects, Clerk token selection and the
+actual Next.js compatibility proxy.
 
 The Twitch bootstrap enforces all runtime source and its native artifact
 validator at 100% across all four measures. Behavior tests cover dedicated bot

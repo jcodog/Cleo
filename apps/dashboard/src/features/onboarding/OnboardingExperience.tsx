@@ -28,6 +28,7 @@ import {
   type OnboardingExperienceState,
   type ProvenanceResolutionStatus,
 } from "@/features/onboarding/onboardingState"
+import { getProductReturnPath } from "@/features/auth/applicationEntry"
 
 type ManageableGuild = {
   discordGuildId: string
@@ -44,7 +45,12 @@ type ReadyOnboarding = Extract<
   { status: "ready" }
 >
 
-export function OnboardingExperience() {
+export function OnboardingExperience({
+  returnTo = null,
+}: {
+  returnTo?: string | null
+}) {
+  const safeReturnTo = getProductReturnPath(returnTo)
   const router = useRouter()
   const { user } = useUser()
   const onboarding = useQuery(api.queries.dashboard.account.onboarding.get)
@@ -112,9 +118,9 @@ export function OnboardingExperience() {
 
   useEffect(() => {
     if (isAlreadyComplete) {
-      router.replace("/dashboard")
+      router.replace(safeReturnTo ?? "/dashboard")
     }
-  }, [isAlreadyComplete, router])
+  }, [isAlreadyComplete, router, safeReturnTo])
 
   async function continueTo(path: string) {
     if (!readyOnboarding || isAlreadyComplete) {
@@ -126,7 +132,7 @@ export function OnboardingExperience() {
 
     try {
       await completeOnboarding({})
-      router.replace(path)
+      router.replace(safeReturnTo ?? path)
     } catch {
       setDestination(null)
       setErrorMessage("Cleo could not save your onboarding status. Try again.")

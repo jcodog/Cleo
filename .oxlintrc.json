@@ -101,7 +101,10 @@
   ],
   "settings": {
     "next": {
-      "rootDir": "apps/dashboard/"
+      "rootDir": [
+        "apps/dashboard/",
+        "apps/landing/"
+      ]
     }
   },
   "options": {
@@ -180,7 +183,8 @@
     },
     {
       "files": [
-        "apps/dashboard/**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}"
+        "apps/dashboard/**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
+        "apps/landing/**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}"
       ],
       "env": {
         "browser": true,

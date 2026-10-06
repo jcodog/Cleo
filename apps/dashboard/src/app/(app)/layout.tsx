@@ -1,10 +1,16 @@
 import type { Metadata } from "next"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import { preloadQuery } from "convex/nextjs"
+import { preloadQuery, preloadedQueryResult } from "convex/nextjs"
+import { headers } from "next/headers"
+import { redirect } from "next/navigation"
 
 import { DashboardShellClient } from "@/features/app-shell"
 import { OnboardingGuard } from "@/features/onboarding/OnboardingGuard"
 import { getConvexAuthToken } from "@/lib/convex-auth"
+import {
+  applicationEntryPath,
+  onboardingPath,
+} from "@/features/auth/applicationEntry"
 
 export const metadata: Metadata = {
   title: {
@@ -32,7 +38,12 @@ const AppLayout = async ({
         { token }
       ),
     ])
-
+  if (
+    applicationEntryPath(preloadedQueryResult(preloadedOnboarding)) ===
+    "/onboarding"
+  ) {
+    redirect(onboardingPath((await headers()).get("x-cleo-return-path")))
+  }
   return (
     <OnboardingGuard preloadedOnboarding={preloadedOnboarding}>
       <DashboardShellClient

@@ -52,6 +52,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       backend: ${{ steps.changes.outputs.backend }}
+      runtime: ${{ steps.changes.outputs.runtime }}
       deploy_enabled: ${{ steps.gate.outputs.enabled }}
     steps:
       - name: Resolve protected environment deploy gate
@@ -86,19 +87,25 @@ jobs:
         run: |
           set -euo pipefail
           backend=false
+          runtime=true
           if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
             backend="$MANUAL_BACKEND"
           elif [[ "$BEFORE_SHA" == 0000000000000000000000000000000000000000 ]]; then
             backend=true
           else
             backend="$(node apps/discord-bot/src/deployment/classifyChanges.ts backend "$BEFORE_SHA" "$RELEASE_SHA")"
+            runtime="$(node apps/discord-bot/src/deployment/classifyChanges.ts twitch "$BEFORE_SHA" "$RELEASE_SHA")"
           fi
           echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
       - name: Frozen dependency install
+        if: steps.changes.outputs.runtime == 'true'
         run: bun ci
       - name: Verify the build source matches the trusted commit
+        if: steps.changes.outputs.runtime == 'true'
         run: git diff --exit-code
       - name: Twitch and backend behavior checks
+        if: steps.changes.outputs.runtime == 'true'
         run: |
           bun run --filter @workspace/twitch-bot test:coverage
           bun run --filter @workspace/backend test
@@ -107,14 +114,18 @@ jobs:
           bun run --filter @workspace/twitch-bot lint
           bun run --filter @workspace/backend lint
       - name: Host deployment behavior checks
+        if: steps.changes.outputs.runtime == 'true'
         run: bash ops/twitch/test.sh
       - name: Build Twitch once
+        if: steps.changes.outputs.runtime == 'true'
         run: bun run --filter @workspace/twitch-bot build
       - name: Package and verify Linux x64 artifact
+        if: steps.changes.outputs.runtime == 'true'
         env:
           RELEASE_SHA: ${{ github.sha }}
         run: bun run --filter @workspace/twitch-bot package:release "${{ runner.temp }}/cleo-twitch-artifact" "$RELEASE_SHA"
       - name: Upload verified release
+        if: steps.changes.outputs.runtime == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cleo-twitch-${{ github.sha }}
@@ -125,7 +136,11 @@ jobs:
             ${{ runner.temp }}/cleo-twitch-artifact/*.tar.gz
             ${{ runner.temp }}/cleo-twitch-artifact/*.sha256
       - name: Record validation result
+        if: steps.changes.outputs.runtime == 'true'
         run: echo 'Twitch checks and immutable artifact verification passed. No chat message was sent.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Record web-only skip
+        if: steps.changes.outputs.runtime == 'false'
+        run: echo 'Web-only changes. Twitch install, validation, build, packaging and activation skipped.' >> "$GITHUB_STEP_SUMMARY"
 
   backend:
     needs: validate-package
@@ -165,6 +180,7 @@ jobs:
       needs.validate-package.result == 'success' &&
       (needs.backend.result == 'success' || needs.backend.result == 'skipped') &&
       needs.validate-package.outputs.deploy_enabled == 'true' &&
+      needs.validate-package.outputs.runtime == 'true' &&
       (github.event_name != 'workflow_dispatch' || inputs.operation == 'deploy')
     environment: twitch-production
     runs-on: cleo-prod

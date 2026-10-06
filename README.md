@@ -106,7 +106,8 @@ The architectural direction is a shared Cleo control plane with independent plat
 
 ### Applications
 
-- `apps/dashboard` contains the authenticated Next.js dashboard and public product surfaces.
+- `apps/landing` contains the public Next.js website on `cleoai.cloud`.
+- `apps/dashboard` contains the authenticated Next.js product on `app.cleoai.cloud`.
 - `apps/discord-bot` contains the Discord gateway runtime, commands, events, services and production tooling.
 - Future Twitch, Kick, realtime and other platform runtimes are added as dedicated workspaces when they are ready to be rebuilt and validated.
 
@@ -175,6 +176,7 @@ For normal development, prefer running the workspace you are actively changing. 
 
 ```bash
 bun run --filter @workspace/dashboard dev
+bun run --filter @workspace/landing dev
 bun run --filter @workspace/backend dev
 bun run --filter @workspace/discord-bot dev
 ```
@@ -203,6 +205,10 @@ Prefer targeted validation for the workspace you are changing:
 bun run --filter @workspace/dashboard typecheck
 bun run --filter @workspace/dashboard lint
 bun run --filter @workspace/dashboard test
+
+bun run --filter @workspace/landing typecheck
+bun run --filter @workspace/landing lint
+bun run --filter @workspace/landing test
 
 bun run --filter @workspace/backend typecheck
 bun run --filter @workspace/backend lint
