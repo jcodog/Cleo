@@ -44,6 +44,7 @@ export const metadata: Metadata = {
   },
   description,
   applicationName: "Cleo",
+  manifest: new URL("/site.webmanifest", metadataBase).href,
   authors: [{ name: "JCoNet LTD" }],
   creator: "JCoNet LTD",
   publisher: "JCoNet LTD",
@@ -103,6 +104,7 @@ export const viewport: Viewport = {
   ],
 }
 
+/** Supplies shared installation metadata, fonts, theme and authenticated providers. */
 export default function RootLayout({
   children,
 }: Readonly<{

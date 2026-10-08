@@ -89,9 +89,9 @@ environment setting. Keep `dev.cleoai.cloud` bound to
 Clerk production authority stays `clerk.cleoai.cloud`. Convex continues to validate
 the existing issuer and `convex` audience. SSR requests use the current Clerk token
 directly when it has that audience, otherwise the existing Convex JWT template.
-Dashboard sign-out first returns to app `/?s=sign-out`. App root redirects that
-marker to `NEXT_PUBLIC_SITE_URL` only after Clerk confirms sign-out. Ordinary
-app-root routing is unchanged and signed-in marker visits still require onboarding.
+Dashboard sign-out returns to app `/sign-in` so an installed app stays in its
+own scope. The previous `/?s=sign-out` marketing handoff has been removed.
+Ordinary app-root routing and signed-in onboarding checks are unchanged.
 Convex's request-based leave-page warning is disabled, and the provider does not
 register an unload guard. Pending requests do not mean a form has unsaved edits.
 Session refresh and account switching retain the existing Clerk/Convex provider
@@ -150,7 +150,7 @@ No external Vercel/Clerk settings or domain ownership were changed by this follo
 3. Verify landing design, canonical/robots/sitemap, every CTA, public routes and
    legacy redirects including duplicate/encoded query parameters on real previews.
    Check signed-in, signed-out and loading CTAs with the paired Clerk instance,
-   theme switching with the toggle/D shortcut, and sign-out returning to landing.
+   theme switching with the toggle/D shortcut, and sign-out returning to app sign-in.
 4. Verify dashboard signed-out root and deep links, Discord sign-in and sign-up,
    onboarding, completed-account entry, refresh, authenticated SSR, sign-out,
    account switching, Clerk session tasks and Convex handoff. Verify Discord install
@@ -205,9 +205,9 @@ switching and production-domain verification remain pending authenticated previe
 The session-awareness follow-up passed the same root checks. Landing builds with
 only its public Clerk key and stays static; no secret key is required. CTA tests
 cover signed-in, signed-out and unloaded states with Production, Preview and local
-app origins. Dashboard tests verify the local sign-out handoff, configured
-Production/dev/local site destinations, rejection of untrusted query destinations,
-and disabled request-based unload warnings. Browser checks verified landing theme
+app origins. Dashboard tests verify sign-out returning to `/sign-in`, redirects
+remaining on the app origin, protected deep-link retention, and disabled
+request-based unload warnings. Browser checks verified landing theme
 switching, reload persistence, the D shortcut and the toggle on the not-found page.
 The hero, product, platform and final sections were also inspected in both light and dark themes; light-mode sections no longer combine dark backgrounds with dark text. Compile-only Clerk fixtures
 were used for builds, so live cross-domain session verification remains pending.

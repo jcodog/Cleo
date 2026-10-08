@@ -32,6 +32,7 @@ test("actual Clerk entry bridges protected deep links across sign-in and sign-up
     auth: () => Promise<{ userId: null }>,
     request: NextRequest
   ) => Promise<Response>
+  /** Validates the rendered Clerk component before inspecting its return destinations. */
   function clerkProps(node: ReactNode) {
     assert.ok(isValidElement<{ children: ReactNode }>(node))
     const clerk = node.props.children
@@ -42,15 +43,24 @@ test("actual Clerk entry bridges protected deep links across sign-in and sign-up
         signInForceRedirectUrl?: string
         signUpUrl?: string
         signInUrl?: string
+        oauthFlow?: "auto" | "popup" | "redirect"
       }>(clerk)
     )
     assert.ok(clerk.type === SignIn || clerk.type === SignUp)
+    // Keep Clerk's supported auto selection until installed-device testing
+    // demonstrates a need for a different flow on either mobile platform.
+    assert.equal(clerk.props.oauthFlow, undefined)
     return clerk.props
   }
   for (const path of [
     "/twitch?tab=chat",
     "/dashboard/123/logs?tab=a%26b&tab=roles",
     "/staff/support-tickets",
+    "/kick",
+    "/account",
+    "/settings",
+    "/billing",
+    "/subscription",
   ]) {
     const response = await handler(
       async () => ({ userId: null }),

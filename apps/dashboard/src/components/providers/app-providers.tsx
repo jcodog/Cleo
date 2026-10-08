@@ -8,6 +8,7 @@ import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { useTheme } from "@/components/providers/theme-provider"
 import { convexClient } from "@/lib/convexClient"
 
+/** Connects Clerk sessions to Convex and keeps sign-out on the app origin. */
 export function AppProviders({ children }: { children: ReactNode }) {
   const { resolvedTheme } = useTheme()
 
@@ -20,7 +21,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       appearance={{
         theme: resolvedTheme === "dark" ? [dark, shadcn] : [shadcn],
       }}
-      afterSignOutUrl="/?s=sign-out"
+      afterSignOutUrl="/sign-in"
     >
       <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
         {children}

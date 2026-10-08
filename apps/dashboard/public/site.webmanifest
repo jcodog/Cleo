@@ -1,16 +1,27 @@
 {
-  "name": "Cleo Dashboard",
+  "id": "/",
+  "name": "Cleo",
   "short_name": "Cleo",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/android-chrome-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/android-chrome-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "theme_color": "#0a0a0a",
