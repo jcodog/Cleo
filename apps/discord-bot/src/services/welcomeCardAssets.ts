@@ -1,18 +1,24 @@
 import { readFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 import { GlobalFonts, loadImage, type Image } from "@napi-rs/canvas"
-import type { WelcomeTextToken } from "@workspace/shared/welcomeCard"
+import {
+  WELCOME_FONT_SUBSETS,
+  type WelcomeTextToken,
+} from "@workspace/shared/welcomeCard"
 
-const assetsRoot = new URL("./welcome-assets/", import.meta.url)
+export const welcomeAssetsRoot = new URL("./welcome-assets/", import.meta.url)
 let fontsLoaded = false
 export function registerWelcomeFonts(): void {
   if (fontsLoaded) return
-  for (const subset of ["latin", "latin-ext", "cyrillic"]) {
+  for (const subset of WELCOME_FONT_SUBSETS) {
     for (const weight of [400, 600, 700, 800]) {
       if (
         !GlobalFonts.registerFromPath(
           fileURLToPath(
-            new URL(`fonts/geist-${subset}-${weight}-normal.woff`, assetsRoot)
+            new URL(
+              `fonts/geist-${subset}-${weight}-normal.woff`,
+              welcomeAssetsRoot
+            )
           ),
           `Cleo Geist ${subset}`
         )
@@ -105,7 +111,27 @@ export class WelcomeEmojiLoader {
 }
 
 const customLoader = new WelcomeEmojiLoader()
-const unicodeCache = new Map<string, Promise<Image | null>>()
+export class WelcomeUnicodeEmojiLoader {
+  private readonly cache = new Map<string, Promise<Image | null>>()
+  constructor(
+    private readonly readImage: (
+      key: string
+    ) => Promise<Image | null> = loadUnicodeEmoji
+  ) {}
+  load(key: string): Promise<Image | null> {
+    const cached = this.cache.get(key)
+    if (cached) return cached
+    if (this.cache.size >= 256)
+      this.cache.delete(this.cache.keys().next().value ?? "")
+    const request = this.readImage(key).catch(() => null)
+    this.cache.set(key, request)
+    void request.then((image) => {
+      if (!image && this.cache.get(key) === request) this.cache.delete(key)
+    })
+    return request
+  }
+}
+const unicodeLoader = new WelcomeUnicodeEmojiLoader()
 export async function loadWelcomeEmojiAssets(
   tokens: WelcomeTextToken[],
   loader = customLoader
@@ -119,15 +145,7 @@ export async function loadWelcomeEmojiAssets(
       )
         requests.set(`custom:${token.id}`, loader.loadCustom(token.id))
     } else if (token.kind === "emoji") {
-      if (!unicodeCache.has(token.key)) {
-        if (unicodeCache.size >= 256)
-          unicodeCache.delete(unicodeCache.keys().next().value ?? "")
-        unicodeCache.set(token.key, loadUnicodeEmoji(token.key))
-      }
-      requests.set(
-        `emoji:${token.key}`,
-        unicodeCache.get(token.key) ?? Promise.resolve(null)
-      )
+      requests.set(`emoji:${token.key}`, unicodeLoader.load(token.key))
     }
   }
   const images = new Map<string, Image>()
@@ -144,7 +162,7 @@ async function loadUnicodeEmoji(key: string): Promise<Image | null> {
   if (!/^[a-f0-9]+(?:-[a-f0-9]+)*$/.test(key) || key.length > 160) return null
   try {
     return await loadImage(
-      await readFile(new URL(`emoji/${key}.svg`, assetsRoot))
+      await readFile(new URL(`emoji/${key}.svg`, welcomeAssetsRoot))
     )
   } catch {
     return null

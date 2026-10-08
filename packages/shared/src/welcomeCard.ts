@@ -2,7 +2,13 @@ export const WELCOME_CARD_SIZE = { width: 960, height: 360 } as const
 export const DEFAULT_WELCOME_SUBTEXT =
   "Settle in, say hello, and enjoy the server."
 export const WELCOME_FONT_FAMILY =
-  '"Cleo Geist latin", "Cleo Geist latin-ext", "Cleo Geist cyrillic", sans-serif'
+  '"Cleo Geist latin", "Cleo Geist latin-ext", "Cleo Geist cyrillic", "Cleo Geist cyrillic-ext", sans-serif'
+export const WELCOME_FONT_SUBSETS = [
+  "latin",
+  "latin-ext",
+  "cyrillic",
+  "cyrillic-ext",
+] as const
 export const WELCOME_PRESETS = [
   { id: "classic", name: "Cleo Classic", premium: false },
   { id: "aurora", name: "Aurora", premium: true },

@@ -1,14 +1,53 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { createCanvas } from "@napi-rs/canvas"
+import { createCanvas, loadImage } from "@napi-rs/canvas"
 import { welcomeTextTokens } from "@workspace/shared/welcomeCard"
-import { WelcomeEmojiLoader, loadWelcomeEmojiAssets } from "./welcomeCardAssets"
+import {
+  WelcomeEmojiLoader,
+  WelcomeUnicodeEmojiLoader,
+  loadWelcomeEmojiAssets,
+} from "./welcomeCardAssets"
 
 async function png(): Promise<Uint8Array<ArrayBuffer>> {
   const canvas = createCanvas(64, 64)
   canvas.getContext("2d").fillRect(0, 0, 64, 64)
   return new Uint8Array(await canvas.encode("png"))
 }
+
+test("Unicode failures retry and an older evicted failure cannot delete a newer success", async () => {
+  const image = await loadImage(await png())
+  let calls = 0
+  const retries = new WelcomeUnicodeEmojiLoader(async () => {
+    calls++
+    if (calls === 1) return null
+    if (calls === 2) throw new Error("Transient read failure")
+    return image
+  })
+  assert.equal(await retries.load("1f44b"), null)
+  assert.equal(await retries.load("1f44b"), null)
+  assert.equal(await retries.load("1f44b"), image)
+  assert.equal(await retries.load("1f44b"), image)
+  assert.equal(calls, 3)
+  let release: (value: null) => void = () => {}
+  let initial = true
+  const loader = new WelcomeUnicodeEmojiLoader(async (key) => {
+    if (key === "old" && initial) {
+      initial = false
+      return await new Promise<null>((resolve) => {
+        release = resolve
+      })
+    }
+    return image
+  })
+  const old = loader.load("old")
+  assert.equal(loader.load("old"), old)
+  for (let index = 0; index < 256; index++) await loader.load(String(index))
+  const newer = loader.load("old")
+  assert.equal(await newer, image)
+  release(null)
+  assert.equal(await old, null)
+  assert.equal(loader.load("old"), newer)
+})
 test("static and animated custom emoji use bounded CDN PNG requests with cache and expiry", async () => {
   const image = await png()
   const requests: string[] = []

@@ -3,6 +3,7 @@ import { test } from "node:test"
 import {
   drawWelcomeCard,
   welcomeCardText,
+  welcomeAvatarInitial,
   type WelcomeDrawingContext,
 } from "./drawWelcomeCard"
 import { FREE_WELCOME_STYLE, WELCOME_PRESETS } from "./welcomeCard"
@@ -30,6 +31,10 @@ function createContext() {
     restore: () => {},
     clip: () => {},
     roundRect: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    bezierCurveTo: () => {},
+    closePath: () => {},
     fillText: (text: string) => {
       calls.push(text)
     },
@@ -50,10 +55,11 @@ test("shared card drawing covers every preset, alignment and image fallback", ()
             subtext: "Hi <:wave:123456789012345678>",
           },
           () => loaded,
-          { ...FREE_WELCOME_STYLE, preset: preset.id, align }
+          { ...FREE_WELCOME_STYLE, preset: preset.id, align },
+          () => loaded
         )
-        assert.ok(calls.includes("WELCOME"))
-        if (!loaded) assert.ok(calls.includes(":wave:"))
+        assert.ok(calls.some((text) => text.startsWith("WELCOME")))
+        if (!loaded) assert.ok(calls.some((text) => text.includes(":wave:")))
       }
   const { context, calls } = createContext()
   drawWelcomeCard(
@@ -62,6 +68,59 @@ test("shared card drawing covers every preset, alignment and image fallback", ()
     () => false
   )
   assert.ok(calls.includes("C"))
+})
+
+test("fallback avatars use textual initials and missing custom labels fit at natural width", () => {
+  assert.equal(welcomeAvatarInitial("🇬🇧 👋🏽 Jason"), "J")
+  assert.equal(welcomeAvatarInitial("👩🏾‍💻"), "C")
+  assert.equal(welcomeAvatarInitial(" 7th member"), "7")
+  const { context } = createContext()
+  const positions: { text: string; x: number; maxWidth?: number }[] = []
+  context.fillText = (text, x, _y, maxWidth) =>
+    positions.push({ text, x, maxWidth })
+  const result = drawWelcomeCard(
+    context,
+    {
+      member: "Alex",
+      server: "Cleo",
+      subtext: "<:wave:123456789012345678> suffix",
+    },
+    () => false
+  )
+  assert.equal(result.subtext.width, ":wave: suffix".length * 10)
+  assert.ok(
+    positions.some(
+      (call) => call.text === ":wave: suffix" && call.maxWidth === undefined
+    )
+  )
+  const available = drawWelcomeCard(
+    context,
+    {
+      member: "Alex",
+      server: "Cleo",
+      subtext: "<:wave:123456789012345678> suffix",
+    },
+    () => false,
+    FREE_WELCOME_STYLE,
+    () => true
+  )
+  assert.equal(available.subtext.width, 32 + " suffix".length * 10)
+  assert.ok(
+    positions.some(
+      (call) => call.text === ":wave:" && call.maxWidth === undefined
+    )
+  )
+  const long = drawWelcomeCard(
+    context,
+    {
+      member: "🇬🇧".repeat(100),
+      server: "Cleo",
+      subtext: "<:a_long_missing_emoji:123456789012345678>".repeat(40),
+    },
+    () => false
+  )
+  assert.ok(long.title.width <= long.title.maxWidth)
+  assert.ok(long.subtext.width <= long.subtext.maxWidth)
 })
 test("copy substitutes only approved variables without trusting member or server markup", () => {
   const copy = {
@@ -84,5 +143,14 @@ test("copy substitutes only approved variables without trusting member or server
       .title.map((token) => token.value)
       .join(""),
     `Welcome, ${copy.member}`
+  )
+  const header = welcomeCardText(
+    { ...copy, server: "Cleo 🇬🇧 <:evil:123456789012345678>" },
+    { ...FREE_WELCOME_STYLE, preset: "aurora" }
+  ).heading
+  assert.ok(header.some((token) => token.kind === "emoji"))
+  assert.equal(
+    header.some((token) => token.kind === "custom"),
+    false
   )
 })

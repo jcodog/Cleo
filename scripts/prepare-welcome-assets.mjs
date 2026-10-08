@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto"
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises"
 import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
 import path from "node:path"
@@ -26,12 +34,9 @@ export async function prepareWelcomeAssets(destination) {
   )
     throw new Error("Twemoji source archive checksum mismatch")
   const artwork = JSON.parse(gunzipSync(archive).toString("utf8"))
-  await rm(output, { recursive: true, force: true })
   const fontRoot = path.dirname(
     require.resolve("@fontsource/geist/package.json")
   )
-  await mkdir(path.join(output, "emoji"), { recursive: true })
-  await mkdir(path.join(output, "fonts"), { recursive: true })
   const files = new Map()
   for (const [name, svg] of Object.entries(artwork)) {
     if (!/^[a-f0-9-]+\.svg$/.test(name) || typeof svg !== "string")
@@ -43,7 +48,7 @@ export async function prepareWelcomeAssets(destination) {
     const alias = `emoji/${name.replaceAll("-fe0f", "")}`
     if (!files.has(alias)) files.set(alias, Buffer.from(svg))
   }
-  for (const subset of ["latin", "latin-ext", "cyrillic"]) {
+  for (const subset of ["latin", "latin-ext", "cyrillic", "cyrillic-ext"]) {
     for (const weight of [400, 600, 700, 800]) {
       const name = `geist-${subset}-${weight}-normal.woff`
       files.set(
@@ -61,15 +66,49 @@ export async function prepareWelcomeAssets(destination) {
     "EMOJI-LICENSE",
     await readFile(path.join(root, "scripts/assets/TWEMOJI-LICENSE-GRAPHICS"))
   )
-  const hashes = {}
-  for (const [name, source] of files) {
-    await writeFile(path.join(output, name), source)
-    hashes[name] = createHash("sha256").update(source).digest("hex")
-  }
-  await writeFile(
-    path.join(output, "manifest.json"),
-    JSON.stringify(hashes, null, 2) + "\n"
+  files.set(
+    "render-golden.json",
+    await readFile(path.join(root, "scripts/assets/welcome-render-golden.json"))
   )
+  // Load every input before touching the last usable output. Write a complete
+  // sibling first; retain the old directory until replacement succeeds.
+  await mkdir(path.dirname(output), { recursive: true })
+  const staged = await mkdtemp(`${output}-staged-`)
+  const backup = `${staged}-previous`
+  let movedPrevious = false
+  try {
+    await mkdir(path.join(staged, "emoji"))
+    await mkdir(path.join(staged, "fonts"))
+    const hashes = {}
+    for (const [name, source] of files) {
+      await writeFile(path.join(staged, name), source)
+      hashes[name] = createHash("sha256").update(source).digest("hex")
+    }
+    await writeFile(
+      path.join(staged, "manifest.json"),
+      JSON.stringify(hashes, null, 2) + "\n"
+    )
+    const exists = await access(output).then(
+      () => true,
+      (error) => {
+        if (error.code === "ENOENT") return false
+        throw error
+      }
+    )
+    if (exists) {
+      await rename(output, backup)
+      movedPrevious = true
+    }
+    try {
+      await rename(staged, output)
+    } catch (error) {
+      if (movedPrevious) await rename(backup, output)
+      throw error
+    }
+    if (movedPrevious) await rm(backup, { recursive: true })
+  } finally {
+    await rm(staged, { recursive: true, force: true })
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -2138,6 +2138,7 @@ export declare const api: {
                     };
                     name: string;
                     presenceCount?: number;
+                    welcomeCardStudioAvailable: boolean;
                   };
                   status: "botLeft";
                 }
@@ -2186,6 +2187,7 @@ export declare const api: {
                     };
                     name: string;
                     presenceCount?: number;
+                    welcomeCardStudioAvailable: boolean;
                   };
                   status: "ready";
                 }

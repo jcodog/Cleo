@@ -7,6 +7,8 @@
   "requiredFiles": [
     "dist/welcome-assets/manifest.json",
     "dist/welcome-assets/fonts/geist-latin-800-normal.woff",
+    "dist/welcome-assets/fonts/geist-cyrillic-ext-800-normal.woff",
+    "dist/welcome-assets/render-golden.json",
     "dist/welcome-assets/emoji/1f44b-1f3fd.svg",
     "dist/welcome-assets/FONT-LICENSE",
     "dist/welcome-assets/EMOJI-NOTICE.txt",

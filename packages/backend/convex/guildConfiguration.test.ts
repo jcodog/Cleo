@@ -7,6 +7,7 @@ import type { Doc } from "./_generated/dataModel"
 import { canManageInstalledGuild } from "./lib/discordRest"
 import schema from "./schema"
 import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
+import { ConvexError } from "convex/values"
 
 process.env.DISCORD_BOT_TOKEN = "test-token"
 
@@ -90,7 +91,10 @@ test("Premium welcome saves fail closed per guild without changing free configur
       channels: {},
       welcome: { style: { ...FREE_WELCOME_STYLE, preset: "unknown" } },
     }),
-    /Unknown welcome-card preset/
+    (error: unknown) =>
+      error instanceof ConvexError &&
+      error.data.code === "INVALID_WELCOME_STYLE" &&
+      error.data.message === "Unknown welcome-card preset"
   )
   assert.deepEqual(await t.run((ctx) => ctx.db.get(free._id)), free)
   const otherId = "987654321098765432"
@@ -109,7 +113,9 @@ test("Premium welcome saves fail closed per guild without changing free configur
       modules: {},
       channels: {},
       welcome: { style: { ...FREE_WELCOME_STYLE, preset: "ribbon" } },
-    })
+    }),
+    (error: unknown) =>
+      error instanceof ConvexError && error.data.code === "FORBIDDEN"
   )
   assert.deepEqual(await t.run((ctx) => ctx.db.get(free._id)), free)
 })
@@ -305,6 +311,8 @@ for (const actor of authorizedCases) {
       { discordGuildId }
     )
     assert.equal(overview.status, "ready")
+    if (overview.status !== "ready") throw new Error("Expected managed guild")
+    assert.equal(overview.overview.welcomeCardStudioAvailable, false)
     const stored = await t.run(async (ctx) => ({
       config: await ctx.db.query("guildConfigs").unique(),
       support: await ctx.db.query("guildSupportConfigs").unique(),

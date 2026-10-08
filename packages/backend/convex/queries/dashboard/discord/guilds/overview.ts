@@ -169,6 +169,9 @@ function toGuildOverview(
   const lastSyncedAt = membership.lastSyncedAt ?? guild.lastSyncedAt
 
   return {
+    // JCN-57 must resolve verified guild Premium access before exposing the
+    // design studio. User subscriptions and frontend flags cannot enable it.
+    welcomeCardStudioAvailable: false,
     guildId: guild._id,
     discordGuildId: guild.discordGuildId,
     name: guild.name,

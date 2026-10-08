@@ -9,9 +9,6 @@ import {
   DEFAULT_WELCOME_SUBTEXT,
   FREE_WELCOME_STYLE,
   WELCOME_CARD_SIZE,
-  cleanWelcomeText,
-  welcomeGraphemes,
-  welcomeTextTokens,
   parseWelcomeCardStyle,
   type WelcomeCardStyle,
 } from "@workspace/shared/welcomeCard"
@@ -46,13 +43,8 @@ export async function renderWelcomeCardPng(
   registerWelcomeFonts()
   const validatedStyle = parseWelcomeCardStyle(style)
   const text = welcomeCardText(copy, validatedStyle)
-  const initial = welcomeGraphemes(cleanWelcomeText(copy.member))[0] ?? "C"
   const [assets, avatar] = await Promise.all([
-    loadWelcomeEmojiAssets([
-      ...text.title,
-      ...text.subtext,
-      ...welcomeTextTokens(initial),
-    ]),
+    loadWelcomeEmojiAssets([...text.heading, ...text.title, ...text.subtext]),
     avatarUrl ? loadWelcomeAvatar(avatarUrl) : Promise.resolve(null),
   ])
   const canvas = createCanvas(WELCOME_CARD_SIZE.width, WELCOME_CARD_SIZE.height)
@@ -66,7 +58,8 @@ export async function renderWelcomeCardPng(
       context.drawImage(image, x, y, size, size)
       return true
     },
-    validatedStyle
+    validatedStyle,
+    (key) => assets.has(key)
   )
   return await canvas.encode("png")
 }
