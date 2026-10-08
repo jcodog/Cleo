@@ -92,9 +92,10 @@ all expected signed-out route destinations, and the obsolete sign-out marker.
 Existing coverage thresholds are unchanged.
 
 To repeat HTTP validation, build and start the dashboard with valid development or
-preview Clerk configuration and a reachable Convex deployment. Bind the test
-server to `localhost`, matching Next's internal origin. In another terminal set
-`PWA_TEST_ORIGIN=http://localhost:3100`, then run
+preview Clerk configuration and a reachable Convex deployment. For example, start
+the server with `bun run --filter @workspace/dashboard start --hostname localhost --port 3100`.
+Set `PWA_TEST_ORIGIN` to that server's exact origin, `http://localhost:3100` in this
+example, then run
 `bun run --filter @workspace/dashboard test:pwa`. This suite requires a signed-out
 server request context and does not simulate a real user session. The build-only
 suite runs with `bun run --filter @workspace/dashboard test:pwa:build` and requires

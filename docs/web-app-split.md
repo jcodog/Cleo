@@ -205,9 +205,9 @@ switching and production-domain verification remain pending authenticated previe
 The session-awareness follow-up passed the same root checks. Landing builds with
 only its public Clerk key and stays static; no secret key is required. CTA tests
 cover signed-in, signed-out and unloaded states with Production, Preview and local
-app origins. Dashboard tests verify the local sign-out handoff, configured
-Production/dev/local site destinations, rejection of untrusted query destinations,
-and disabled request-based unload warnings. Browser checks verified landing theme
+app origins. Dashboard tests verify sign-out returning to `/sign-in`, redirects
+remaining on the app origin, protected deep-link retention, and disabled
+request-based unload warnings. Browser checks verified landing theme
 switching, reload persistence, the D shortcut and the toggle on the not-found page.
 The hero, product, platform and final sections were also inspected in both light and dark themes; light-mode sections no longer combine dark backgrounds with dark text. Compile-only Clerk fixtures
 were used for builds, so live cross-domain session verification remains pending.
