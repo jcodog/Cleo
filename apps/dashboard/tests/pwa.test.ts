@@ -44,7 +44,11 @@ test("production HTML discovers one manifest and emits standard and Apple instal
     assert.ok(head, `${path}: installation metadata must be in the initial head`)
     const manifests = html.match(/<link\b[^>]*rel="manifest"[^>]*>/g) ?? []
     assert.equal(manifests.length, 1, path)
-    assert.match(manifests[0] ?? "", /href="\/site\.webmanifest"/)
+    const manifestLink = manifests[0] ?? ""
+    const href = manifestLink.match(/href="([^"]+)"/)?.[1]
+    assert.ok(href, path)
+    assert.equal(new URL(href).href, new URL("/site.webmanifest", appUrl).href)
+    assert.doesNotMatch(manifestLink, /\bcrossorigin=/i)
     assert.match(html, /<meta name="application-name" content="Cleo"/)
     assert.match(html, /<meta name="mobile-web-app-capable" content="yes"/)
     assert.match(

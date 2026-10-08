@@ -12,7 +12,12 @@ test("generated production HTML discovers the dashboard manifest on static app p
     )
     const manifests = html.match(/<link\b[^>]*rel="manifest"[^>]*>/g) ?? []
     assert.equal(manifests.length, 1, page)
-    assert.match(manifests[0] ?? "", /href="\/site\.webmanifest"/)
+    const manifestLink = manifests[0] ?? ""
+    const href = manifestLink.match(/href="([^"]+)"/)?.[1]
+    const pageUrl = html.match(/<meta property="og:url" content="([^"]+)"/)?.[1]
+    assert.ok(href && pageUrl, page)
+    assert.equal(new URL(href).href, new URL("/site.webmanifest", pageUrl).href)
+    assert.doesNotMatch(manifestLink, /\bcrossorigin=/i)
     assert.match(html, /<meta name="mobile-web-app-capable" content="yes"/)
     assert.match(
       html,
