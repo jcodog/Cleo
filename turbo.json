@@ -1,7 +1,13 @@
 {
   "$schema": "https://v2-10-0.turborepo.dev/schema.json",
   "ui": "tui",
+  "globalDependencies": [
+    "scripts/prepare-welcome-assets.mjs",
+    "scripts/welcome-emoji-notice.txt",
+    "scripts/assets/**"
+  ],
   "globalEnv": [
+    "DISABLE_SYSTEM_FONTS_LOAD",
     "NODE_ENV",
     "NEXT_PUBLIC_CONVEX_URL",
     "NEXT_PUBLIC_APP_URL",
@@ -22,6 +28,15 @@
   ],
   "globalPassThroughEnv": ["VERCEL_URL"],
   "tasks": {
+    "@workspace/discord-bot#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "@workspace/dashboard#build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "public/welcome-assets/**"]
+    },
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],

@@ -30,6 +30,13 @@ apps/landing/next-env.d.ts
 out/
 build
 dist
+apps/discord-bot/src/services/welcome-assets/
+apps/discord-bot/src/services/welcome-assets-*/
+apps/dashboard/public/welcome-assets/
+apps/dashboard/public/welcome-assets-*/
+welcome-render-verification/
+apps/dashboard/test-results/
+apps/dashboard/playwright-report/
 *.tar.gz
 *.sha256
 

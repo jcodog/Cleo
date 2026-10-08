@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "apps/discord-bot/**"
+      - "scripts/prepare-welcome-assets.mjs"
+      - "scripts/welcome-emoji-notice.txt"
+      - "scripts/assets/**"
       - "packages/backend/**"
       - "packages/env/**"
       - "packages/logger/**"

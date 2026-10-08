@@ -77,6 +77,21 @@ jobs:
           bun run --filter @workspace/dashboard build
           bun run --filter @workspace/dashboard test:pwa:build
 
+      - name: Install welcome verification browsers
+        working-directory: apps/dashboard
+        run: bunx --no-install playwright install --with-deps chromium firefox
+
+      - name: Verify guild welcome controls in Chromium and Firefox
+        run: bun run --filter @workspace/dashboard test:welcome:browser
+
+      - name: Upload welcome browser evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: welcome-browser-verification
+          if-no-files-found: error
+          path: apps/dashboard/test-results/welcome
+
       - name: Test served dashboard PWA
         # Signed-out fixtures do not authenticate users or call Clerk/Convex APIs.
         env:
@@ -309,6 +324,21 @@ jobs:
           grep -F "symlink escapes the bundle" "$symlink_log"
           rm -rf "$symlink_fixture"
           rm -f "$outside_fixture" "$symlink_log"
+
+      - name: Verify packaged welcome PNGs without host fonts
+        env:
+          DISABLE_SYSTEM_FONTS_LOAD: "1"
+        run: |
+          node "$RUNNER_TEMP/cleo-discord-package-extract/dist/verifyWelcomeRendering.js" \
+            "$RUNNER_TEMP/welcome-render-verification" \
+            "$RUNNER_TEMP/cleo-discord-package-extract/dist/welcome-assets"
+
+      - name: Upload welcome rendering evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: welcome-render-verification
+          if-no-files-found: error
+          path: ${{ runner.temp }}/welcome-render-verification
 
       - name: Upload Cobertura artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

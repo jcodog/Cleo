@@ -1771,7 +1771,15 @@ export declare const api: {
                   moderationEnabled?: boolean;
                   welcomeEnabled?: boolean;
                 };
-                welcome?: { subtext?: string | null };
+                welcome?: {
+                  style?: {
+                    align: string;
+                    greeting: string;
+                    palette: string;
+                    preset: string;
+                  };
+                  subtext?: string | null;
+                };
               },
               {
                 _creationTime: number;
@@ -2130,6 +2138,7 @@ export declare const api: {
                     };
                     name: string;
                     presenceCount?: number;
+                    welcomeCardStudioAvailable: boolean;
                   };
                   status: "botLeft";
                 }
@@ -2178,6 +2187,7 @@ export declare const api: {
                     };
                     name: string;
                     presenceCount?: number;
+                    welcomeCardStudioAvailable: boolean;
                   };
                   status: "ready";
                 }

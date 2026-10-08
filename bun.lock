@@ -5,6 +5,7 @@
     "": {
       "name": "cleo",
       "devDependencies": {
+        "@fontsource/geist": "5.3.0",
         "@next/eslint-plugin-next": "catalog:",
         "@types/node": "catalog:",
         "@workspace/typescript-config": "workspace:*",
@@ -39,6 +40,7 @@
         "zustand": "^5.0.15",
       },
       "devDependencies": {
+        "@playwright/test": "1.64.0",
         "@tailwindcss/postcss": "catalog:",
         "@types/node": "catalog:",
         "@types/react": "catalog:",
@@ -46,28 +48,6 @@
         "@workspace/typescript-config": "workspace:*",
         "typescript": "catalog:",
       },
-    },
-    "apps/landing": {
-      "name": "@workspace/landing",
-      "version": "0.0.1",
-      "dependencies": {
-        "@clerk/nextjs": "^7.9.11",
-        "@tabler/icons-react": "^3.49.0",
-        "@workspace/env": "workspace:*",
-        "@workspace/shared": "workspace:*",
-        "@workspace/ui": "workspace:*",
-        "next": "16.3.8",
-        "react": "^19.3.0",
-        "react-dom": "^19.3.0"
-      },
-      "devDependencies": {
-        "@tailwindcss/postcss": "catalog:",
-        "@types/node": "catalog:",
-        "@types/react": "catalog:",
-        "@types/react-dom": "catalog:",
-        "@workspace/typescript-config": "workspace:*",
-        "typescript": "catalog:"
-      }
     },
     "apps/discord-bot": {
       "name": "@workspace/discord-bot",
@@ -89,6 +69,28 @@
         "tsx": "catalog:",
         "typescript": "catalog:",
         "zod": "^4.6.5",
+      },
+    },
+    "apps/landing": {
+      "name": "@workspace/landing",
+      "version": "0.0.1",
+      "dependencies": {
+        "@clerk/nextjs": "^7.9.11",
+        "@tabler/icons-react": "^3.49.0",
+        "@workspace/env": "workspace:*",
+        "@workspace/shared": "workspace:*",
+        "@workspace/ui": "workspace:*",
+        "next": "16.3.8",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+      },
+      "devDependencies": {
+        "@tailwindcss/postcss": "catalog:",
+        "@types/node": "catalog:",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
+        "@workspace/typescript-config": "workspace:*",
+        "typescript": "catalog:",
       },
     },
     "apps/twitch-bot": {
@@ -423,6 +425,8 @@
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
 
+    "@fontsource/geist": ["@fontsource/geist@5.3.0", "", {}, "sha512-u03ftlfVwb05uijq2jGDJ03/HKGqMKaNFk7KOhkpBUex8+BhrAOfMs/XciJ2UUNUX9fEsZbZQld/RWMA2oFU7g=="],
+
     "@formkit/auto-animate": ["@formkit/auto-animate@0.8.4", "", {}, "sha512-DHHC01EJ1p70Q0z/ZFRBIY8NDnmfKccQoyoM84Tgb6omLMat6jivCdf272Y8k3nf4Lzdin/Y4R9q8uFtU0GbnA=="],
 
     "@hono/node-server": ["@hono/node-server@2.0.12", "", { "peerDependencies": { "hono": "^4" } }, "sha512-eWpQYr67tqJLeaSUl0Q+TquuYfUdTibpOJlUMV2FfUP7+KqCC5TufnwnlXL6mobZBJbGAYRd7ZvEBDCbLInjhg=="],
@@ -624,6 +628,8 @@
     "@oxlint/binding-win32-ia32-msvc": ["@oxlint/binding-win32-ia32-msvc@1.87.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-daptNsEOuru4/nJTxV4DBHNJ5GepzmaBVQf+jjgKQGi9NRlZKik+RFq4hUL7ewsF1pwjKM+SkYaMbF82UwFGnw=="],
 
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.87.0", "", { "os": "win32", "cpu": "x64" }, "sha512-k+m/EShyXE29J/r1fjk0HlAzhN5JhIvj044oSJkXTEkCLrWZQgXb/3r4q5LTw/eaKW/4GuMXG2xmiJs3s5rPNw=="],
+
+    "@playwright/test": ["@playwright/test@1.64.0", "", { "dependencies": { "playwright": "1.64.0" }, "bin": { "playwright": "cli.js" } }, "sha512-oTN9FNYuN6bqQMwiho6jJKLCG2/QOYCixGXuCjRmzOq23eODeukuY2XiAVoVpAECbuezMt1MHQjAiQxK8F+Y+g=="],
 
     "@radix-ui/primitive": ["@radix-ui/primitive@1.1.7", "", {}, "sha512-rqWnm76nYT8HoNNqEjpgJ7Pw/DrBj5iBTrmEPo6HTX5+VJyBNOqTdv4g89G63HuR5g0AaENoAcH7Is5fF2kZ8Q=="],
 
@@ -1424,6 +1430,10 @@
     "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
 
     "pkg-up": ["pkg-up@3.1.0", "", { "dependencies": { "find-up": "^3.0.0" } }, "sha512-nDywThFk1i4BQK4twPQ6TA4RT8bDY96yeuCVBWL3ePARCiEKDRSrNGbFIgUJpLp+XeIR65v8ra7WuJOFUBtkMA=="],
+
+    "playwright": ["playwright@1.64.0", "", { "dependencies": { "playwright-core": "1.64.0" }, "bin": { "playwright": "cli.js" } }, "sha512-kVzTnYFYEyQ9RGzBjNCd2+yEqWmVbxl3AHPynv3qQ6JTjv4a+kwRcnqQwIpuP3NnrnIrE/Q6wWAIAvMfIE2/Yg=="],
+
+    "playwright-core": ["playwright-core@1.64.0", "", { "bin": { "playwright-core": "cli.js" } }, "sha512-T9r+MZkTECl2+oUcZ26YgZzTrYidTsIhYYkJix+6iDOymOb1FB2RLLSOxRGnZGv5DStt+aduIVbt+E8WygXYpg=="],
 
     "postcss": ["postcss@8.5.25", "", { "dependencies": { "nanoid": "^3.3.16", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw=="],
 

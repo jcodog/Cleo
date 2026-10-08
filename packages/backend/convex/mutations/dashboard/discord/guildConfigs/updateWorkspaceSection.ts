@@ -8,6 +8,11 @@ import {
 } from "../../../../lib/auth"
 import { insertDashboardGuildAuditEvent } from "../../../../lib/guildAudit"
 import { guildConfigDoc } from "../../../../lib/validators"
+import {
+  isFreeWelcomeStyle,
+  parseWelcomeCardStyle,
+  type WelcomeCardStyle,
+} from "@workspace/shared/welcomeCard"
 
 const optionalChannelId = v.optional(v.union(v.string(), v.null()))
 const optionalText = v.optional(v.union(v.string(), v.null()))
@@ -38,6 +43,14 @@ export const update = mutation({
     welcome: v.optional(
       v.object({
         subtext: optionalText,
+        style: v.optional(
+          v.object({
+            preset: v.string(),
+            palette: v.string(),
+            greeting: v.string(),
+            align: v.string(),
+          })
+        ),
       })
     ),
     logging: v.optional(
@@ -49,6 +62,28 @@ export const update = mutation({
   returns: guildConfigDoc,
   handler: async (ctx, args) => {
     const guild = await loadManagedGuild(ctx, args.discordGuildId)
+    if (args.welcome?.style !== undefined) {
+      let style: WelcomeCardStyle
+      try {
+        style = parseWelcomeCardStyle(args.welcome.style)
+      } catch (error) {
+        throw new ConvexError({
+          code: "INVALID_WELCOME_STYLE",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Choose an approved welcome-card design and greeting.",
+        })
+      }
+      // JCN-57 must resolve a verified guild entitlement here before paid styles
+      // can be persisted or sent in bot runtime configuration.
+      if (!isFreeWelcomeStyle(style))
+        throw new ConvexError({
+          code: "PREMIUM_WELCOME_UNAVAILABLE",
+          message:
+            "Premium welcome cards are preview-only while guild entitlement checks are being completed.",
+        })
+    }
     const existingConfig = await getGuildConfig(ctx, guild._id)
     const now = Date.now()
     const nextConfig = buildNextConfig({

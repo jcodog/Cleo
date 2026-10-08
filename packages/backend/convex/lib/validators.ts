@@ -517,6 +517,7 @@ export const dashboardDiscordGuildOverviewConfigViewModel = v.object({
 })
 
 export const dashboardDiscordGuildOverviewViewModel = v.object({
+  welcomeCardStudioAvailable: v.boolean(),
   guildId: v.id("guilds"),
   discordGuildId: v.string(),
   name: v.string(),

@@ -41,6 +41,14 @@ test("Convex classification includes imported packages, dependency resolution an
 })
 
 test("Discord deploy paths include runtime and direct dependencies", () => {
+  for (const path of [
+    "scripts/assets/twemoji-17.0.3.json.gz",
+    "scripts/prepare-welcome-assets.mjs",
+    "scripts/welcome-emoji-notice.txt",
+  ]) {
+    assert.equal(isDiscordDeployPath(path), true)
+    assert.equal(isCommandRegistrationPath(path), false)
+  }
   assert.equal(isDiscordDeployPath("apps/discord-bot/src/index.ts"), true)
   assert.equal(isDiscordDeployPath("packages/backend/convex/schema.ts"), true)
   assert.equal(isDiscordDeployPath("packages/shared/src/index.ts"), true)

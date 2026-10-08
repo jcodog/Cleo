@@ -15,6 +15,7 @@
     "test:coverage": "turbo test:coverage"
   },
   "devDependencies": {
+    "@fontsource/geist": "5.3.0",
     "@next/eslint-plugin-next": "catalog:",
     "@types/node": "catalog:",
     "@workspace/typescript-config": "workspace:*",
