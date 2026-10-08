@@ -1,0 +1,22 @@
+apps/dashboard/public/site.webmanifest
+  s_6ae57e5dc42fc3::t_97dadd2a59a6ac 9-13
+  s_6ae57e5dc42fc3::t_020a27e538a5ac 8
+apps/dashboard/tests/pwa.test.ts
+  s_6ae57e5dc42fc3::t_97dadd2a59a6ac 43-44,61,123-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "257738d4ac2a697ca9d15663c987d6afd2ab26f7",
+  "prompts": {},
+  "sessions": {
+    "s_6ae57e5dc42fc3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a11b80-013f-71b3-bd54-80144cef0681",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
