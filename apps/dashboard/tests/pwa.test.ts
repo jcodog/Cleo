@@ -51,9 +51,9 @@ test("production HTML discovers one manifest and emits standard and Apple instal
     assert.doesNotMatch(manifestLink, /\bcrossorigin=/i)
     assert.match(html, /<meta name="application-name" content="Cleo"/)
     assert.match(html, /<meta name="mobile-web-app-capable" content="yes"/)
-    assert.match(
+    assert.doesNotMatch(
       html,
-      /<meta name="apple-mobile-web-app-capable" content="yes"/
+      /<meta name="apple-mobile-web-app-capable"/
     )
     assert.match(html, /<meta name="apple-mobile-web-app-title" content="Cleo"/)
     assert.match(

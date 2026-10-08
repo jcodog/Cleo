@@ -19,9 +19,9 @@ test("generated production HTML discovers the dashboard manifest on static app p
     assert.equal(new URL(href).href, new URL("/site.webmanifest", pageUrl).href)
     assert.doesNotMatch(manifestLink, /\bcrossorigin=/i)
     assert.match(html, /<meta name="mobile-web-app-capable" content="yes"/)
-    assert.match(
+    assert.doesNotMatch(
       html,
-      /<meta name="apple-mobile-web-app-capable" content="yes"/
+      /<meta name="apple-mobile-web-app-capable"/
     )
     assert.match(
       html,
