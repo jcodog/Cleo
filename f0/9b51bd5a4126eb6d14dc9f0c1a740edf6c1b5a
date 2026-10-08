@@ -1,0 +1,45 @@
+apps/dashboard/src/features/app-shell/pwaNavigation.test.ts
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 70
+apps/dashboard/src/features/auth/clerkEntry.test.ts
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 35
+apps/dashboard/tests/pwa-build.test.ts
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 13,18
+  s_6ae57e5dc42fc3::t_044d7b0039ccca 14-17,20-24,32
+.github/workflows/regression.yml
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 74,80-112
+  s_6ae57e5dc42fc3::t_cbbd5b59746bf1 113-116
+  s_6ae57e5dc42fc3::t_c32ee4b145aa64 117
+apps/dashboard/tests/pwa.test.ts
+  s_6ae57e5dc42fc3::t_325abe60e1d031 116,120,132,135
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 30,49
+  s_6ae57e5dc42fc3::t_044d7b0039ccca 45-48,51-55,63
+apps/dashboard/src/app/page.tsx
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 8
+.github/scripts/serve-dashboard-pwa.mjs
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 1-35
+apps/dashboard/src/components/providers/app-providers.tsx
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 11
+apps/dashboard/public/site.webmanifest
+  s_6ae57e5dc42fc3::t_325abe60e1d031 24
+apps/dashboard/src/app/layout.tsx
+  s_6ae57e5dc42fc3::t_558f138b8a2c40 107
+docs/pwa-navigation.md
+  s_6ae57e5dc42fc3::t_325abe60e1d031 4-7,40-56,92-93,102-104,109-115
+  s_6ae57e5dc42fc3::t_044d7b0039ccca 90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f09b51bd5a4126eb6d14dc9f0c1a740edf6c1b5a",
+  "prompts": {},
+  "sessions": {
+    "s_6ae57e5dc42fc3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a11b80-013f-71b3-bd54-80144cef0681",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
