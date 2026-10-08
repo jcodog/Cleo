@@ -75,6 +75,7 @@ jobs:
         run: |
           bun run --filter @workspace/landing build
           bun run --filter @workspace/dashboard build
+          bun run --filter @workspace/dashboard test:pwa:build
 
       - name: Run workspace tests with coverage
         run: |

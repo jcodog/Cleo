@@ -2,7 +2,7 @@ import * as React from "react"
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-test("Clerk sign-out preserves its local handoff without mounting a pending-request guard", async (t) => {
+test("Clerk sign-out returns to in-scope sign-in without mounting a pending-request guard", async (t) => {
   const previousReact = Object.getOwnPropertyDescriptor(globalThis, "React")
   Object.defineProperty(globalThis, "React", {
     configurable: true,
@@ -32,7 +32,12 @@ test("Clerk sign-out preserves its local handoff without mounting a pending-requ
     theme.resolvedTheme = resolvedTheme
     const provider = AppProviders({ children: "product" })
     assert.equal(provider.type, ClerkProvider)
-    assert.equal(provider.props.afterSignOutUrl, "/?s=sign-out")
+    assert.equal(provider.props.afterSignOutUrl, "/sign-in")
+    assert.equal(
+      new URL(provider.props.afterSignOutUrl, "https://app.cleoai.cloud")
+        .origin,
+      "https://app.cleoai.cloud"
+    )
     assert.equal(provider.props.children.type, ConvexProviderWithClerk)
     assert.equal(provider.props.children.props.client, client)
     assert.equal(provider.props.children.props.useAuth, useAuth)

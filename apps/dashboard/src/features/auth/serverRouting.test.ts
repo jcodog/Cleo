@@ -52,52 +52,13 @@ test("actual server entry uses Clerk and a Convex token, rejects missing tokens 
       },
     },
   })
-  const origins = {
-    NEXT_PUBLIC_SITE_URL: "https://dev.cleoai.cloud",
-    VERCEL_ENV: "preview",
-    VERCEL_URL: "dev-app.cleoai.cloud",
-  }
-  t.mock.module("@workspace/env/dashboard", {
-    exports: { dashboardEnv: origins },
-  })
   const { default: root } = await import("../../app/page")
-  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+  await assert.rejects(root(), {
     message: "redirect:/sign-in",
   })
   assert.equal(reads, 0)
-  for (const siteOrigin of [
-    "https://dev.cleoai.cloud",
-    "https://cleoai.cloud",
-  ]) {
-    origins.NEXT_PUBLIC_SITE_URL = siteOrigin
-    await assert.rejects(
-      root({ searchParams: Promise.resolve({ s: "sign-out" }) }),
-      { message: `redirect:${siteOrigin}` }
-    )
-    assert.equal(reads, 0)
-  }
-  for (const s of [
-    "https://evil.example",
-    "//evil.example",
-    ["sign-out", "sign-out"],
-  ]) {
-    await assert.rejects(root({ searchParams: Promise.resolve({ s }) }), {
-      message: "redirect:/sign-in",
-    })
-  }
-  origins.NEXT_PUBLIC_SITE_URL = ""
-  await assert.rejects(
-    root({ searchParams: Promise.resolve({ s: "sign-out" }) }),
-    /NEXT_PUBLIC_SITE_URL must be configured/
-  )
-  origins.VERCEL_ENV = ""
-  origins.VERCEL_URL = ""
-  await assert.rejects(
-    root({ searchParams: Promise.resolve({ s: "sign-out" }) }),
-    { message: "redirect:http://localhost:3001" }
-  )
   userId = "user_123"
-  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+  await assert.rejects(root(), {
     message: "redirect:/onboarding",
   })
   assert.deepEqual(tokenOptions, { template: "convex" })
@@ -109,22 +70,18 @@ test("actual server entry uses Clerk and a Convex token, rejects missing tokens 
       onboardingProvenance: "post-rollout",
     },
   }
-  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+  await assert.rejects(root(), {
     message: "redirect:/onboarding",
   })
   state.account.onboardingCompletedAt = 1
   state.account.onboardingVersion = 1
   audience = ["convex"]
-  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+  await assert.rejects(root(), {
     message: "redirect:/dashboard",
   })
   assert.equal(tokenOptions, undefined)
-  await assert.rejects(
-    root({ searchParams: Promise.resolve({ s: "sign-out" }) }),
-    { message: "redirect:/dashboard" }
-  )
   audience = "convex"
-  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+  await assert.rejects(root(), {
     message: "redirect:/dashboard",
   })
   t.mock.module(
@@ -151,12 +108,12 @@ test("actual server entry uses Clerk and a Convex token, rejects missing tokens 
     )
   }
   token = null
-  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+  await assert.rejects(root(), {
     message: "Clerk did not return a Convex authentication token",
   })
   token = "convex-jwt"
   backendFailure = true
-  await assert.rejects(root({ searchParams: Promise.resolve({}) }), {
+  await assert.rejects(root(), {
     message: "backend unavailable",
   })
 })
