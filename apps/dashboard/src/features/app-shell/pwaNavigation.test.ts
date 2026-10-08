@@ -67,6 +67,7 @@ test("actual dashboard navigation uses in-scope Next links without new-window ta
   const { DashboardShellClient } = await import("./DashboardShellClient")
   const { AppSidebarNav } = await import("./AppSidebarNav")
   const { default: Link } = await import("next/link")
+  /** Collects rendered Next links, including links passed through primitive render props. */
   function links(
     node: React.ReactNode
   ): React.ReactElement<{ href: string; target?: string }>[] {

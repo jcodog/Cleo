@@ -5,6 +5,7 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 import { getConvexAuthToken } from "@/lib/convex-auth"
 import { applicationEntryPath } from "@/features/auth/applicationEntry"
 
+/** Resolves the authenticated account's entry route after enforcing sign-in. */
 export default async function Page() {
   const { userId } = await auth()
   if (!userId) {

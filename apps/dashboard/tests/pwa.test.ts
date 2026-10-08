@@ -27,6 +27,7 @@ const appPaths = [
   "/subscription",
 ]
 
+/** Fetches a real app response with a bounded timeout and explicit redirect handling. */
 async function get(path: string, redirect: RequestRedirect = "follow") {
   return fetch(new URL(path, appUrl), {
     redirect,
@@ -41,9 +42,17 @@ test("production HTML discovers one manifest and emits standard and Apple instal
     assert.equal(new URL(response.url).origin, appUrl.origin)
     const html = await response.text()
     const head = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/)?.[1]
-    assert.ok(head, `${path}: installation metadata must be in the initial head`)
-    const manifests = html.match(/<link\b[^>]*rel="manifest"[^>]*>/g) ?? []
+    assert.ok(
+      head,
+      `${path}: installation metadata must be in the initial head`
+    )
+    const manifests = head.match(/<link\b[^>]*rel="manifest"[^>]*>/g) ?? []
     assert.equal(manifests.length, 1, path)
+    assert.equal(
+      html.match(/<link\b[^>]*rel="manifest"[^>]*>/g)?.length,
+      1,
+      path
+    )
     const manifestLink = manifests[0] ?? ""
     const href = manifestLink.match(/href="([^"]+)"/)?.[1]
     assert.ok(href, path)
@@ -51,10 +60,7 @@ test("production HTML discovers one manifest and emits standard and Apple instal
     assert.doesNotMatch(manifestLink, /\bcrossorigin=/i)
     assert.match(html, /<meta name="application-name" content="Cleo"/)
     assert.match(html, /<meta name="mobile-web-app-capable" content="yes"/)
-    assert.doesNotMatch(
-      html,
-      /<meta name="apple-mobile-web-app-capable"/
-    )
+    assert.doesNotMatch(html, /<meta name="apple-mobile-web-app-capable"/)
     assert.match(html, /<meta name="apple-mobile-web-app-title" content="Cleo"/)
     assert.match(
       html,
@@ -107,10 +113,11 @@ test("served manifest has a stable origin-local identity, launch URL and scope w
   }
   assert.ok("icons" in manifest && Array.isArray(manifest.icons))
   const sizes = new Set<string>()
+  const maskableSizes = new Set<string>()
   for (const icon of manifest.icons) {
     assert.ok(icon && typeof icon === "object")
     assert.equal(icon.type, "image/png")
-    assert.equal(icon.purpose, "any")
+    assert.ok(icon.purpose === "any" || icon.purpose === "any maskable")
     assert.equal(typeof icon.src, "string")
     const url = new URL(icon.src, manifestUrl)
     assert.equal(url.origin, appUrl.origin)
@@ -122,8 +129,10 @@ test("served manifest has a stable origin-local identity, launch URL and scope w
     const actualSize = `${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`
     assert.equal(icon.sizes, actualSize, icon.src)
     sizes.add(actualSize)
+    if (icon.purpose === "any maskable") maskableSizes.add(actualSize)
   }
   assert.ok(sizes.has("192x192") && sizes.has("512x512"))
+  assert.ok(maskableSizes.has("512x512"))
   // Offer the same image to manifest-based and Apple-specific installers.
   assert.ok(
     manifest.icons.some(

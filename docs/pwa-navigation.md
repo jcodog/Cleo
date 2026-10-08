@@ -1,10 +1,10 @@
 # Cleo installed-app navigation
 
 The confirmed defects repaired here are manifest discovery, incomplete manifest
-identity and scope, missing Apple capability metadata in Next 16's output, and
-sign-out leaving the app origin. The complete cause of the reported iPhone
-`/` to `/dashboard` escape is still unverified. Do not close the issue or approve
-the PR for merge based only on these corrections.
+identity and scope, and sign-out leaving the app origin. The user confirmed that
+standalone navigation now works on a physical iPhone. The iOS 27.2 Preview Home
+Screen icon still needs verification after removing the manual Apple-prefixed
+capability tag. Android installed-app behavior remains untested.
 
 The audit started from fetched `main` at
 `970caede4bf235e4c70ab92aa6d23054ce03eb7d` on 8 October 2026.
@@ -37,11 +37,23 @@ changed or independently audited through their control planes.
 The dashboard now links `/site.webmanifest` through Next metadata. Its `id`,
 `start_url` and `scope` are `/`, resolved against the app's own origin, with name
 `Cleo`, standalone display and `#0a0a0a` launch colors. The existing 192 and 512 PNGs
-are declared for purpose `any`; HTTP tests check their real dimensions. The
-portrait extends outside the maskable safe circle, so it is not relabelled as
-maskable. Apple touch icon, title and status-bar metadata remain. Next 16 emits
-the standard capability tag from `appleWebApp.capable`; `metadata.other` adds the
-Apple-prefixed compatibility tag. Landing metadata and assets remain unchanged.
+remain unchanged; HTTP tests check their real dimensions. The opaque 512px
+portrait is declared `any maskable`: its central face remains within the 40%
+radius safe circle, while peripheral hair, clothing and background can be cropped.
+The existing 180px Apple icon is also offered in the manifest. Apple touch icon,
+title and status-bar metadata remain. Next 16 emits the standard capability tag
+from `appleWebApp.capable`; no manual Apple-prefixed capability tag is added.
+The manifest link resolves to an absolute app-origin URL so Next does not add
+Preview-only `crossorigin="use-credentials"`. Landing metadata and assets remain
+unchanged.
+
+Disabling manifest discovery at `663503c` did not restore the iPhone portrait,
+including after cache clearing and a fresh installation from `/sign-in`. That
+hypothesis was falsified. Adding the Apple icon to the manifest and removing the
+Preview-only credential attribute also did not restore it. The `81e3961` candidate
+removes the manual capability tag and awaits the user's Home Screen result. If
+the black C persists, collect Safari Web Inspector icon-request evidence before
+making further iOS metadata changes.
 
 Clerk SignIn/SignUp keep their default `auto` OAuth flow and validated relative
 return URLs. The unused custom DiscordAuthPage does not control these entry
@@ -75,9 +87,10 @@ browser verification. No service worker, offline cache or push feature was added
 | Desktop Firefox / Safari | Standards and routing compatibility review                                                                                                               | Browser login and normal navigation; Safari available only on a separate host                                                   |
 | Android Chrome           | Configuration and routing tests only                                                                                                                     | Physical device or emulator installation and every flow below                                                                   |
 | Android alternatives     | Standards-based manifest retained                                                                                                                        | Installed behavior in supported Samsung Internet, Edge or Firefox versions; distinguish app installation from shortcut behavior |
-| iOS Safari               | User-confirmed pre-fix escape; configuration and Apple compatibility review                                                                              | Physical installed-app testing on the reproduced version and another supported version                                          |
+| iOS Safari               | User-confirmed working standalone navigation on a physical iPhone; fresh-install icon still showed black C with manifest discovery disabled              | Portrait result after manual capability tag removal; complete auth/onboarding/session matrix and another supported iOS version  |
 
-No physical Android or iOS tests ran. No installed desktop PWA, Android emulator,
+Physical iPhone navigation and icon checks were performed by the user, not the
+automated test runner. No physical Android tests ran. No installed desktop PWA, Android emulator,
 Firefox engine or Safari/WebKit engine test ran. The Chromium browser tab is not
 an installed PWA. Neither viewport emulation nor changing `display-mode` media
 queries establishes standalone navigation correctness.
@@ -86,18 +99,20 @@ Automated checks cover actual server root routing, token failures, SSR onboardin
 protected deep-link retention through both Clerk entry components, generated
 dashboard sidebar Next Link targets and in-scope sign-out configuration. CI runs
 `test:pwa:build` after the dashboard build to inspect Next's generated static HTML,
-including the SSO callback. Production HTTP tests verify generated route HTML,
+including the SSO callback. CI also serves that build over local HTTPS with a
+temporary trusted certificate and signed-out Clerk fixtures, then runs `test:pwa`.
+The fixtures cannot authenticate users or access Clerk/Convex APIs. HTTP tests verify generated route HTML,
 served MIME type, manifest identity/scope/display, actual icon bytes and dimensions,
 all expected signed-out route destinations, and the obsolete sign-out marker.
 Existing coverage thresholds are unchanged.
 
-To repeat HTTP validation, build and start the dashboard with valid development or
-preview Clerk configuration and a reachable Convex deployment. For example, start
-the server with `bun run --filter @workspace/dashboard start --hostname localhost --port 3100`.
-Set `PWA_TEST_ORIGIN` to that server's exact origin, `http://localhost:3100` in this
-example, then run
-`bun run --filter @workspace/dashboard test:pwa`. This suite requires a signed-out
-server request context and does not simulate a real user session. The build-only
+To repeat HTTP validation against the approved deployed Preview, set
+`PWA_TEST_ORIGIN=https://dev-app.cleoai.cloud`, then run
+`bun run --filter @workspace/dashboard test:pwa`. The build's `NEXT_PUBLIC_APP_URL`
+must match that served origin because the manifest link is absolute. Local CI
+validation uses `https://localhost:3100`; see the certificate, fixtures, startup
+and cleanup commands in `.github/workflows/regression.yml`. This suite requires
+a signed-out server request context and does not simulate a real user session. The build-only
 suite runs with `bun run --filter @workspace/dashboard test:pwa:build` and requires
 the dashboard `.next` output, without auth secrets.
 

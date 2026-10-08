@@ -104,6 +104,7 @@ export const viewport: Viewport = {
   ],
 }
 
+/** Supplies shared installation metadata, fonts, theme and authenticated providers. */
 export default function RootLayout({
   children,
 }: Readonly<{

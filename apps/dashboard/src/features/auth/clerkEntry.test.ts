@@ -32,6 +32,7 @@ test("actual Clerk entry bridges protected deep links across sign-in and sign-up
     auth: () => Promise<{ userId: null }>,
     request: NextRequest
   ) => Promise<Response>
+  /** Validates the rendered Clerk component before inspecting its return destinations. */
   function clerkProps(node: ReactNode) {
     assert.ok(isValidElement<{ children: ReactNode }>(node))
     const clerk = node.props.children
