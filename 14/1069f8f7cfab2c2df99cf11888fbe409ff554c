@@ -1,0 +1,52 @@
+apps/dashboard/tests/pwa.test.ts
+  s_6ae57e5dc42fc3::t_bcaab0d70ad01d 1-4,7,12-30,35-47,52,57,62-67,72-74,83-134,139-148
+  s_6ae57e5dc42fc3::t_c69be6569affcf 5-6,31-34
+  s_6ae57e5dc42fc3::t_161a1c07b394ff 8-11,48-51,53-56,58-61,68-71,75-82,135-138
+apps/dashboard/src/components/providers/app-providers.test.ts
+  s_6ae57e5dc42fc3::t_161a1c07b394ff 5,35-40
+apps/dashboard/src/app/page.tsx
+  s_6ae57e5dc42fc3::t_4523ed8da7ccff 8
+apps/dashboard/src/app/layout.tsx
+  s_6ae57e5dc42fc3::t_4523ed8da7ccff 47,97-98
+apps/dashboard/package.json
+  s_6ae57e5dc42fc3::t_bcaab0d70ad01d 13
+  s_6ae57e5dc42fc3::t_928c54207c0a48 14
+docs/pwa-navigation.md
+  s_6ae57e5dc42fc3::t_be2218275c26f2 1-71,79-131
+  s_6ae57e5dc42fc3::t_7e8d6aae7e8206 72-78
+apps/dashboard/public/site.webmanifest
+  s_6ae57e5dc42fc3::t_4523ed8da7ccff 2-3,5-6,11-12,17-18
+docs/web-app-split.md
+  s_6ae57e5dc42fc3::t_c69be6569affcf 92-94,153
+apps/dashboard/src/features/auth/serverRouting.test.ts
+  s_6ae57e5dc42fc3::t_508735278492d4 56,61,73,79,84,111,116
+apps/dashboard/src/features/app-shell/pwaNavigation.test.ts
+  s_6ae57e5dc42fc3::t_fd88d2f07a593d 1-8,13-21,23-30,34-39,43-44,51,55,66-69,80-83,88-92,105-107,117-118,123-126
+  s_6ae57e5dc42fc3::t_b7eb57a23db69f 9-12,22,31-33,40-42,45-50,52-54,56-65,70-79,84-87,93-104,108-116,119-122
+apps/dashboard/src/components/providers/app-providers.tsx
+  s_6ae57e5dc42fc3::t_4523ed8da7ccff 23
+.github/workflows/regression.yml
+  s_6ae57e5dc42fc3::t_928c54207c0a48 78
+apps/dashboard/tests/pwa-build.test.ts
+  s_6ae57e5dc42fc3::t_aaab919eddc2de 17-24
+  s_6ae57e5dc42fc3::t_83d9aa4146b1b0 5,8
+  s_6ae57e5dc42fc3::t_928c54207c0a48 1-4,6-7,9-16,25-26
+apps/dashboard/src/features/auth/clerkEntry.test.ts
+  s_6ae57e5dc42fc3::t_928c54207c0a48 45,49-51,58-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "141069f8f7cfab2c2df99cf11888fbe409ff554c",
+  "prompts": {},
+  "sessions": {
+    "s_6ae57e5dc42fc3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a11b80-013f-71b3-bd54-80144cef0681",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
