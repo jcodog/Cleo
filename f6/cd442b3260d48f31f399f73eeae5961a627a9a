@@ -1,0 +1,21 @@
+docs/pwa-navigation.md
+  s_6ae57e5dc42fc3::t_90d5928f0d5fd9 95-98
+docs/web-app-split.md
+  s_6ae57e5dc42fc3::t_90d5928f0d5fd9 208-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f6cd442b3260d48f31f399f73eeae5961a627a9a",
+  "prompts": {},
+  "sessions": {
+    "s_6ae57e5dc42fc3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a11b80-013f-71b3-bd54-80144cef0681",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
