@@ -4,8 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --experimental-https",
-    "build": "next build",
+    "assets:welcome": "node ../../scripts/prepare-welcome-assets.mjs dashboard",
+    "dev": "bun run assets:welcome && next dev --turbopack --experimental-https",
+    "build": "bun run assets:welcome && next build",
     "start": "next start",
     "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
     "format": "prettier --write \"**/*.{ts,tsx}\"",

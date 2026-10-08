@@ -5,6 +5,7 @@
     "": {
       "name": "cleo",
       "devDependencies": {
+        "@fontsource/geist": "5.3.0",
         "@next/eslint-plugin-next": "catalog:",
         "@types/node": "catalog:",
         "@workspace/typescript-config": "workspace:*",
@@ -47,28 +48,6 @@
         "typescript": "catalog:",
       },
     },
-    "apps/landing": {
-      "name": "@workspace/landing",
-      "version": "0.0.1",
-      "dependencies": {
-        "@clerk/nextjs": "^7.9.11",
-        "@tabler/icons-react": "^3.49.0",
-        "@workspace/env": "workspace:*",
-        "@workspace/shared": "workspace:*",
-        "@workspace/ui": "workspace:*",
-        "next": "16.3.8",
-        "react": "^19.3.0",
-        "react-dom": "^19.3.0"
-      },
-      "devDependencies": {
-        "@tailwindcss/postcss": "catalog:",
-        "@types/node": "catalog:",
-        "@types/react": "catalog:",
-        "@types/react-dom": "catalog:",
-        "@workspace/typescript-config": "workspace:*",
-        "typescript": "catalog:"
-      }
-    },
     "apps/discord-bot": {
       "name": "@workspace/discord-bot",
       "version": "3.1.2",
@@ -89,6 +68,28 @@
         "tsx": "catalog:",
         "typescript": "catalog:",
         "zod": "^4.6.5",
+      },
+    },
+    "apps/landing": {
+      "name": "@workspace/landing",
+      "version": "0.0.1",
+      "dependencies": {
+        "@clerk/nextjs": "^7.9.11",
+        "@tabler/icons-react": "^3.49.0",
+        "@workspace/env": "workspace:*",
+        "@workspace/shared": "workspace:*",
+        "@workspace/ui": "workspace:*",
+        "next": "16.3.8",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+      },
+      "devDependencies": {
+        "@tailwindcss/postcss": "catalog:",
+        "@types/node": "catalog:",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
+        "@workspace/typescript-config": "workspace:*",
+        "typescript": "catalog:",
       },
     },
     "apps/twitch-bot": {
@@ -422,6 +423,8 @@
     "@floating-ui/react-dom": ["@floating-ui/react-dom@2.1.9", "", { "dependencies": { "@floating-ui/dom": "^1.8.0" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-JDjEFGCpImxDCA7JJKviA0M9+RtmJdj0m/NVU5IMgBK+AmZouAQQ7/+2GLH0GXXY0YMw9oXPB8hKdbPYg5QLYg=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
+
+    "@fontsource/geist": ["@fontsource/geist@5.3.0", "", {}, "sha512-u03ftlfVwb05uijq2jGDJ03/HKGqMKaNFk7KOhkpBUex8+BhrAOfMs/XciJ2UUNUX9fEsZbZQld/RWMA2oFU7g=="],
 
     "@formkit/auto-animate": ["@formkit/auto-animate@0.8.4", "", {}, "sha512-DHHC01EJ1p70Q0z/ZFRBIY8NDnmfKccQoyoM84Tgb6omLMat6jivCdf272Y8k3nf4Lzdin/Y4R9q8uFtU0GbnA=="],
 

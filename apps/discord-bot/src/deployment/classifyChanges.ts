@@ -190,9 +190,12 @@ const DEPLOY_PREFIXES = [
   "packages/shared/",
   "packages/typescript-config/",
   "ops/discord/",
+  "scripts/assets/",
 ] as const
 
 const DEPLOY_FILES = new Set<string>([
+  "scripts/prepare-welcome-assets.mjs",
+  "scripts/welcome-emoji-notice.txt",
   ".github/scripts/check-discord-bundle-symlinks.sh",
   ".github/scripts/package-discord-release.sh",
   ".github/workflows/discord-production.yml",

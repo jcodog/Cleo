@@ -2,6 +2,7 @@ import { rm } from "node:fs/promises"
 import { fileURLToPath, URL } from "node:url"
 
 import { build } from "esbuild"
+import { prepareWelcomeAssets } from "../../../scripts/prepare-welcome-assets.mjs"
 
 import artifactContract from "../runtime-artifact.json" with { type: "json" }
 
@@ -16,7 +17,9 @@ function outputName(relativeOutputPath) {
     !relativeOutputPath.startsWith(prefix) ||
     !relativeOutputPath.endsWith(suffix)
   ) {
-    throw new Error(`Invalid compiled Discord entrypoint: ${relativeOutputPath}`)
+    throw new Error(
+      `Invalid compiled Discord entrypoint: ${relativeOutputPath}`
+    )
   }
 
   return relativeOutputPath.slice(prefix.length, -suffix.length)
@@ -28,16 +31,14 @@ await build({
   absWorkingDir: packageRoot,
   bundle: true,
   entryPoints: {
+    verifyWelcomeRendering: "src/scripts/verifyWelcomeRendering.ts",
     [outputName(artifactContract.runtimeEntrypoint)]: "src/index.ts",
     [outputName(artifactContract.commandRegistrationEntrypoint)]:
       "src/scripts/registerCommands.ts",
     [outputName(artifactContract.artifactValidatorEntrypoint)]:
       "src/deployment/validateReleaseArtifact.ts",
   },
-  external: [
-    "@napi-rs/canvas",
-    "discord.js",
-  ],
+  external: ["@napi-rs/canvas", "discord.js"],
   format: "esm",
   legalComments: "none",
   logLevel: "info",
@@ -47,3 +48,7 @@ await build({
   sourcesContent: true,
   target: "node24",
 })
+
+await prepareWelcomeAssets(
+  fileURLToPath(new URL("../dist/welcome-assets/", import.meta.url))
+)

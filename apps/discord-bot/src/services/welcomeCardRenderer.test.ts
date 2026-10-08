@@ -6,6 +6,7 @@ import type { AttachmentPayload, GuildMember } from "discord.js"
 import {
   loadWelcomeAvatar,
   renderWelcomeCardMessage,
+  renderWelcomeCardPng,
 } from "./welcomeCardRenderer"
 
 test("welcome card renderer returns a PNG attachment", async () => {
@@ -19,6 +20,37 @@ test("welcome card renderer returns a PNG attachment", async () => {
   assert.deepEqual(
     Array.from(attachment.subarray(0, 8)),
     [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+  )
+})
+
+test("production cards keep the free layout and mention policy even when paid style flags are supplied", async () => {
+  const member = createMember()
+  const ordinary = await renderWelcomeCardMessage(member, { subtext: "Hi 👋🏽" })
+  const flagged = await renderWelcomeCardMessage(member, {
+    subtext: "Hi 👋🏽",
+    style: { preset: "ribbon" },
+    isPremium: true,
+  } as { subtext: string })
+  assert.deepEqual(ordinary.files, flagged.files)
+  assert.deepEqual(flagged.allowedMentions, {
+    users: [member.id],
+    roles: [],
+    parse: [],
+  })
+})
+
+test("preview renderer rejects unsupported presets and invalid formatting", async () => {
+  await assert.rejects(
+    renderWelcomeCardPng(
+      { member: "Jason", server: "Cleo", subtext: "Hello" },
+      {
+        preset: "unknown",
+        palette: "cyan",
+        greeting: "Welcome",
+        align: "left",
+      } as never
+    ),
+    /Unknown welcome-card preset/
   )
 })
 

@@ -6,6 +6,7 @@ import { api, internal } from "./_generated/api"
 import type { Doc } from "./_generated/dataModel"
 import { canManageInstalledGuild } from "./lib/discordRest"
 import schema from "./schema"
+import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 
 process.env.DISCORD_BOT_TOKEN = "test-token"
 
@@ -36,6 +37,82 @@ const channelId = "234567890123456789"
 const nextChannelId = "345678901234567890"
 const discordUserId = "456789012345678901"
 const originalFetch = globalThis.fetch
+
+test("Premium welcome saves fail closed per guild without changing free configuration", async () => {
+  const t = convexTest({ schema, modules })
+  const guildId = await seedGuild(t)
+  const userId = await seedUser(t)
+  await t.run((ctx) =>
+    ctx.db.insert("discordGuildMemberships", {
+      guildId,
+      userId,
+      discordUserId,
+      canManage: true,
+      isOwner: false,
+      permissions: "32",
+      managementVerifiedAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+  )
+  const manager = t.withIdentity({ subject: "manager" })
+  const mutation =
+    api.mutations.dashboard.discord.guildConfigs.updateWorkspaceSection.update
+  const free = await manager.mutation(mutation, {
+    discordGuildId,
+    modules: { welcomeEnabled: true },
+    channels: { welcomeChannelId: channelId },
+    welcome: { subtext: "Keep free 👋🏽", style: FREE_WELCOME_STYLE },
+  })
+  for (const change of [
+    { preset: "aurora" },
+    { palette: "orchid" },
+    { align: "center" },
+    { greeting: "Hello {member}" },
+  ]) {
+    await assert.rejects(
+      manager.mutation(mutation, {
+        discordGuildId,
+        modules: { welcomeEnabled: false },
+        channels: {},
+        welcome: {
+          subtext: "Denied",
+          style: { ...FREE_WELCOME_STYLE, ...change },
+        },
+      }),
+      /PREMIUM_WELCOME_UNAVAILABLE/
+    )
+  }
+  await assert.rejects(
+    manager.mutation(mutation, {
+      discordGuildId,
+      modules: {},
+      channels: {},
+      welcome: { style: { ...FREE_WELCOME_STYLE, preset: "unknown" } },
+    }),
+    /Unknown welcome-card preset/
+  )
+  assert.deepEqual(await t.run((ctx) => ctx.db.get(free._id)), free)
+  const otherId = "987654321098765432"
+  await t.run((ctx) =>
+    ctx.db.insert("guilds", {
+      discordGuildId: otherId,
+      name: "Other guild",
+      botJoinedAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+  )
+  await assert.rejects(
+    manager.mutation(mutation, {
+      discordGuildId: otherId,
+      modules: {},
+      channels: {},
+      welcome: { style: { ...FREE_WELCOME_STYLE, preset: "ribbon" } },
+    })
+  )
+  assert.deepEqual(await t.run((ctx) => ctx.db.get(free._id)), free)
+})
 afterEach(() => {
   globalThis.fetch = originalFetch
 })

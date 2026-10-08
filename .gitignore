@@ -30,6 +30,9 @@ apps/landing/next-env.d.ts
 out/
 build
 dist
+apps/discord-bot/src/services/welcome-assets/
+apps/dashboard/public/welcome-assets/
+welcome-render-verification/
 *.tar.gz
 *.sha256
 

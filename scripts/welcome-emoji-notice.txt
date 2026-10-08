@@ -1,0 +1,8 @@
+Welcome-card emoji artwork: Twemoji 17.0.3, by Twitter, Inc. and contributors.
+Source revision b6b55fef1e8636b540a6d016a4729ca8cdf2e60b, unchanged artwork.
+Graphics licensed under Creative Commons Attribution 4.0 International:
+https://creativecommons.org/licenses/by/4.0/
+Source: https://github.com/jdecked/twemoji/tree/v17.0.3/assets/svg
+The full graphics license is included in EMOJI-LICENSE.
+Geist fonts by Vercel, distributed via @fontsource/geist 5.3.0 under the
+SIL Open Font License 1.1, included in FONT-LICENSE.

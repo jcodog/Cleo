@@ -310,6 +310,21 @@ jobs:
           rm -rf "$symlink_fixture"
           rm -f "$outside_fixture" "$symlink_log"
 
+      - name: Verify packaged welcome PNGs without host fonts
+        env:
+          DISABLE_SYSTEM_FONTS_LOAD: "1"
+        run: |
+          node "$RUNNER_TEMP/cleo-discord-package-extract/dist/verifyWelcomeRendering.js" \
+            "$RUNNER_TEMP/welcome-render-verification" \
+            "$RUNNER_TEMP/cleo-discord-package-extract/dist/welcome-assets"
+
+      - name: Upload welcome rendering evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: welcome-render-verification
+          if-no-files-found: error
+          path: ${{ runner.temp }}/welcome-render-verification
+
       - name: Upload Cobertura artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
