@@ -44,7 +44,6 @@ export const metadata: Metadata = {
   },
   description,
   applicationName: "Cleo",
-  manifest: new URL("/site.webmanifest", metadataBase).href,
   authors: [{ name: "JCoNet LTD" }],
   creator: "JCoNet LTD",
   publisher: "JCoNet LTD",
