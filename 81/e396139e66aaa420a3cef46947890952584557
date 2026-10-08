@@ -1,0 +1,23 @@
+apps/dashboard/src/app/layout.tsx
+  s_6ae57e5dc42fc3::t_dac281636fd72b 47
+apps/dashboard/tests/pwa.test.ts
+  s_6ae57e5dc42fc3::t_dac281636fd72b 54,56
+apps/dashboard/tests/pwa-build.test.ts
+  s_6ae57e5dc42fc3::t_dac281636fd72b 22,24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "81e396139e66aaa420a3cef46947890952584557",
+  "prompts": {},
+  "sessions": {
+    "s_6ae57e5dc42fc3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a11b80-013f-71b3-bd54-80144cef0681",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
