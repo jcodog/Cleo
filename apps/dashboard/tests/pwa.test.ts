@@ -40,6 +40,8 @@ test("production HTML discovers one manifest and emits standard and Apple instal
     assert.equal(response.status, 200, path)
     assert.equal(new URL(response.url).origin, appUrl.origin)
     const html = await response.text()
+    const head = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/)?.[1]
+    assert.ok(head, `${path}: installation metadata must be in the initial head`)
     const manifests = html.match(/<link\b[^>]*rel="manifest"[^>]*>/g) ?? []
     assert.equal(manifests.length, 1, path)
     assert.match(manifests[0] ?? "", /href="\/site\.webmanifest"/)
@@ -56,7 +58,7 @@ test("production HTML discovers one manifest and emits standard and Apple instal
     )
     assert.match(html, /<meta name="theme-color"/)
     assert.match(
-      html,
+      head,
       /<link rel="apple-touch-icon" href="\/apple-touch-icon\.png" sizes="180x180"/
     )
   }
@@ -118,6 +120,15 @@ test("served manifest has a stable origin-local identity, launch URL and scope w
     sizes.add(actualSize)
   }
   assert.ok(sizes.has("192x192") && sizes.has("512x512"))
+  // Offer the same image to manifest-based and Apple-specific installers.
+  assert.ok(
+    manifest.icons.some(
+      (icon) =>
+        new URL(icon.src, manifestUrl).href ===
+        new URL("/apple-touch-icon.png", appUrl).href
+    )
+  )
+  assert.ok(sizes.has("180x180"))
   const apple = await get("/apple-touch-icon.png", "manual")
   assert.equal(apple.status, 200)
   const png = Buffer.from(await apple.arrayBuffer())
