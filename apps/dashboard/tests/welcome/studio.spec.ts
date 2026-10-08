@@ -64,6 +64,12 @@ test("Premium fixture supports keyboard designs, palettes, validation and free-o
     )
   ).toBe(true)
   expect(await page.locator("pre").count()).toBe(0)
+  // Focus can scroll the editor while the preview sticks to the viewport.
+  // Capture the initial desktop composition consistently in both engines.
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect
+    .poll(async () => (await preview.boundingBox())?.y ?? Infinity)
+    .toBeLessThan(250)
   await page.screenshot({
     path: testInfo.outputPath("studio-desktop.png"),
     fullPage: true,
