@@ -15,6 +15,7 @@ import { reportDiscordRuntimeError } from "@/services/runtimeErrorReporter"
 import { renderWelcomeCardMessage } from "@/services/welcomeCardRenderer"
 import { botLogError } from "@/utils/botLog"
 import type { LogMetadata } from "@workspace/logger"
+import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 
 type RuntimeConfigFetcher = (
   discordGuildId: string
@@ -236,6 +237,12 @@ export function renderPlaceholderWelcomeMessage(
 ): Promise<MessageCreateOptions> {
   return renderWelcomeCardMessage(member, {
     subtext: config?.welcomeSubtext,
+    style:
+      config?.discordGuildId === member.guild.id &&
+      config.premiumWelcomeValidUntil !== undefined &&
+      config.premiumWelcomeValidUntil > Date.now()
+        ? config.welcomeStyle
+        : FREE_WELCOME_STYLE,
   })
 }
 

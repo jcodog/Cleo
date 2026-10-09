@@ -130,6 +130,9 @@ function buildUpdatedConfig(
     ...(config.welcomeSubtext !== undefined
       ? { welcomeSubtext: config.welcomeSubtext }
       : {}),
+    ...(config.welcomeStyle !== undefined
+      ? { welcomeStyle: config.welcomeStyle }
+      : {}),
     ...buildChannelFields({
       logChannelId:
         channels.logChannelId !== undefined

@@ -9,6 +9,135 @@ export const CLEO_ENTITLEMENT_CATEGORIES = [
   "test-grant",
 ] as const
 
+export const CLEO_GUILD_CAPABILITIES = [
+  "guild.welcome.premium-style",
+  "guild.twitch.premium-style",
+] as const
+export type CleoGuildCapability = (typeof CLEO_GUILD_CAPABILITIES)[number]
+export const GUILD_BILLING_MAX_FRESHNESS_MS = 7 * 24 * 60 * 60 * 1000
+export const GUILD_BILLING_MAX_GRACE_MS = GUILD_BILLING_MAX_FRESHNESS_MS
+
+export const CLEO_GUILD_SUBSCRIPTION_STATUSES = [
+  "active",
+  "trialing",
+  "past_due",
+  "canceled",
+  "unpaid",
+  "incomplete",
+  "incomplete_expired",
+  "paused",
+  "expired",
+  "revoked",
+] as const
+export type CleoGuildSubscriptionStatus =
+  (typeof CLEO_GUILD_SUBSCRIPTION_STATUSES)[number]
+
+export type CleoGuildAccessRecord = {
+  discordGuildId: string
+  startsAt: number
+  endsAt: number
+  revokedAt?: number
+} & (
+  | {
+      kind: "subscription"
+      status: CleoGuildSubscriptionStatus
+      reconciledAt: number
+      trialEndsAt?: number
+      paymentFailedAt?: number
+      graceEndsAt?: number
+    }
+  | {
+      kind: "grant"
+      category: "complimentary" | "staff" | "test"
+      capabilities: CleoGuildCapability[]
+    }
+)
+
+export type ResolvedCleoGuildAccess = {
+  capabilities: CleoGuildCapability[]
+  state: "active" | "trial" | "grace" | "expired" | "revoked"
+  validUntil: number
+}
+
+/** Resolve trusted server records only. Billing ownership never implies guild permission. */
+export function resolveCleoGuildAccess(input: {
+  discordGuildId: string
+  now: number
+  records: CleoGuildAccessRecord[]
+}): ResolvedCleoGuildAccess {
+  const capabilities = new Set<CleoGuildCapability>()
+  let state: ResolvedCleoGuildAccess["state"] = "expired"
+  let validUntil = Infinity
+  for (const record of input.records) {
+    if (record.discordGuildId !== input.discordGuildId) continue
+    if (
+      record.revokedAt !== undefined ||
+      (record.kind === "subscription" && record.status === "revoked")
+    ) {
+      if (capabilities.size === 0) state = "revoked"
+      continue
+    }
+    if (
+      !Number.isFinite(input.now) ||
+      !Number.isFinite(record.startsAt) ||
+      !Number.isFinite(record.endsAt) ||
+      record.startsAt > input.now ||
+      record.startsAt < 0 ||
+      record.endsAt <= record.startsAt
+    )
+      continue
+    let deadline = record.endsAt
+    let candidateState: ResolvedCleoGuildAccess["state"] = "active"
+    if (record.kind === "subscription") {
+      if (
+        !Number.isFinite(record.reconciledAt) ||
+        record.reconciledAt > input.now ||
+        record.reconciledAt < record.startsAt
+      )
+        continue
+      const freshness = record.reconciledAt + GUILD_BILLING_MAX_FRESHNESS_MS
+      if (record.status === "trialing") {
+        if (
+          record.trialEndsAt === undefined ||
+          !Number.isFinite(record.trialEndsAt)
+        )
+          continue
+        deadline = Math.min(deadline, record.trialEndsAt)
+        candidateState = "trial"
+      } else if (record.status === "past_due") {
+        if (
+          record.paymentFailedAt === undefined ||
+          !Number.isFinite(record.paymentFailedAt) ||
+          record.paymentFailedAt > input.now ||
+          record.paymentFailedAt < record.startsAt ||
+          record.graceEndsAt === undefined ||
+          !Number.isFinite(record.graceEndsAt)
+        )
+          continue
+        deadline = Math.min(
+          record.graceEndsAt,
+          record.paymentFailedAt + GUILD_BILLING_MAX_GRACE_MS
+        )
+        candidateState = "grace"
+      } else if (record.status !== "active") continue
+      deadline = Math.min(deadline, freshness)
+    }
+    if (deadline <= input.now) continue
+    const granted =
+      record.kind === "grant" ? record.capabilities : CLEO_GUILD_CAPABILITIES
+    for (const capability of granted) capabilities.add(capability)
+    if (capabilities.size > 0) {
+      validUntil = Math.min(validUntil, deadline)
+      state = candidateState
+    }
+  }
+  return {
+    capabilities: [...capabilities].sort(),
+    state,
+    validUntil: capabilities.size > 0 ? validUntil : input.now,
+  }
+}
+
 export const CLEO_ENTITLEMENT_SOURCES = [
   "stripe",
   "discord",

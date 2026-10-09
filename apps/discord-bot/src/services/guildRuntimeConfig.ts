@@ -1,5 +1,6 @@
 import { convexBotClient } from "@/services/convexBotClient"
 import { registerCleanupHook } from "@/runtime/shutdown"
+import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 import { botLogError } from "@/utils/botLog"
 import {
   isBackendDiscordGuildRuntimeConfigDisabledReason,
@@ -249,6 +250,19 @@ export class DiscordGuildRuntimeConfigCache {
     previousEntry: CachedRuntimeConfigEntry | undefined
   ): DiscordGuildRuntimeConfigResult {
     if (this.canUseStaleFallback(previousEntry)) {
+      if (
+        previousEntry.result.status === "ready" &&
+        previousEntry.result.config.premiumWelcomeValidUntil !== undefined
+      ) {
+        return {
+          status: "ready",
+          config: {
+            ...previousEntry.result.config,
+            welcomeStyle: FREE_WELCOME_STYLE,
+            premiumWelcomeValidUntil: undefined,
+          },
+        }
+      }
       return previousEntry.result
     }
 
@@ -277,7 +291,12 @@ export class DiscordGuildRuntimeConfigCache {
 
     const now = this.now()
     const ttlMs =
-      result.status === "ready" ? this.readyTtlMs : this.disabledTtlMs
+      result.status === "ready"
+        ? // Recheck paid decisions for every delivery so revocations are observed.
+          result.config.premiumWelcomeValidUntil !== undefined
+          ? 0
+          : this.readyTtlMs
+        : this.disabledTtlMs
     const expiresAt = now + ttlMs
     const staleUntil =
       result.status === "ready"

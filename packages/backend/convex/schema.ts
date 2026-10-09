@@ -1,4 +1,11 @@
 import { defineSchema } from "convex/server"
+import {
+  billingCustomers,
+  guildSubscriptions,
+  billingEvents,
+  guildEntitlementGrants,
+  guildBillingPrices,
+} from "./dbTables/guildBilling"
 import { users } from "./dbTables/users"
 import {
   twitchEventSubscriptions,
@@ -35,6 +42,11 @@ import {
 } from "./dbTables/cleoPets"
 
 export default defineSchema({
+  billingCustomers,
+  guildBillingPrices,
+  guildSubscriptions,
+  billingEvents,
+  guildEntitlementGrants,
   twitchEventSubscriptions,
   twitchEventConsumers,
   twitchAnnouncementConfigs,

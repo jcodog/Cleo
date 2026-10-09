@@ -36,7 +36,7 @@ function copy(node: React.ReactNode): string {
       : ""
 }
 
-test("welcome studio edits, validates and resets previews while saving only free guild settings", async (t) => {
+test("welcome studio validates and saves Premium styles only with server-provided access", async (t) => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "React")
   Object.defineProperty(globalThis, "React", {
     configurable: true,
@@ -158,7 +158,12 @@ test("welcome studio edits, validates and resets previews while saving only free
   find("welcome-greeting").onChange?.({ target: { value: "Hello {unknown}" } })
   assert.equal(find("welcome-greeting")["aria-invalid"], true)
   assert.match(copy(render()), /Use only \{member\} and \{server\}/)
-  assert.match(copy(render()), /cannot yet be activated or saved/)
+  assert.match(copy(render()), /keeps your saved design/)
+  await render().props.onSubmit({ preventDefault() {} })
+  assert.equal(saves.length, 0)
+  find("welcome-greeting").onChange?.({
+    target: { value: "Hello {member} in {server} 👋🏽" },
+  })
   find("Welcome messages").onCheckedChange?.(false)
   find("welcome-subtext").onChange?.({ target: { value: "Free 👋🏽" } })
   const channel = nodes(render()).find(
@@ -175,15 +180,20 @@ test("welcome studio edits, validates and resets previews while saving only free
     discordGuildId: overview.discordGuildId,
     modules: { welcomeEnabled: false },
     channels: { welcomeChannelId: "345678901234567890" },
-    welcome: { subtext: "Free 👋🏽", style: FREE_WELCOME_STYLE },
+    welcome: {
+      subtext: "Free 👋🏽",
+      style: {
+        preset: "ribbon",
+        palette: "orchid",
+        greeting: "Hello {member} in {server} 👋🏽",
+        align: "left",
+      },
+    },
   })
   assert.ok(finishSave)
   finishSave()
   await submission
-  assert.match(
-    copy(render()),
-    /Free welcome settings saved\.\s+Preview styling has not been saved/
-  )
+  assert.match(copy(render()), /Welcome settings saved\./)
   find("welcome-subtext").onChange?.({ target: { value: "" } })
   assert.doesNotMatch(copy(render()), /Free welcome settings saved/)
   fail = true

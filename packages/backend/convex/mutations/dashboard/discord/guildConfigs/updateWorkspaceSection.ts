@@ -8,6 +8,7 @@ import {
 } from "../../../../lib/auth"
 import { insertDashboardGuildAuditEvent } from "../../../../lib/guildAudit"
 import { guildConfigDoc } from "../../../../lib/validators"
+import { getGuildAccess } from "../../../../lib/guildEntitlements"
 import {
   isFreeWelcomeStyle,
   parseWelcomeCardStyle,
@@ -75,13 +76,16 @@ export const update = mutation({
               : "Choose an approved welcome-card design and greeting.",
         })
       }
-      // JCN-57 must resolve a verified guild entitlement here before paid styles
-      // can be persisted or sent in bot runtime configuration.
-      if (!isFreeWelcomeStyle(style))
+      if (
+        !isFreeWelcomeStyle(style) &&
+        !(await getGuildAccess(ctx, guild)).capabilities.includes(
+          "guild.welcome.premium-style"
+        )
+      )
         throw new ConvexError({
           code: "PREMIUM_WELCOME_UNAVAILABLE",
           message:
-            "Premium welcome cards are preview-only while guild entitlement checks are being completed.",
+            "This server needs active Premium access to save this welcome style.",
         })
     }
     const existingConfig = await getGuildConfig(ctx, guild._id)
@@ -147,6 +151,11 @@ function buildNextConfig({
 }): Omit<Doc<"guildConfigs">, "_id" | "_creationTime"> {
   return {
     guildId,
+    ...(welcome?.style !== undefined
+      ? { welcomeStyle: parseWelcomeCardStyle(welcome.style) }
+      : config?.welcomeStyle !== undefined
+        ? { welcomeStyle: config.welcomeStyle }
+        : {}),
     aiEnabled: config?.aiEnabled ?? false,
     moderationEnabled:
       modules.moderationEnabled ?? config?.moderationEnabled ?? false,
@@ -312,6 +321,7 @@ function getConfigAuditFields(config: Doc<"guildConfigs">) {
     modLogChannelId: config.modLogChannelId ?? null,
     welcomeChannelId: config.welcomeChannelId ?? null,
     welcomeSubtext: config.welcomeSubtext ?? null,
+    welcomeStyle: config.welcomeStyle ?? null,
     updatesChannelId: config.updatesChannelId ?? null,
     announcementChannelId: config.announcementChannelId ?? null,
   }
@@ -373,6 +383,7 @@ type ChannelPatch = {
 
 type WelcomePatch = {
   subtext?: string | null
+  style?: { preset: string; palette: string; greeting: string; align: string }
 }
 
 type LoggingPatch = {
