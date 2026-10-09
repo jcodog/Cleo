@@ -1,5 +1,38 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
+import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
+
+test("Premium runtime decisions refresh on every delivery and outages fall back to Classic", async () => {
+  let fetches = 0
+  let fail = false
+  const now = 10000
+  const cache = new DiscordGuildRuntimeConfigCache({
+    startCleanupTimer: false,
+    now: () => now,
+    fetchBackendResult: async () => {
+      fetches++
+      if (fail) throw new Error("Unavailable")
+      return {
+        status: "ready",
+        config: {
+          ...validConfig,
+          welcomeStyle: { ...FREE_WELCOME_STYLE, preset: "aurora" },
+          premiumWelcomeValidUntil: now + 100000,
+        },
+      }
+    },
+    onError: () => {},
+  })
+  await cache.get(guildId)
+  await cache.get(guildId)
+  assert.equal(fetches, 2)
+  fail = true
+  const fallback = await cache.get(guildId)
+  if (fallback.status !== "ready") throw new Error("Expected Classic fallback")
+  assert.deepEqual(fallback.config.welcomeStyle, FREE_WELCOME_STYLE)
+  assert.equal(fallback.config.premiumWelcomeValidUntil, undefined)
+  cache.dispose()
+})
 
 import type { DiscordGuildRuntimeConfig } from "./guildRuntimeConfig"
 import {

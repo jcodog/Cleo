@@ -2,6 +2,8 @@ import { v } from "convex/values"
 
 import { internalQuery } from "../../../../_generated/server"
 import { botDiscordGuildRuntimeConfigResult } from "../../../../lib/botDiscordGuildRuntimeConfig"
+import { getGuildAccess } from "../../../../lib/guildEntitlements"
+import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 
 export const get = internalQuery({
   args: {
@@ -46,9 +48,23 @@ export const get = internalQuery({
       .query("guildLiveNotificationConfigs")
       .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
       .unique()
+    const access = await getGuildAccess(ctx, guild)
+    const premiumWelcome = access.capabilities.includes(
+      "guild.welcome.premium-style"
+    )
     return {
       status: "ready" as const,
       config: {
+        ...(config.welcomeStyle
+          ? {
+              welcomeStyle: premiumWelcome
+                ? config.welcomeStyle
+                : FREE_WELCOME_STYLE,
+            }
+          : {}),
+        ...(premiumWelcome
+          ? { premiumWelcomeValidUntil: access.validUntil }
+          : {}),
         ...(live
           ? {
               liveNotificationsEnabled: live.liveNotificationsEnabled,

@@ -1,5 +1,40 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
+import { FREE_WELCOME_STYLE } from "./welcomeCard"
+
+test("runtime style and entitlement deadline are validated", () => {
+  const base = {
+    discordGuildId: "123456789012345678",
+    moderationEnabled: false,
+    welcomeEnabled: true,
+    loggingEnabled: false,
+    supportEnabled: false,
+  }
+  const validate = (patch: Record<string, unknown>) =>
+    validateBackendDiscordGuildRuntimeConfigResult({
+      status: "ready",
+      config: { ...base, ...patch },
+    })
+  assert.equal(
+    validate({
+      welcomeStyle: FREE_WELCOME_STYLE,
+      premiumWelcomeValidUntil: 100,
+    }).success,
+    true
+  )
+  assert.equal(
+    validate({ welcomeStyle: { ...FREE_WELCOME_STYLE, preset: "aurora" } })
+      .success,
+    true
+  )
+  for (const patch of [
+    { welcomeStyle: {} },
+    { premiumWelcomeValidUntil: "forever" },
+    { premiumWelcomeValidUntil: Infinity },
+    { premiumWelcomeValidUntil: -1 },
+  ])
+    assert.equal(validate(patch).success, false)
+})
 
 import {
   BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS,
@@ -107,6 +142,8 @@ test("runtime-config contract exposes stable variants and field names", () => {
     "welcomeEnabled",
     "loggingEnabled",
     "supportEnabled",
+    "welcomeStyle",
+    "premiumWelcomeValidUntil",
     "liveNotificationsEnabled",
     "liveNotificationChannelId",
     "liveNotificationMentionMode",

@@ -7,6 +7,7 @@ import {
 } from "@workspace/shared/discordRuntimeConfig"
 import { v } from "convex/values"
 import { liveMentionMode } from "../dbTables/twitchLiveNotifications"
+import { welcomeStyle } from "./welcomeStyle"
 
 const botDiscordGuildRuntimeConfigDisabledReason = v.union(
   ...BACKEND_DISCORD_GUILD_RUNTIME_CONFIG_DISABLED_REASONS.map((value) =>
@@ -45,6 +46,8 @@ export const botDiscordGuildRuntimeConfig = v.object({
   modLogChannelId: v.optional(v.string()),
   welcomeChannelId: v.optional(v.string()),
   welcomeSubtext: v.optional(v.string()),
+  welcomeStyle: v.optional(welcomeStyle),
+  premiumWelcomeValidUntil: v.optional(v.number()),
   updatesChannelId: v.optional(v.string()),
   announcementChannelId: v.optional(v.string()),
   supportStaffRoleIds: v.optional(v.array(v.string())),

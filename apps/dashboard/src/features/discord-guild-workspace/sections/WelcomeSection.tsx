@@ -1,12 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import {
-  IconAlignCenter,
-  IconAlignLeft,
-  IconCheck,
-  IconLock,
-} from "@tabler/icons-react"
+import { IconAlignCenter, IconAlignLeft, IconCheck } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -67,7 +62,9 @@ export function WelcomeSection({
     overview.guildConfig?.welcomeSubtext ?? ""
   )
   const [saveState, setSaveState] = useState<SaveState>("idle")
-  const [style, setStyle] = useState<WelcomeCardStyle>(FREE_WELCOME_STYLE)
+  const [style, setStyleValue] = useState<WelcomeCardStyle>(
+    overview.guildConfig?.welcomeStyle ?? FREE_WELCOME_STYLE
+  )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const premiumPreview = !isFreeWelcomeStyle(style)
   const disabled = isBotLeft || saveState === "saving"
@@ -82,9 +79,13 @@ export function WelcomeSection({
     setSaveState("idle")
     setErrorMessage(null)
   }
+  function setStyle(value: WelcomeCardStyle) {
+    setStyleValue(value)
+    markDirty()
+  }
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (disabled) return
+    if (disabled || (overview.welcomeCardStudioAvailable && styleError)) return
     setSaveState("saving")
     setErrorMessage(null)
     try {
@@ -94,7 +95,9 @@ export function WelcomeSection({
         channels: { welcomeChannelId: toOptionalChannelValue(channelId) },
         welcome: {
           subtext: toOptionalTextValue(subtext),
-          style: FREE_WELCOME_STYLE,
+          ...(overview.welcomeCardStudioAvailable
+            ? { style: parseWelcomeCardStyle(style) }
+            : {}),
         },
       })
       setSaveState("success")
@@ -182,7 +185,7 @@ export function WelcomeSection({
                               : "text-[10px] font-medium tracking-wide text-muted-foreground"
                           }
                         >
-                          {preset.premium ? "PREMIUM PREVIEW" : "FREE"}
+                          {preset.premium ? "PREMIUM" : "FREE"}
                         </span>
                       </div>
                     </label>
@@ -310,7 +313,7 @@ export function WelcomeSection({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold">Live preview</h3>
                 <span className="rounded-full border border-cyan-400/20 bg-cyan-400/5 px-3 py-1 text-xs font-medium text-cyan-300">
-                  {premiumPreview ? "Premium · preview only" : "Classic · free"}
+                  {premiumPreview ? "Premium" : "Classic · free"}
                 </span>
               </div>
               <WelcomeCardPreview
@@ -319,14 +322,10 @@ export function WelcomeSection({
                 server={overview.name}
               />
               <div className="flex gap-3 rounded-lg border border-primary/15 bg-primary/5 p-4">
-                <IconLock
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-cyan-300"
-                />
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Experiment freely. Your server continues to send Cleo Classic.
-                  Premium designs and personalisation are preview-only and
-                  cannot yet be activated or saved.
+                  Save to use this design for new members. If Premium expires,
+                  Cleo sends Classic and keeps your saved design for when access
+                  returns.
                 </p>
               </div>
             </aside>
@@ -339,10 +338,14 @@ export function WelcomeSection({
       >
         <div className="space-y-1">
           <h3 id="free-welcome-heading" className="text-base font-semibold">
-            Your active free welcome
+            {overview.welcomeCardStudioAvailable
+              ? "Your welcome settings"
+              : "Your active free welcome"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            These settings control the Classic card Cleo sends to Discord.
+            {overview.welcomeCardStudioAvailable
+              ? "These settings control the welcome card Cleo sends to Discord."
+              : "These settings control the Classic card Cleo sends to Discord."}
           </p>
         </div>
         <FieldGroup className="max-w-2xl">
@@ -388,23 +391,28 @@ export function WelcomeSection({
                 markDirty()
               }}
             />
-            <FieldDescription>
-              The line below the member name. This is saved with your free
-              settings.
-            </FieldDescription>
+            <FieldDescription>The line below the member name.</FieldDescription>
           </Field>
         </FieldGroup>
         <div className="flex flex-wrap items-center gap-4">
-          <Button disabled={disabled} type="submit">
+          <Button
+            disabled={
+              disabled ||
+              (overview.welcomeCardStudioAvailable && styleError !== undefined)
+            }
+            type="submit"
+          >
             {saveState === "saving"
-              ? "Saving free settings…"
-              : "Save free settings"}
+              ? "Saving settings…"
+              : overview.welcomeCardStudioAvailable
+                ? "Save welcome settings"
+                : "Save free settings"}
           </Button>
           {saveState === "success" ? (
             <p role="status" className="text-sm text-emerald-400">
-              Free welcome settings saved.
-              {overview.welcomeCardStudioAvailable &&
-                " Preview styling has not been saved."}
+              {overview.welcomeCardStudioAvailable
+                ? "Welcome settings saved."
+                : "Free welcome settings saved."}
             </p>
           ) : (
             <SaveStatus errorMessage={errorMessage} state={saveState} />

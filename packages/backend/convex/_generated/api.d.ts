@@ -104,6 +104,7 @@ export declare const api: {
                     loggingEnabled: boolean;
                     modLogChannelId?: string;
                     moderationEnabled: boolean;
+                    premiumWelcomeValidUntil?: number;
                     supportEnabled: boolean;
                     supportEscalationPolicy?: "none" | "jcn-product-only";
                     supportStaffRoleIds?: Array<string>;
@@ -114,6 +115,12 @@ export declare const api: {
                     updatesChannelId?: string;
                     welcomeChannelId?: string;
                     welcomeEnabled: boolean;
+                    welcomeStyle?: {
+                      align: "left" | "center";
+                      greeting: string;
+                      palette: "cyan" | "orchid" | "forest" | "amber";
+                      preset: "classic" | "aurora" | "spotlight" | "ribbon";
+                    };
                     welcomeSubtext?: string;
                   };
                   status: "ready";
@@ -1714,6 +1721,12 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeStyle?: {
+                  align: "left" | "center";
+                  greeting: string;
+                  palette: "cyan" | "orchid" | "forest" | "amber";
+                  preset: "classic" | "aurora" | "spotlight" | "ribbon";
+                };
                 welcomeSubtext?: string;
               }
             >;
@@ -1748,6 +1761,12 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeStyle?: {
+                  align: "left" | "center";
+                  greeting: string;
+                  palette: "cyan" | "orchid" | "forest" | "amber";
+                  preset: "classic" | "aurora" | "spotlight" | "ribbon";
+                };
                 welcomeSubtext?: string;
               }
             >;
@@ -1798,6 +1817,12 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeStyle?: {
+                  align: "left" | "center";
+                  greeting: string;
+                  palette: "cyan" | "orchid" | "forest" | "amber";
+                  preset: "classic" | "aurora" | "spotlight" | "ribbon";
+                };
                 welcomeSubtext?: string;
               }
             >;
@@ -1964,6 +1989,12 @@ export declare const api: {
                 updatesChannelId?: string;
                 welcomeChannelId?: string;
                 welcomeEnabled: boolean;
+                welcomeStyle?: {
+                  align: "left" | "center";
+                  greeting: string;
+                  palette: "cyan" | "orchid" | "forest" | "amber";
+                  preset: "classic" | "aurora" | "spotlight" | "ribbon";
+                };
                 welcomeSubtext?: string;
               } | null
             >;
@@ -2115,6 +2146,12 @@ export declare const api: {
                       updatesChannelId?: string;
                       welcomeChannelId?: string;
                       welcomeEnabled: boolean;
+                      welcomeStyle?: {
+                        align: "left" | "center";
+                        greeting: string;
+                        palette: "cyan" | "orchid" | "forest" | "amber";
+                        preset: "classic" | "aurora" | "spotlight" | "ribbon";
+                      };
                       welcomeSubtext?: string;
                     } | null;
                     guildId: Id<"guilds">;
@@ -2164,6 +2201,12 @@ export declare const api: {
                       updatesChannelId?: string;
                       welcomeChannelId?: string;
                       welcomeEnabled: boolean;
+                      welcomeStyle?: {
+                        align: "left" | "center";
+                        greeting: string;
+                        palette: "cyan" | "orchid" | "forest" | "amber";
+                        preset: "classic" | "aurora" | "spotlight" | "ribbon";
+                      };
                       welcomeSubtext?: string;
                     } | null;
                     guildId: Id<"guilds">;
@@ -5707,6 +5750,79 @@ export declare const internal: {
         };
       };
     };
+    internal: {
+      guildBilling: {
+        associateCustomer: FunctionReference<
+          "mutation",
+          "internal",
+          { clerkUserId: string; stripeCustomerId: string },
+          Id<"billingCustomers">
+        >;
+        configurePrice: FunctionReference<
+          "mutation",
+          "internal",
+          { stripeProductId: string; stripePriceId: string; enabled: boolean },
+          null
+        >;
+        issueGrant: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            grantKey: string;
+            discordGuildId: string;
+            category: "complimentary" | "staff" | "test";
+            capabilities: Array<
+              "guild.welcome.premium-style" | "guild.twitch.premium-style"
+            >;
+            startsAt: number;
+            endsAt: number;
+            issuedBy: Id<"users">;
+            reason: string;
+          },
+          Id<"guildEntitlementGrants">
+        >;
+        reconcileSubscription: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            stripeCustomerId: string;
+            discordGuildId: string;
+            stripeSubscriptionId: string;
+            stripeProductId: string;
+            stripePriceId: string;
+            eventId: string;
+            eventCreatedAt: number;
+            revision: number;
+            status:
+              | "active"
+              | "trialing"
+              | "past_due"
+              | "canceled"
+              | "unpaid"
+              | "incomplete"
+              | "incomplete_expired"
+              | "paused"
+              | "expired"
+              | "revoked";
+            startsAt: number;
+            endsAt: number;
+            trialEndsAt?: number;
+            graceEndsAt?: number;
+            paymentFailedAt?: number;
+            cancelAtPeriodEnd: boolean;
+            canceledAt?: number;
+            revokedAt?: number;
+          },
+          "applied" | "duplicate" | "stale"
+        >;
+        revokeGrant: FunctionReference<
+          "mutation",
+          "internal",
+          { grantKey: string; revokedBy: Id<"users">; reason: string },
+          null
+        >;
+      };
+    };
     system: {
       logs: {
         create: {
@@ -6032,6 +6148,7 @@ export declare const internal: {
                     loggingEnabled: boolean;
                     modLogChannelId?: string;
                     moderationEnabled: boolean;
+                    premiumWelcomeValidUntil?: number;
                     supportEnabled: boolean;
                     supportEscalationPolicy?: "none" | "jcn-product-only";
                     supportStaffRoleIds?: Array<string>;
@@ -6042,6 +6159,12 @@ export declare const internal: {
                     updatesChannelId?: string;
                     welcomeChannelId?: string;
                     welcomeEnabled: boolean;
+                    welcomeStyle?: {
+                      align: "left" | "center";
+                      greeting: string;
+                      palette: "cyan" | "orchid" | "forest" | "amber";
+                      preset: "classic" | "aurora" | "spotlight" | "ribbon";
+                    };
                     welcomeSubtext?: string;
                   };
                   status: "ready";
@@ -6309,6 +6432,22 @@ export declare const internal: {
             >;
           };
         };
+      };
+    };
+    internal: {
+      guildEntitlements: {
+        resolve: FunctionReference<
+          "query",
+          "internal",
+          { discordGuildId: string },
+          {
+            capabilities: Array<
+              "guild.welcome.premium-style" | "guild.twitch.premium-style"
+            >;
+            state: "active" | "trial" | "grace" | "expired" | "revoked";
+            validUntil: number;
+          }
+        >;
       };
     };
   };

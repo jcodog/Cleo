@@ -13,7 +13,10 @@ import {
   handleGuildMemberWelcome,
   WELCOME_TEXT_FALLBACK_POLICY,
   type WelcomeMessageRenderer,
+  renderPlaceholderWelcomeMessage,
 } from "./welcomeMessages"
+import { renderWelcomeCardMessage } from "./welcomeCardRenderer"
+import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 import type {
   DiscordGuildRuntimeConfig,
   DiscordGuildRuntimeConfigDisabledReason,
@@ -24,6 +27,39 @@ import type { DiscordRuntimeErrorReportInput } from "./runtimeErrorReporter"
 const guildId = "123456789012345678"
 const channelId = "234567890123456789"
 const memberId = "345678901234567890"
+
+test("production renderer uses verified Premium styles and downgrades expired or cross-guild cached decisions", async () => {
+  const member = createMember()
+  const style = {
+    ...FREE_WELCOME_STYLE,
+    preset: "aurora",
+    palette: "orchid",
+  } as const
+  const now = Date.now()
+  const valid = readyConfig({
+    welcomeStyle: style,
+    premiumWelcomeValidUntil: now + 60000,
+  })
+  if (valid.status !== "ready") throw new Error("Expected config")
+  const classic = await renderWelcomeCardMessage(member)
+  const premium = await renderWelcomeCardMessage(member, { style })
+  assert.notDeepEqual(classic.files, premium.files)
+  assert.deepEqual(
+    (await renderPlaceholderWelcomeMessage(member, valid.config)).files,
+    premium.files
+  )
+  for (const config of [
+    undefined,
+    { ...valid.config, premiumWelcomeValidUntil: undefined },
+    { ...valid.config, premiumWelcomeValidUntil: now - 1 },
+    { ...valid.config, discordGuildId: "987654321098765432" },
+  ]) {
+    assert.deepEqual(
+      (await renderPlaceholderWelcomeMessage(member, config)).files,
+      classic.files
+    )
+  }
+})
 
 type ChannelDouble = {
   id: string
