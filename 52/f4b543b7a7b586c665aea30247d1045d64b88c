@@ -1,0 +1,21 @@
+.github/workflows/publish-coverage.yml
+  s_37929f027a8555::t_9c55c170b78f51 1-62
+README.md
+  s_37929f027a8555::t_9c55c170b78f51 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "52f4b543b7a7b586c665aea30247d1045d64b88c",
+  "prompts": {},
+  "sessions": {
+    "s_37929f027a8555": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12031-ec8f-7021-8886-ec8208051e54",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
