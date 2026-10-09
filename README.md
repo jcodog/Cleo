@@ -8,7 +8,7 @@ Cleo brings moderation, configuration, operational visibility and community tool
 
 [Website](https://cleoai.cloud) · [Coverage](https://jcodog.github.io/Cleo/) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-[![Regression Tests and Coverage](https://github.com/jcodog/Cleo/actions/workflows/regression.yml/badge.svg)](https://github.com/jcodog/Cleo/actions/workflows/regression.yml)
+[![Regression tests](https://github.com/jcodog/Cleo/actions/workflows/regression.yml/badge.svg?branch=main&event=push)](https://github.com/jcodog/Cleo/actions/workflows/regression.yml?query=branch%3Amain+event%3Apush)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-blue.svg)](LICENSE)
 
 </div>
