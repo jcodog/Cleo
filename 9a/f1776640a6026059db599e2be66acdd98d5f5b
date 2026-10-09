@@ -1,0 +1,95 @@
+apps/discord-bot/src/services/welcomeCardRenderer.ts
+  s_8bbdf1073b062e::t_704c1e220a282f 67,89
+packages/shared/src/cleoEntitlements.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 12-140
+packages/backend/convex/lib/welcomeStyle.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 4-15
+  s_8bbdf1073b062e::t_94e4abd64bcc7b 1-3,16-18
+packages/backend/convex/dbTables/guildConfigs.ts
+  s_8bbdf1073b062e::t_94e4abd64bcc7b 3,26
+packages/backend/convex/queries/dashboard/discord/guilds/overview.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 9,49-55,112-113,149-151,183
+packages/backend/convex/mutations/dashboard/discord/guildConfigs/updateWorkspaceSection.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 11,79-84,88,154-158,324,386
+packages/backend/convex/guildBilling.test.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 12-17,20-23,27-30,34-38,42-57,60-66,68-77,81-89,91-104,110-111,117-130,142-150,152,154-155,157-166,173-178,184-211,213-236,238-247,252-269,273-337,341-348,351-367,372-377,386-398,401-419,425-459,461-469,474-482,484-496,499-536,538-542,544-551
+  s_8bbdf1073b062e::t_7860e9aff46e08 167-172,379-385
+  s_8bbdf1073b062e::t_7d05736daaedb7 1-11,24-26,31-33,39-41,58-59,67,78-80,90,105-109,112-116,131-141,151,153,156,179-183,212,237,248-251,270-272,338-340,349-350,368-371,378,399-400,420-424,460,470-473,483,497-498,537,543,552
+  s_8bbdf1073b062e::t_85ac7311ba8b7e 18-19
+apps/discord-bot/src/services/welcomeMessages.test.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 16,18-19,31-63
+packages/shared/src/discordRuntimeConfig.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 1-2,49-50,97-98,325-341,486-489
+packages/backend/convex/lib/validators.ts
+  s_8bbdf1073b062e::t_7d05736daaedb7 2
+  s_8bbdf1073b062e::t_94e4abd64bcc7b 256,515
+packages/shared/src/discordRuntimeConfig.test.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 3-37,145-146
+packages/backend/convex/_generated/api.d.ts
+  s_8bbdf1073b062e::t_67f1394f7de7a6 5761-5765,5819-5822
+  s_8bbdf1073b062e::t_444a738a43c0e3 107,118-123,1724-1729,1764-1769,1820-1825,1992-1997,2149-2154,2204-2209,5753-5760,5766-5817,5823-5825,6151,6162-6167,6437-6452
+  s_8bbdf1073b062e::t_450b62623804fe 5818
+apps/discord-bot/src/services/welcomeCardRenderer.test.ts
+  s_8bbdf1073b062e::t_a9eeb2eb77b5dd 3,27,32-34
+packages/backend/convex/lib/botDiscordGuildRuntimeConfig.ts
+  s_8bbdf1073b062e::t_94e4abd64bcc7b 10,49-50
+apps/discord-bot/src/services/guildRuntimeConfig.test.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 3-35
+packages/backend/convex/lib/guildEntitlements.ts
+  s_8bbdf1073b062e::t_1dbe3fec8035e9 5-7,21-22,29-30,40-45,51
+  s_8bbdf1073b062e::t_58da15ed77dfb5 1-4,8-20,23-28,31-39,46-50
+packages/backend/convex/queries/internal/guildEntitlements.ts
+  s_8bbdf1073b062e::t_94e4abd64bcc7b 1-7,19,29-30
+  s_8bbdf1073b062e::t_58da15ed77dfb5 8-18,20-28
+apps/discord-bot/src/services/welcomeMessages.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 18,240-245
+packages/backend/convex/_generated/dataModel.d.ts
+  s_8bbdf1073b062e::t_444a738a43c0e3 58-110,1996-2002,2009,2011-2017,2034-2039,2061-2065,2075-2119,2228-2297
+  s_8bbdf1073b062e::t_67f1394f7de7a6 57,1994-1995,2003-2008,2010
+  s_8bbdf1073b062e::t_9e50fc344ac3cc 56
+docs/guild-billing.md
+  s_8bbdf1073b062e::t_1c7ae0904deb61 1-41
+apps/dashboard/tests/welcome/studio.spec.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 23,28,86-93,100-108
+packages/backend/convex/queries/bot/discord/guildConfigs/runtimeConfigByDiscordId.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 5-6,51-54,58-67
+packages/shared/src/guildEntitlements.test.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 3-8,11-28,31-46,48-55,63-71,73-74,76-77,83-84,86-94,100-102,105-111,116-126
+  s_8bbdf1073b062e::t_c6a1ce4bc9b16c 1-2,9-10,29-30,47,56-62,72,75,78-82,85,95-99,103-104,112-115,127
+apps/dashboard/src/features/discord-guild-workspace/sections/WelcomeSection.test.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 39,161-166,183-191,196
+packages/backend/convex/schema.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 2-8,45-49
+packages/backend/convex/mutations/internal/guildBilling.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 3-7,15-16,19-20,25-29,34-51,62-75,77-81,84-87,89-93,102-118,120-124,131-142,145-196,198-199,202-213,215-248,250-272,274-282,290-299,304-309,311-316,318-325,327-330,332-364,367-371,380-390,392-397
+  s_8bbdf1073b062e::t_1dbe3fec8035e9 1-2,8-14,17-18,21-22,56-61,76,82-83,88,94-101,119,125-130,143-144,197,200-201,214,249,273,283-289,300-303,310,317,326,331,365-366,372-379,391,398-400
+  s_8bbdf1073b062e::t_6e8e8d61064e6b 23-24,30-33,52-55
+apps/discord-bot/src/services/guildRuntimeConfig.ts
+  s_8bbdf1073b062e::t_58da15ed77dfb5 3,253-265,294-299
+docs/welcome-cards.md
+  s_8bbdf1073b062e::t_1c7ae0904deb61 5,9,11,36
+packages/backend/convex/dbTables/guildBilling.ts
+  s_8bbdf1073b062e::t_6e8e8d61064e6b 20-26
+  s_8bbdf1073b062e::t_58da15ed77dfb5 3-6,8-18,32-33,58-59,87-88
+  s_8bbdf1073b062e::t_1dbe3fec8035e9 1-2,7,19,27-31,34-57,60-86,89
+packages/backend/convex/mutations/dashboard/discord/guildConfigs/updateChannels.ts
+  s_8bbdf1073b062e::t_85ac7311ba8b7e 133-135
+apps/dashboard/src/features/discord-guild-workspace/sections/WelcomeSection.tsx
+  s_8bbdf1073b062e::t_58da15ed77dfb5 4,65-67,82-85,88,98-100,188,316,326-328,341-343,346-348,394,398-404,406-409,413-415
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9af1776640a6026059db599e2be66acdd98d5f5b",
+  "prompts": {},
+  "sessions": {
+    "s_8bbdf1073b062e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12057-4055-7880-96f8-110ab0a6c55f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
