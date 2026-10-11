@@ -2074,21 +2074,21 @@ export type DataModel = {
   };
   guildEntitlementGrants: {
     document: {
+      grantKey: string;
+      guildId: Id<"guilds">;
+      discordGuildId: string;
+      category: "complimentary" | "staff" | "test";
       capabilities: Array<
         "guild.welcome.premium-style" | "guild.twitch.premium-style"
       >;
-      category: "complimentary" | "staff" | "test";
-      createdAt: number;
-      discordGuildId: string;
+      startsAt: number;
       endsAt: number;
-      grantKey: string;
-      guildId: Id<"guilds">;
       issuedBy: Id<"users">;
       reason: string;
-      revocationReason?: string;
       revokedAt?: number;
+      revocationReason?: string;
       revokedBy?: Id<"users">;
-      startsAt: number;
+      createdAt: number;
       _id: Id<"guildEntitlementGrants">;
       _creationTime: number;
     };
@@ -2113,6 +2113,12 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_grant_key: ["grantKey", "_creationTime"];
       by_guild_id: ["guildId", "_creationTime"];
+      by_guild_revocation_end: [
+        "guildId",
+        "revokedAt",
+        "endsAt",
+        "_creationTime",
+      ];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -2227,21 +2233,12 @@ export type DataModel = {
   };
   guildSubscriptions: {
     document: {
-      cancelAtPeriodEnd: boolean;
-      canceledAt?: number;
-      createdAt: number;
       customerId: Id<"billingCustomers">;
-      discordGuildId: string;
-      endsAt: number;
-      eventCreatedAt: number;
-      graceEndsAt?: number;
       guildId: Id<"guilds">;
-      lastEventId: string;
-      paymentFailedAt?: number;
-      reconciledAt: number;
-      revision: number;
-      revokedAt?: number;
-      startsAt: number;
+      discordGuildId: string;
+      stripeSubscriptionId: string;
+      stripeProductId: string;
+      stripePriceId: string;
       status:
         | "active"
         | "trialing"
@@ -2253,10 +2250,19 @@ export type DataModel = {
         | "paused"
         | "expired"
         | "revoked";
-      stripePriceId: string;
-      stripeProductId: string;
-      stripeSubscriptionId: string;
+      startsAt: number;
+      endsAt: number;
       trialEndsAt?: number;
+      graceEndsAt?: number;
+      paymentFailedAt?: number;
+      cancelAtPeriodEnd: boolean;
+      canceledAt?: number;
+      revokedAt?: number;
+      lastEventId: string;
+      eventCreatedAt: number;
+      revision: number;
+      reconciledAt: number;
+      createdAt: number;
       updatedAt: number;
       _id: Id<"guildSubscriptions">;
       _creationTime: number;
@@ -2288,9 +2294,16 @@ export type DataModel = {
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
-      by_customer_id: ["customerId", "_creationTime"];
-      by_guild_id: ["guildId", "_creationTime"];
       by_stripe_subscription_id: ["stripeSubscriptionId", "_creationTime"];
+      by_guild_id: ["guildId", "_creationTime"];
+      by_guild_status_end: ["guildId", "status", "endsAt", "_creationTime"];
+      by_guild_status_grace: [
+        "guildId",
+        "status",
+        "graceEndsAt",
+        "_creationTime",
+      ];
+      by_customer_id: ["customerId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

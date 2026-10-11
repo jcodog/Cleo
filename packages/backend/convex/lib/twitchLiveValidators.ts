@@ -63,6 +63,8 @@ export const liveSource = v.union(
   })
 )
 export const liveWorkspace = v.object({
+  ownerKey: v.string(),
+  verifiedAt: v.number(),
   config: liveConfig,
   source: liveSource,
   isOwner: v.boolean(),

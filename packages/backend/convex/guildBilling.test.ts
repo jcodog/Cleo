@@ -5,6 +5,8 @@ import { api, internal } from "./_generated/api"
 import schema from "./schema"
 import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 import { GUILD_BILLING_MAX_FRESHNESS_MS } from "@workspace/shared/cleoEntitlements"
+import { getGuildAccess } from "./lib/guildEntitlements"
+import { GUILD_BILLING_MAX_CONCURRENT_SOURCES } from "@workspace/shared/cleoEntitlements"
 import * as billingFunctions from "./mutations/internal/guildBilling"
 
 const modules = {
@@ -549,4 +551,217 @@ test("staff-issued grants are expiring, scoped, idempotent and revocable", async
     (await t.query(resolve, { discordGuildId: "999999999999999999" })).state,
     "expired"
   )
+})
+
+test("grant retries survive expiry and capability reordering without extending or restoring grants", async (testContext) => {
+  const { t, ids, now } = await fixture()
+  const grant = {
+    grantKey: "retry",
+    discordGuildId: guildA,
+    category: "test" as const,
+    capabilities: [
+      "guild.welcome.premium-style",
+      "guild.twitch.premium-style",
+    ] as const,
+    startsAt: now,
+    endsAt: now + 1000,
+    issuedBy: ids.staffId,
+    reason: "Expiry retry test",
+  }
+  const args = { ...grant, capabilities: [...grant.capabilities] }
+  const id = await t.mutation(billing.issueGrant, args)
+  const expiredArgs = { ...args, grantKey: "expiry-only" }
+  const expiredId = await t.mutation(billing.issueGrant, expiredArgs)
+  await t.mutation(billing.revokeGrant, {
+    grantKey: grant.grantKey,
+    revokedBy: ids.staffId,
+    reason: "Revoke",
+  })
+  testContext.mock.method(Date, "now", () => now + 2000)
+  assert.equal(await t.mutation(billing.issueGrant, expiredArgs), expiredId)
+  assert.equal(
+    await t.mutation(billing.issueGrant, {
+      ...args,
+      capabilities: [...args.capabilities].reverse(),
+    }),
+    id
+  )
+  assert.equal(
+    (await t.query(resolve, { discordGuildId: guildA })).state,
+    "revoked"
+  )
+  await assert.rejects(
+    t.mutation(billing.issueGrant, { ...args, grantKey: "new-expired" }),
+    /must not be expired/
+  )
+  await assert.rejects(
+    t.mutation(billing.issueGrant, { ...args, endsAt: now + 3000 }),
+    /different terms/
+  )
+})
+
+test("reconciliation rejects inconsistent event, payment, cancellation and revocation timestamps before storing evidence", async () => {
+  const { t, snapshot } = await fixture()
+  for (const patch of [
+    { eventCreatedAt: snapshot.startsAt - 1 },
+    { startsAt: 1.5 },
+    { endsAt: Infinity },
+    { trialEndsAt: snapshot.endsAt + 1 },
+    { paymentFailedAt: snapshot.eventCreatedAt + 1 },
+    {
+      status: "past_due" as const,
+      paymentFailedAt: snapshot.eventCreatedAt + 1,
+      graceEndsAt: snapshot.eventCreatedAt + 1000,
+    },
+    { status: "canceled" as const, canceledAt: snapshot.startsAt - 1 },
+    { status: "revoked" as const, revokedAt: snapshot.eventCreatedAt + 1 },
+  ])
+    await assert.rejects(
+      t.mutation(billing.reconcileSubscription, { ...snapshot, ...patch }),
+      /INVALID_BILLING_STATE/
+    )
+  assert.deepEqual(
+    await t.run((ctx) => ctx.db.query("billingEvents").collect()),
+    []
+  )
+})
+
+test("indexed access excludes history, batches repeated ownership reads and rejects excess current sources", async () => {
+  const { t, snapshot, now, ids } = await fixture()
+  await t.mutation(billing.reconcileSubscription, snapshot)
+  await t.run(async (ctx) => {
+    const original = await ctx.db.query("guildSubscriptions").first()
+    assert.ok(original)
+    const { _id: _id, _creationTime: _time, ...fields } = original
+    for (let i = 0; i < 200; i++)
+      await ctx.db.insert("guildSubscriptions", {
+        ...fields,
+        stripeSubscriptionId: `sub_history${i}`,
+        endsAt: now - 1,
+      })
+    for (let i = 1; i < GUILD_BILLING_MAX_CONCURRENT_SOURCES; i++)
+      await ctx.db.insert("guildSubscriptions", {
+        ...fields,
+        stripeSubscriptionId: `sub_current${i}`,
+      })
+    const guild = await ctx.db.get(original.guildId)
+    assert.ok(guild)
+    let ownershipReads = 0
+    const db = new Proxy(ctx.db, {
+      get(target, property) {
+        if (property === "get")
+          return (...args: Parameters<typeof ctx.db.get>) => {
+            ownershipReads++
+            return target.get(...args)
+          }
+        const value = Reflect.get(target, property, target)
+        return typeof value === "function" ? value.bind(target) : value
+      },
+    })
+    const access = await getGuildAccess({ db }, guild, now)
+    assert.equal(access.state, "active")
+    assert.equal(
+      ownershipReads,
+      2,
+      "Repeated customer and owner IDs are fetched once"
+    )
+  })
+  await assert.rejects(
+    t.mutation(billing.reconcileSubscription, {
+      ...snapshot,
+      stripeSubscriptionId: "sub_overflow",
+      eventId: "evt_overflow",
+    }),
+    /Too many concurrent/
+  )
+  // Existing reconciliations remain possible at the quota.
+  await t.mutation(billing.reconcileSubscription, {
+    ...snapshot,
+    eventId: "evt_update",
+    revision: 2,
+  })
+  await t.run(async (ctx) => {
+    const original = await ctx.db.query("guildSubscriptions").first()
+    assert.ok(original)
+    const { _id: _id, _creationTime: _time, ...fields } = original
+    await ctx.db.insert("guildSubscriptions", {
+      ...fields,
+      stripeSubscriptionId: "sub_corruptOverflow",
+    })
+  })
+  assert.deepEqual(
+    (await t.query(resolve, { discordGuildId: guildA })).capabilities,
+    []
+  )
+  const grant = {
+    grantKey: "last",
+    discordGuildId: guildA,
+    category: "test" as const,
+    capabilities: ["guild.welcome.premium-style"] as const,
+    startsAt: now,
+    endsAt: now + 10000,
+    issuedBy: ids.staffId,
+    reason: "Quota",
+  }
+  for (let i = 0; i < GUILD_BILLING_MAX_CONCURRENT_SOURCES; i++)
+    await t.mutation(billing.issueGrant, {
+      ...grant,
+      capabilities: [...grant.capabilities],
+      grantKey: `grant-${i}`,
+    })
+  await assert.rejects(
+    t.mutation(billing.issueGrant, {
+      ...grant,
+      capabilities: [...grant.capabilities],
+    }),
+    /Too many concurrent guild grants/
+  )
+  assert.ok(
+    await t.mutation(billing.issueGrant, {
+      ...grant,
+      capabilities: [...grant.capabilities],
+      grantKey: "grant-0",
+    })
+  )
+})
+
+test("Welcome runtime deadline ignores an earlier Twitch-only expiry and free saving preserves styling", async () => {
+  const { t, manager, now, ids } = await fixture()
+  for (const [grantKey, capability, endsAt] of [
+    ["welcome", "guild.welcome.premium-style", now + 10000],
+    ["twitch", "guild.twitch.premium-style", now + 1000],
+  ] as const)
+    await t.mutation(billing.issueGrant, {
+      grantKey,
+      discordGuildId: guildA,
+      category: "test",
+      capabilities: [capability],
+      startsAt: now,
+      endsAt,
+      issuedBy: ids.staffId,
+      reason: "Capability isolation",
+    })
+  await manager.mutation(save, {
+    discordGuildId: guildA,
+    modules: { welcomeEnabled: true },
+    channels: {},
+    welcome: { style: premiumStyle },
+  })
+  const result = await t.query(runtime, { discordGuildId: guildA })
+  if (result.status !== "ready") throw Error("Expected runtime")
+  assert.equal(result.config.premiumWelcomeValidUntil, now + 10000)
+  await t.mutation(billing.revokeGrant, {
+    grantKey: "welcome",
+    revokedBy: ids.staffId,
+    reason: "End access",
+  })
+  const saved = await manager.mutation(save, {
+    discordGuildId: guildA,
+    modules: { welcomeEnabled: false },
+    channels: {},
+    welcome: { subtext: "Free edit after expiry" },
+  })
+  assert.equal(saved.welcomeEnabled, false)
+  assert.equal(saved.welcomeSubtext, "Free edit after expiry")
+  assert.deepEqual(saved.welcomeStyle, premiumStyle)
 })

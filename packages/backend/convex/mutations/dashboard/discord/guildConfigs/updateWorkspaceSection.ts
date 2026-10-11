@@ -1,3 +1,4 @@
+import { GUILD_WELCOME_PREMIUM_STYLE } from "@workspace/shared/cleoEntitlements"
 import { ConvexError, v } from "convex/values"
 import type { Doc } from "../../../../_generated/dataModel"
 import type { MutationCtx } from "../../../../_generated/server"
@@ -79,7 +80,7 @@ export const update = mutation({
       if (
         !isFreeWelcomeStyle(style) &&
         !(await getGuildAccess(ctx, guild)).capabilities.includes(
-          "guild.welcome.premium-style"
+          GUILD_WELCOME_PREMIUM_STYLE
         )
       )
         throw new ConvexError({

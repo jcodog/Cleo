@@ -58,6 +58,8 @@ export const guildSubscriptions = defineTable({
 })
   .index("by_stripe_subscription_id", ["stripeSubscriptionId"])
   .index("by_guild_id", ["guildId"])
+  .index("by_guild_status_end", ["guildId", "status", "endsAt"])
+  .index("by_guild_status_grace", ["guildId", "status", "graceEndsAt"])
   .index("by_customer_id", ["customerId"])
 
 export const billingEvents = defineTable({
@@ -87,3 +89,4 @@ export const guildEntitlementGrants = defineTable({
 })
   .index("by_grant_key", ["grantKey"])
   .index("by_guild_id", ["guildId"])
+  .index("by_guild_revocation_end", ["guildId", "revokedAt", "endsAt"])

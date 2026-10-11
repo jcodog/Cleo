@@ -9,10 +9,14 @@ export const CLEO_ENTITLEMENT_CATEGORIES = [
   "test-grant",
 ] as const
 
+export const GUILD_WELCOME_PREMIUM_STYLE = "guild.welcome.premium-style"
+export const GUILD_TWITCH_PREMIUM_STYLE = "guild.twitch.premium-style"
 export const CLEO_GUILD_CAPABILITIES = [
-  "guild.welcome.premium-style",
-  "guild.twitch.premium-style",
+  GUILD_WELCOME_PREMIUM_STYLE,
+  GUILD_TWITCH_PREMIUM_STYLE,
 ] as const
+// Bound concurrent sources, independently of retained billing history.
+export const GUILD_BILLING_MAX_CONCURRENT_SOURCES = 64
 export type CleoGuildCapability = (typeof CLEO_GUILD_CAPABILITIES)[number]
 export const GUILD_BILLING_MAX_FRESHNESS_MS = 7 * 24 * 60 * 60 * 1000
 export const GUILD_BILLING_MAX_GRACE_MS = GUILD_BILLING_MAX_FRESHNESS_MS
@@ -55,6 +59,7 @@ export type CleoGuildAccessRecord = {
 
 export type ResolvedCleoGuildAccess = {
   capabilities: CleoGuildCapability[]
+  capabilityDeadlines: Partial<Record<CleoGuildCapability, number>>
   state: "active" | "trial" | "grace" | "expired" | "revoked"
   validUntil: number
 }
@@ -66,8 +71,9 @@ export function resolveCleoGuildAccess(input: {
   records: CleoGuildAccessRecord[]
 }): ResolvedCleoGuildAccess {
   const capabilities = new Set<CleoGuildCapability>()
+  const capabilityDeadlines: ResolvedCleoGuildAccess["capabilityDeadlines"] = {}
   let state: ResolvedCleoGuildAccess["state"] = "expired"
-  let validUntil = Infinity
+  const precedence = { expired: 0, revoked: 1, grace: 2, trial: 3, active: 4 }
   for (const record of input.records) {
     if (record.discordGuildId !== input.discordGuildId) continue
     if (
@@ -78,9 +84,9 @@ export function resolveCleoGuildAccess(input: {
       continue
     }
     if (
-      !Number.isFinite(input.now) ||
-      !Number.isFinite(record.startsAt) ||
-      !Number.isFinite(record.endsAt) ||
+      !Number.isSafeInteger(input.now) ||
+      !Number.isSafeInteger(record.startsAt) ||
+      !Number.isSafeInteger(record.endsAt) ||
       record.startsAt > input.now ||
       record.startsAt < 0 ||
       record.endsAt <= record.startsAt
@@ -90,7 +96,7 @@ export function resolveCleoGuildAccess(input: {
     let candidateState: ResolvedCleoGuildAccess["state"] = "active"
     if (record.kind === "subscription") {
       if (
-        !Number.isFinite(record.reconciledAt) ||
+        !Number.isSafeInteger(record.reconciledAt) ||
         record.reconciledAt > input.now ||
         record.reconciledAt < record.startsAt
       )
@@ -99,7 +105,9 @@ export function resolveCleoGuildAccess(input: {
       if (record.status === "trialing") {
         if (
           record.trialEndsAt === undefined ||
-          !Number.isFinite(record.trialEndsAt)
+          !Number.isSafeInteger(record.trialEndsAt) ||
+          record.trialEndsAt <= record.startsAt ||
+          record.trialEndsAt > record.endsAt
         )
           continue
         deadline = Math.min(deadline, record.trialEndsAt)
@@ -107,11 +115,12 @@ export function resolveCleoGuildAccess(input: {
       } else if (record.status === "past_due") {
         if (
           record.paymentFailedAt === undefined ||
-          !Number.isFinite(record.paymentFailedAt) ||
+          !Number.isSafeInteger(record.paymentFailedAt) ||
           record.paymentFailedAt > input.now ||
           record.paymentFailedAt < record.startsAt ||
           record.graceEndsAt === undefined ||
-          !Number.isFinite(record.graceEndsAt)
+          !Number.isSafeInteger(record.graceEndsAt) ||
+          record.graceEndsAt <= record.paymentFailedAt
         )
           continue
         deadline = Math.min(
@@ -125,16 +134,27 @@ export function resolveCleoGuildAccess(input: {
     if (deadline <= input.now) continue
     const granted =
       record.kind === "grant" ? record.capabilities : CLEO_GUILD_CAPABILITIES
-    for (const capability of granted) capabilities.add(capability)
-    if (capabilities.size > 0) {
-      validUntil = Math.min(validUntil, deadline)
-      state = candidateState
+    for (const capability of granted) {
+      capabilities.add(capability)
+      // Independent sources are additive. Access lasts until the last valid
+      // source for this capability expires, regardless of unrelated sources.
+      capabilityDeadlines[capability] = Math.max(
+        capabilityDeadlines[capability] ?? 0,
+        deadline
+      )
     }
+    // Active > trial > grace, independent of record ordering and deadlines.
+    if (granted.length > 0 && precedence[candidateState] > precedence[state])
+      state = candidateState
   }
   return {
     capabilities: [...capabilities].sort(),
+    capabilityDeadlines,
     state,
-    validUntil: capabilities.size > 0 ? validUntil : input.now,
+    validUntil:
+      capabilities.size > 0
+        ? Math.min(...Object.values(capabilityDeadlines))
+        : input.now,
   }
 }
 

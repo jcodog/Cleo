@@ -5,7 +5,14 @@ import {
   guildCapability,
   subscriptionStatus,
 } from "../../dbTables/guildBilling"
-import { GUILD_BILLING_MAX_GRACE_MS } from "@workspace/shared/cleoEntitlements"
+import {
+  GUILD_BILLING_MAX_GRACE_MS,
+  GUILD_BILLING_MAX_CONCURRENT_SOURCES,
+} from "@workspace/shared/cleoEntitlements"
+import {
+  subscriptionCandidates,
+  grantCandidates,
+} from "../../lib/guildEntitlements"
 import { isDiscordSnowflake } from "@workspace/shared/discordRuntimeConfig"
 
 function invalid(message: string): never {
@@ -146,21 +153,29 @@ export const reconcileSubscription = internalMutation({
       !Number.isSafeInteger(args.revision) ||
       args.revision < 1 ||
       args.eventCreatedAt > now ||
+      args.eventCreatedAt < args.startsAt ||
       args.startsAt > now ||
       args.endsAt <= args.startsAt
     )
       invalid("Invalid subscription period or event sequence.")
     if (
-      args.status === "trialing" &&
-      (args.trialEndsAt === undefined ||
-        args.trialEndsAt <= args.startsAt ||
-        args.trialEndsAt > args.endsAt)
+      (args.status === "trialing" && args.trialEndsAt === undefined) ||
+      (args.trialEndsAt !== undefined &&
+        (args.trialEndsAt <= args.startsAt || args.trialEndsAt > args.endsAt))
     )
       invalid("Trial deadline is required within the subscription period.")
     if (
+      args.paymentFailedAt !== undefined &&
+      (args.paymentFailedAt < args.startsAt ||
+        args.paymentFailedAt > args.eventCreatedAt)
+    )
+      invalid(
+        "Payment failure must precede the trusted event within the subscription period."
+      )
+    if (
       args.status === "past_due" &&
       (args.paymentFailedAt === undefined ||
-        args.paymentFailedAt > now ||
+        args.paymentFailedAt > args.eventCreatedAt ||
         args.paymentFailedAt < args.startsAt ||
         args.graceEndsAt === undefined ||
         args.graceEndsAt <= args.paymentFailedAt ||
@@ -181,8 +196,12 @@ export const reconcileSubscription = internalMutation({
     if (args.status === "canceled" && args.canceledAt === undefined)
       invalid("Cancellation timestamp is required.")
     if (
-      (args.revokedAt !== undefined && args.revokedAt > now) ||
-      (args.canceledAt !== undefined && args.canceledAt > now)
+      (args.revokedAt !== undefined &&
+        (args.revokedAt > args.eventCreatedAt ||
+          args.revokedAt < args.startsAt)) ||
+      (args.canceledAt !== undefined &&
+        (args.canceledAt > args.eventCreatedAt ||
+          args.canceledAt < args.startsAt))
     )
       invalid("Lifecycle changes cannot be in the future.")
     const payload = JSON.stringify(
@@ -248,6 +267,23 @@ export const reconcileSubscription = internalMutation({
     })
     if (stale) return "stale"
     if (
+      args.status === "active" ||
+      args.status === "trialing" ||
+      args.status === "past_due"
+    ) {
+      const candidates = await subscriptionCandidates(
+        ctx,
+        guild._id,
+        args.status,
+        now
+      )
+      if (
+        candidates.filter((row) => row._id !== existing?._id).length >=
+        GUILD_BILLING_MAX_CONCURRENT_SOURCES
+      )
+        invalid("Too many concurrent guild subscriptions.")
+    }
+    if (
       existing?.status === "past_due" &&
       args.status === "past_due" &&
       args.paymentFailedAt !== existing.paymentFailedAt
@@ -307,7 +343,7 @@ export const issueGrant = internalMutation({
       !isDiscordSnowflake(args.discordGuildId) ||
       args.capabilities.length === 0 ||
       new Set(args.capabilities).size !== args.capabilities.length ||
-      args.endsAt <= Math.max(Date.now(), args.startsAt) ||
+      args.endsAt <= args.startsAt ||
       (args.category === "test" &&
         args.endsAt - args.startsAt > GUILD_BILLING_MAX_GRACE_MS)
     )
@@ -344,7 +380,7 @@ export const issueGrant = internalMutation({
           grantKey,
           discordGuildId,
           category,
-          capabilities,
+          capabilities: [...capabilities].sort(),
           startsAt,
           endsAt,
           issuedBy,
@@ -354,7 +390,7 @@ export const issueGrant = internalMutation({
           grantKey: args.grantKey,
           discordGuildId: args.discordGuildId,
           category: args.category,
-          capabilities: args.capabilities,
+          capabilities: [...args.capabilities].sort(),
           startsAt: args.startsAt,
           endsAt: args.endsAt,
           issuedBy: args.issuedBy,
@@ -364,8 +400,15 @@ export const issueGrant = internalMutation({
         invalid("Grant key cannot be reused with different terms.")
       return existing._id
     }
+    if (args.endsAt <= Date.now()) invalid("New grants must not be expired.")
+    if (
+      (await grantCandidates(ctx, guild._id, Date.now())).length >=
+      GUILD_BILLING_MAX_CONCURRENT_SOURCES
+    )
+      invalid("Too many concurrent guild grants.")
     return ctx.db.insert("guildEntitlementGrants", {
       ...args,
+      capabilities: [...args.capabilities].sort(),
       guildId: guild._id,
       createdAt: Date.now(),
     })

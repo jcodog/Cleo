@@ -292,9 +292,16 @@ export class DiscordGuildRuntimeConfigCache {
     const now = this.now()
     const ttlMs =
       result.status === "ready"
-        ? // Recheck paid decisions for every delivery so revocations are observed.
+        ? // Observe revocation within 60 seconds, never beyond paid expiry.
           result.config.premiumWelcomeValidUntil !== undefined
-          ? 0
+          ? Math.max(
+              0,
+              Math.min(
+                this.readyTtlMs,
+                60_000,
+                result.config.premiumWelcomeValidUntil - now
+              )
+            )
           : this.readyTtlMs
         : this.disabledTtlMs
     const expiresAt = now + ttlMs

@@ -4,6 +4,7 @@ import { query, internalMutation, internalQuery } from "./_generated/server"
 import { requireCurrentUser, requireDiscordGuildManager } from "./lib/auth"
 import {
   getOwnerTwitch,
+  liveOwnerKey,
   ownerEvidenceKey,
   createOwnerCache,
 } from "./lib/ownerTwitch"
@@ -39,6 +40,7 @@ export const projection = query({
   args: { discordGuildId: v.string() },
   returns: v.object({
     config: liveConfig,
+    ownerKey: v.string(),
     source: liveSource,
     isOwner: v.boolean(),
     botLeft: v.boolean(),
@@ -107,6 +109,7 @@ export const projection = query({
       : undefined
     return {
       config,
+      ownerKey: liveOwnerKey(guild.ownerDiscordId, owner),
       source,
       isOwner: membership.discordUserId === guild.ownerDiscordId,
       botLeft: guild.botLeftAt !== undefined,

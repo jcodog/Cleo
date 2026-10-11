@@ -1537,30 +1537,29 @@ export declare const api: {
       "public",
       { discordGuildId: string },
       {
-        botLeft: boolean;
+        ownerKey: string;
+        verifiedAt: number;
         config:
           | {
-              _creationTime: number;
-              _id: Id<"guildLiveNotificationConfigs">;
-              broadcasterId?: string;
-              createdAt: number;
               guildId: Id<"guilds">;
+              liveNotificationsEnabled: boolean;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
-              liveNotificationsEnabled: boolean;
-              ownerDiscordId?: string;
+              broadcasterId?: string;
               ownerUserId?: Id<"users">;
+              ownerDiscordId?: string;
+              createdAt: number;
               updatedAt: number;
+              _id: Id<"guildLiveNotificationConfigs">;
+              _creationTime: number;
             }
           | {
+              liveNotificationsEnabled: boolean;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
-              liveNotificationsEnabled: boolean;
             };
-        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
-        isOwner: boolean;
         source:
           | {
               status:
@@ -1571,12 +1570,15 @@ export declare const api: {
                 | "missingPermission";
             }
           | {
-              avatarUrl?: string;
-              broadcasterId: string;
-              displayName: string;
-              login: string;
               status: "ready";
+              broadcasterId: string;
+              login: string;
+              displayName: string;
+              avatarUrl?: string;
             };
+        isOwner: boolean;
+        botLeft: boolean;
+        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
         subscriptionStatus:
           | "disabled"
           | "connecting"
@@ -1612,30 +1614,28 @@ export declare const api: {
       "public",
       { discordGuildId: string },
       {
-        botLeft: boolean;
         config:
           | {
-              _creationTime: number;
-              _id: Id<"guildLiveNotificationConfigs">;
-              broadcasterId?: string;
-              createdAt: number;
               guildId: Id<"guilds">;
+              liveNotificationsEnabled: boolean;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
-              liveNotificationsEnabled: boolean;
-              ownerDiscordId?: string;
+              broadcasterId?: string;
               ownerUserId?: Id<"users">;
+              ownerDiscordId?: string;
+              createdAt: number;
               updatedAt: number;
+              _id: Id<"guildLiveNotificationConfigs">;
+              _creationTime: number;
             }
           | {
+              liveNotificationsEnabled: boolean;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
-              liveNotificationsEnabled: boolean;
             };
-        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
-        isOwner: boolean;
+        ownerKey: string;
         source:
           | {
               status:
@@ -1646,12 +1646,15 @@ export declare const api: {
                 | "missingPermission";
             }
           | {
-              avatarUrl?: string;
-              broadcasterId: string;
-              displayName: string;
-              login: string;
               status: "ready";
+              broadcasterId: string;
+              login: string;
+              displayName: string;
+              avatarUrl?: string;
             };
+        isOwner: boolean;
+        botLeft: boolean;
+        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
         subscriptionStatus:
           | "disabled"
           | "connecting"
@@ -6444,6 +6447,10 @@ export declare const internal: {
             capabilities: Array<
               "guild.welcome.premium-style" | "guild.twitch.premium-style"
             >;
+            capabilityDeadlines: {
+              "guild.welcome.premium-style"?: number;
+              "guild.twitch.premium-style"?: number;
+            };
             state: "active" | "trial" | "grace" | "expired" | "revoked";
             validUntil: number;
           }

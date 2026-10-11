@@ -5,7 +5,17 @@ import { build, Glob, serve } from "bun"
 
 const root = process.cwd()
 const bundle = await build({
-  entrypoints: ["tests/welcome/fixture.tsx"],
+  entrypoints: ["tests/welcome/fixture.tsx", "tests/welcome/live-fixture.tsx"],
+  plugins: [
+    {
+      name: "isolated-clerk-fixture",
+      setup(build) {
+        build.onResolve({ filter: /^@clerk\/nextjs$/ }, () => ({
+          path: path.join(root, "tests/welcome/clerk-fixture.ts"),
+        }))
+      },
+    },
+  ],
   target: "browser",
   format: "iife",
   jsx: { runtime: "automatic" },
@@ -17,7 +27,14 @@ if (!bundle.success)
   throw new Error(
     `Welcome browser fixture failed to compile: ${bundle.logs.join("\n")}`
   )
-const javascript = await bundle.outputs[0].text()
+const javascript = new Map(
+  await Promise.all(
+    bundle.outputs.map(async (output) => [
+      path.basename(output.path),
+      await output.text(),
+    ])
+  )
+)
 const cssFiles = await Array.fromAsync(
   new Glob("**/*.css").scan({ cwd: path.join(root, ".next/static") })
 )
@@ -36,12 +53,17 @@ serve({
   port: 4318,
   async fetch(request) {
     const pathname = new URL(request.url).pathname
-    if (pathname === "/")
-      return new Response(html, {
-        headers: { "content-type": "text/html; charset=utf-8" },
-      })
-    if (pathname === "/fixture.js")
-      return new Response(javascript, {
+    if (pathname === "/" || pathname === "/live")
+      return new Response(
+        pathname === "/live"
+          ? html.replace("/fixture.js", "/live-fixture.js")
+          : html,
+        {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }
+      )
+    if (javascript.has(pathname.slice(1)))
+      return new Response(javascript.get(pathname.slice(1)), {
         headers: { "content-type": "application/javascript; charset=utf-8" },
       })
     if (pathname === "/fixture.css")

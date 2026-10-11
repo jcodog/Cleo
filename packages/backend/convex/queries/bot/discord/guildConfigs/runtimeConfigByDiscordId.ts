@@ -1,3 +1,4 @@
+import { GUILD_WELCOME_PREMIUM_STYLE } from "@workspace/shared/cleoEntitlements"
 import { v } from "convex/values"
 
 import { internalQuery } from "../../../../_generated/server"
@@ -50,7 +51,7 @@ export const get = internalQuery({
       .unique()
     const access = await getGuildAccess(ctx, guild)
     const premiumWelcome = access.capabilities.includes(
-      "guild.welcome.premium-style"
+      GUILD_WELCOME_PREMIUM_STYLE
     )
     return {
       status: "ready" as const,
@@ -63,7 +64,7 @@ export const get = internalQuery({
             }
           : {}),
         ...(premiumWelcome
-          ? { premiumWelcomeValidUntil: access.validUntil }
+          ? { premiumWelcomeValidUntil: access.capabilityDeadlines[GUILD_WELCOME_PREMIUM_STYLE] }
           : {}),
         ...(live
           ? {

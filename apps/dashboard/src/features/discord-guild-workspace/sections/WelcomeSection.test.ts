@@ -196,13 +196,23 @@ test("welcome studio validates and saves Premium styles only with server-provide
   assert.match(copy(render()), /Welcome settings saved\./)
   find("welcome-subtext").onChange?.({ target: { value: "" } })
   assert.doesNotMatch(copy(render()), /Free welcome settings saved/)
+  const freeSubmission = render().props.onSubmit({ preventDefault() {} })
+  assert.deepEqual(saves.at(-1), {
+    discordGuildId: overview.discordGuildId,
+    modules: { welcomeEnabled: false },
+    channels: { welcomeChannelId: "345678901234567890" },
+    welcome: { subtext: null },
+  })
+  assert.ok(finishSave)
+  finishSave()
+  await freeSubmission
   fail = true
   await render().props.onSubmit({ preventDefault() {} })
   assert.equal(
     nodes(render()).find((node) => node.type === "SaveStatus")?.props.children,
     undefined
   )
-  assert.equal(slots.at(-1), "Cannot save")
+  assert.equal(slots[5], "Cannot save")
   const before = saves.length
   await render(true).props.onSubmit({ preventDefault() {} })
   assert.equal(saves.length, before)

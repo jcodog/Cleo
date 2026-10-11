@@ -71,3 +71,14 @@ export function ownerEvidenceKey(
     ]),
   ])
 }
+
+// Safe identity/evidence revisions for display invalidation, never authority.
+export function liveOwnerKey(
+  ownerDiscordId: string | undefined,
+  owner: Awaited<ReturnType<typeof getOwnerTwitch>>
+) {
+  return JSON.stringify([
+    ownerDiscordId ?? null,
+    owner.status === "linked" ? ownerEvidenceKey(owner) : owner.status,
+  ])
+}

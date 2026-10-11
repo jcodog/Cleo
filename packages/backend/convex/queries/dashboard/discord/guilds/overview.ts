@@ -1,3 +1,4 @@
+import { GUILD_WELCOME_PREMIUM_STYLE } from "@workspace/shared/cleoEntitlements"
 import { ConvexError, v, type Value } from "convex/values"
 import type { Doc } from "../../../../_generated/dataModel"
 import { query } from "../../../../_generated/server"
@@ -51,7 +52,7 @@ export const get = query({
       guild,
       membership,
       guildConfig,
-      access.capabilities.includes("guild.welcome.premium-style")
+      access.capabilities.includes(GUILD_WELCOME_PREMIUM_STYLE)
     )
 
     if (guild.botLeftAt !== undefined) {

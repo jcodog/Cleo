@@ -2465,3 +2465,39 @@ test("announcement authorization rejects account evidence changed during provide
     false
   )
 })
+
+test("owner changes during provider verification cannot return a cached display for the previous owner", async () => {
+  const f = await fixture()
+  const before = await f.manager.query(api.liveNotifications.projection, {
+    discordGuildId: guildDiscordId,
+  })
+  const base = globalThis.fetch
+  let changed = false
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    if (!changed && url.pathname.endsWith("validate")) {
+      changed = true
+      await f.t.run((ctx) =>
+        ctx.db.patch(f.ids.guildId, {
+          ownerDiscordId: managerDiscordId,
+          updatedAt: Date.now(),
+        })
+      )
+    }
+    return base(input, init)
+  }
+  await assert.rejects(
+    f.manager.action(api.liveNotificationActions.get, {
+      discordGuildId: guildDiscordId,
+    }),
+    /connection changed/
+  )
+  const after = await f.manager.query(api.liveNotifications.projection, {
+    discordGuildId: guildDiscordId,
+  })
+  assert.notEqual(after.ownerKey, before.ownerKey)
+  assert.equal(
+    JSON.stringify(after).includes("private-owner-twitch-token"),
+    false
+  )
+})

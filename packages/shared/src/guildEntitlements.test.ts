@@ -30,6 +30,7 @@ const resolve = (records: CleoGuildAccessRecord[], time = now) =>
 test("guild capabilities are isolated and grants never imply Twitch or manager permissions", () => {
   assert.deepEqual(resolve([]), {
     capabilities: [],
+    capabilityDeadlines: {},
     state: "expired",
     validUntil: now,
   })
@@ -73,6 +74,8 @@ test("invalid, future, expired and stale lifecycle data fail closed", () => {
     { status: "trialing" as const },
     { status: "trialing" as const, trialEndsAt: NaN },
     { status: "trialing" as const, trialEndsAt: now },
+    { status: "trialing" as const, trialEndsAt: subscription.startsAt },
+    { status: "trialing" as const, trialEndsAt: subscription.endsAt + 1 },
     { status: "past_due" as const },
     { status: "past_due" as const, paymentFailedAt: NaN },
     { status: "past_due" as const, paymentFailedAt: now + 1 },
@@ -124,4 +127,48 @@ test("trial and grace have bounded deadlines and grace can outlive the paid peri
     ]).validUntil,
     now + GUILD_BILLING_MAX_FRESHNESS_MS
   )
+})
+
+test("overlapping sources use deterministic precedence and independent capability deadlines", () => {
+  const trial: CleoGuildAccessRecord = {
+    ...subscription,
+    status: "trialing",
+    trialEndsAt: now + 500,
+  }
+  const grace: CleoGuildAccessRecord = {
+    ...subscription,
+    status: "past_due",
+    paymentFailedAt: now,
+    graceEndsAt: now + 3000,
+  }
+  const twitch: CleoGuildAccessRecord = {
+    ...grant,
+    capabilities: ["guild.twitch.premium-style"],
+    endsAt: now + 50,
+  }
+  const inputs = [subscription, trial, grace, grant, twitch]
+  const expected = resolve(inputs)
+  for (let i = 0; i < inputs.length; i++) {
+    assert.deepEqual(
+      resolve([...inputs.slice(i), ...inputs.slice(0, i)]),
+      expected
+    )
+    assert.deepEqual(resolve([...inputs].reverse()), expected)
+  }
+  assert.equal(expected.state, "active")
+  assert.deepEqual(expected.capabilityDeadlines, {
+    "guild.welcome.premium-style": now + 5000,
+    "guild.twitch.premium-style": now + 3000,
+  })
+  assert.equal(expected.validUntil, now + 3000)
+  assert.equal(resolve([trial, grace]).state, "trial")
+  assert.equal(resolve([grace, trial]).state, "trial")
+  assert.equal(
+    resolve([grant, twitch]).capabilityDeadlines["guild.welcome.premium-style"],
+    now + 5000
+  )
+  assert.deepEqual(resolve([grant, twitch], now + 50).capabilities, [
+    "guild.welcome.premium-style",
+  ])
+  assert.equal(resolve([grace], now + 3000).state, "expired")
 })

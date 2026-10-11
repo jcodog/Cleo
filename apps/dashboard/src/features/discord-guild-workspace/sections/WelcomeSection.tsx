@@ -66,6 +66,8 @@ export function WelcomeSection({
     overview.guildConfig?.welcomeStyle ?? FREE_WELCOME_STYLE
   )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [savedStyle, setSavedStyle] = useState(style)
+  const styleModified = JSON.stringify(style) !== JSON.stringify(savedStyle)
   const premiumPreview = !isFreeWelcomeStyle(style)
   const disabled = isBotLeft || saveState === "saving"
   let styleError: string | undefined
@@ -95,11 +97,13 @@ export function WelcomeSection({
         channels: { welcomeChannelId: toOptionalChannelValue(channelId) },
         welcome: {
           subtext: toOptionalTextValue(subtext),
-          ...(overview.welcomeCardStudioAvailable
+          ...(overview.welcomeCardStudioAvailable && styleModified
             ? { style: parseWelcomeCardStyle(style) }
             : {}),
         },
       })
+      if (overview.welcomeCardStudioAvailable && styleModified)
+        setSavedStyle(style)
       setSaveState("success")
     } catch (error) {
       setSaveState("error")

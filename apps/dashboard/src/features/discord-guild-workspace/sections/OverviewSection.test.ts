@@ -70,6 +70,8 @@ test("Overview renders live readiness, failure and loading with the dedicated na
   assert.equal(entry().props.stateLabel, "Provider unavailable")
   error = false
   view = {
+    ownerKey: "owner",
+    verifiedAt: 1,
     config: {
       liveNotificationsEnabled: true,
       liveNotificationMentionMode: "none",

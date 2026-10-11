@@ -2,10 +2,10 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 
-test("Premium runtime decisions refresh on every delivery and outages fall back to Classic", async () => {
+test("Premium runtime cache bounds revocation to 60 seconds and outages preserve Classic", async () => {
   let fetches = 0
   let fail = false
-  const now = 10000
+  let now = 10000
   const cache = new DiscordGuildRuntimeConfigCache({
     startCleanupTimer: false,
     now: () => now,
@@ -25,7 +25,8 @@ test("Premium runtime decisions refresh on every delivery and outages fall back 
   })
   await cache.get(guildId)
   await cache.get(guildId)
-  assert.equal(fetches, 2)
+  assert.equal(fetches, 1)
+  now += 60_000
   fail = true
   const fallback = await cache.get(guildId)
   if (fallback.status !== "ready") throw new Error("Expected Classic fallback")
@@ -596,3 +597,39 @@ function createDeferred<T>(): {
     resolve: resolveDeferred,
   }
 }
+
+test("Premium cache expires at the Welcome deadline and observes revocation within its bounded window", async () => {
+  let now = 10000
+  let fetches = 0
+  let premium = true
+  const deadline = now + 1000
+  const cache = new DiscordGuildRuntimeConfigCache({
+    startCleanupTimer: false,
+    readyTtlMs: 1000000,
+    now: () => now,
+    fetchBackendResult: async () => {
+      fetches++
+      return {
+        status: "ready",
+        config: {
+          ...validConfig,
+          welcomeStyle: premium
+            ? { ...FREE_WELCOME_STYLE, preset: "aurora" }
+            : FREE_WELCOME_STYLE,
+          ...(premium ? { premiumWelcomeValidUntil: deadline } : {}),
+        },
+      }
+    },
+  })
+  await cache.get(guildId)
+  now += 999
+  await cache.get(guildId)
+  assert.equal(fetches, 1)
+  premium = false
+  now++
+  const expired = await cache.get(guildId)
+  assert.equal(fetches, 2)
+  if (expired.status !== "ready") throw Error("Expected free config")
+  assert.deepEqual(expired.config.welcomeStyle, FREE_WELCOME_STYLE)
+  cache.dispose()
+})
