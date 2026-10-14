@@ -1,0 +1,59 @@
+.github/scripts/test-production-workflow.mjs
+  s_602e6bdafe6a33::t_fdf0123fcc0f3f 31,227-250,252-257,288-290,293,295,297-307,377,386-388,390-404,406-445,447-458
+  s_602e6bdafe6a33::t_e219aec9e0cab3 291-292
+  s_602e6bdafe6a33::t_3ab9df6d6bb1f7 251,294,296,389,405,446
+.github/scripts/production-policy.mjs
+  s_602e6bdafe6a33::t_f64df5adea98c8 338-342
+  s_602e6bdafe6a33::t_d1a29cbc76d855 121-129,131,241-245,279-295,297-299,415-418
+  s_602e6bdafe6a33::t_2eb0083095ed3d 130,296
+.github/workflows/production-release.yml
+  s_602e6bdafe6a33::t_63c7b5bd4e7ec1 24-27,53,59,89-94,146,224,391,393-396,411,558,607,623,829
+docs/production-release-gating.md
+  s_602e6bdafe6a33::t_7a128046bb834c 81-84
+  s_602e6bdafe6a33::t_c87907e7a2b4e9 5-8,86,120-121,159-163,170-174
+  s_602e6bdafe6a33::t_10f55e28e9622f 87-88,122,166-167,191-192,258-271
+.github/scripts/test-discord-workflow.mjs
+  s_602e6bdafe6a33::t_27d3d5a4d8418a 12
+  s_602e6bdafe6a33::t_188a948fb38f91 1-11,13-90
+docs/discord-production-deployment.md
+  s_602e6bdafe6a33::t_fa2181babcf370 221,334-342
+  s_602e6bdafe6a33::t_c87907e7a2b4e9 8,20-21,28-32,57-59
+.github/scripts/test-ci.mjs
+  s_602e6bdafe6a33::t_9fcff4426a770c 106
+  s_602e6bdafe6a33::t_e5c789b1e63f38 72-80,89-99,101-103
+  s_602e6bdafe6a33::t_65065bab4e8718 100
+.github/scripts/test-twitch-workflow.mjs
+  s_602e6bdafe6a33::t_e219aec9e0cab3 15
+  s_602e6bdafe6a33::t_34254703ef0ffa 10-14
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_602e6bdafe6a33::t_d1a29cbc76d855 351,355-357,359
+  s_602e6bdafe6a33::t_31d049ac99007d 358
+docs/twitch/bootstrap.md
+  s_602e6bdafe6a33::t_c87907e7a2b4e9 78
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_602e6bdafe6a33::t_170cfa37de9bee 65-68,92-96,490-500
+  s_602e6bdafe6a33::t_d454219e15fb2d 439,456-465,502-511,538
+.github/scripts/test-production-policy.mjs
+  s_602e6bdafe6a33::t_7a128046bb834c 7,589-594,596-597
+  s_602e6bdafe6a33::t_f64df5adea98c8 543-550,552-583,585-588,598-628
+  s_602e6bdafe6a33::t_fa2181babcf370 332-334,336-339,341-346
+  s_602e6bdafe6a33::t_e5c789b1e63f38 13,169,176,183-185,232,253,321-331,340,347-358,361,363-368,469-470,472-474,541
+  s_602e6bdafe6a33::t_32d43b4c5a3738 4,536,629
+  s_602e6bdafe6a33::t_2ae93c76c70956 3,254,335,359-360,362,471,537-540,542,551,584,595
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "041caf66db0dc78afcc467d87a2e136c18672fd6",
+  "prompts": {},
+  "sessions": {
+    "s_602e6bdafe6a33": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13c72-c0c9-7d60-86be-4f65d9f5671a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
