@@ -10,6 +10,7 @@ import {
   authenticate,
   baseline,
   claim,
+  finishClaim,
   releaseClaim,
   invocation,
   packagesReady,
@@ -58,6 +59,7 @@ const env = {
   GITHUB_REPOSITORY: repository,
   GITHUB_REF: "refs/heads/main",
   GITHUB_EVENT_NAME: "workflow_run",
+  AUTO_PROMOTION_ENABLED: "true",
 }
 const event = {
   action: "completed",
@@ -139,6 +141,9 @@ rejectedEvidence.push({ ...evidence, jobs: [...jobs, jobs.at(-1)] })
 for (const invalid of rejectedEvidence)
   assert.throws(() => verifyEvidence(invalid))
 for (const patch of [
+  { AUTO_PROMOTION_ENABLED: "" },
+  { AUTO_PROMOTION_ENABLED: "false" },
+  { AUTO_PROMOTION_ENABLED: " true" },
   { GITHUB_EVENT_NAME: "pull_request" },
   { GITHUB_REPOSITORY: "fork/Cleo" },
   { GITHUB_REF: "refs/heads/feature" },
@@ -385,6 +390,102 @@ const incident = fixture({
     },
   ],
 })
+// Full runtime and recovery lifecycles use actual API writes and owner checks.
+for (const component of ["discord", "twitch"]) {
+  for (const operation of ["deploy", "rollback"]) {
+    for (const state of ["success", "failure"]) {
+      const api = fixture()
+      const owner = {
+        component,
+        operation,
+        coordinatorRun: "500",
+        coordinatorAttempt: "2",
+      }
+      const intent = await claim(
+        api.api,
+        identity,
+        component,
+        operation,
+        "500",
+        false,
+        "2"
+      )
+      assert.equal(api.statuses[intent.id], "in_progress")
+      for (const patch of [
+        { coordinatorRun: "501" },
+        { coordinatorAttempt: "3" },
+        { component: "backend" },
+        { operation: operation === "deploy" ? "rollback" : "deploy" },
+      ])
+        await assert.rejects(
+          finishClaim(
+            api.api,
+            identity,
+            intent.id,
+            { ...owner, ...patch },
+            state
+          )
+        )
+      const writesBefore = api.writes.length
+      const unavailable = async (...args) => {
+        if (args[1] === "POST") throw new Error("API unavailable")
+        return api.api(...args)
+      }
+      await assert.rejects(
+        finishClaim(unavailable, identity, intent.id, owner, state),
+        /API unavailable/
+      )
+      assert.equal(api.writes.length, writesBefore)
+      assert.equal(
+        api.statuses[intent.id],
+        "in_progress",
+        "Lost confirmation remains uncertain"
+      )
+      assert.equal(await baseline(api.api, component), "")
+      await finishClaim(api.api, identity, intent.id, owner, state)
+      assert.equal(api.statuses[intent.id], state)
+      assert.equal(
+        await baseline(api.api, component),
+        operation === "deploy" && state === "success" ? sha : ""
+      )
+      await assert.rejects(
+        finishClaim(api.api, identity, intent.id, owner, "success"),
+        /completed/
+      )
+      if (operation === "rollback") {
+        await assert.rejects(
+          authenticate(api.api, identity, true),
+          /Incident rollback holds/
+        )
+        const repeated = await claim(
+          api.api,
+          identity,
+          component,
+          operation,
+          "501",
+          false,
+          "1"
+        )
+        assert.notEqual(repeated.id, intent.id)
+        assert.equal(api.statuses[repeated.id], "in_progress")
+      }
+    }
+  }
+  const unusedRuntime = fixture()
+  const intent = await claim(
+    unusedRuntime.api,
+    identity,
+    component,
+    "deploy",
+    "600"
+  )
+  await assert.rejects(
+    releaseClaim(unusedRuntime.api, identity, intent.id, "other", component)
+  )
+  await releaseClaim(unusedRuntime.api, identity, intent.id, "600", component)
+  assert.equal(unusedRuntime.statuses[intent.id], "inactive")
+  assert.equal(await baseline(unusedRuntime.api, component), "")
+}
 await assert.rejects(
   authenticate(incident.api, identity, true),
   /Incident rollback holds/
@@ -624,6 +725,82 @@ try {
     const output = readFileSync(outputPath, "utf8")
     assert.ok(output.includes(`sha=${checkoutSha}\n`))
     assert.ok(output.includes(`backend=${operation === "deploy"}\n`))
+  }
+  // Exercise the real rollback CLI with no source regression identity at all.
+  // Its receipt identifies recovery intent at main, not the restored artifact.
+  const ownerMock = join(cliDirectory, "receipt-api.mjs")
+  const statePath = join(cliDirectory, "receipt-state.json")
+  writeFileSync(
+    ownerMock,
+    `
+    import { readFileSync, writeFileSync } from "node:fs"
+    globalThis.fetch = async (url, options) => {
+      const state = JSON.parse(readFileSync(process.env.POLICY_TEST_STATE, "utf8"))
+      const path = new URL(url).pathname
+      if (path.endsWith("/deployments/900") && options.method === "GET") return Response.json(state.record)
+      if (path.endsWith("/deployments/900/statuses")) {
+        if (options.method === "POST") { state.status = JSON.parse(options.body).state; writeFileSync(process.env.POLICY_TEST_STATE, JSON.stringify(state)); return Response.json({}) }
+        return Response.json([{ state: state.status }])
+      }
+      throw new Error("Unexpected receipt API request")
+    }
+  `
+  )
+  for (const state of ["success", "failure"]) {
+    writeFileSync(
+      statePath,
+      JSON.stringify({
+        record: {
+          id: 900,
+          sha: checkoutSha,
+          task: "cleo-discord",
+          payload: {
+            cleoProductionVersion: 1,
+            operation: "rollback",
+            sourceRun: 0,
+            sourceAttempt: 0,
+            coordinatorRun: "700",
+            coordinatorAttempt: "2",
+          },
+        },
+        status: "in_progress",
+      })
+    )
+    const result = spawnSync(
+      "node",
+      [
+        "--import",
+        pathToFileURL(ownerMock).href,
+        join(root, ".github/scripts/production-policy.mjs"),
+        "complete",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 10000,
+        env: {
+          ...process.env,
+          ...manual,
+          INPUT_OPERATION: "rollback",
+          INPUT_SERVICE: "discord",
+          RELEASE_SHA: checkoutSha,
+          SOURCE_RUN_ID: "",
+          SOURCE_ATTEMPT: "",
+          GITHUB_RUN_ID: "700",
+          GITHUB_RUN_ATTEMPT: "2",
+          COMPONENT: "discord",
+          RECEIPT_ID: "900",
+          RECEIPT_STATE: state,
+          GITHUB_EVENT_PATH: eventPath,
+          GITHUB_STEP_SUMMARY: summaryPath,
+          GH_TOKEN: "receipt-fixture",
+          POLICY_TEST_STATE: statePath,
+        },
+      }
+    )
+    assert.ifError(result.error)
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(JSON.parse(readFileSync(statePath, "utf8")).status, state)
   }
 } finally {
   await rm(cliDirectory, {

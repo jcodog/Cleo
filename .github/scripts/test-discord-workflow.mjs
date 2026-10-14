@@ -29,7 +29,7 @@ export function extractCommandScripts(workflow) {
     "Expected forward, recovery and incident rollback command steps"
   )
   const freshnessGuard =
-    '"$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck\n' +
+    'GH_TOKEN="$GH_TOKEN" "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck\n' +
     'test "$(basename "$release_root")" = "$RELEASE_SHA"\n'
   assert.ok(
     scripts[0].includes(freshnessGuard),
@@ -42,7 +42,10 @@ export function extractCommandScripts(workflow) {
       ),
     "Reject stale releases before starting the command registration service"
   )
-  assert.equal(scripts[0].replace(freshnessGuard, ""), scripts[1])
+  assert.equal(
+    scripts[0].replace(freshnessGuard, "").replace("export -n GH_TOKEN\n", ""),
+    scripts[1]
+  )
   assert.equal(scripts[1], scripts[2])
   return scripts
 }

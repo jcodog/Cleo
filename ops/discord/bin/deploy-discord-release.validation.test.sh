@@ -125,7 +125,7 @@ chmod 0755 \
   "$bin_dir/systemctl"
 
 export PATH="$bin_dir:$PATH"
-export CLEO_DISCORD_HOST_CONTRACT_VERSION=4
+export CLEO_DISCORD_HOST_CONTRACT_VERSION=5
 export CLEO_DISCORD_RELEASE_PLATFORM="$release_platform"
 export CLEO_DISCORD_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_ENV_FILE="$env_file"
@@ -454,6 +454,7 @@ chmod 0755 "$CLEO_DISCORD_TEST_COMMAND_PROGRAM"
 printf '%s\n' inactive > "$CLEO_DISCORD_TEST_COMMAND_STATE"
 export GITHUB_STEP_SUMMARY="$fixture_root/workflow-summary"
 export RUNNER_TEMP="$fixture_root" RELEASE_SHA="$release_sha"
+export GH_TOKEN=non-secret-fixture GITHUB_OUTPUT="$fixture_root/workflow-outputs"
 export CLEO_DISCORD_TEST_AUTHORIZED=true
 mkdir -p "$RUNNER_TEMP/production-policy"
 # The policy has separate API-evidence fixtures. Here only its decision is supplied

@@ -11,6 +11,39 @@ const twitchPackage = workflow.slice(
   workflow.indexOf("\n  twitch-package:"),
   workflow.indexOf("\n  packages-ready:")
 )
+const barrier = workflow.slice(
+  workflow.indexOf("\n  packages-ready:"),
+  workflow.indexOf("\n  backend:")
+)
+assert.match(
+  barrier,
+  /^ {10}TWITCH_ENABLED: \$\{\{ needs\.twitch-package\.outputs\.enabled \}\}$/m
+)
+function requireProtectedPackage(block) {
+  assert.equal(
+    block.match(/^ {4}environment: ([^\r\n]+)$/m)?.[1],
+    "twitch-production"
+  )
+  assert.match(
+    block,
+    /^ {10}DEPLOY_ENABLED: \$\{\{ vars\.CLEO_TWITCH_DEPLOY_ENABLED \}\}$/m
+  )
+  assert.match(
+    block,
+    /^ {6}enabled: \$\{\{ steps\.gate\.outputs\.enabled \}\}$/m
+  )
+}
+requireProtectedPackage(twitchPackage)
+assert.throws(() =>
+  requireProtectedPackage(
+    twitchPackage.replace("    environment: twitch-production", "")
+  )
+)
+assert.throws(() =>
+  requireProtectedPackage(
+    twitchPackage.replace("vars.CLEO_TWITCH_DEPLOY_ENABLED", "vars.UNPROTECTED")
+  )
+)
 const gate = twitchPackage.match(
   /id: gate[\s\S]*?run: \|\r?\n((?: {10}[^\r\n]*\r?\n)+)/
 )?.[1]

@@ -150,9 +150,9 @@ test("workflow and installed controller enforce the same host contract", () => {
   const runnerCheck = repositoryFile("ops/discord/bin/check-discord-runner")
   const bootstrap = repositoryFile("ops/discord/bootstrap-host.sh")
 
-  assert.match(workflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"/)
-  assert.match(smokeWorkflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"/)
-  assert.match(controller, /controller_contract_version="4"/)
+  assert.match(workflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "5"/)
+  assert.match(smokeWorkflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "5"/)
+  assert.match(controller, /controller_contract_version="5"/)
   assert.match(controller, /operation" == "contract-version"/)
   assert.match(runnerCheck, /deploy_controller contract-version/)
   assert.match(bootstrap, /trusted_node_version="v24\.15\.0"/)

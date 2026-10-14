@@ -3,7 +3,7 @@ set -euo pipefail
 umask 0027
 
 operation="${1:-deploy}"
-controller_contract_version="4"
+controller_contract_version="5"
 expected_contract_version="${CLEO_DISCORD_HOST_CONTRACT_VERSION:-}"
 release_platform="${CLEO_DISCORD_RELEASE_PLATFORM:-}"
 deploy_root="${CLEO_DISCORD_DEPLOY_ROOT:-/srv/cleo/discord-bot}"
@@ -190,6 +190,7 @@ switch_release() {
 activate_release() {
   local sha="$1"
   switch_release "$sha" || return 1
+  systemctl_write reset-failed "$service_name" >/dev/null 2>&1 || true
   systemctl_write restart "$service_name" || return 1
 }
 

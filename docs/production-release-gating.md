@@ -47,7 +47,8 @@ flowchart LR
   push --> releases[Release verification]
   quality & web & coverage & releases --> gate[Required aggregate]
   gate --> pages[Coverage Pages, unchanged]
-  gate --> source[workflow_run: authenticate exact push, SHA and attempt]
+  gate --> rollout[Default-off operator rollout hold]
+  rollout --> source[workflow_run: authenticate exact push, SHA and attempt]
   source --> classify[Compare each component with its last confirmed deployment]
   classify --> discord[Affected Discord package]
   classify --> twitch[Affected Twitch package]
@@ -206,7 +207,7 @@ revision may be promoted after its regression, or an operator can explicitly
 deploy the held current main SHA with its genuinely successful regression. That
 manual promotion creates a new runtime receipt and lifts the automatic hold.
 
-Discord retains contract v4, SHA-256/manifest verification, runtime rollback and
+Discord requires contract v5, SHA-256/manifest verification, runtime rollback and
 authoritative command registration/recovery. Twitch retains contract v3, artifact
 validation, EventSub/runtime readiness, persisted recovery intent, and the policy
 to restore a verified prior release or stop an unhealthy service. Explicit Twitch
@@ -238,17 +239,81 @@ Vercel settings and does not claim platform-wide production gating.
 
 Ruleset `Protect main`, ID `25120348`, was read and remains unchanged, including
 its required aggregate, up-to-date branches, resolved conversations, signed
-commits and absent bypass actors. No new protected environments or repository
-settings are required. Keep the existing Convex key in `discord-production`, bot
+commits and absent bypass actors. No new protected environments are required.
+Automatic promotion now requires the deliberate repository variable change
+`CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED=true` after operator approval. Keep the existing Convex key in `discord-production`, bot
 enablement variables, `main`-only environment policies and `cleo-prod` runner.
 The runner needs outbound HTTPS to `api.github.com` for fresh eligibility reads
 and receipt writes. It already downloads Actions artifacts.
 
-The coordinator only becomes automatically available after its definition reaches
-the default branch. Do not dispatch it from this PR. Hosted PR regression verifies
-Linux packaging, POSIX operation fixtures, browser/PWA behavior and coverage
-without entering production environments. Production activation and environment
-gates require a later explicitly authorised operational rollout.
+The coordinator becomes available on the default branch after merge, but its
+first `workflow_run` is held unless `CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED` is
+explicitly true. Missing, false, malformed and whitespace-padded values disable
+it. The credential-free rollout job writes a clear summary and skips control,
+packages, Convex, activation and command registration. Manual validation, verified
+manual deployment and incident rollback retain their separate controls. The four
+parallel regression jobs and Pages publisher are unaffected.
+
+### Controlled first rollout, operator actions only
+
+1. Merge only after this PR's required checks pass and review is complete.
+2. Allow the first new main regression to complete.
+3. Confirm the coordinator summary says automatic promotion is disabled and no
+   production job ran. Keep the new repository variable absent or false.
+4. Run `Production Release` with operation `validate` and the exact current main
+   SHA, choosing both runtimes. This only tests and packages artifacts.
+5. Check outbound GitHub API access, main-only protected environments, Convex key
+   placement, both bot enablement variables, runner permissions and host contracts.
+6. Install and verify Discord host controller contract 5 using the targeted
+   [host update procedure](discord-production-deployment.md#update-the-installed-release-controller).
+   Keep production operations quiescent while installing. Twitch contract 3 stays
+   unchanged. Application artifacts cannot perform this host update.
+7. Inspect the manual validation plan. No coordinated successful receipts means
+   the first deploy conservatively includes Convex and both runtimes; later plans
+   compare each component's confirmed deployment baseline. Validation does not
+   create a deployment receipt or baseline.
+8. Obtain operator approval and intentionally set repository variable
+   `CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED=true`.
+9. Perform one controlled promotion. Explicit manual deploy requires the exact
+   current main SHA and its complete successful push regression run ID and attempt;
+   alternatively a later current-main successful push may promote automatically.
+   Enabling the variable alone does not dispatch a workflow. Observe the shared
+   concurrency queue and each production step.
+10. Verify Convex history, both bots' readiness and actual active SHAs, Discord
+    command verification, and terminal custom deployment receipts. Reconcile any
+    uncertain receipt against host/Convex evidence before marking it terminal.
+
+These are future operator instructions. This PR does not install host tools,
+change the rollout flag, dispatch production, merge or verify live infrastructure.
+
+### Credential and receipt boundaries
+
+`GH_TOKEN` is scoped to policy API steps. Mixed recheck/mutation shells remove its
+export attribute immediately, then pass it only as a command-local assignment to
+the trusted policy process. Convex receives only its separately scoped deployment
+key; dependency installation, builds, controllers, metadata readers and systemd
+calls receive neither GitHub token nor an unrelated Convex key. The policy process
+captures its API credential then removes it from its environment before spawning
+Git or the classifier. No token is stored in artifacts or summaries.
+
+Receipt updates validate task/component, operation, intended SHA, source run and
+attempt, coordinator run and coordinator attempt, schema, and unfinished state.
+A failed final preflight before the controller starts marks only its owned unused
+claim inactive. A completed controller and all required verification permit a
+terminal success; confirmed candidate failure remains failure even if the existing
+controller restores a healthy previous runtime. A completed incident rollback
+records success only after readiness and Discord command verification. Confirmed
+rollback failure records failure. Rollback success is recovery intent for the main
+revision observed when claimed, not a deploy baseline for that revision.
+
+Cancellation, signal termination, incomplete verification, or API loss before
+confirmation leaves an uncertain receipt pending/in progress. Such outcomes are
+never automatically marked successful or cleared. Inspect actual host state and
+logs to reconcile them. Repeated controlled recovery creates a separate owned
+intent. Failed and rollback receipts never become trusted deployment baselines;
+rollback intent holds its observed main revision against historical automatic
+runs regardless of terminal success or failure. The shared production lock still
+covers validation, backend, both runtime activations and recovery.
 
 ## Verification evidence
 
@@ -268,7 +333,8 @@ command shells from the retired workflow. The aggregate correctly failed. The
 fixture now shares the coordinator extractor with the portable CI contracts, so
 this stale reference is caught even on hosts that cannot run POSIX permission
 fixtures. Twitch extraction is scoped to its own package job. Hosted regression
-must pass again on the combined review corrections before merge readiness.
+passed in hosted run `38652686837` at reviewed HEAD `041caf6`. The current security
+and lifecycle corrections require a new hosted regression on their signed HEAD.
 
 The new fixtures exercise 81 rejected source-evidence cases, real Git merge and
 multi-commit histories, actual workflow job conditions, the actual package-barrier
@@ -281,3 +347,11 @@ Node policy tests, then rejected the POSIX permissions fixture. Both release
 verification scripts correctly refused Linux packaging on `win32-x64`. Those
 checks need the unmodified Linux hosted regression, alongside Chromium/Firefox,
 PWA and welcome rendering evidence. No production operation was invoked locally.
+
+The restricted Actions condition interpreter rejects unsupported/malicious syntax
+without dynamic JavaScript execution. Added fixtures execute the actual rollout,
+backend and runtime shells with disposable command adapters that assert their
+child environments, recheck/deployment order, preflight cleanup and signal versus
+confirmed completion. Mock API fixtures verify ownership, terminal statuses, lost
+confirmation and repeat recovery. These tests do not prove live VPS or Convex
+execution; no new production coordinator has performed that end-to-end rollout.

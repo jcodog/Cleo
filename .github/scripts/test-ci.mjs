@@ -104,6 +104,7 @@ assert.ok(
 
 const gate = workflow.jobs.regression
 await import("./test-discord-workflow.mjs")
+await import("./test-production-security.mjs")
 await import("./test-production-policy.mjs")
 await import("./test-production-workflow.mjs")
 assert.equal(gate.name, "Tests, lint, typecheck, and coverage")

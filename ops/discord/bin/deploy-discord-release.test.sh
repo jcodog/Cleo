@@ -67,6 +67,19 @@ cat > "$bin_dir/systemctl" <<'EOF'
 operation="${1:-}"
 shift || true
 case "$operation" in
+  reset-failed)
+    if [[ "$1" == cleo-discord.service ]]; then
+      echo reset >> "$CLEO_DISCORD_TEST_RUNTIME_LOG"
+      echo ready > "$CLEO_DISCORD_TEST_START_LIMIT"
+    fi
+    ;;
+  restart)
+    [[ "$1" == cleo-discord.service ]] || exit 1
+    echo restart >> "$CLEO_DISCORD_TEST_RUNTIME_LOG"
+    [[ "$(cat "$CLEO_DISCORD_TEST_START_LIMIT")" == ready ]] || exit 1
+    echo blocked > "$CLEO_DISCORD_TEST_START_LIMIT"
+    [[ "${CLEO_DISCORD_TEST_RESTART_FAIL:-false}" != true ]]
+    ;;
   show)
     unit="$1"
     property="$3"
@@ -86,7 +99,8 @@ case "$operation" in
         ;;
     esac
     ;;
-  is-active|restart|stop|reset-failed) exit 0 ;;
+  is-active) [[ "${CLEO_DISCORD_TEST_HEALTH_FAIL:-false}" != true ]] ;;
+  stop) exit 0 ;;
   start)
     attempts=0
     [[ ! -f "$CLEO_DISCORD_TEST_COMMAND_ATTEMPTS" ]] || attempts="$(cat "$CLEO_DISCORD_TEST_COMMAND_ATTEMPTS")"
@@ -100,7 +114,7 @@ EOF
 chmod 0755 "$host_node" "$runtime_check" "$bin_dir/sudo" "$bin_dir/systemctl"
 
 export PATH="$bin_dir:$PATH"
-export CLEO_DISCORD_HOST_CONTRACT_VERSION=4
+export CLEO_DISCORD_HOST_CONTRACT_VERSION=5
 export CLEO_DISCORD_RELEASE_PLATFORM=linux-x64
 export CLEO_DISCORD_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_ENV_FILE="$env_file"
@@ -126,6 +140,16 @@ export CLEO_DISCORD_TEST_DEPLOY_ROOT="$deploy_root"
 export CLEO_DISCORD_TEST_ENV_FILE="$env_file"
 export CLEO_DISCORD_TEST_RUNTIME_LAUNCHER="$fixture_root/run-release"
 export CLEO_DISCORD_TEST_COMMAND_ATTEMPTS="$command_attempts"
+export CLEO_DISCORD_TEST_RUNTIME_LOG="$fixture_root/runtime-restarts"
+export CLEO_DISCORD_TEST_START_LIMIT="$fixture_root/start-limit"
+echo blocked > "$CLEO_DISCORD_TEST_START_LIMIT"
+[[ "$(bash "$controller" contract-version)" == 5 ]]
+if CLEO_DISCORD_HOST_CONTRACT_VERSION=4 bash "$controller" rollback > "$fixture_root/stale-contract" 2>&1; then
+  echo 'Controller accepted stale host contract' >&2
+  exit 1
+fi
+grep -F 'contract mismatch' "$fixture_root/stale-contract" >/dev/null
+[[ ! -e "$CLEO_DISCORD_TEST_RUNTIME_LOG" ]]
 
 if bash "$controller" rollback; then
   echo "Rollback unexpectedly succeeded after command registration failure" >&2
@@ -141,5 +165,18 @@ actual_state="$(
     bash "$script_dir/read-discord-deployment-state" "$deploy_root/shared/deployment-state.env"
 )"
 [[ "$actual_state" == "$expected_state" ]]
+[[ "$(cat "$CLEO_DISCORD_TEST_RUNTIME_LOG")" == "$(printf 'reset\nrestart\nreset\nrestart')" ]]
+
+# A second recovery clears the newly exhausted start limit, too.
+bash "$controller" rollback
+[[ "$(tail -2 "$CLEO_DISCORD_TEST_RUNTIME_LOG")" == "$(printf 'reset\nrestart')" ]]
+if CLEO_DISCORD_TEST_RESTART_FAIL=true bash "$controller" rollback; then
+  echo 'Rollback ignored restart failure' >&2
+  exit 1
+fi
+if CLEO_DISCORD_TEST_HEALTH_FAIL=true bash "$controller" rollback; then
+  echo 'Rollback ignored readiness failure' >&2
+  exit 1
+fi
 
 echo "Discord rollback command failure recovery test passed."

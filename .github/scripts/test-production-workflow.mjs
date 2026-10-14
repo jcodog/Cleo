@@ -10,6 +10,7 @@ import {
 import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { evaluate } from "./actions-condition.mjs"
 import { packagesReady, verifyEvidence } from "./production-policy.mjs"
 import { rejectedEvidence } from "./test-production-policy.mjs"
 
@@ -18,6 +19,92 @@ const read = (name) =>
     readFileSync(new URL(`../workflows/${name}`, import.meta.url), "utf8")
   )
 const workflow = read("production-release.yml")
+function requirePolicySources(candidate) {
+  for (const id of ["control", "authorise"]) {
+    const checkout = candidate.jobs[id].steps.find((step) =>
+      step.uses?.startsWith("actions/checkout@")
+    )
+    assert.equal(checkout.with.ref, "${{ github.workflow_sha }}")
+    assert.equal(checkout.with["persist-credentials"], false)
+  }
+  const upload = candidate.jobs.control.steps.find((step) =>
+    step.uses?.startsWith("actions/upload-artifact@")
+  )
+  assert.equal(upload.with.path, ".github/scripts/production-policy.mjs")
+  for (const id of [
+    "packages-ready",
+    "backend",
+    "discord-activate",
+    "twitch-activate",
+    "discord-rollback",
+    "twitch-rollback",
+  ]) {
+    const job = candidate.jobs[id]
+    const download = job.steps?.find(
+      (step) => step.with?.path === "${{ runner.temp }}/production-policy"
+    )
+    assert.ok(download, `${id} requires trusted policy artifact`)
+    assert.equal(download.with.name, "${{ needs.control.outputs.artifact }}")
+    for (const key of ["run-id", "repository", "github-token"])
+      assert.equal(download.with[key], undefined)
+    assert.equal(download.with["digest-mismatch"], "error")
+    const checksum = job.steps.find(
+      (step) => step.name === "Verify trusted control file checksum"
+    )
+    assert.equal(
+      checksum.env.POLICY_DIGEST,
+      "${{ needs.control.outputs.digest }}"
+    )
+    assert.ok(
+      checksum.run.includes(
+        'echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -'
+      )
+    )
+  }
+}
+requirePolicySources(workflow)
+for (const id of ["control", "authorise"])
+  for (const ref of [
+    "main",
+    "feature/untrusted",
+    "${{ github.sha }}",
+    "${{ github.event.pull_request.head.sha }}",
+  ]) {
+    const unsafe = structuredClone(workflow)
+    unsafe.jobs[id].steps.find((step) =>
+      step.uses?.startsWith("actions/checkout@")
+    ).with.ref = ref
+    assert.throws(() => requirePolicySources(unsafe))
+  }
+for (const id of ["control", "authorise"]) {
+  const unsafe = structuredClone(workflow)
+  unsafe.jobs[id].steps.find((step) =>
+    step.uses?.startsWith("actions/checkout@")
+  ).with["persist-credentials"] = true
+  assert.throws(() => requirePolicySources(unsafe))
+}
+for (const key of ["name", "run-id", "digest-mismatch"]) {
+  const unsafe = structuredClone(workflow)
+  unsafe.jobs.backend.steps.find(
+    (step) => step.with?.path === "${{ runner.temp }}/production-policy"
+  ).with[key] = "untrusted"
+  assert.throws(() => requirePolicySources(unsafe))
+}
+for (const id of ["discord-package", "twitch-package"]) {
+  assert.equal(
+    workflow.jobs[id].environment,
+    id === "discord-package" ? "discord-production" : "twitch-production"
+  )
+}
+assert.equal(
+  workflow.jobs["twitch-package"].steps.find((step) => step.id === "gate").env
+    .DEPLOY_ENABLED,
+  "${{ vars.CLEO_TWITCH_DEPLOY_ENABLED }}"
+)
+assert.equal(
+  workflow.jobs["packages-ready"].steps.at(-1).env.TWITCH_ENABLED,
+  "${{ needs.twitch-package.outputs.enabled }}"
+)
 assert.deepEqual(workflow.on.workflow_run, {
   workflows: ["Regression Tests and Coverage"],
   types: ["completed"],
@@ -49,38 +136,37 @@ for (const service of ["discord", "twitch"]) {
   )
 }
 
-// Evaluate the actual job expressions, with GitHub's implicit success() semantics.
-// Replace property paths because Actions identifiers permit hyphens that JS does not.
-function evaluate(expression, context, statuses) {
-  let source = expression.replace(/^\$\{\{|\}\}$/g, "").trim()
-  source = source.replace(
-    /'[^']*'|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)+/g,
-    (token) =>
-      token.startsWith("'") ? token : `read(${JSON.stringify(token)})`
-  )
-  const read = (path) =>
-    path.split(".").reduce((value, key) => value?.[key], context) ?? ""
-  const success = () => statuses.every((value) => value === "success")
-  const cancelled = () => statuses.includes("cancelled")
-  if (!/\b(always|success|failure|cancelled)\s*\(/.test(source) && !success())
-    return false
-  return Boolean(
-    new Function(
-      "read",
-      "always",
-      "success",
-      "cancelled",
-      "failure",
-      `return (${source})`
-    )(
-      read,
-      () => true,
-      success,
-      cancelled,
-      () => statuses.includes("failure")
-    )
-  )
-}
+// Unsupported or malicious workflow text is rejected, never executed.
+for (const expression of [
+  "process.exit()",
+  "globalThis.fetch('x')",
+  "true; process.exit()",
+  "true || unknown()",
+  "github.constructor",
+  "needs.__proto__.x",
+  "success(1)",
+  "true &&",
+  "(true",
+  "true === true",
+  "${{ true",
+  "true + false",
+  "'unterminated",
+])
+  assert.throws(() => evaluate(expression, {}, []), expression)
+assert.equal(evaluate("true", {}, ["failure"]), false)
+assert.equal(evaluate("always()", {}, ["failure", "skipped"]), true)
+assert.equal(
+  evaluate(
+    "!cancelled() && needs.build.result == 'success'",
+    { needs: { build: { result: "success" } } },
+    ["success", "skipped"]
+  ),
+  true
+)
+assert.equal(evaluate("!cancelled()", {}, ["cancelled"]), false)
+assert.equal(evaluate("failure() && !cancelled()", {}, ["failure"]), true)
+assert.equal(evaluate("true || false && false", {}, []), true)
+assert.equal(evaluate("(true || false) && false", {}, []), false)
 const mainSha = "a".repeat(40)
 const sourceRun = {
   repository: { full_name: "jcodog/Cleo" },
@@ -104,6 +190,7 @@ function graph({
   inputs = {},
   scope = { backend: true, discord: true, twitch: true },
   overrides = {},
+  autoEnabled = "true",
   evidence,
 } = {}) {
   const results = {}
@@ -115,7 +202,16 @@ function graph({
     )
     const statuses = dependencies.map((dep) => results[dep].result)
     const eligible = job.if
-      ? evaluate(job.if, { github: githubContext, inputs, needs }, statuses)
+      ? evaluate(
+          job.if,
+          {
+            github: githubContext,
+            inputs,
+            needs,
+            vars: { CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED: autoEnabled },
+          },
+          statuses
+        )
       : statuses.every((result) => result === "success")
     let result = eligible ? (overrides[id] ?? "success") : "skipped"
     if (id === "authorise" && eligible && evidence) {
@@ -148,7 +244,14 @@ function graph({
               ),
               sha: mainSha,
             }
-          : {},
+          : id === "rollout"
+            ? {
+                enabled: String(
+                  githubContext.event_name !== "workflow_run" ||
+                    autoEnabled.toLowerCase() === "true"
+                ),
+              }
+            : {},
     }
   }
   return results
@@ -158,6 +261,8 @@ const assertBlocked = (result) => {
   for (const id of productionJobs)
     assert.equal(result[id].result, "skipped", id)
 }
+for (const autoEnabled of ["", "false", "yes", " true"])
+  assertBlocked(graph({ autoEnabled }))
 const success = graph()
 for (const id of productionJobs) assert.equal(success[id].result, "success")
 for (const evidence of rejectedEvidence) assertBlocked(graph({ evidence }))
@@ -332,7 +437,7 @@ const runtimeScript = discordActivation.steps.find(
   (step) => step.id === "runtime"
 ).run
 assert.ok(
-  runtimeScript.indexOf(" recheck\n") <
+  runtimeScript.indexOf('production-policy.mjs" recheck') <
     runtimeScript.indexOf('echo "attempted=true"')
 )
 assert.ok(

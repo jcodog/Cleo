@@ -85,7 +85,8 @@ message. A runtime restoration to such an artifact must not be treated as a comp
 rollback. Recover through a new production release containing the desired runtime
 code and the fixed registration program. Existing immutable artifacts are not
 patched in place. No root-owned host file, sudo permission, artifact schema version
-or host contract version changes are required for this hotfix.
+changes were required for that command-registration hotfix. Release gating now
+requires the separate contract-5 host controller update below.
 
 ## Deployment observability
 
@@ -145,7 +146,7 @@ returns the command list used for verification, with full localization dictionar
 ## Host contract
 
 The workflow, runner check, and deployment controller share host contract version
-`4`. Activation verifies the installed controller contract before downloading an
+`5`. Activation verifies the installed controller contract before downloading an
 artifact. A stale bootstrap installation therefore fails closed.
 
 The expected host controller Node version is `24.15.0` and the release platform is
@@ -173,6 +174,45 @@ The expected host controller Node version is `24.15.0` and the release platform 
 The state reader never evaluates the state file as shell code. It requires a regular
 non-symlink file with the expected ownership and mode, accepts only the known state
 keys, rejects duplicates and unknown keys, and validates SHA and fingerprint shapes.
+
+## Update the installed release controller
+
+Contract 5 adds a best-effort reset of **only** `cleo-discord.service` before
+controlled activation, rollback and recovery restarts. A failed reset does not
+hide a subsequent restart/readiness failure. The command-registration service
+keeps its separate reset/start behavior. The sudoers rule adds only the exact
+runtime reset command, with no wildcard or new service permissions. Both the
+coordinator and runner smoke reject an installed contract-4 controller.
+
+An operator must install these files from the reviewed, verified current main
+checkout while automatic promotion is disabled and no deployment/recovery is
+running. These instructions do not execute in application deployment. The full
+bootstrap also restarts an active service; use this targeted update to avoid that
+extra service action:
+
+```bash
+# Run from the verified repository root on the host, with operator sudo access.
+# Validate all candidates before installing root-owned host files.
+bash -n ops/discord/bin/deploy-discord-release
+bash -n ops/discord/bin/check-discord-runner
+sudo visudo -cf ops/discord/sudoers/cleo-discord-deploy
+bash ops/discord/bin/deploy-discord-release contract-version  # must print 5
+# Preserve the currently installed three files in the operator's incident backup.
+sudo install -o root -g root -m 0440 ops/discord/sudoers/cleo-discord-deploy /etc/sudoers.d/cleo-discord-deploy
+sudo visudo -cf /etc/sudoers.d/cleo-discord-deploy
+sudo install -o root -g root -m 0755 ops/discord/bin/check-discord-runner /usr/local/libexec/cleo/check-discord-runner
+sudo install -o root -g root -m 0755 ops/discord/bin/deploy-discord-release /usr/local/libexec/cleo/deploy-discord-release
+/usr/local/libexec/cleo/deploy-discord-release contract-version  # must print 5
+sudo -u github-runner /usr/local/libexec/cleo/check-discord-runner 5 24.15.0 linux-x64
+```
+
+The final runner check verifies ownership, permissions, pinned Node, installed
+contract, systemd configuration and the exact runtime/command sudo permissions.
+It does not restart the bot. No daemon reload is needed for these executable and
+sudoers changes. If installation or verification fails, leave automatic promotion
+disabled and restore or reconcile host files under operator control before any
+new application release. Existing installed emergency mechanisms remain available;
+the new workflow requires the updated host contract.
 
 ## Release artifact contract
 

@@ -80,6 +80,11 @@ export function invocation(env, event) {
   assert.ok(["validate", "deploy", "rollback"].includes(operation))
   assert.ok(["both", "discord", "twitch"].includes(env.INPUT_SERVICE || "both"))
   if (env.GITHUB_EVENT_NAME === "workflow_run") {
+    assert.equal(
+      env.AUTO_PROMOTION_ENABLED?.toLowerCase(),
+      "true",
+      "Automatic production promotion is disabled"
+    )
     assert.equal(operation, "deploy")
     assert.equal(event.action, "completed")
     assert.equal(event.repository?.full_name, repository)
@@ -229,9 +234,12 @@ export async function claim(
   component,
   operation,
   coordinatorRun,
-  automatic = false
+  automatic = false,
+  coordinatorAttempt = "1"
 ) {
   assert.ok(Object.hasOwn(environments, component))
+  assert.match(String(coordinatorRun), /^[1-9][0-9]*$/)
+  assert.match(String(coordinatorAttempt), /^[1-9][0-9]*$/)
   if (operation === "deploy") await authenticate(api, identity, automatic)
   else assert.equal(operation, "rollback")
   if (component === "backend") {
@@ -262,9 +270,10 @@ export async function claim(
     payload: {
       cleoProductionVersion: 1,
       operation,
-      sourceRun: identity.runId,
-      sourceAttempt: identity.attempt,
+      sourceRun: identity.runId ?? 0,
+      sourceAttempt: identity.attempt ?? 0,
       coordinatorRun,
+      coordinatorAttempt,
     },
     description: `${component} ${operation} authorised by production coordinator`,
   })
@@ -276,25 +285,65 @@ export async function claim(
   return { id: record.id, apply: true }
 }
 
-/** Only a pre-deployment recheck failure may release this run's unused claim. */
-export async function releaseClaim(api, identity, receiptId, coordinatorRun) {
+/** Update only an unfinished receipt owned by this exact coordinator attempt. */
+async function updateReceipt(
+  api,
+  identity,
+  receiptId,
+  { component, operation, coordinatorRun, coordinatorAttempt, state }
+) {
+  assert.ok(Object.hasOwn(environments, component))
+  assert.ok(["deploy", "rollback"].includes(operation))
   assert.match(String(receiptId), /^[1-9][0-9]*$/)
   const record = await api(`deployments/${receiptId}`)
-  assert.equal(record.task, "cleo-backend")
+  assert.equal(record.task, `cleo-${component}`)
   assert.equal(record.sha, identity.sha)
-  assert.equal(record.payload?.operation, "deploy")
+  assert.equal(record.payload?.operation, operation)
   assert.equal(String(record.payload?.coordinatorRun), String(coordinatorRun))
-  assert.equal(record.payload?.sourceRun, identity.runId)
-  assert.equal(record.payload?.sourceAttempt, identity.attempt)
+  assert.equal(
+    String(record.payload?.coordinatorAttempt),
+    String(coordinatorAttempt)
+  )
+  assert.equal(record.payload?.sourceRun, identity.runId ?? 0)
+  assert.equal(record.payload?.sourceAttempt, identity.attempt ?? 0)
   assert.ok(
     ["pending", "in_progress"].includes(await receiptState(api, record)),
     "Cannot release a completed claim"
   )
   await api(`deployments/${receiptId}/statuses`, "POST", {
-    state: "inactive",
+    state,
     auto_inactive: false,
-    description: "Authorisation failed before Convex deployment started",
+    description:
+      state === "inactive"
+        ? "Authorisation rejected before production mutation started"
+        : `${component} ${operation}: confirmed ${state}`,
   })
+}
+
+/** Call only from the rejected preflight branch, before any mutation begins. */
+export async function releaseClaim(
+  api,
+  identity,
+  receiptId,
+  coordinatorRun,
+  component = "backend",
+  coordinatorAttempt = "1"
+) {
+  await updateReceipt(api, identity, receiptId, {
+    component,
+    operation: "deploy",
+    coordinatorRun,
+    coordinatorAttempt,
+    state: "inactive",
+  })
+}
+
+export async function finishClaim(api, identity, receiptId, owner, state) {
+  assert.ok(
+    ["success", "failure"].includes(state),
+    "Unconfirmed receipt outcome"
+  )
+  await updateReceipt(api, identity, receiptId, { ...owner, state })
 }
 
 /** Allow skipped package jobs only when the verified plan did not require them. */
@@ -314,6 +363,8 @@ async function main() {
   const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
   const selected = invocation(env, event)
   const api = apiClient(env.GH_TOKEN)
+  // API client captures its token; Git/classifier subprocesses must not inherit it.
+  delete env.GH_TOKEN
   const automatic = env.GITHUB_EVENT_NAME === "workflow_run"
   const command = process.argv[2]
   const output = (key, value) =>
@@ -324,9 +375,21 @@ async function main() {
       ? selected
       : {
           sha: env.RELEASE_SHA,
-          runId: Number(env.SOURCE_RUN_ID),
-          attempt: Number(env.SOURCE_ATTEMPT),
+          runId:
+            selected.operation === "rollback" ? 0 : Number(env.SOURCE_RUN_ID),
+          attempt:
+            selected.operation === "rollback" ? 0 : Number(env.SOURCE_ATTEMPT),
         }
+  if (
+    ["claim", "recheck", "complete", "release"].includes(command) &&
+    selected.operation === "deploy"
+  ) {
+    assert.equal(selected.sha, identity.sha)
+    assert.equal(Number(selected.runId), identity.runId)
+    assert.equal(selected.attempt, identity.attempt)
+  }
+  if (command === "complete" && selected.operation === "rollback")
+    assert.equal(env.COMPONENT, env.INPUT_SERVICE)
   if (command === "plan") {
     let trusted = selected
     if (selected.operation === "deploy")
@@ -398,24 +461,39 @@ async function main() {
       env.COMPONENT,
       selected.operation,
       env.GITHUB_RUN_ID,
-      automatic
+      automatic,
+      env.GITHUB_RUN_ATTEMPT
     )
     output("receipt", record.id)
     output("apply", record.apply)
+    output("sha", identity.sha)
   } else if (command === "complete") {
-    assert.equal(selected.operation, "deploy")
-    assert.match(env.RECEIPT_ID ?? "", /^[1-9][0-9]*$/)
-    await api(`deployments/${env.RECEIPT_ID}/statuses`, "POST", {
-      state: "success",
-      auto_inactive: false,
-    })
+    assert.ok(["deploy", "rollback"].includes(selected.operation))
+    await finishClaim(
+      api,
+      identity,
+      env.RECEIPT_ID,
+      {
+        component: env.COMPONENT,
+        operation: selected.operation,
+        coordinatorRun: env.GITHUB_RUN_ID,
+        coordinatorAttempt: env.GITHUB_RUN_ATTEMPT,
+      },
+      env.RECEIPT_STATE || "success"
+    )
     summary(
-      `\nConfirmed ${env.COMPONENT} success for \`${identity.sha}\`, receipt ${env.RECEIPT_ID}.`
+      `\nConfirmed ${env.COMPONENT} ${selected.operation} ${env.RECEIPT_STATE || "success"} for intent \`${identity.sha}\`, receipt ${env.RECEIPT_ID}.`
     )
   } else if (command === "release") {
     assert.equal(selected.operation, "deploy")
-    assert.equal(env.COMPONENT, "backend")
-    await releaseClaim(api, identity, env.RECEIPT_ID, env.GITHUB_RUN_ID)
+    await releaseClaim(
+      api,
+      identity,
+      env.RECEIPT_ID,
+      env.GITHUB_RUN_ID,
+      env.COMPONENT,
+      env.GITHUB_RUN_ATTEMPT
+    )
   } else if (command === "packages") {
     packagesReady(
       {

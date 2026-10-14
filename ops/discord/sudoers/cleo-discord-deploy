@@ -1,5 +1,6 @@
 Cmnd_Alias CLEO_DISCORD_SYSTEMD = \
   /usr/bin/systemctl restart cleo-discord.service, \
+  /usr/bin/systemctl reset-failed cleo-discord.service, \
   /usr/bin/systemctl stop cleo-discord.service, \
   /usr/bin/systemctl start cleo-discord-register-commands.service, \
   /usr/bin/systemctl reset-failed cleo-discord-register-commands.service

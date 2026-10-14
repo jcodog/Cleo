@@ -53,6 +53,7 @@ concurrency:
   queue: max
 
 env:
+  AUTO_PROMOTION_ENABLED: ${{ vars.CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED }}
   INPUT_OPERATION: ${{ inputs.operation || 'deploy' }}
   INPUT_SHA: ${{ inputs.sha }}
   INPUT_RUN_ID: ${{ inputs.run_id }}
@@ -60,9 +61,31 @@ env:
   INPUT_SERVICE: ${{ inputs.service || 'both' }}
 
 jobs:
+  rollout:
+    name: Hold automatic production until operator enablement
+    if: github.repository == 'jcodog/Cleo' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          enabled=true
+          if [[ "$EVENT_NAME" == workflow_run && "${AUTO_PROMOTION_ENABLED,,}" != true ]]; then
+            enabled=false
+            echo 'Automatic production promotion is disabled. No Convex, runtime activation or command registration will run. Complete the controlled rollout and intentionally set CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED=true to enable it.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+
   control:
     name: Pin trusted promotion policy
+    needs: rollout
     if: >-
+      needs.rollout.outputs.enabled == 'true' &&
       github.repository == 'jcodog/Cleo' && github.ref == 'refs/heads/main' &&
       (
         github.event_name == 'workflow_dispatch' ||
@@ -347,7 +370,6 @@ jobs:
       RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
       SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
       SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
-      GH_TOKEN: ${{ github.token }}
       COMPONENT: backend
     steps:
       - name: Download trusted control file from this coordinator run
@@ -383,21 +405,26 @@ jobs:
       - name: Claim durable backend receipt
         id: claim
         if: needs.authorise.outputs.backend == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
       - name: Recheck authorisation and deploy Convex once
         if: needs.authorise.outputs.backend == 'true' && steps.claim.outputs.apply == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
           RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
         run: |
-          if ! node "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck; then
-            node "$RUNNER_TEMP/production-policy/production-policy.mjs" release
+          export -n GH_TOKEN CONVEX_DEPLOY_KEY
+          if ! GH_TOKEN="$GH_TOKEN" node "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck; then
+            GH_TOKEN="$GH_TOKEN" node "$RUNNER_TEMP/production-policy/production-policy.mjs" release
             exit 1
           fi
-          bun run --filter @workspace/backend deploy
+          CONVEX_DEPLOY_KEY="$CONVEX_DEPLOY_KEY" bun run --filter @workspace/backend deploy
       - name: Confirm durable backend success
         if: needs.authorise.outputs.backend == 'true' && steps.claim.outputs.apply == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
         run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" complete
       - name: Record backend result
@@ -425,9 +452,8 @@ jobs:
       RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
       SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
       SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
-      GH_TOKEN: ${{ github.token }}
       COMPONENT: discord
-      CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "5"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
       CLEO_DISCORD_HOST_NODE: /usr/local/libexec/cleo/node
       CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
@@ -470,22 +496,32 @@ jobs:
 
       - name: Claim auditable runtime intent
         id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
 
       - name: Activate release and record resulting state
         id: runtime
         env:
+          GH_TOKEN: ${{ github.token }}
+          RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
           CLEO_DISCORD_EXPECTED_SHA: ${{ needs.authorise.outputs.sha }}
           CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ needs.authorise.outputs.sha }}.tar.gz
           CLEO_DISCORD_RELEASE_CHECKSUM: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ needs.authorise.outputs.sha }}.tar.gz.sha256
         run: |
-          "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
+          export -n GH_TOKEN
+          if ! GH_TOKEN="$GH_TOKEN" "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck; then
+            GH_TOKEN="$GH_TOKEN" "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" release
+            exit 1
+          fi
           echo "attempted=true" >> "$GITHUB_OUTPUT"
           set +e
           /usr/local/libexec/cleo/deploy-discord-release deploy
           deployment_status=$?
           set -e
+          if [[ "$deployment_status" -ge 128 ]]; then exit "$deployment_status"; fi
+          echo "completed=true" >> "$GITHUB_OUTPUT"
 
           current_target="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current" 2>/dev/null || true)"
           running_sha="${current_target##*/}"
@@ -527,10 +563,13 @@ jobs:
 
       - name: Deploy and verify active release commands
         id: commands
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          export -n GH_TOKEN
           set -euo pipefail
           command_result=failed
-          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          trap 'status=$?; if [[ $status -lt 128 ]]; then echo "completed=true" >> "$GITHUB_OUTPUT"; fi; echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
           release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
           metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
           import { readFileSync } from "node:fs"
@@ -553,7 +592,7 @@ jobs:
           NODE
           )"
           echo "Command deployment started: $metadata"
-          "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
+          GH_TOKEN="$GH_TOKEN" "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
           test "$(basename "$release_root")" = "$RELEASE_SHA"
           sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE" >/dev/null 2>&1 || true
           sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
@@ -571,17 +610,24 @@ jobs:
         if: failure() && steps.runtime.outcome == 'success' && steps.commands.outcome == 'failure'
         run: |
           echo "Command deployment failed; attempting one runtime rollback." >> "$GITHUB_STEP_SUMMARY"
+          set +e
           /usr/local/libexec/cleo/deploy-discord-release rollback
+          recovery_status=$?
+          set -e
+          if [[ "$recovery_status" -ge 128 ]]; then exit "$recovery_status"; fi
+          echo "completed=true" >> "$GITHUB_OUTPUT"
+          exit "$recovery_status"
 
       - name: Deploy and verify restored release commands
         id: restored_commands
         if: >-
           failure() && steps.runtime.outputs.attempted == 'true' &&
+          steps.runtime.outputs.completed == 'true' &&
           (steps.recovery.outcome == 'success' || steps.runtime.outcome == 'failure')
         run: |
           set -euo pipefail
           command_result=failed
-          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          trap 'status=$?; if [[ $status -lt 128 ]]; then echo "completed=true" >> "$GITHUB_OUTPUT"; fi; echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
           release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
           metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
           import { readFileSync } from "node:fs"
@@ -614,9 +660,13 @@ jobs:
             echo "Global Discord commands verified by the active release registration program."
             echo "$metadata"
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Confirm successful Discord promotion
+      - name: Finalise confirmed discord activate receipt
+        if: >-
+          !cancelled() && steps.runtime.outputs.completed == 'true' && (steps.commands.outcome == 'skipped' || steps.commands.outputs.completed == 'true') && (steps.recovery.outcome == 'skipped' || steps.recovery.outputs.completed == 'true') && (steps.restored_commands.outcome == 'skipped' || steps.restored_commands.outputs.completed == 'true')
         env:
+          GH_TOKEN: ${{ github.token }}
           RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
+          RECEIPT_STATE: ${{ job.status }}
         run: '"$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" complete'
 
   twitch-activate:
@@ -637,7 +687,6 @@ jobs:
       RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
       SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
       SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
-      GH_TOKEN: ${{ github.token }}
       COMPONENT: twitch
     steps:
       - name: Download trusted control file from this coordinator run
@@ -661,20 +710,31 @@ jobs:
           path: ${{ runner.temp }}/cleo-twitch-release
       - name: Claim auditable runtime intent
         id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
 
       - name: Activate with readiness and automatic rollback
+        id: runtime
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+          RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
           ARTIFACT_DIRECTORY: ${{ runner.temp }}/cleo-twitch-release
         run: |
-          /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
+          export -n GH_TOKEN
+          if ! GH_TOKEN="$GH_TOKEN" /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck; then
+            GH_TOKEN="$GH_TOKEN" /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" release
+            exit 1
+          fi
           set +e
           /usr/local/libexec/cleo/twitch/deploy-twitch-release deploy "$RELEASE_SHA" \
             "$ARTIFACT_DIRECTORY/cleo-twitch-$RELEASE_SHA.tar.gz" \
             "$ARTIFACT_DIRECTORY/cleo-twitch-$RELEASE_SHA.tar.gz.sha256"
           result=$?
           set -e
+          if [[ "$result" -ge 128 ]]; then exit "$result"; fi
+          echo "completed=true" >> "$GITHUB_OUTPUT"
           {
             echo '### Twitch production activation'
             echo "Attempted SHA: $RELEASE_SHA"
@@ -688,10 +748,14 @@ jobs:
             test "$(systemctl is-active cleo-twitch.service)" = active
           fi
           exit "$result"
-      - name: Confirm successful Twitch promotion
+      - name: Finalise confirmed twitch activate receipt
+        if: >-
+          !cancelled() && steps.runtime.outputs.completed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
-        run: /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" complete
+          RECEIPT_STATE: ${{ job.status }}
+        run: '/usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" complete'
 
   discord-rollback:
     name: Roll back Discord production
@@ -704,9 +768,8 @@ jobs:
       contents: read
       deployments: write
     env:
-      GH_TOKEN: ${{ github.token }}
       COMPONENT: discord
-      CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "5"
       CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
       CLEO_DISCORD_HOST_NODE: /usr/local/libexec/cleo/node
       CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
@@ -743,6 +806,8 @@ jobs:
 
       - name: Claim auditable runtime intent
         id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
 
@@ -762,6 +827,8 @@ jobs:
           /usr/local/libexec/cleo/deploy-discord-release rollback
           rollback_status=$?
           set -e
+          if [[ "$rollback_status" -ge 128 ]]; then exit "$rollback_status"; fi
+          echo "completed=true" >> "$GITHUB_OUTPUT"
 
           current_target="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current" 2>/dev/null || true)"
           running_sha="${current_target##*/}"
@@ -796,6 +863,11 @@ jobs:
             printf '| Service status | `%s` |\n' "${service_status:-unknown}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+          if [[ "$rollback_status" -eq 0 ]]; then
+            test "$running_sha" = "$rollback_target"
+            test "$state_application" = "$running_sha"
+            test "$service_status" = active
+          fi
           exit "$rollback_status"
 
       - name: Deploy and verify active release commands
@@ -803,7 +875,7 @@ jobs:
         run: |
           set -euo pipefail
           command_result=failed
-          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          trap 'status=$?; if [[ $status -lt 128 ]]; then echo "completed=true" >> "$GITHUB_OUTPUT"; fi; echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
           release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
           metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
           import { readFileSync } from "node:fs"
@@ -836,6 +908,15 @@ jobs:
             echo "Global Discord commands verified by the active release registration program."
             echo "$metadata"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Finalise confirmed discord rollback receipt
+        if: >-
+          !cancelled() && steps.runtime.outputs.completed == 'true' && (steps.commands.outcome == 'skipped' || steps.commands.outputs.completed == 'true')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
+          RECEIPT_STATE: ${{ job.status }}
+          RELEASE_SHA: ${{ steps.claim.outputs.sha }}
+        run: '"$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" complete'
 
   twitch-rollback:
     name: Emergency Twitch rollback
@@ -848,7 +929,6 @@ jobs:
       contents: read
       deployments: write
     env:
-      GH_TOKEN: ${{ github.token }}
       COMPONENT: twitch
     steps:
       - name: Download trusted control file from this coordinator run
@@ -867,14 +947,19 @@ jobs:
         run: /usr/local/libexec/cleo/twitch/check-twitch-runner
       - name: Claim auditable runtime intent
         id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
 
       - name: Restore recorded verified Twitch release
+        id: runtime
         run: |
           set +e
           /usr/local/libexec/cleo/twitch/deploy-twitch-release rollback
           result=$?
           set -e
+          if [[ "$result" -ge 128 ]]; then exit "$result"; fi
+          echo "completed=true" >> "$GITHUB_OUTPUT"
           {
             echo '### Twitch emergency rollback'
             echo "Controller exit status: $result"
@@ -882,4 +967,18 @@ jobs:
             echo "Service: $(systemctl is-active cleo-twitch.service || true)"
             echo 'A zero controller status confirms readiness. Convex was not changed.'
           } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$result" -eq 0 ]]; then
+            current_sha="$(basename "$(readlink -f /srv/cleo/twitch-bot/current)")"
+            [[ "$current_sha" =~ ^[a-f0-9]{40}$ ]]
+            test "$(systemctl is-active cleo-twitch.service)" = active
+          fi
           exit "$result"
+      - name: Finalise confirmed twitch rollback receipt
+        if: >-
+          !cancelled() && steps.runtime.outputs.completed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
+          RECEIPT_STATE: ${{ job.status }}
+          RELEASE_SHA: ${{ steps.claim.outputs.sha }}
+        run: '/usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" complete'
