@@ -1,0 +1,64 @@
+.github/scripts/test-ci.mjs
+  s_602e6bdafe6a33::t_612053ec1e0ff0 78,81,85-86
+.github/workflows/twitch-production.yml
+  s_602e6bdafe6a33::t_950bb2a540af6a 1,7,11,13,16-26
+apps/discord-bot/src/deployment/deploymentPipeline.test.ts
+  s_602e6bdafe6a33::t_d302a37108a607 24,52-54,90,92-93,107-110,114,119-122
+  s_602e6bdafe6a33::t_3e279b49b91f0d 84,145
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_602e6bdafe6a33::t_8134be7093595a 206,241-243,252,270-271,287-289,293-295,301-303,308,311,324-338,352-354
+  s_602e6bdafe6a33::t_cd8c74cdde06e5 96-97
+  s_602e6bdafe6a33::t_2373a95b7257ce 93,99-100,103,109,112,117,119,232,245
+  s_602e6bdafe6a33::t_04fa5095e63b8a 94-95,98
+.github/workflows/production-release.yml
+  s_602e6bdafe6a33::t_950bb2a540af6a 1-142,144-168,175,182-193,195-204,210-220,222-251,258,264-271,273-289,293-322,327-389,393-396,401-467,469-505,510-561,563-606,611-641,643-667,672-854,856,859-860,865
+  s_602e6bdafe6a33::t_8a74dc9b23416c 143,194,506-509,642,668-671
+  s_602e6bdafe6a33::t_6492f5cc46e02a 169-174,176-181,252-257,259-263,323-326,397-400,607-610
+  s_602e6bdafe6a33::t_694d4356b5584d 390-392,855,857-858,861-864,866
+  s_602e6bdafe6a33::t_125e963ce7f649 468,562
+  s_602e6bdafe6a33::t_b0f04e9287deb2 205-209
+  s_602e6bdafe6a33::t_401c348f18d171 290-292
+  s_602e6bdafe6a33::t_a05e4f3a34db69 221,272
+.github/scripts/production-policy.mjs
+  s_602e6bdafe6a33::t_96a537172edf61 329-330,332-336,365
+  s_602e6bdafe6a33::t_694d4356b5584d 1-328,331,337-364,366-393
+apps/discord-bot/src/deployment/webOnlyChanges.test.ts
+  s_602e6bdafe6a33::t_cd8c74cdde06e5 150-158,160-189
+  s_602e6bdafe6a33::t_37f96b5cb0d8d0 144-149,159,190-191
+  s_602e6bdafe6a33::t_9bb58364b0eed1 361,373,375-380
+.github/scripts/test-operations.sh
+  s_602e6bdafe6a33::t_ab87394c3a9f3a 6-9
+.github/scripts/test-production-policy.mjs
+  s_602e6bdafe6a33::t_0a117e75882516 327-331,335-349
+  s_602e6bdafe6a33::t_9bceddfea2ec69 383-386,478-481,483
+  s_602e6bdafe6a33::t_d302a37108a607 1-326,350-382,387-477,484-487
+  s_602e6bdafe6a33::t_85ee4bdc4be6dd 332-334,482
+.github/workflows/discord-production.yml
+  s_602e6bdafe6a33::t_950bb2a540af6a 1,7,11,13,16-26
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_602e6bdafe6a33::t_cd8c74cdde06e5 9,12-29,56-58
+.github/scripts/test-twitch-workflow.mjs
+  s_602e6bdafe6a33::t_d302a37108a607 7,41-43,45,47,49
+.github/scripts/test-production-workflow.mjs
+  s_602e6bdafe6a33::t_394d3012d4bbdd 2-9,301-305,311-314,319-333,336-356,358-362,364-368,371-376
+  s_602e6bdafe6a33::t_b0f04e9287deb2 10-12,306-310,315-318,334-335,357,363,369-370,377
+  s_602e6bdafe6a33::t_a05e4f3a34db69 381-389,391-395
+  s_602e6bdafe6a33::t_f0d06d60de8bb7 1,13-300,378-379,396-414
+  s_602e6bdafe6a33::t_d85764b7f37501 380,390
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bcac4ecf773e341cc4fef8a7e4ed31b272c5c458",
+  "prompts": {},
+  "sessions": {
+    "s_602e6bdafe6a33": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13c72-c0c9-7d60-86be-4f65d9f5671a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
