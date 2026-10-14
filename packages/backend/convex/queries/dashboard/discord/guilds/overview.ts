@@ -1,3 +1,4 @@
+import { GUILD_WELCOME_PREMIUM_STYLE } from "@workspace/shared/cleoEntitlements"
 import { ConvexError, v, type Value } from "convex/values"
 import type { Doc } from "../../../../_generated/dataModel"
 import { query } from "../../../../_generated/server"
@@ -6,6 +7,7 @@ import {
   requireDiscordGuildManager,
 } from "../../../../lib/auth"
 import { dashboardDiscordGuildOverviewResult } from "../../../../lib/validators"
+import { getGuildAccess } from "../../../../lib/guildEntitlements"
 
 export const get = query({
   args: {
@@ -45,7 +47,13 @@ export const get = query({
       .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
       .unique()
 
-    const overview = toGuildOverview(guild, membership, guildConfig)
+    const access = await getGuildAccess(ctx, guild)
+    const overview = toGuildOverview(
+      guild,
+      membership,
+      guildConfig,
+      access.capabilities.includes(GUILD_WELCOME_PREMIUM_STYLE)
+    )
 
     if (guild.botLeftAt !== undefined) {
       return {
@@ -102,7 +110,8 @@ function getConvexErrorCode(error: ConvexError<Value>): string | undefined {
 function toGuildOverview(
   guild: Doc<"guilds">,
   membership: Doc<"discordGuildMemberships">,
-  guildConfig: Doc<"guildConfigs"> | null
+  guildConfig: Doc<"guildConfigs"> | null,
+  premiumWelcome: boolean
 ) {
   const overviewMembership = {
     membershipId: membership._id,
@@ -138,6 +147,9 @@ function toGuildOverview(
           aiEnabled: guildConfig.aiEnabled,
           moderationEnabled: guildConfig.moderationEnabled,
           welcomeEnabled: guildConfig.welcomeEnabled,
+          ...(guildConfig.welcomeStyle
+            ? { welcomeStyle: guildConfig.welcomeStyle }
+            : {}),
           loggingEnabled: guildConfig.loggingEnabled,
           ...(guildConfig.logLevel !== undefined
             ? { logLevel: guildConfig.logLevel }
@@ -169,9 +181,7 @@ function toGuildOverview(
   const lastSyncedAt = membership.lastSyncedAt ?? guild.lastSyncedAt
 
   return {
-    // JCN-57 must resolve verified guild Premium access before exposing the
-    // design studio. User subscriptions and frontend flags cannot enable it.
-    welcomeCardStudioAvailable: false,
+    welcomeCardStudioAvailable: premiumWelcome,
     guildId: guild._id,
     discordGuildId: guild.discordGuildId,
     name: guild.name,

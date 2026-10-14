@@ -44,6 +44,8 @@ test("live notification form fixes owner source, handles linking, destinations, 
   const saves: unknown[] = []
   let optionsStatus = "ready"
   const ready: LiveNotificationsView = {
+    ownerKey: "owner",
+    verifiedAt: 1,
     config: {
       liveNotificationsEnabled: false,
       liveNotificationChannelId: "text",

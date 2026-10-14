@@ -1,5 +1,6 @@
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
+import { welcomeStyle } from "../lib/welcomeStyle"
 
 const guildConfigLogLevel = v.union(
   v.literal("none"),
@@ -22,6 +23,7 @@ export const guildConfigs = defineTable({
   modLogChannelId: v.optional(v.string()),
   welcomeChannelId: v.optional(v.string()),
   welcomeSubtext: v.optional(v.string()),
+  welcomeStyle: v.optional(welcomeStyle),
   updatesChannelId: v.optional(v.string()),
   announcementChannelId: v.optional(v.string()),
 

@@ -1,7 +1,10 @@
+import { GUILD_WELCOME_PREMIUM_STYLE } from "@workspace/shared/cleoEntitlements"
 import { v } from "convex/values"
 
 import { internalQuery } from "../../../../_generated/server"
 import { botDiscordGuildRuntimeConfigResult } from "../../../../lib/botDiscordGuildRuntimeConfig"
+import { getGuildAccess } from "../../../../lib/guildEntitlements"
+import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 
 export const get = internalQuery({
   args: {
@@ -46,9 +49,23 @@ export const get = internalQuery({
       .query("guildLiveNotificationConfigs")
       .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
       .unique()
+    const access = await getGuildAccess(ctx, guild)
+    const premiumWelcome = access.capabilities.includes(
+      GUILD_WELCOME_PREMIUM_STYLE
+    )
     return {
       status: "ready" as const,
       config: {
+        ...(config.welcomeStyle
+          ? {
+              welcomeStyle: premiumWelcome
+                ? config.welcomeStyle
+                : FREE_WELCOME_STYLE,
+            }
+          : {}),
+        ...(premiumWelcome
+          ? { premiumWelcomeValidUntil: access.capabilityDeadlines[GUILD_WELCOME_PREMIUM_STYLE] }
+          : {}),
         ...(live
           ? {
               liveNotificationsEnabled: live.liveNotificationsEnabled,

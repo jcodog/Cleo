@@ -1,3 +1,5 @@
+import { parseWelcomeCardStyle, type WelcomeCardStyle } from "./welcomeCard"
+
 export const DISCORD_SNOWFLAKE_PATTERN = /^\d{17,20}$/
 
 export const DISCORD_GUILD_RUNTIME_CONFIG_LOG_LEVELS = [
@@ -44,6 +46,8 @@ export const DISCORD_GUILD_RUNTIME_CONFIG_REQUIRED_FIELD_NAMES = [
 ] as const
 
 export const DISCORD_GUILD_RUNTIME_CONFIG_OPTIONAL_FIELD_NAMES = [
+  "welcomeStyle",
+  "premiumWelcomeValidUntil",
   "liveNotificationsEnabled",
   "liveNotificationChannelId",
   "liveNotificationMentionMode",
@@ -90,6 +94,8 @@ export type DiscordGuildRuntimeConfigDisabledReason =
   | LocalDiscordGuildRuntimeConfigDisabledReason
 
 export type DiscordGuildRuntimeConfig = {
+  welcomeStyle?: WelcomeCardStyle
+  premiumWelcomeValidUntil?: number
   liveNotificationsEnabled?: boolean
   liveNotificationChannelId?: string
   liveNotificationMentionMode?: "none" | "everyone" | "role"
@@ -316,6 +322,23 @@ function validateDiscordGuildRuntimeConfig(
   }
 
   const logLevel = value.logLevel
+  let welcomeStyle: WelcomeCardStyle | undefined
+  if (value.welcomeStyle !== undefined) {
+    try {
+      welcomeStyle = parseWelcomeCardStyle(value.welcomeStyle)
+    } catch {
+      return validationError("Runtime config has invalid welcome style.")
+    }
+  }
+  const premiumWelcomeValidUntil = value.premiumWelcomeValidUntil
+  if (
+    premiumWelcomeValidUntil !== undefined &&
+    (typeof premiumWelcomeValidUntil !== "number" ||
+      !Number.isSafeInteger(premiumWelcomeValidUntil) ||
+      premiumWelcomeValidUntil < 0)
+  ) {
+    return validationError("Runtime config has invalid Premium deadline.")
+  }
   const liveNotificationsEnabled = value.liveNotificationsEnabled
   const liveNotificationMentionMode = value.liveNotificationMentionMode
   if (
@@ -460,6 +483,10 @@ function validateDiscordGuildRuntimeConfig(
       discordGuildId: value.discordGuildId,
       moderationEnabled,
       welcomeEnabled,
+      ...(welcomeStyle !== undefined ? { welcomeStyle } : {}),
+      ...(premiumWelcomeValidUntil !== undefined
+        ? { premiumWelcomeValidUntil }
+        : {}),
       loggingEnabled,
       supportEnabled,
       ...(liveNotificationsEnabled !== undefined

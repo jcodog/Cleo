@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test"
-import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 
 test("non-Premium guilds keep free welcome settings and never see the studio", async ({
   page,
@@ -21,12 +20,12 @@ test("non-Premium guilds keep free welcome settings and never see the studio", a
       discordGuildId: "123456789012345678",
       modules: { welcomeEnabled: true },
       channels: { welcomeChannelId: "234567890123456789" },
-      welcome: { subtext: "Free hello 👋🏽", style: FREE_WELCOME_STYLE },
+      welcome: { subtext: "Free hello 👋🏽" },
     },
   ])
 })
 
-test("Premium fixture supports keyboard designs, palettes, validation and free-only saves", async ({
+test("Premium fixture supports keyboard designs, palettes, validation and Premium saves", async ({
   page,
 }, testInfo) => {
   await page.goto("/?guild=premium")
@@ -83,19 +82,30 @@ test("Premium fixture supports keyboard designs, palettes, validation and free-o
     "aria-label",
     "Welcome card preview unavailable"
   )
-  await page.getByRole("button", { name: "Save free settings" }).click()
   await expect(
-    page.getByText(
-      "Free welcome settings saved. Preview styling has not been saved."
-    )
-  ).toBeVisible()
+    page.getByRole("button", { name: "Save welcome settings" })
+  ).toBeDisabled()
+  expect(await page.evaluate(() => window.welcomeTestSaves)).toHaveLength(0)
+  await page
+    .getByLabel("Greeting", { exact: true })
+    .fill("Hi {member} in {server} 👋🏽")
+  await page.getByRole("button", { name: "Save welcome settings" }).click()
+  await expect(page.getByText("Welcome settings saved.")).toBeVisible()
   const saves = await page.evaluate(() => window.welcomeTestSaves)
   expect(saves).toHaveLength(1)
   expect(saves[0]).toEqual({
     discordGuildId: "123456789012345678",
     modules: { welcomeEnabled: true },
     channels: { welcomeChannelId: "234567890123456789" },
-    welcome: { subtext: "Hello 👩🏾‍💻 🇬🇧", style: FREE_WELCOME_STYLE },
+    welcome: {
+      subtext: "Hello 👩🏾‍💻 🇬🇧",
+      style: {
+        preset: "aurora",
+        palette: "orchid",
+        greeting: "Hi {member} in {server} 👋🏽",
+        align: "center",
+      },
+    },
   })
   await page.getByRole("button", { name: "Reset to free design" }).click()
   await expect(

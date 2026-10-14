@@ -5,6 +5,7 @@ import * as React from "react"
 test("live authority is freshly verified while query updates remain reactive and failures support targeted retry", async (t) => {
   const slots: unknown[] = []
   const effects: { deps: unknown[]; cleanup?: () => void }[] = []
+  t.after(() => effects.forEach((effect) => effect.cleanup?.()))
   let stateIndex = 0
   let effectIndex = 0
   let value: unknown
@@ -13,17 +14,38 @@ test("live authority is freshly verified while query updates remain reactive and
   let update = () => {}
   let watches = 0
   let verifies = 0
+  let userId = "user-one"
+  let ownerKey = "owner-one"
+  let nextStatus = "ready"
+  let revision = 1
+  let delayed: ((view: unknown) => void) | undefined
+  let delay = false
   let unsubscribed = 0
   const args: unknown[] = []
   const verify = async (arg: unknown) => {
     verifies++
     args.push(arg)
     if (actionFailure) throw new Error("provider unavailable")
-    return {
-      config: { updatedAt: 1 },
-      source: { status: "ready" },
+    const result = {
+      ownerKey,
+      verifiedAt: Date.now() + 1000,
+      config: { updatedAt: revision },
+      source:
+        nextStatus === "ready"
+          ? {
+              status: "ready",
+              broadcasterId: "123",
+              login: "owner",
+              displayName: "Owner",
+            }
+          : { status: nextStatus },
       discordStatus: "needsRole",
     }
+    if (delay)
+      return new Promise((resolve) => {
+        delayed = resolve
+      })
+    return result
   }
   const client = {
     watchQuery: (_query: unknown, arg: unknown) => {
@@ -100,6 +122,9 @@ test("live authority is freshly verified while query updates remain reactive and
   t.mock.module("convex/react", {
     exports: { useConvex: () => client, useAction: () => verify },
   })
+  t.mock.module("@clerk/nextjs", {
+    exports: { useAuth: () => ({ userId, sessionId: "session" }) },
+  })
   const { useLiveNotifications } = await import("./useLiveNotifications")
   const Render = (guild = "one") => {
     stateIndex = effectIndex = 0
@@ -108,13 +133,18 @@ test("live authority is freshly verified while query updates remain reactive and
   const flush = () => new Promise<void>((resolve) => setImmediate(resolve))
   assert.equal(Render().view, undefined)
   value = {
+    ownerKey,
     config: { updatedAt: 1 },
     source: { status: "stale" },
     subscriptionStatus: "connecting",
     discordStatus: "unavailable",
   }
   update()
-  Render()
+  assert.equal(
+    Render().view,
+    undefined,
+    "Initial provisional stale projection uses the skeleton"
+  )
   await flush()
   assert.equal(Render().view?.source.status, "ready")
   assert.equal(Render().view?.discordStatus, "needsRole")
@@ -134,17 +164,79 @@ test("live authority is freshly verified while query updates remain reactive and
   Render().reload()
   Render()
   await flush()
-  assert.equal(Render().error, true)
+  assert.equal(Render().error, false)
+  assert.equal(
+    Render().view?.source.status,
+    "ready",
+    "Temporary verification failure preserves display"
+  )
   actionFailure = false
   Render().reload()
   Render()
   await flush()
   assert.equal(Render().error, false)
   assert.equal(verifies, before + 2)
+  // A cached Ready refresh has no provisional source or loading transition.
+  Render().reload()
+  assert.equal(Render().view?.source.status, "ready")
+  await flush()
+  assert.equal(Render().view?.source.status, "ready")
+  nextStatus = "stale"
+  Render().reload()
+  assert.equal(Render().view?.source.status, "ready")
+  await flush()
+  assert.equal(
+    Render().view?.source.status,
+    "stale",
+    "Fresh reconnect evidence replaces cached Ready"
+  )
+  nextStatus = "ready"
   Render("two")
   await flush()
   assert.equal(watches, 2)
   assert.equal(unsubscribed, 1)
   assert.deepEqual(args.at(-1), { discordGuildId: "two" })
+  userId = "user-two"
+  assert.equal(
+    Render("two").view,
+    undefined,
+    "User switch cannot inherit display"
+  )
+  await flush()
+  ownerKey = "owner-two"
+  value = { ...(value as object), ownerKey }
+  assert.equal(
+    Render("two").view,
+    undefined,
+    "Owner evidence switch invalidates display"
+  )
+  await flush()
+  delay = true
+  revision = 2
+  value = { ...(value as object), config: { updatedAt: revision } }
+  Render("two")
+  const oldResponse = delayed
+  assert.ok(oldResponse)
+  revision = 3
+  value = { ...(value as object), config: { updatedAt: revision } }
+  delay = false
+  Render("two")
+  await flush()
+  oldResponse({
+    ownerKey,
+    verifiedAt: Date.now() + 1,
+    config: { updatedAt: 2 },
+    source: { status: "stale" },
+    discordStatus: "unavailable",
+  })
+  await flush()
+  assert.equal(
+    Render("two").view?.source.status,
+    "ready",
+    "Old async responses cannot overwrite newer verification"
+  )
+  const config = Render("two").view?.config
+  assert.ok(config && "updatedAt" in config)
+  assert.equal(config.updatedAt, 3)
   effects.forEach((effect) => effect.cleanup?.())
 })

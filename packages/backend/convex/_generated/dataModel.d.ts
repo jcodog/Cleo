@@ -53,6 +53,61 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  billingCustomers: {
+    document: {
+      clerkUserId: string;
+      createdAt: number;
+      stripeCustomerId: string;
+      userId: Id<"users">;
+      _id: Id<"billingCustomers">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "clerkUserId"
+      | "createdAt"
+      | "stripeCustomerId"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_stripe_customer_id: ["stripeCustomerId", "_creationTime"];
+      by_user_id: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  billingEvents: {
+    document: {
+      eventCreatedAt: number;
+      eventId: string;
+      outcome: "applied" | "stale";
+      payload: string;
+      receivedAt: number;
+      revision: number;
+      stripeSubscriptionId: string;
+      _id: Id<"billingEvents">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "eventCreatedAt"
+      | "eventId"
+      | "outcome"
+      | "payload"
+      | "receivedAt"
+      | "revision"
+      | "stripeSubscriptionId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_event_id: ["eventId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   cleoPetBattleRecords: {
     document: {
       createdAt: number;
@@ -1936,6 +1991,30 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  guildBillingPrices: {
+    document: {
+      stripeProductId: string;
+      stripePriceId: string;
+      enabled: boolean;
+      updatedAt: number;
+      _id: Id<"guildBillingPrices">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "enabled"
+      | "stripePriceId"
+      | "stripeProductId"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_stripe_price_id: ["stripePriceId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   guildConfigs: {
     document: {
       aiEnabled: boolean;
@@ -1952,6 +2031,12 @@ export type DataModel = {
       updatesChannelId?: string;
       welcomeChannelId?: string;
       welcomeEnabled: boolean;
+      welcomeStyle?: {
+        align: "left" | "center";
+        greeting: string;
+        palette: "cyan" | "orchid" | "forest" | "amber";
+        preset: "classic" | "aurora" | "spotlight" | "ribbon";
+      };
       welcomeSubtext?: string;
       _id: Id<"guildConfigs">;
       _creationTime: number;
@@ -1973,11 +2058,67 @@ export type DataModel = {
       | "updatesChannelId"
       | "welcomeChannelId"
       | "welcomeEnabled"
+      | "welcomeStyle"
+      | "welcomeStyle.align"
+      | "welcomeStyle.greeting"
+      | "welcomeStyle.palette"
+      | "welcomeStyle.preset"
       | "welcomeSubtext";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_guild_id: ["guildId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  guildEntitlementGrants: {
+    document: {
+      grantKey: string;
+      guildId: Id<"guilds">;
+      discordGuildId: string;
+      category: "complimentary" | "staff" | "test";
+      capabilities: Array<
+        "guild.welcome.premium-style" | "guild.twitch.premium-style"
+      >;
+      startsAt: number;
+      endsAt: number;
+      issuedBy: Id<"users">;
+      reason: string;
+      revokedAt?: number;
+      revocationReason?: string;
+      revokedBy?: Id<"users">;
+      createdAt: number;
+      _id: Id<"guildEntitlementGrants">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "capabilities"
+      | "category"
+      | "createdAt"
+      | "discordGuildId"
+      | "endsAt"
+      | "grantKey"
+      | "guildId"
+      | "issuedBy"
+      | "reason"
+      | "revocationReason"
+      | "revokedAt"
+      | "revokedBy"
+      | "startsAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_grant_key: ["grantKey", "_creationTime"];
+      by_guild_id: ["guildId", "_creationTime"];
+      by_guild_revocation_end: [
+        "guildId",
+        "revokedAt",
+        "endsAt",
+        "_creationTime",
+      ];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -2086,6 +2227,83 @@ export type DataModel = {
       ];
       by_discord_guild_id: ["discordGuildId", "_creationTime"];
       by_ready_shard_key: ["readyShardKey", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  guildSubscriptions: {
+    document: {
+      customerId: Id<"billingCustomers">;
+      guildId: Id<"guilds">;
+      discordGuildId: string;
+      stripeSubscriptionId: string;
+      stripeProductId: string;
+      stripePriceId: string;
+      status:
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | "unpaid"
+        | "incomplete"
+        | "incomplete_expired"
+        | "paused"
+        | "expired"
+        | "revoked";
+      startsAt: number;
+      endsAt: number;
+      trialEndsAt?: number;
+      graceEndsAt?: number;
+      paymentFailedAt?: number;
+      cancelAtPeriodEnd: boolean;
+      canceledAt?: number;
+      revokedAt?: number;
+      lastEventId: string;
+      eventCreatedAt: number;
+      revision: number;
+      reconciledAt: number;
+      createdAt: number;
+      updatedAt: number;
+      _id: Id<"guildSubscriptions">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "cancelAtPeriodEnd"
+      | "canceledAt"
+      | "createdAt"
+      | "customerId"
+      | "discordGuildId"
+      | "endsAt"
+      | "eventCreatedAt"
+      | "graceEndsAt"
+      | "guildId"
+      | "lastEventId"
+      | "paymentFailedAt"
+      | "reconciledAt"
+      | "revision"
+      | "revokedAt"
+      | "startsAt"
+      | "status"
+      | "stripePriceId"
+      | "stripeProductId"
+      | "stripeSubscriptionId"
+      | "trialEndsAt"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_stripe_subscription_id: ["stripeSubscriptionId", "_creationTime"];
+      by_guild_id: ["guildId", "_creationTime"];
+      by_guild_status_end: ["guildId", "status", "endsAt", "_creationTime"];
+      by_guild_status_grace: [
+        "guildId",
+        "status",
+        "graceEndsAt",
+        "_creationTime",
+      ];
+      by_customer_id: ["customerId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

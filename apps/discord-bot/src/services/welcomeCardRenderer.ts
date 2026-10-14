@@ -33,8 +33,6 @@ export async function loadWelcomeAvatar(
   }
 }
 
-// Preview/fixture PNGs can explore Premium styling. Production delivery always
-// uses FREE_WELCOME_STYLE until JCN-57 supplies a verified guild entitlement.
 export async function renderWelcomeCardPng(
   copy: WelcomeCardCopy,
   style: WelcomeCardStyle = FREE_WELCOME_STYLE,
@@ -66,7 +64,7 @@ export async function renderWelcomeCardPng(
 
 export async function renderWelcomeCardMessage(
   member: GuildMember,
-  options: { subtext?: string } = {}
+  options: { subtext?: string; style?: WelcomeCardStyle } = {}
 ): Promise<MessageCreateOptions> {
   const avatarUrl =
     typeof member.displayAvatarURL === "function"
@@ -88,7 +86,7 @@ export async function renderWelcomeCardMessage(
       server: member.guild.name,
       subtext: options.subtext ?? DEFAULT_WELCOME_SUBTEXT,
     },
-    FREE_WELCOME_STYLE,
+    options.style ?? FREE_WELCOME_STYLE,
     avatarUrl
   )
   return {

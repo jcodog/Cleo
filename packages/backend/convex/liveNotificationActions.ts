@@ -23,7 +23,7 @@ import {
 import { liveWorkspace } from "./lib/twitchLiveValidators"
 import type { Doc } from "./_generated/dataModel"
 import type { FunctionReturnType } from "convex/server"
-import { ownerEvidenceKey } from "./lib/ownerTwitch"
+import { ownerEvidenceKey, liveOwnerKey } from "./lib/ownerTwitch"
 import { boundedMap } from "./lib/boundedMap"
 import { createLogger } from "@workspace/logger"
 
@@ -90,17 +90,25 @@ export const get = action({
   handler: async (ctx, args) => {
     const context = await ctx.runQuery(internal.liveNotifications.managed, args)
     const source = await verifyLiveNotificationSource(context.owner)
+    const discordStatus = await getDiscordDestinationStatus(
+      context.config,
+      args.discordGuildId,
+      context.guild.ownerDiscordId
+    )
     const view = await ctx.runQuery(api.liveNotifications.projection, args)
+    const ownerKey = liveOwnerKey(context.guild.ownerDiscordId, context.owner)
+    if (view.ownerKey !== ownerKey)
+      throw new ConvexError(
+        "The server owner's connection changed. Retry verification."
+      )
     return {
+      ownerKey,
+      verifiedAt: Date.now(),
       config: context.config,
       source: publicOwnerTwitch(source),
       isOwner: context.isOwner,
       botLeft: context.guild.botLeftAt !== undefined,
-      discordStatus: await getDiscordDestinationStatus(
-        context.config,
-        args.discordGuildId,
-        context.guild.ownerDiscordId
-      ),
+      discordStatus,
       subscriptionStatus: view.subscriptionStatus,
     }
   },

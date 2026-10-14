@@ -46,7 +46,9 @@ export function LiveNotificationsSection({
   overview: GuildOverview
   isBotLeft: boolean
 }) {
-  const { view, error, reload } = useLiveNotifications(overview.discordGuildId)
+  const { view, error, displayKey, reload } = useLiveNotifications(
+    overview.discordGuildId
+  )
   if (error)
     return (
       <div role="alert" className="flex flex-wrap items-center gap-3">
@@ -65,7 +67,7 @@ export function LiveNotificationsSection({
   if (!view) return <Skeleton className="h-48 w-full max-w-3xl" />
   return (
     <LiveNotificationsForm
-      key={overview.discordGuildId}
+      key={displayKey}
       discordGuildId={overview.discordGuildId}
       isBotLeft={isBotLeft || view.botLeft}
       view={view}

@@ -1,4 +1,5 @@
 import { v, type Infer } from "convex/values"
+import { welcomeStyle } from "./welcomeStyle"
 import { guilds } from "../dbTables/guilds"
 
 const jsonPrimitive = v.union(v.null(), v.boolean(), v.number(), v.string())
@@ -252,6 +253,7 @@ export const guildConfigDoc = v.object({
   modLogChannelId: v.optional(v.string()),
   welcomeChannelId: v.optional(v.string()),
   welcomeSubtext: v.optional(v.string()),
+  welcomeStyle: v.optional(welcomeStyle),
   updatesChannelId: v.optional(v.string()),
   announcementChannelId: v.optional(v.string()),
   commandPrefix: v.optional(v.string()),
@@ -510,6 +512,7 @@ export const dashboardDiscordGuildOverviewConfigViewModel = v.object({
   modLogChannelId: v.optional(v.string()),
   welcomeChannelId: v.optional(v.string()),
   welcomeSubtext: v.optional(v.string()),
+  welcomeStyle: v.optional(welcomeStyle),
   updatesChannelId: v.optional(v.string()),
   announcementChannelId: v.optional(v.string()),
   commandPrefix: v.optional(v.string()),

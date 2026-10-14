@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
+import { FREE_WELCOME_STYLE } from "@workspace/shared/welcomeCard"
 
 import type { AttachmentPayload, GuildMember } from "discord.js"
 
@@ -23,15 +24,14 @@ test("welcome card renderer returns a PNG attachment", async () => {
   )
 })
 
-test("production cards keep the free layout and mention policy even when paid style flags are supplied", async () => {
+test("card renderer applies validated styling and preserves the controlled mention policy", async () => {
   const member = createMember()
   const ordinary = await renderWelcomeCardMessage(member, { subtext: "Hi 👋🏽" })
   const flagged = await renderWelcomeCardMessage(member, {
     subtext: "Hi 👋🏽",
-    style: { preset: "ribbon" },
-    isPremium: true,
-  } as { subtext: string })
-  assert.deepEqual(ordinary.files, flagged.files)
+    style: { ...FREE_WELCOME_STYLE, preset: "ribbon" },
+  })
+  assert.notDeepEqual(ordinary.files, flagged.files)
   assert.deepEqual(flagged.allowedMentions, {
     users: [member.id],
     roles: [],
