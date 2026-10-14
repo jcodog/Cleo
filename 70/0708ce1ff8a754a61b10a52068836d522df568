@@ -1,0 +1,57 @@
+packages/backend/convex/queries/internal/guildEntitlements.ts
+  s_8c883a9d5071d4::t_319b86f56131ac 15-16,34-35,42-51
+packages/backend/convex/_generated/api.d.ts
+  s_8c883a9d5071d4::t_82c4bf3a553a5b 1540,1543-1546,1551,1553,1560,1562-1564,1575,1578-1579,1588,1617,1620-1623,1628,1630,1637,1639-1640,1652,1655-1656,5767,5777-5778,5780,5783,5791-5792,5794,5796-5798,5800-5801,5813-5816,5824
+  s_8c883a9d5071d4::t_4542d412173983 6451-6452
+packages/backend/convex/guildBilling.test.ts
+  s_8c883a9d5071d4::t_b71177faef47f1 11,117-128
+  s_8c883a9d5071d4::t_f7194b52b3c6c5 129-160
+apps/dashboard/package.json
+  s_8c883a9d5071d4::t_5db8b18c7dd399 21-22,30,32-33,37
+apps/discord-bot/package.json
+  s_8c883a9d5071d4::t_04b4f96d5679d0 28,43
+apps/landing/package.json
+  s_8c883a9d5071d4::t_49fb898eebeb0a 17,22-24
+apps/twitch-bot/package.json
+  s_8c883a9d5071d4::t_be18bd27e96153 34
+bun.lock
+  s_8c883a9d5071d4::t_e78c557b2e9736 19,27-28,36,38-39,43,56,71,78,83-85,108,120-121,126,135,158,173,183,189,198-200,205-206,215,217-218,222-224,292,294,298,300,302,306,308,542,544,546,548,550,552,554,556,558,560,562,564,566,568,570,572,574,576,578,580,582,584,586,594,596,598,600,602,604,606,608,610,612,614,616,618,620,622,624,626,628,630,632,676,728,730,732,734,736,738,740,768,890,948,1004,1032,1072,1368,1374,1390,1396,1434,1436,1440,1442,1446,1468,1472,1482,1526,1580,1612,1634,1668,1688,1696-1704,1740,1766-1769,1782-1783,1828,1842-1847
+package.json
+  s_8c883a9d5071d4::t_6ff3bc826a4696 29,41,43-44,48-49,55
+packages/backend/convex/_generated/dataModel.d.ts
+  s_8c883a9d5071d4::t_cf7e02ab768f06 1997-1998,2080-2082,2084-2085,2089,2091,2236-2238,2241-2250,2262-2264,2297,2306
+packages/backend/package.json
+  s_8c883a9d5071d4::t_6bb9d8bb2f69a9 18,23,28
+packages/env/package.json
+  s_8c883a9d5071d4::t_ea7c896cda28fd 14
+packages/shared/package.json
+  s_8c883a9d5071d4::t_83bec21a7846fe 17
+packages/ui/package.json
+  s_8c883a9d5071d4::t_45d7f2233fff47 14,24,30,39-41,46-47
+turbo.json
+  s_37929f027a8555::t_e44ac2936a0396 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "700708ce1ff8a754a61b10a52068836d522df568",
+  "prompts": {},
+  "sessions": {
+    "s_37929f027a8555": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12031-ec8f-7021-8886-ec8208051e54",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_8c883a9d5071d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b5a-650d-7113-8a4a-a491b306002b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
