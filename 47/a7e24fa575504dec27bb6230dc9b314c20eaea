@@ -1,0 +1,18 @@
+.github/scripts/build-coverage-site.mjs
+  h_2bc691fceb4fe5 1,4-8,24-26,31-43,46-49
+.github/scripts/test-ci.mjs
+  h_2bc691fceb4fe5 30-41,261,265-272,291-316,318
+.github/scripts/validate-coverage-reports.mjs
+  h_2bc691fceb4fe5 1-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "47a7e24fa575504dec27bb6230dc9b314c20eaea",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
