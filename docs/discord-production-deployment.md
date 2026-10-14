@@ -1,10 +1,11 @@
 # Discord production deployment
 
-Cleo deploys the Discord runtime only from trusted `main` pushes or an explicit
-manual workflow dispatch. Pull requests never activate production. Vercel owns the
-dashboard deployment; the Discord production workflow validates the bot and backend,
-packages the Discord runtime, deploys Convex when appropriate, and activates the
-validated release on the production VPS.
+Production promotion is coordinated by [the production release gate](production-release-gating.md).
+A successful complete push-to-main regression authenticates the exact release SHA
+before packaging, one Convex deployment when required, and affected runtime
+activation. The Discord operations workflow retains manual validation and recorded
+rollback. Manual deployment uses the coordinator with an explicit current main SHA
+and matching successful regression run ID. Vercel remains a separate boundary.
 
 ## Architecture
 
@@ -208,10 +209,11 @@ Use this sequence for the migration:
    The smoke workflow executes `check-discord-runtime` as `cleo`, using the same
    NVM runtime contract as `run-discord-release`, so a missing or stale runtime
    fails before deployment.
-7. Dispatch **Deploy Discord Production** with `operation=validate` and require the
+7. Dispatch **Discord Production Operations** with `operation=validate` and require the
    hosted x64 validation/package job to pass.
 8. Set `CLEO_DISCORD_DEPLOY_ENABLED=true`.
-9. Dispatch **Deploy Discord Production** with `operation=deploy`.
+9. Dispatch **Production Release** with `operation=deploy`, the explicit current
+   main SHA and its successful complete push regression run ID.
 10. Inspect the activation job summary and confirm the attempted SHA, running SHA,
     persisted application SHA, and active systemd service agree.
 11. After a second manifest-based release exists, exercise `operation=rollback` and
@@ -297,13 +299,13 @@ sudo -u cleo /usr/local/libexec/cleo/check-discord-env \
 
 ## GitHub production environment
 
-The `discord-production` environment requires `CONVEX_DEPLOY_KEY`. Restrict the
+The `discord-production` environment holds `CONVEX_DEPLOY_KEY` for the coordinated backend stage. Restrict the
 environment to `main`.
 
 `CLEO_DISCORD_DEPLOY_ENABLED` controls automatic and manual deploy activation:
 
 - unset or `false`: automatic deployment and manual `deploy` are blocked;
-- `true`: relevant trusted `main` pushes and manual `deploy` may activate production;
+- `true`: authenticated successful main regressions and coordinator manual `deploy` may activate production;
 - manual `validate` remains available while the gate is off;
 - manual `rollback` remains available while the gate is off.
 

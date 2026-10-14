@@ -38,7 +38,7 @@ conclusion. Its existing publishing concurrency and minimal permissions remain.
 Independent main runs can finish out of order. The publisher handles successful
 runs in completion order; this change does not add source-SHA ordering to Pages.
 
-Production workflows remain unchanged, including exact revisions, protected
+At PR #250, production workflows remained unchanged, including exact revisions, protected
 environments, deployment gates, self-hosted activation and rollback. They retain
 their own validation because they are independent production trust boundaries.
 Discord's extra frozen runtime-only install is necessary for portable releases;
@@ -132,3 +132,7 @@ and commit-derived timestamps. They compare complete archive bytes after a
 source mtime change and packaging under distinct caller locale/TZ values.
 Only universally available C/POSIX locales and POSIX timezone strings are used.
 The Linux packager, manifest verification and all negative release tests remain.
+
+JCN-206 now coordinates production promotion after this unchanged regression.
+See [production release gating](../docs/production-release-gating.md) for the
+current dependency graph, trust checks and manual operations.
