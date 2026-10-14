@@ -1,0 +1,866 @@
+name: Production Release
+
+on:
+  workflow_run:
+    workflows: [Regression Tests and Coverage]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Validate packages, deploy current verified main, or recover one runtime
+        type: choice
+        options: [validate, deploy, rollback]
+        default: validate
+        required: true
+      sha:
+        description: Explicit 40-character current main SHA for validate or deploy
+        type: string
+        required: false
+      run_id:
+        description: Successful push-to-main regression run ID for deploy
+        type: string
+        required: false
+      service:
+        description: Validation scope or runtime to roll back. Deploy always uses classification.
+        type: choice
+        options: [both, discord, twitch]
+        default: both
+        required: true
+  workflow_call:
+    inputs:
+      operation:
+        type: string
+        required: true
+      sha:
+        type: string
+        required: true
+      service:
+        type: string
+        required: true
+
+permissions: {}
+
+# One lock covers automatic/manual backend, runtime activation, and incident recovery.
+# Never cancel a production action. Queued superseded runs fail the fresh main check.
+concurrency:
+  group: cleo-production-promotion
+  cancel-in-progress: false
+
+env:
+  INPUT_OPERATION: ${{ inputs.operation || 'deploy' }}
+  INPUT_SHA: ${{ inputs.sha }}
+  INPUT_RUN_ID: ${{ inputs.run_id }}
+  INPUT_SERVICE: ${{ inputs.service || 'both' }}
+
+jobs:
+  control:
+    name: Pin trusted promotion policy
+    if: >-
+      github.repository == 'jcodog/Cleo' && github.ref == 'refs/heads/main' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.repository.full_name == github.repository &&
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          github.event.workflow_run.workflow_id == 310957278 &&
+          github.event.workflow_run.path == '.github/workflows/regression.yml' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.status == 'completed' &&
+          github.event.workflow_run.conclusion == 'success'
+        )
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    outputs:
+      digest: ${{ steps.policy.outputs.digest }}
+      artifact: ${{ steps.policy.outputs.artifact }}
+    steps:
+      # workflow_sha identifies trusted workflow code, never a PR artifact or input ref.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: policy
+        env:
+          ARTIFACT: production-policy-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          echo "digest=$(sha256sum .github/scripts/production-policy.mjs | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.policy.outputs.artifact }}
+          path: .github/scripts/production-policy.mjs
+          if-no-files-found: error
+          retention-days: 7
+
+  authorise:
+    name: Authenticate exact release and classify outstanding changes
+    needs: control
+    if: inputs.operation != 'rollback'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+    outputs:
+      sha: ${{ steps.plan.outputs.sha }}
+      source_run: ${{ steps.plan.outputs.source_run }}
+      source_attempt: ${{ steps.plan.outputs.source_attempt }}
+      backend: ${{ steps.plan.outputs.backend }}
+      discord: ${{ steps.plan.outputs.discord }}
+      twitch: ${{ steps.plan.outputs.twitch }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+      - name: Verify source evidence and component baselines
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/production-policy.mjs plan
+
+  discord-package:
+    name: Validate and package discord bot
+    needs: authorise
+    if: needs.authorise.outputs.discord == 'true'
+    environment: discord-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      artifact_name: discord-release-${{ needs.authorise.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.authorise.outputs.sha }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Verify packaging architecture
+        run: test "$(node -p '`${process.platform}-${process.arch}`')" = "linux-x64"
+
+      - name: Install exact dependencies
+        run: bun ci
+
+      - name: Manual Discord validation checks
+        if: inputs.operation == 'validate'
+        run: |
+          bun run --filter @workspace/discord-bot test
+          bun run --filter @workspace/discord-bot typecheck
+          bun run --filter @workspace/discord-bot lint
+      - name: Build Discord bot
+        env:
+          RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          git diff --exit-code
+          bun run --filter @workspace/discord-bot build
+
+      - name: Package portable Linux x64 release
+        env:
+          CLEO_DISCORD_RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+        id: package
+        run: >-
+          bash .github/scripts/package-discord-release.sh
+          "${{ runner.temp }}/cleo-discord-artifact"
+
+      - name: Upload validated release artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: discord-release-${{ needs.authorise.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          path: |
+            ${{ runner.temp }}/cleo-discord-artifact/*.tar.gz
+            ${{ runner.temp }}/cleo-discord-artifact/*.sha256
+
+      - name: Resolve protected Discord enablement
+        id: gate
+        env:
+          DEPLOY_ENABLED: ${{ vars.CLEO_DISCORD_DEPLOY_ENABLED }}
+        run: |
+          enabled=false
+          if [[ "${DEPLOY_ENABLED,,}" == true ]]; then enabled=true; fi
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+
+  twitch-package:
+    name: Validate and package twitch bot
+    needs: authorise
+    if: needs.authorise.outputs.twitch == 'true'
+    environment: twitch-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      artifact_name: cleo-twitch-${{ needs.authorise.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - name: Resolve protected environment deploy gate
+        id: gate
+        env:
+          DEPLOY_ENABLED: ${{ vars.CLEO_TWITCH_DEPLOY_ENABLED }}
+        run: |
+          enabled=false
+          if [[ "${DEPLOY_ENABLED,,}" == true ]]; then enabled=true; fi
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+      - name: Checkout exact trusted commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ needs.authorise.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.3.14"
+      - name: Set up pinned Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Frozen dependency install
+        run: bun ci
+      - name: Verify the build source matches the trusted commit
+        run: git diff --exit-code
+      - name: Host deployment behavior checks
+        run: bash ops/twitch/test.sh
+      - name: Manual Twitch validation checks
+        if: inputs.operation == 'validate'
+        run: |
+          bun run --filter @workspace/twitch-bot test
+          bun run --filter @workspace/twitch-bot typecheck
+          bun run --filter @workspace/twitch-bot lint
+      - name: Build Twitch once
+        env:
+          RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          bun run --filter @workspace/twitch-bot build
+      - name: Package and verify Linux x64 artifact
+        env:
+          RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+        run: bun run --filter @workspace/twitch-bot package:release "${{ runner.temp }}/cleo-twitch-artifact" "$RELEASE_SHA"
+      - name: Upload verified release
+        id: package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cleo-twitch-${{ needs.authorise.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          path: |
+            ${{ runner.temp }}/cleo-twitch-artifact/*.tar.gz
+            ${{ runner.temp }}/cleo-twitch-artifact/*.sha256
+      - name: Record validation result
+        run: echo 'Twitch checks and immutable artifact verification passed. No chat message was sent.' >> "$GITHUB_STEP_SUMMARY"
+
+  packages-ready:
+    name: Require all affected packages before production
+    needs: [control, authorise, discord-package, twitch-package]
+    if: always() && needs.authorise.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24.15.0"
+      - name: Download trusted control file from this coordinator run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.control.outputs.artifact }}
+          path: ${{ runner.temp }}/production-policy
+          digest-mismatch: error
+      - name: Verify trusted control file checksum
+        env:
+          POLICY_DIGEST: ${{ needs.control.outputs.digest }}
+        run: |
+          [[ "$POLICY_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -
+      - name: Check required package outcomes and protected enablement
+        env:
+          DISCORD_REQUIRED: ${{ needs.authorise.outputs.discord }}
+          TWITCH_REQUIRED: ${{ needs.authorise.outputs.twitch }}
+          DISCORD_RESULT: ${{ needs.discord-package.result }}
+          TWITCH_RESULT: ${{ needs.twitch-package.result }}
+          DISCORD_ENABLED: ${{ needs.discord-package.outputs.enabled }}
+          TWITCH_ENABLED: ${{ needs.twitch-package.outputs.enabled }}
+        run: |
+          node "$RUNNER_TEMP/production-policy/production-policy.mjs" packages
+          if [[ "$INPUT_OPERATION" == deploy ]]; then
+            [[ "$DISCORD_REQUIRED" != true || "$DISCORD_ENABLED" == true ]]
+            [[ "$TWITCH_REQUIRED" != true || "$TWITCH_ENABLED" == true ]]
+          fi
+
+  backend:
+    name: Authorised backend barrier and single Convex deployment
+    needs: [control, authorise, packages-ready]
+    if: >-
+      !cancelled() && needs.control.result == 'success' &&
+      needs.authorise.result == 'success' && needs.packages-ready.result == 'success' &&
+      inputs.operation != 'validate' && inputs.operation != 'rollback'
+    environment: discord-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+    env:
+      RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+      SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
+      SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
+      GH_TOKEN: ${{ github.token }}
+      COMPONENT: backend
+    steps:
+      - name: Download trusted control file from this coordinator run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.control.outputs.artifact }}
+          path: ${{ runner.temp }}/production-policy
+          digest-mismatch: error
+      - name: Verify trusted control file checksum
+        env:
+          POLICY_DIGEST: ${{ needs.control.outputs.digest }}
+        run: |
+          [[ "$POLICY_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        if: needs.authorise.outputs.backend == 'true'
+        with:
+          ref: ${{ needs.authorise.outputs.sha }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        if: needs.authorise.outputs.backend == 'true'
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        if: needs.authorise.outputs.backend == 'true'
+        with:
+          node-version-file: .nvmrc
+      - name: Frozen install at the release SHA
+        if: needs.authorise.outputs.backend == 'true'
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          bun ci
+      - name: Claim durable backend receipt
+        id: claim
+        if: needs.authorise.outputs.backend == 'true'
+        run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
+      - name: Recheck authorisation and deploy Convex once
+        if: needs.authorise.outputs.backend == 'true' && steps.claim.outputs.apply == 'true'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: |
+          node "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
+          bun run --filter @workspace/backend deploy
+      - name: Confirm durable backend success
+        if: needs.authorise.outputs.backend == 'true' && steps.claim.outputs.apply == 'true'
+        env:
+          RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
+        run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" complete
+      - name: Record backend result
+        env:
+          REQUIRED: ${{ needs.authorise.outputs.backend }}
+          APPLIED: ${{ steps.claim.outputs.apply }}
+          RECEIPT: ${{ steps.claim.outputs.receipt }}
+        run: echo "Backend barrier passed for $RELEASE_SHA. Convex required=$REQUIRED, applied=${APPLIED:-false}, receipt=${RECEIPT:-none}." >> "$GITHUB_STEP_SUMMARY"
+
+  discord-activate:
+    name: Activate discord release on production VPS
+    needs: [control, authorise, discord-package, backend]
+    if: >-
+      !cancelled() && needs.control.result == 'success' && needs.authorise.result == 'success' &&
+      needs.discord-package.result == 'success' && needs.authorise.outputs.discord == 'true' &&
+      needs.backend.result == 'success'
+    environment: discord-production
+    runs-on: cleo-prod
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+    env:
+      RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+      SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
+      SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
+      GH_TOKEN: ${{ github.token }}
+      COMPONENT: discord
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
+      CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
+      CLEO_DISCORD_HOST_NODE: /usr/local/libexec/cleo/node
+      CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
+      CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
+      CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
+      CLEO_DISCORD_SERVICE: cleo-discord.service
+      CLEO_DISCORD_COMMAND_SERVICE: cleo-discord-register-commands.service
+      CLEO_DISCORD_RUNTIME_USER: cleo
+      CLEO_DISCORD_RUNTIME_GROUP: cleo
+      CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
+      CLEO_DISCORD_RUNTIME_READ_GROUP: cleo-runtime
+
+    steps:
+      - name: Download trusted control file from this coordinator run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.control.outputs.artifact }}
+          path: ${{ runner.temp }}/production-policy
+          digest-mismatch: error
+      - name: Verify trusted control file checksum
+        env:
+          POLICY_DIGEST: ${{ needs.control.outputs.digest }}
+        run: |
+          [[ "$POLICY_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -
+      - name: Verify production runner contract
+        run: |
+          test "$(/usr/local/libexec/cleo/deploy-discord-release contract-version)" = \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION"
+          /usr/local/libexec/cleo/check-discord-runner \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION" \
+            "$CLEO_DISCORD_HOST_NODE_VERSION" \
+            "$CLEO_DISCORD_RELEASE_PLATFORM"
+
+      - name: Download validated release artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.discord-package.outputs.artifact_name }}
+          path: ${{ runner.temp }}/cleo-discord-release
+
+      - name: Claim auditable runtime intent
+        id: claim
+        run: |
+          "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
+
+      - name: Activate release and record resulting state
+        id: runtime
+        env:
+          CLEO_DISCORD_EXPECTED_SHA: ${{ needs.authorise.outputs.sha }}
+          CLEO_DISCORD_RELEASE_ARCHIVE: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ needs.authorise.outputs.sha }}.tar.gz
+          CLEO_DISCORD_RELEASE_CHECKSUM: ${{ runner.temp }}/cleo-discord-release/cleo-discord-${{ needs.authorise.outputs.sha }}.tar.gz.sha256
+        run: |
+          "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
+          echo "attempted=true" >> "$GITHUB_OUTPUT"
+          set +e
+          /usr/local/libexec/cleo/deploy-discord-release deploy
+          deployment_status=$?
+          set -e
+
+          current_target="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current" 2>/dev/null || true)"
+          running_sha="${current_target##*/}"
+          service_status="$(systemctl is-active "$CLEO_DISCORD_SERVICE" 2>/dev/null || true)"
+          state_application="unavailable"
+          state_previous="unavailable"
+          state_fingerprint="unavailable"
+          if state_output="$(/usr/local/libexec/cleo/read-discord-deployment-state \
+            "$CLEO_DISCORD_DEPLOY_ROOT/shared/deployment-state.env" 2>/dev/null)"; then
+            mapfile -t state_values <<< "$state_output"
+            state_application="${state_values[0]:-unavailable}"
+            state_previous="${state_values[1]:-none}"
+            state_fingerprint="${state_values[2]:-unavailable}"
+          fi
+
+          result="failed"
+          if [[ "$deployment_status" -eq 0 ]]; then
+            result="succeeded"
+          fi
+          {
+            echo "### Discord production runtime activation"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            printf '| Result | `%s` |\n' "$result"
+            printf '| Attempted SHA | `%s` |\n' "$CLEO_DISCORD_EXPECTED_SHA"
+            printf '| Running SHA after attempt | `%s` |\n' "${running_sha:-none}"
+            printf '| Persisted application SHA | `%s` |\n' "$state_application"
+            printf '| Persisted previous SHA | `%s` |\n' "${state_previous:-none}"
+            printf '| Command fingerprint | `%s` |\n' "$state_fingerprint"
+            printf '| Service status | `%s` |\n' "${service_status:-unknown}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$deployment_status" -eq 0 ]]; then
+            test "$running_sha" = "$CLEO_DISCORD_EXPECTED_SHA"
+            test "$service_status" = active
+          fi
+          exit "$deployment_status"
+
+      - name: Deploy and verify active release commands
+        id: commands
+        run: |
+          set -euo pipefail
+          command_result=failed
+          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
+          metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
+          import { readFileSync } from "node:fs"
+          import path from "node:path"
+          const root = process.argv[2]
+          const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
+          const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+          if (manifest.commandVerificationVersion !== 1) {
+            throw new Error("Active release predates authoritative command verification; complete deployment/rollback cannot be confirmed. Redeploy a verified release through the production workflow.")
+          }
+          if (pkg.name !== "@workspace/discord-bot" || pkg.version !== manifest.botVersion ||
+              !/^[0-9a-f]{40}$/.test(manifest.commitSha) || path.basename(root) !== manifest.commitSha ||
+              !/^[0-9a-f]{64}$/.test(manifest.commandFingerprint) ||
+              !Array.isArray(manifest.globalCommandNames) || manifest.globalCommandNames.length === 0 ||
+              manifest.globalCommandNames.some((name) => typeof name !== "string" || !/^[a-z0-9_-]{1,32}$/.test(name))) {
+            throw new Error("Active release command deployment metadata is invalid.")
+          }
+          console.log(`SHA=${manifest.commitSha} bot=${pkg.version} fingerprint=${manifest.commandFingerprint}`)
+          console.log(`Intended global commands (${manifest.globalCommandNames.length}): ${manifest.globalCommandNames.join(", ")}`)
+          NODE
+          )"
+          echo "Command deployment started: $metadata"
+          "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
+          test "$(basename "$release_root")" = "$RELEASE_SHA"
+          sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
+          test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
+          command_result=verified
+          echo "Discord command deployment verified: $metadata"
+          {
+            echo
+            echo "Global Discord commands verified by the active release registration program."
+            echo "$metadata"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore runtime after explicit command deployment failure
+        id: recovery
+        if: failure() && steps.runtime.outcome == 'success' && steps.commands.outcome == 'failure'
+        run: |
+          echo "Command deployment failed; attempting one runtime rollback." >> "$GITHUB_STEP_SUMMARY"
+          /usr/local/libexec/cleo/deploy-discord-release rollback
+
+      - name: Deploy and verify restored release commands
+        id: restored_commands
+        if: >-
+          failure() && steps.runtime.outputs.attempted == 'true' &&
+          (steps.recovery.outcome == 'success' || steps.runtime.outcome == 'failure')
+        run: |
+          set -euo pipefail
+          command_result=failed
+          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
+          metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
+          import { readFileSync } from "node:fs"
+          import path from "node:path"
+          const root = process.argv[2]
+          const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
+          const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+          if (manifest.commandVerificationVersion !== 1) {
+            throw new Error("Active release predates authoritative command verification; complete deployment/rollback cannot be confirmed. Redeploy a verified release through the production workflow.")
+          }
+          if (pkg.name !== "@workspace/discord-bot" || pkg.version !== manifest.botVersion ||
+              !/^[0-9a-f]{40}$/.test(manifest.commitSha) || path.basename(root) !== manifest.commitSha ||
+              !/^[0-9a-f]{64}$/.test(manifest.commandFingerprint) ||
+              !Array.isArray(manifest.globalCommandNames) || manifest.globalCommandNames.length === 0 ||
+              manifest.globalCommandNames.some((name) => typeof name !== "string" || !/^[a-z0-9_-]{1,32}$/.test(name))) {
+            throw new Error("Active release command deployment metadata is invalid.")
+          }
+          console.log(`SHA=${manifest.commitSha} bot=${pkg.version} fingerprint=${manifest.commandFingerprint}`)
+          console.log(`Intended global commands (${manifest.globalCommandNames.length}): ${manifest.globalCommandNames.join(", ")}`)
+          NODE
+          )"
+          echo "Command deployment started: $metadata"
+          sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
+          test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
+          command_result=verified
+          echo "Discord command deployment verified: $metadata"
+          {
+            echo
+            echo "Global Discord commands verified by the active release registration program."
+            echo "$metadata"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Confirm successful Discord promotion
+        env:
+          RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
+        run: '"$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" complete'
+
+  twitch-activate:
+    name: Activate twitch release on production VPS
+    needs: [control, authorise, twitch-package, backend]
+    if: >-
+      !cancelled() && needs.control.result == 'success' && needs.authorise.result == 'success' &&
+      needs.twitch-package.result == 'success' && needs.authorise.outputs.twitch == 'true' &&
+      needs.backend.result == 'success'
+    environment: twitch-production
+    runs-on: cleo-prod
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+    env:
+      RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+      SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
+      SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
+      GH_TOKEN: ${{ github.token }}
+      COMPONENT: twitch
+    steps:
+      - name: Download trusted control file from this coordinator run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.control.outputs.artifact }}
+          path: ${{ runner.temp }}/production-policy
+          digest-mismatch: error
+      - name: Verify trusted control file checksum
+        env:
+          POLICY_DIGEST: ${{ needs.control.outputs.digest }}
+        run: |
+          [[ "$POLICY_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -
+      - name: Verify installed host contract
+        run: /usr/local/libexec/cleo/twitch/check-twitch-runner
+      - name: Download verified artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.twitch-package.outputs.artifact_name }}
+          path: ${{ runner.temp }}/cleo-twitch-release
+      - name: Claim auditable runtime intent
+        id: claim
+        run: /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
+
+      - name: Activate with readiness and automatic rollback
+        env:
+          RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/cleo-twitch-release
+        run: |
+          /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
+          set +e
+          /usr/local/libexec/cleo/twitch/deploy-twitch-release deploy "$RELEASE_SHA" \
+            "$ARTIFACT_DIRECTORY/cleo-twitch-$RELEASE_SHA.tar.gz" \
+            "$ARTIFACT_DIRECTORY/cleo-twitch-$RELEASE_SHA.tar.gz.sha256"
+          result=$?
+          set -e
+          {
+            echo '### Twitch production activation'
+            echo "Attempted SHA: $RELEASE_SHA"
+            echo "Controller exit status: $result"
+            echo "Current release: $(readlink -f /srv/cleo/twitch-bot/current || true)"
+            echo "Service: $(systemctl is-active cleo-twitch.service || true)"
+            echo 'Readiness failure triggers verified rollback or stops the service. No smoke message is sent.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$result" -eq 0 ]]; then
+            test "$(basename "$(readlink -f /srv/cleo/twitch-bot/current)")" = "$RELEASE_SHA"
+            test "$(systemctl is-active cleo-twitch.service)" = active
+          fi
+          exit "$result"
+      - name: Confirm successful Twitch promotion
+        env:
+          RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
+        run: /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" complete
+
+  discord-rollback:
+    name: Roll back Discord production
+    needs: control
+    if: inputs.operation == 'rollback' && inputs.service == 'discord'
+    environment: discord-production
+    runs-on: cleo-prod
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COMPONENT: discord
+      CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"
+      CLEO_DISCORD_HOST_NODE_VERSION: "24.15.0"
+      CLEO_DISCORD_HOST_NODE: /usr/local/libexec/cleo/node
+      CLEO_DISCORD_RELEASE_PLATFORM: linux-x64
+      CLEO_DISCORD_DEPLOY_ROOT: /srv/cleo/discord-bot
+      CLEO_DISCORD_ENV_FILE: /etc/cleo/discord-bot.env
+      CLEO_DISCORD_SERVICE: cleo-discord.service
+      CLEO_DISCORD_COMMAND_SERVICE: cleo-discord-register-commands.service
+      CLEO_DISCORD_RUNTIME_USER: cleo
+      CLEO_DISCORD_RUNTIME_GROUP: cleo
+      CLEO_DISCORD_DEPLOY_GROUP: cleo-deploy
+      CLEO_DISCORD_RUNTIME_READ_GROUP: cleo-runtime
+
+    steps:
+      - name: Download trusted control file from this coordinator run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.control.outputs.artifact }}
+          path: ${{ runner.temp }}/production-policy
+          digest-mismatch: error
+      - name: Verify trusted control file checksum
+        env:
+          POLICY_DIGEST: ${{ needs.control.outputs.digest }}
+        run: |
+          [[ "$POLICY_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -
+      - name: Verify production runner contract
+        run: |
+          test "$(/usr/local/libexec/cleo/deploy-discord-release contract-version)" = \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION"
+          /usr/local/libexec/cleo/check-discord-runner \
+            "$CLEO_DISCORD_HOST_CONTRACT_VERSION" \
+            "$CLEO_DISCORD_HOST_NODE_VERSION" \
+            "$CLEO_DISCORD_RELEASE_PLATFORM"
+
+      - name: Claim auditable runtime intent
+        id: claim
+        run: |
+          "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
+
+      - name: Roll back and record resulting state
+        id: runtime
+        run: |
+          rollback_from="unavailable"
+          rollback_target="unavailable"
+          if pre_state="$(/usr/local/libexec/cleo/read-discord-deployment-state \
+            "$CLEO_DISCORD_DEPLOY_ROOT/shared/deployment-state.env" 2>/dev/null)"; then
+            mapfile -t pre_values <<< "$pre_state"
+            rollback_from="${pre_values[0]:-unavailable}"
+            rollback_target="${pre_values[1]:-unavailable}"
+          fi
+
+          set +e
+          /usr/local/libexec/cleo/deploy-discord-release rollback
+          rollback_status=$?
+          set -e
+
+          current_target="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current" 2>/dev/null || true)"
+          running_sha="${current_target##*/}"
+          service_status="$(systemctl is-active "$CLEO_DISCORD_SERVICE" 2>/dev/null || true)"
+          state_application="unavailable"
+          state_previous="unavailable"
+          state_fingerprint="unavailable"
+          if state_output="$(/usr/local/libexec/cleo/read-discord-deployment-state \
+            "$CLEO_DISCORD_DEPLOY_ROOT/shared/deployment-state.env" 2>/dev/null)"; then
+            mapfile -t state_values <<< "$state_output"
+            state_application="${state_values[0]:-unavailable}"
+            state_previous="${state_values[1]:-none}"
+            state_fingerprint="${state_values[2]:-unavailable}"
+          fi
+
+          result="failed"
+          if [[ "$rollback_status" -eq 0 ]]; then
+            result="succeeded"
+          fi
+          {
+            echo "### Discord production runtime rollback"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            printf '| Result | `%s` |\n' "$result"
+            printf '| Previous running SHA | `%s` |\n' "$rollback_from"
+            printf '| Rollback target | `%s` |\n' "$rollback_target"
+            printf '| Running SHA after attempt | `%s` |\n' "${running_sha:-none}"
+            printf '| Persisted application SHA | `%s` |\n' "$state_application"
+            printf '| Persisted previous SHA | `%s` |\n' "${state_previous:-none}"
+            printf '| Command fingerprint | `%s` |\n' "$state_fingerprint"
+            printf '| Service status | `%s` |\n' "${service_status:-unknown}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$rollback_status"
+
+      - name: Deploy and verify active release commands
+        id: commands
+        run: |
+          set -euo pipefail
+          command_result=failed
+          trap 'echo "Command deployment result: $command_result"; echo "Command deployment: $command_result" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          release_root="$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")"
+          metadata="$("$CLEO_DISCORD_HOST_NODE" --input-type=module - "$release_root" <<'NODE'
+          import { readFileSync } from "node:fs"
+          import path from "node:path"
+          const root = process.argv[2]
+          const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
+          const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+          if (manifest.commandVerificationVersion !== 1) {
+            throw new Error("Active release predates authoritative command verification; complete deployment/rollback cannot be confirmed. Redeploy a verified release through the production workflow.")
+          }
+          if (pkg.name !== "@workspace/discord-bot" || pkg.version !== manifest.botVersion ||
+              !/^[0-9a-f]{40}$/.test(manifest.commitSha) || path.basename(root) !== manifest.commitSha ||
+              !/^[0-9a-f]{64}$/.test(manifest.commandFingerprint) ||
+              !Array.isArray(manifest.globalCommandNames) || manifest.globalCommandNames.length === 0 ||
+              manifest.globalCommandNames.some((name) => typeof name !== "string" || !/^[a-z0-9_-]{1,32}$/.test(name))) {
+            throw new Error("Active release command deployment metadata is invalid.")
+          }
+          console.log(`SHA=${manifest.commitSha} bot=${pkg.version} fingerprint=${manifest.commandFingerprint}`)
+          console.log(`Intended global commands (${manifest.globalCommandNames.length}): ${manifest.globalCommandNames.join(", ")}`)
+          NODE
+          )"
+          echo "Command deployment started: $metadata"
+          sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
+          test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
+          command_result=verified
+          echo "Discord command deployment verified: $metadata"
+          {
+            echo
+            echo "Global Discord commands verified by the active release registration program."
+            echo "$metadata"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  twitch-rollback:
+    name: Emergency Twitch rollback
+    needs: control
+    if: inputs.operation == 'rollback' && inputs.service == 'twitch'
+    environment: twitch-production
+    runs-on: cleo-prod
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COMPONENT: twitch
+    steps:
+      - name: Download trusted control file from this coordinator run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.control.outputs.artifact }}
+          path: ${{ runner.temp }}/production-policy
+          digest-mismatch: error
+      - name: Verify trusted control file checksum
+        env:
+          POLICY_DIGEST: ${{ needs.control.outputs.digest }}
+        run: |
+          [[ "$POLICY_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -
+      - name: Verify installed host contract
+        run: /usr/local/libexec/cleo/twitch/check-twitch-runner
+      - name: Claim auditable runtime intent
+        id: claim
+        run: /usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" claim
+
+      - name: Restore recorded verified Twitch release
+        run: |
+          set +e
+          /usr/local/libexec/cleo/twitch/deploy-twitch-release rollback
+          result=$?
+          set -e
+          {
+            echo '### Twitch emergency rollback'
+            echo "Controller exit status: $result"
+            echo "Current release: $(readlink -f /srv/cleo/twitch-bot/current || true)"
+            echo "Service: $(systemctl is-active cleo-twitch.service || true)"
+            echo 'A zero controller status confirms readiness. Convex was not changed.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"

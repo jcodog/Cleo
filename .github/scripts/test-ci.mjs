@@ -75,31 +75,15 @@ for (const name of [
   "discord-production.yml",
   "twitch-production.yml",
   "discord-runner-smoke.yml",
+  "production-release.yml",
 ])
   for (const job of Object.values(readWorkflow(name).jobs))
-    for (const step of job.steps)
+    for (const step of job.steps ?? [])
       if (step.uses) assert.match(step.uses, /@[a-f0-9]{40}$/)
 
 const gate = workflow.jobs.regression
-for (const name of [
-  "discord-production.yml",
-  "twitch-production.yml",
-  "discord-runner-smoke.yml",
-]) {
-  const production = readWorkflow(name)
-  assert.equal(production.concurrency["cancel-in-progress"], false)
-  for (const job of Object.values(production.jobs)) {
-    assert.ok(job.if.includes("github.ref == 'refs/heads/main'"))
-    if (job["runs-on"] === "cleo-prod") {
-      assert.ok(
-        ["discord-production", "twitch-production"].includes(job.environment)
-      )
-      assert.ok(
-        !job.steps.some((item) => item.uses?.startsWith("actions/checkout@"))
-      )
-    }
-  }
-}
+await import("./test-production-policy.mjs")
+await import("./test-production-workflow.mjs")
 assert.equal(gate.name, "Tests, lint, typecheck, and coverage")
 assert.deepEqual(gate.needs, required)
 assert.equal(gate.if, "always()")

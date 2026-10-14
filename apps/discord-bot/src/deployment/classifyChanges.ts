@@ -10,8 +10,6 @@ const webFiles = new Set([
   "packages/env/src/origins.test.ts",
   "packages/shared/src/appRoutes.ts",
   "packages/shared/src/appRoutes.test.ts",
-  "apps/discord-bot/src/deployment/classifyChanges.ts",
-  "apps/discord-bot/src/deployment/classifyChanges.test.ts",
   "apps/discord-bot/src/deployment/webOnlyChanges.ts",
   "apps/discord-bot/src/deployment/webOnlyChanges.test.ts",
 ])
@@ -92,26 +90,33 @@ function configWithoutWebEntries(file: string, source: string): unknown {
   if (file === "bun.lock") {
     if (!isRecord(config.workspaces) || !isRecord(config.packages))
       throw new Error("Invalid lockfile")
-    const landing = config.workspaces["apps/landing"]
-    if (landing !== undefined) {
-      const landingPackages = lockPackagesUsedBy(
+    const webWorkspaces = ["apps/landing", "apps/dashboard"]
+    const webRoots: unknown[] = []
+    for (const name of webWorkspaces) {
+      if (config.workspaces[name] !== undefined)
+        webRoots.push(config.workspaces[name])
+    }
+    if (webRoots.length > 0) {
+      const webPackages = lockPackagesUsedBy(
         config.workspaces,
         config.packages,
-        [landing]
+        webRoots
       )
       const runtimePackages = lockPackagesUsedBy(
         config.workspaces,
         config.packages,
         Object.entries(config.workspaces)
-          .filter(([name]) => name !== "apps/landing")
+          .filter(([name]) => !webWorkspaces.includes(name))
           .map(([, workspace]) => workspace)
       )
-      for (const key of landingPackages) {
+      for (const key of webPackages) {
         if (!runtimePackages.has(key)) delete config.packages[key]
       }
     }
     delete config.workspaces["apps/landing"]
+    delete config.workspaces["apps/dashboard"]
     delete config.packages["@workspace/landing"]
+    delete config.packages["@workspace/dashboard"]
   } else if (file === "turbo.json") {
     if (!Array.isArray(config.globalEnv))
       throw new Error("Invalid Turbo environment")
@@ -198,6 +203,7 @@ const DEPLOY_FILES = new Set<string>([
   "scripts/welcome-emoji-notice.txt",
   ".github/scripts/check-discord-bundle-symlinks.sh",
   ".github/scripts/package-discord-release.sh",
+  ".github/scripts/verify-discord-release.sh",
   ".github/workflows/discord-production.yml",
   ".nvmrc",
   "package.json",
@@ -223,6 +229,7 @@ export function isConvexDeployPath(file: string): boolean {
       "packages/logger/",
       "packages/shared/",
       "packages/typescript-config/",
+      "ops/convex/",
     ].some((prefix) => file.startsWith(prefix)) ||
     [
       "package.json",
@@ -231,15 +238,18 @@ export function isConvexDeployPath(file: string): boolean {
       "turbo.json",
       ".nvmrc",
       "convex.json",
+      ".github/workflows/production-release.yml",
+      ".github/scripts/production-policy.mjs",
+      "apps/discord-bot/src/deployment/classifyChanges.ts",
     ].includes(file) ||
-    /^tsconfig(?:\.[^/]+)?\.json$/.test(file) ||
-    /^(?:apps|packages)\/[^/]+\/package\.json$/.test(file)
+    /^tsconfig(?:\.[^/]+)?\.json$/.test(file)
   )
 }
 
 export function isDiscordDeployPath(file: string): boolean {
   if (isWebOnlyPath(file)) return false
   return (
+    isConvexDeployPath(file) ||
     DEPLOY_FILES.has(file) ||
     DEPLOY_PREFIXES.some((prefix) => file.startsWith(prefix))
   )
@@ -257,6 +267,8 @@ export function isTwitchDeployPath(file: string): boolean {
     !isWebOnlyPath(file) &&
     (file.startsWith("apps/twitch-bot/") ||
       file.startsWith("ops/twitch/") ||
+      file === ".github/workflows/twitch-production.yml" ||
+      file === ".github/scripts/verify-twitch-release.sh" ||
       isConvexDeployPath(file))
   )
 }
@@ -272,22 +284,31 @@ function changedPathsBetween(
   baseSha: string,
   headSha: string
 ): string[] | null {
+  if (headSha.length !== 40 || !/^[a-f0-9]{40}$/.test(headSha)) {
+    throw new Error("Invalid classification head SHA")
+  }
   if (!baseSha) {
     return null
+  }
+  if (baseSha.length !== 40 || !/^[a-f0-9]{40}$/.test(baseSha)) {
+    throw new Error("Invalid classification base SHA")
   }
 
   try {
     execFileSync("git", ["cat-file", "-e", `${baseSha}^{commit}`], {
       stdio: "ignore",
     })
+    execFileSync("git", ["merge-base", "--is-ancestor", baseSha, headSha], {
+      stdio: "ignore",
+    })
   } catch {
     return null
   }
 
-  return execFileSync("git", ["diff", "--name-only", baseSha, headSha], {
+  return execFileSync("git", ["diff", "--name-only", "-z", baseSha, headSha], {
     encoding: "utf8",
   })
-    .split(/\r?\n/)
+    .split("\0")
     .filter(Boolean)
     .filter((file) => {
       if (isWebOnlyPath(file)) return false
@@ -300,15 +321,21 @@ function changedPathsBetween(
         ].includes(file)
       )
         return true
-      return !isWebOnlyConfigChange(
-        file,
-        execFileSync("git", ["show", `${baseSha}:${file}`], {
-          encoding: "utf8",
-        }),
-        execFileSync("git", ["show", `${headSha}:${file}`], {
-          encoding: "utf8",
-        })
-      )
+      try {
+        return !isWebOnlyConfigChange(
+          file,
+          execFileSync("git", ["show", `${baseSha}:${file}`], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+          }),
+          execFileSync("git", ["show", `${headSha}:${file}`], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+          })
+        )
+      } catch {
+        return true
+      }
     })
 }
 
@@ -322,6 +349,9 @@ function isDirectEntrypoint(): boolean {
 
 if (isDirectEntrypoint()) {
   const [, , mode = "commands", baseSha = "", headSha = "HEAD"] = process.argv
+  if (!["commands", "backend", "twitch", "deploy"].includes(mode)) {
+    throw new Error("Unknown classification mode")
+  }
   const changedPaths = changedPathsBetween(baseSha, headSha)
   const changed =
     changedPaths === null

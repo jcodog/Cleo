@@ -6,7 +6,26 @@ import {
   isCommandRegistrationPath,
   isDiscordDeployPath,
   isConvexDeployPath,
+  isTwitchDeployPath,
 } from "./classifyChanges"
+
+test("service manifests keep runtime scope while shared infrastructure selects all components", () => {
+  for (const service of ["discord", "twitch"]) {
+    const file = `apps/${service}-bot/package.json`
+    assert.equal(isConvexDeployPath(file), false)
+    assert.equal(isDiscordDeployPath(file), service === "discord")
+    assert.equal(isTwitchDeployPath(file), service === "twitch")
+  }
+  for (const file of [
+    "ops/convex/production.env.example",
+    ".github/workflows/production-release.yml",
+    ".github/scripts/production-policy.mjs",
+  ]) {
+    assert.equal(isConvexDeployPath(file), true)
+    assert.equal(isDiscordDeployPath(file), true)
+    assert.equal(isTwitchDeployPath(file), true)
+  }
+})
 
 test("Convex classification includes imported packages, dependency resolution and build inputs", () => {
   for (const path of [
@@ -23,7 +42,6 @@ test("Convex classification includes imported packages, dependency resolution an
     "convex.json",
     "tsconfig.json",
     "tsconfig.build.json",
-    "packages/ui/package.json",
   ])
     assert.equal(isConvexDeployPath(path), true, path)
   for (const path of [
@@ -35,6 +53,9 @@ test("Convex classification includes imported packages, dependency resolution an
     "ops/twitch/test.sh",
     "docs/twitch/bootstrap.md",
     "packages/ui/src/button.tsx",
+    "packages/ui/package.json",
+    "apps/discord-bot/package.json",
+    "apps/twitch-bot/package.json",
     "tsconfig.json/other",
   ])
     assert.equal(isConvexDeployPath(path), false, path)
