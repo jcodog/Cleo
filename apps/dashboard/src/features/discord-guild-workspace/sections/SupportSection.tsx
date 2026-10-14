@@ -131,6 +131,7 @@ export function SupportSection({
   )
 }
 
+/** Preserve saved routing and ticket visibility while the replacement support flow keeps every edit disabled. */
 function SupportWorkspace({
   config,
   discordGuildId,
@@ -308,6 +309,7 @@ function SupportWorkspace({
   )
 }
 
+/** Render existing ticket records, keeping a missing message explicit and new requests unavailable. */
 function GuildSupportTicketList({
   tickets,
 }: {

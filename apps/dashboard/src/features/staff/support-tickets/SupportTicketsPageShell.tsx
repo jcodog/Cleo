@@ -22,6 +22,7 @@ import {
 } from "@workspace/ui/components/table"
 import { useQuery } from "convex/react"
 
+/** Present the private support queue only after its server query confirms staff access. */
 export function SupportTicketsPageShell() {
   const result = useQuery(api.queries.dashboard.supportTickets.listJcn.list, {})
 

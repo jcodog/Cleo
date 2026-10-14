@@ -1,6 +1,7 @@
 import { BotStatusFields, OverviewField } from "../components/workspace-ui"
 import type { GuildOverview } from "../types"
 
+/** Present verified management access and persisted bot-presence timestamps without editing them. */
 export function SettingsSection({
   isBotLeft,
   overview,

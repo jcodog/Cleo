@@ -181,6 +181,7 @@ function getConfiguredFeatureState(
   return requiredTarget ? "Ready" : "Needs Channel"
 }
 
+/** Link readiness to its settings page, honoring source-specific unavailable states when supplied. */
 function FeatureState({
   enabled,
   href,

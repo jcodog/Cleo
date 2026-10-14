@@ -33,6 +33,7 @@ import {
 import { SaveStatus } from "../components/workspace-ui"
 import type { GuildModerationAction, GuildOverview, SaveState } from "../types"
 
+/** Save moderation routing with pending/error feedback and disable configuration when the bot has left. */
 export function ModerationSection({
   isBotLeft,
   overview,
@@ -154,6 +155,7 @@ export function ModerationSection({
   )
 }
 
+/** Keep forbidden, missing, loading and empty moderation history distinct from stored actions. */
 function RecentModerationActions({
   result,
 }: {

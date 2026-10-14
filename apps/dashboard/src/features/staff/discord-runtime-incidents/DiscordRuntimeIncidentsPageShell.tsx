@@ -68,6 +68,7 @@ const serviceAreaOptions: ServiceAreaFilter[] = [
   "unknown",
 ]
 
+/** Query at most 50 filtered incidents while preserving server-enforced staff and feature-gate outcomes. */
 export function DiscordRuntimeIncidentsPageShell() {
   const [severity, setSeverity] = useState<SeverityFilter>("all")
   const [serviceArea, setServiceArea] = useState<ServiceAreaFilter>("all")
@@ -175,6 +176,7 @@ export function DiscordRuntimeIncidentsPageShell() {
   )
 }
 
+/** Collect filter values; the parent omits unrestricted selectors and trims the optional guild ID. */
 function IncidentFilters({
   discordGuildId,
   onDiscordGuildIdChange,
@@ -245,6 +247,7 @@ function IncidentFilters({
   )
 }
 
+/** Render stored fingerprints and backend-redacted metadata without broadening the incident query. */
 function IncidentTable({
   incidents,
 }: {

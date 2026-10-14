@@ -581,6 +581,7 @@ function GuildStateBadge({ guild }: { guild: InstallableGuild }) {
   return null
 }
 
+/** Present discovered guilds with new-install actions gated by the caller's availability state. */
 function GuildList({
   activeGuildId,
   guilds,

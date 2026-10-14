@@ -50,6 +50,7 @@ import {
 } from "../components/workspace-ui"
 import type { GuildAuditEvent, GuildOverview, SaveState } from "../types"
 
+/** Wait for all guild-scoped reads and reject unavailable access before exposing logs or manual sync. */
 export function LogsSection({
   discordGuildId,
   isBotLeft,
@@ -291,6 +292,7 @@ export function LogsSection({
   )
 }
 
+/** Save logging fields through the authenticated mutation; bot departure and pending saves disable edits. */
 function LoggingConfig({
   isBotLeft,
   overview,
@@ -429,6 +431,7 @@ function LoggingConfig({
   )
 }
 
+/** Distinguish absent sync history from persisted status, timestamps and errors. */
 function AuditSyncSummary({
   syncState,
 }: {
@@ -486,6 +489,7 @@ function AuditSummaryItem({ label, value }: { label: string; value: string }) {
   )
 }
 
+/** Show stored audit events or an explicit empty state rather than placeholder activity. */
 function AuditEventList({
   emptyDescription,
   emptyTitle,

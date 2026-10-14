@@ -35,6 +35,7 @@ type ManageableGuild = {
 
 const EMPTY_MANAGEABLE_GUILDS: ManageableGuild[] = []
 
+/** List deduplicated, openable guilds from authorized queries without inventing missing membership data. */
 export function DiscordDashboardPageShell() {
   const { isLoading: isConvexAuthLoading } = useConvexAuth()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)

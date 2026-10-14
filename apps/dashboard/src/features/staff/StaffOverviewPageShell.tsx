@@ -170,6 +170,7 @@ function OperationalTotals({
   )
 }
 
+/** Keep numeric snapshots in definition values so they do not become meaningless navigation headings. */
 function OperationalTotal({
   description,
   icon,
