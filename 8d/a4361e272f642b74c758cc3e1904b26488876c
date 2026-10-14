@@ -1,5 +1,6 @@
 apps/dashboard/src/features/discord-guild-workspace/sections/WelcomeSection.test.ts
   s_8bbdf1073b062e::t_1bc8bc093d1ec5 254-284
+  s_8bbdf1073b062e::t_ecc0654ec02529 254-262,264-265,267-269,271,282-284
 apps/dashboard/src/features/discord-guild-workspace/sections/WelcomeSection.tsx
   s_8bbdf1073b062e::t_aa6b9de83c2384 70-74
 ---
@@ -9,6 +10,14 @@ apps/dashboard/src/features/discord-guild-workspace/sections/WelcomeSection.tsx
   "base_commit_sha": "8da4361e272f642b74c758cc3e1904b26488876c",
   "prompts": {},
   "sessions": {
+    "s_37929f027a8555": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12031-ec8f-7021-8886-ec8208051e54",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
     "s_8bbdf1073b062e": {
       "agent_id": {
         "tool": "codex",
