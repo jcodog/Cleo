@@ -22,9 +22,12 @@ credentials, reads Bun from `packageManager`, reads Node from `.nvmrc`, and runs
 `bun ci` once. Actions remain pinned to commit SHAs. Regression has only
 `contents: read`, no protected environment and no production secrets.
 
-Superseded PR runs cancel within their own concurrency group. Main runs queue
-and finish, preserving complete coverage artifacts for publishing. All jobs
-have timeouts. No dependency/build/browser cache is restored from other runs.
+Superseded runs of the same PR share a concurrency group and may cancel each
+other. Different PRs have different groups. Push and manual-dispatch groups use
+the event name and unique run ID, including repeated dispatches of the same SHA.
+They do not coalesce pending main runs or cancel each other. Runner availability
+still controls queuing, and manual cancellation, timeouts or failures can prevent
+completion. No dependency/build/browser cache is restored from other runs.
 
 `Publish Coverage` is unchanged. Its separate `workflow_run` publisher requires
 a successful push/manual run from this repository's main regression workflow.
@@ -32,6 +35,8 @@ It downloads `html-coverage-reports` from the exact source run with digest
 mismatches rejected, executes no source-run code, and deploys through the
 protected `github-pages` environment. Pages failures cannot change regression's
 conclusion. Its existing publishing concurrency and minimal permissions remain.
+Independent main runs can finish out of order. The publisher handles successful
+runs in completion order; this change does not add source-SHA ordering to Pages.
 
 Production workflows remain unchanged, including exact revisions, protected
 environments, deployment gates, self-hosted activation and rollback. They retain
@@ -60,6 +65,14 @@ possibly rounded billable minutes. Browser installation stays in one job and
 coverage runs tests once. Compare observed jobs, not just wall time, before
 adding more parallelism. No new paid service or remote cache is introduced.
 
+The [first split run](https://github.com/jcodog/Cleo/actions/runs/38609462817)
+at `771ecb09b0e0e8424018c849183be045328a8534` passed all five jobs in
+137 seconds and used 332 runner-seconds. Job elapsed times were 50 seconds for
+quality, 92 for web, 128 for coverage, 59 for releases and 3 for the gate.
+Compared with the post-hotfix main baseline, this reduced elapsed time by
+47 seconds and increased runner time by 151 seconds. These are observed runs,
+not a controlled benchmark. The added runners are a real cost of failure isolation.
+
 Baseline compressed artifacts were 44.6 KiB Cobertura, 467.7 KiB HTML,
 1.04 MiB browser evidence and 3.08 MiB rendering evidence, retained for 90 days.
 Coverage now retains 14 days and diagnostic/rendering artifacts 7 days. Release
@@ -85,8 +98,21 @@ shelved under [JCN-234](https://github.com/jcodog/Cleo/issues/249).
 
 Local checks include actionlint 1.7.12, YAML contract parsing, changed-file
 Prettier checks, Bash syntax, gate outcomes, trusted publisher guards, report
-validation and the unchanged strict workspace coverage suite. Windows cannot
+validation and the unchanged strict workspace coverage suite. Final root builds
+passed with the public compile-only workflow fixtures. Windows cannot
 prove Linux POSIX permission or native release packaging behavior. The normal
 browser harness also hit a Windows asset rename lock, so local Chromium/Firefox
 tests used a disposable config that reused existing assets. Hosted validation
 must run the unmodified Linux operations, packaging, browser and PWA checks.
+The first split run executed those checks successfully and uploaded browser,
+rendering, release, HTML and Cobertura evidence. Review remediation adds
+concurrency-isolation fixtures, a real stalled-response readiness test,
+coverage-site preservation checks, and native Welcome heading/region assertions.
+
+Readiness uses a two-second curl transfer deadline with up to 30 attempts and
+one-second retry delays, bounding that phase to roughly 90 seconds. Server
+diagnostics remain available on readiness/test failure, and the EXIT trap
+releases the background server. `bun run test:ci` exercises a response that
+stalls until curl times out, then verifies that the next request succeeds.
+Coverage HTML metadata records the exact checkout SHA. On PR runs this is the
+PR head, rather than GitHub's temporary merge SHA.

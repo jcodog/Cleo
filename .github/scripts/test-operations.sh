@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Check script syntax and disposable host fixtures. Never call installed
+# production controllers or use production service accounts.
 set -euo pipefail
 
 for script in .github/scripts/*.sh; do

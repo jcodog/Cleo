@@ -10,9 +10,9 @@ on:
 permissions:
   contents: read
 
-# Superseded PR runs may stop early. Main runs finish so Pages has a complete source.
+# PRs share a group per PR. Pushes and manual runs each keep their own run ID.
 concurrency:
-  group: regression-${{ github.event.pull_request.number || github.ref }}
+  group: regression-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -156,6 +156,8 @@ jobs:
             ${{ runner.temp }}/coverage-test.log
 
       - name: Verify reports and build browsable coverage site
+        env:
+          COVERAGE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node .github/scripts/build-coverage-site.mjs
 
       - name: Upload Cobertura artifacts

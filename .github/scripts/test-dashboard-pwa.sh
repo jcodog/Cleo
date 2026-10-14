@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Serve the built dashboard with local TLS, retry readiness, and retain server
+# diagnostics on failure. The EXIT trap releases the background test server.
 set -euo pipefail
 
 : "${RUNNER_TEMP:?Set RUNNER_TEMP to a disposable verification directory}"
@@ -14,7 +16,7 @@ server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
 ready=0
 for attempt in {1..30}; do
-  if curl --cacert "$RUNNER_TEMP/pwa.crt" --fail --silent \
+  if curl --max-time 2 --cacert "$RUNNER_TEMP/pwa.crt" --fail --silent \
     --output /dev/null "$PWA_TEST_ORIGIN/sign-in"; then
     ready=1
     break

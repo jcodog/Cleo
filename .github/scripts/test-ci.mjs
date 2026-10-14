@@ -12,6 +12,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("../../", import.meta.url))
+/** Parse a repository workflow as data without evaluating its Actions expressions. */
 const readWorkflow = (name) =>
   Bun.YAML.parse(readFileSync(join(root, ".github/workflows", name), "utf8"))
 const workflow = readWorkflow("regression.yml")
@@ -105,6 +106,7 @@ keys.forEach((key, index) =>
   assert.equal(step.env[key], `\${{ needs.${required[index]}.result }}`)
 )
 const success = Object.fromEntries(keys.map((key) => [key, "success"]))
+/** Execute the actual aggregate shell with fixture job outcomes and assert its exit status. */
 function checkGate(results, expected) {
   const result = spawnSync("bash", ["-e", "-o", "pipefail", "-c", step.run], {
     env: { ...process.env, ...results },
@@ -179,6 +181,42 @@ assert.equal(
   workflow.concurrency["cancel-in-progress"],
   "${{ github.event_name == 'pull_request' }}"
 )
+assert.equal(
+  workflow.concurrency.group,
+  "regression-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}"
+)
+/** Substitute fixture event metadata into the workflow's verified concurrency template. */
+function concurrencyGroup({ event, prNumber, runId }) {
+  return workflow.concurrency.group
+    .replace("${{ github.event_name }}", event)
+    .replace(
+      "${{ github.event.pull_request.number || github.run_id }}",
+      String(prNumber || runId)
+    )
+}
+const firstPr = concurrencyGroup({
+  event: "pull_request",
+  prNumber: 250,
+  runId: 101,
+})
+assert.equal(
+  firstPr,
+  concurrencyGroup({ event: "pull_request", prNumber: 250, runId: 102 })
+)
+assert.notEqual(
+  firstPr,
+  concurrencyGroup({ event: "pull_request", prNumber: 251, runId: 103 })
+)
+const firstMain = concurrencyGroup({ event: "push", runId: 104 })
+assert.notEqual(firstMain, concurrencyGroup({ event: "push", runId: 105 }))
+assert.notEqual(firstMain, firstPr)
+const firstManual = concurrencyGroup({ event: "workflow_dispatch", runId: 106 })
+assert.notEqual(
+  firstManual,
+  concurrencyGroup({ event: "workflow_dispatch", runId: 107 })
+)
+assert.notEqual(firstManual, firstMain)
+assert.notEqual(firstManual, firstPr)
 
 const directory = mkdtempSync(join(tmpdir(), "cleo-coverage-site-"))
 const reports = [
@@ -193,9 +231,15 @@ const reports = [
   "packages/ui",
 ]
 const builder = join(root, ".github/scripts/build-coverage-site.mjs")
+/** Run the real coverage builder in the disposable fixture and capture its outcome. */
 const build = () =>
   spawnSync("node", [builder], {
     cwd: directory,
+    env: {
+      ...process.env,
+      COVERAGE_SOURCE_SHA: "b".repeat(40),
+      GITHUB_SHA: "a".repeat(40),
+    },
     encoding: "utf8",
     timeout: 10000,
   })
@@ -217,6 +261,10 @@ try {
     join(directory, "coverage-site/index.html"),
     "utf8"
   )
+  assert.ok(
+    index.includes("Commit bbbbbbbbbbbb"),
+    "Coverage metadata must use the checkout SHA, not the PR merge SHA"
+  )
   for (const report of reports)
     assert.ok(index.includes(`./${report}/index.html`))
   const empty = join(
@@ -228,6 +276,20 @@ try {
   assert.ifError(rejected.error)
   assert.equal(rejected.status, 1)
   assert.match(rejected.stderr, /dashboard.*cobertura-coverage.xml/)
+  assert.equal(
+    readFileSync(join(directory, "coverage-site/index.html"), "utf8"),
+    index
+  )
+  rmSync(empty)
+  mkdirSync(empty)
+  const invalid = build()
+  assert.ifError(invalid.error)
+  assert.equal(invalid.status, 1)
+  assert.match(invalid.stderr, /dashboard.*cobertura-coverage.xml/)
+  assert.equal(
+    readFileSync(join(directory, "coverage-site/index.html"), "utf8"),
+    index
+  )
 } finally {
   rmSync(directory, { recursive: true, force: true })
 }

@@ -16,6 +16,8 @@ const reports = [
 const sourceRoot = path.resolve("coverage")
 const outputRoot = path.resolve("coverage-site")
 
+// Check all required reports before replacing the previous site. Incomplete,
+// empty or non-file inputs must fail without destroying that output.
 const missing = []
 for (const report of reports) {
   for (const file of ["cobertura-coverage.xml", "index.html"]) {
@@ -41,7 +43,7 @@ for (const report of reports) {
 }
 
 const repository = process.env.GITHUB_REPOSITORY ?? "jcodog/Cleo"
-const sha = process.env.GITHUB_SHA ?? "local"
+const sha = process.env.COVERAGE_SOURCE_SHA ?? process.env.GITHUB_SHA ?? "local"
 const shortSha = sha.slice(0, 12)
 const runUrl =
   process.env.GITHUB_SERVER_URL && process.env.GITHUB_RUN_ID

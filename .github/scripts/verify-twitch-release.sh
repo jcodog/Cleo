@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Verify Linux release integrity and credential-free entrypoints, then exercise
+# negative packaging and private-file checks. Retain release evidence in RUNNER_TEMP.
 set -euo pipefail
 
 : "${RUNNER_TEMP:?Set RUNNER_TEMP to a disposable verification directory}"

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Verify a locally built Linux release without production credentials. Keep
+# checksums, contents and manifests in RUNNER_TEMP for the evidence artifact.
 set -euo pipefail
 
 : "${RUNNER_TEMP:?Set RUNNER_TEMP to a disposable verification directory}"
@@ -85,7 +87,8 @@ NODE
   '
 )
 mv apps/discord-bot/dist "${RUNNER_TEMP}/discord-dist"
-# Restore the validated build even if an expected rejection test fails.
+# Remove the negative-test symlink and restore compiled output after rejection
+# tests fail. Bash retains the original failure status when this EXIT trap runs.
 cleanup() {
   rm -f apps/discord-bot/dist/untrusted-runtime-link.js
   if [[ -d "$RUNNER_TEMP/discord-dist" && ! -e apps/discord-bot/dist ]]; then
