@@ -1,0 +1,44 @@
+.github/scripts/test-operations.sh
+  s_8c883a9d5071d4::t_5545f7d8d62991 2-3
+.github/workflows/regression.yml
+  s_8c883a9d5071d4::t_5545f7d8d62991 13,15
+  s_8c883a9d5071d4::t_7bfb2cf1d46ae2 159-160
+.github/scripts/verify-twitch-release.sh
+  s_8c883a9d5071d4::t_5545f7d8d62991 2-3
+.github/scripts/test-dashboard-pwa.mjs
+  s_8c883a9d5071d4::t_90fadfdd73d5a4 8-11,20-23,42-44,50-54,63-70
+  s_8c883a9d5071d4::t_ae26b9b82af326 1-7,12-19,24-41,45-49,55-62,71-75
+.github/scripts/build-coverage-site.mjs
+  s_8c883a9d5071d4::t_5545f7d8d62991 19
+  s_8c883a9d5071d4::t_7bfb2cf1d46ae2 20,46
+.github/scripts/test-ci.mjs
+  s_8c883a9d5071d4::t_497533a23b33ff 15,109,184-191,196,210-213,218-219,234,283-288
+  s_8c883a9d5071d4::t_90fadfdd73d5a4 192-195,197-209,214-217,279-282,289-292
+  s_8c883a9d5071d4::t_727ac7cecd4a12 238-242,264-267
+.github/scripts/test-dashboard-pwa.sh
+  s_8c883a9d5071d4::t_5545f7d8d62991 2-3,19
+package.json
+  s_8c883a9d5071d4::t_5545f7d8d62991 15
+.github/scripts/verify-discord-release.sh
+  s_8c883a9d5071d4::t_5545f7d8d62991 2-3,90-91
+.github/ci-simplification.md
+  s_8c883a9d5071d4::t_56445fcea27083 101-102
+  s_8c883a9d5071d4::t_7bfb2cf1d46ae2 117-118
+  s_8c883a9d5071d4::t_f789868ad4759f 25-30,38-39,68-75,107-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cca20632a0ad65325f271ee04efbcc10631ae50a",
+  "prompts": {},
+  "sessions": {
+    "s_8c883a9d5071d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b5a-650d-7113-8a4a-a491b306002b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
