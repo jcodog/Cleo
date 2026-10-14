@@ -1,0 +1,37 @@
+apps/dashboard/src/features/staff/StaffOverviewPageShell.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 173
+apps/dashboard/src/features/discord-guild-workspace/sections/LogsSection.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 53,295,434,492
+apps/dashboard/src/features/discord-guild-workspace/sections/SettingsSection.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 4
+apps/dashboard/src/features/discord-guild-workspace/sections/OverviewSection.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 184
+apps/dashboard/src/features/discord-guild-workspace/sections/SupportSection.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 134,312
+apps/dashboard/src/features/dashboard/DiscordDashboardPageShell.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 38
+apps/dashboard/src/features/staff/support-tickets/SupportTicketsPageShell.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 25
+apps/dashboard/src/features/discord-guild-workspace/sections/ModerationSection.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 36,158
+apps/dashboard/src/features/staff/discord-runtime-incidents/DiscordRuntimeIncidentsPageShell.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 71,179,250
+apps/dashboard/src/features/add-server/DiscordAddServerPageShell.tsx
+  s_8c883a9d5071d4::t_f5854b04f63583 584
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4b4c4fecb7695cb470b7716c206596b941c68988",
+  "prompts": {},
+  "sessions": {
+    "s_8c883a9d5071d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b5a-650d-7113-8a4a-a491b306002b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
