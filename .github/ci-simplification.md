@@ -116,3 +116,19 @@ releases the background server. `bun run test:ci` exercises a response that
 stalls until curl times out, then verifies that the next request succeeds.
 Coverage HTML metadata records the exact checkout SHA. On PR runs this is the
 PR head, rather than GitHub's temporary merge SHA.
+
+Coverage contract tests generate their success fixture with the installed c8
+HTML and Cobertura reporters. The XML validator accepts c8's XML declaration
+and exact external Cobertura DOCTYPE as text. It never loads a DTD or resolves
+an external entity. Other declarations, malformed XML, misplaced elements and
+missing coverage containers fail before the previous site is replaced. Tests
+also reject incomplete HTML, missing/empty/non-file reports and invalid XML
+characters while preserving the last valid site. Final validation runs the
+workspace coverage suite and then builds the site from all nine actual reports.
+
+Twitch packaging tests inspect decompressed GNU tar headers for exact member
+order and contents, UID/GID zero, empty owner names, mode 0644, header checksums
+and commit-derived timestamps. They compare complete archive bytes after a
+source mtime change and packaging under distinct caller locale/TZ values.
+Only universally available C/POSIX locales and POSIX timezone strings are used.
+The Linux packager, manifest verification and all negative release tests remain.

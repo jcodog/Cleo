@@ -259,17 +259,44 @@ try {
   assert.ifError(absent.error)
   assert.equal(absent.status, 1)
   assert.match(absent.stderr, /Missing, empty or invalid coverage reports/)
+  // Generate the fixture with the same installed c8 reporters as workspace CI.
+  const sample = join(directory, "sample.mjs")
+  writeFileSync(
+    sample,
+    "const choose = (flag) => flag ? 1 : 2; choose(true); choose(false)\n"
+  )
+  const generated = spawnSync(
+    "node",
+    [
+      join(root, "node_modules/c8/bin/c8.js"),
+      "--reporter=cobertura",
+      "--reporter=html",
+      "--reports-dir=sample-coverage",
+      "node",
+      sample,
+    ],
+    { cwd: directory, encoding: "utf8", timeout: 20000 }
+  )
+  assert.ifError(generated.error)
+  assert.equal(generated.status, 0, generated.stderr)
+  const sampleXml = readFileSync(
+    join(directory, "sample-coverage/cobertura-coverage.xml"),
+    "utf8"
+  )
+  const sampleHtml = readFileSync(
+    join(directory, "sample-coverage/index.html"),
+    "utf8"
+  )
+  assert.match(sampleXml, /<\?xml version="1\.0"\s*\?>/)
+  assert.match(
+    sampleXml,
+    /<!DOCTYPE coverage SYSTEM "http:\/\/cobertura\.sourceforge\.net\/xml\/coverage-04\.dtd">/
+  )
   for (const report of reports) {
     const folder = join(directory, "coverage", report)
     mkdirSync(folder, { recursive: true })
-    writeFileSync(
-      join(folder, "index.html"),
-      `<!doctype html><html lang="en"><head><title>${report} coverage</title></head><body><table class="coverage-summary"><tbody><tr><td>${report}</td></tr></tbody></table></body></html>`
-    )
-    writeFileSync(
-      join(folder, "cobertura-coverage.xml"),
-      `<?xml version="1.0"?><coverage line-rate="1" branch-rate="1"><sources/><packages><package name="${report}"><classes><class filename="example.ts"/></classes></package></packages></coverage>`
-    )
+    writeFileSync(join(folder, "index.html"), sampleHtml)
+    writeFileSync(join(folder, "cobertura-coverage.xml"), sampleXml)
   }
   const result = build()
   assert.ifError(result.error)
@@ -292,6 +319,7 @@ try {
   const html = join(directory, "coverage/apps/dashboard/index.html")
   const validHtml = readFileSync(html, "utf8")
   // Every rejection must preserve the last complete, already built coverage site.
+  /** Exercise builder rejection and ensure invalid input leaves the previous site intact. */
   function expectInvalidReport(file, content) {
     writeFileSync(file, content)
     const rejected = build()
@@ -309,6 +337,62 @@ try {
   expectInvalidReport(empty, "")
   expectInvalidReport(empty, validXml.replace("</coverage>", "</coverag>"))
   expectInvalidReport(empty, validXml.replace("<packages>", "<packages"))
+  for (const broken of [
+    validXml.replace("coverage-04.dtd", "arbitrary.dtd"),
+    validXml.replace(
+      'SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd"',
+      'SYSTEM "file:///etc/passwd"'
+    ),
+    validXml.replace("<coverage ", "<?other instruction?><coverage "),
+    validXml.replace(
+      "<coverage ",
+      '<!ENTITY secret SYSTEM "file:///etc/passwd"><coverage '
+    ),
+    validXml.replace(
+      "<coverage ",
+      '<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd"><coverage '
+    ),
+    validXml.replace("</coverage>", ""),
+    validXml.replace(/<sources>[\s\S]*?<\/sources>/, ""),
+    validXml.replace(/<packages>[\s\S]*?<\/packages>/, ""),
+    validXml.replace(/<classes>[\s\S]*?<\/classes>/, "<classes/>"),
+    validXml.replace(
+      /<class\b[^>]*>[\s\S]*?<\/class>/,
+      '<class filename="sample.mjs"/>'
+    ),
+    validXml.replace("</coverage>", "</coverage><coverage/>"),
+    validXml.replace("</coverage>", "</coverage>outside text"),
+    validXml.replace('line-rate="1"', 'line-rate="1" line-rate="1"'),
+    validXml.replace("<source>", "<source>&#0;"),
+    validXml.replace("<source>", "<source>&unknown;"),
+    validXml.replace('<?xml version="1.0" ?>', '<?xml version="invalid" ?>'),
+    validXml.replace("<!DOCTYPE coverage SYSTEM", "<!DOCTYPE other SYSTEM"),
+    validXml.replace(/<line\b[^>]*\/>/, '<line number="1" hits="1"/ ></line>'),
+    validXml.replace(/<line\b[^>]*\/>/, '<line number="1"hits="1"/>'),
+    validXml.replace("<coverage ", "<coverage\u00a0"),
+    validXml + "\u00a0",
+    validXml.replace(
+      /<\?xml[^>]*\?>/,
+      '<?xml version="1.0" encoding="UTF-16"?>'
+    ),
+    validXml.replace(
+      /<\?xml[^>]*\?>/,
+      '<?xml version="1.0"?><?xml version="1.0"?>'
+    ),
+    validXml.replace(
+      'coverage-04.dtd">',
+      'coverage-04.dtd" [<!ENTITY secret SYSTEM "file:///etc/passwd">]>'
+    ),
+  ])
+    expectInvalidReport(empty, broken)
+  writeFileSync(empty, validXml)
+  writeFileSync(
+    empty,
+    validXml.replace(/<\?xml[^>]*\?>/, '<?xml version="1.0" encoding="UTF-8"?>')
+  )
+  const encoded = build()
+  assert.ifError(encoded.error)
+  assert.equal(encoded.status, 0, encoded.stderr)
   writeFileSync(empty, validXml)
   expectInvalidReport(html, validHtml.slice(0, -7))
   expectInvalidReport(
@@ -317,6 +401,14 @@ try {
   )
   writeFileSync(html, validHtml)
   rmSync(empty)
+  const removed = build()
+  assert.ifError(removed.error)
+  assert.equal(removed.status, 1)
+  assert.match(removed.stderr, /dashboard.*cobertura-coverage.xml/)
+  assert.equal(
+    readFileSync(join(directory, "coverage-site/index.html"), "utf8"),
+    index
+  )
   mkdirSync(empty)
   const invalid = build()
   assert.ifError(invalid.error)
