@@ -12,6 +12,7 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:ci": "bun .github/scripts/test-ci.mjs",
     "test:coverage": "turbo test:coverage"
   },
   "devDependencies": {

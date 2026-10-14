@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile } from "node:fs/promises"
+import { cp, mkdir, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 const reports = [
@@ -16,13 +16,28 @@ const reports = [
 const sourceRoot = path.resolve("coverage")
 const outputRoot = path.resolve("coverage-site")
 
+const missing = []
+for (const report of reports) {
+  for (const file of ["cobertura-coverage.xml", "index.html"]) {
+    const location = path.join(sourceRoot, report.path, file)
+    const info = await stat(location).catch(() => null)
+    if (!info?.isFile() || info.size === 0) missing.push(location)
+  }
+}
+if (missing.length > 0)
+  throw new Error(`Missing or empty coverage reports:\n${missing.join("\n")}`)
+
 await rm(outputRoot, { recursive: true, force: true })
 await mkdir(outputRoot, { recursive: true })
 
 for (const report of reports) {
-  await cp(path.join(sourceRoot, report.path), path.join(outputRoot, report.path), {
-    recursive: true,
-  })
+  await cp(
+    path.join(sourceRoot, report.path),
+    path.join(outputRoot, report.path),
+    {
+      recursive: true,
+    }
+  )
 }
 
 const repository = process.env.GITHUB_REPOSITORY ?? "jcodog/Cleo"
@@ -111,4 +126,6 @@ const html = `<!doctype html>
 await writeFile(path.join(outputRoot, "index.html"), html)
 await writeFile(path.join(outputRoot, ".nojekyll"), "")
 
-console.log(`Built coverage site for ${reports.length} workspaces at ${outputRoot}`)
+console.log(
+  `Built coverage site for ${reports.length} workspaces at ${outputRoot}`
+)
