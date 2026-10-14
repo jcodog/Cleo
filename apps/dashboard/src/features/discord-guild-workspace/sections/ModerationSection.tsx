@@ -5,13 +5,7 @@ import { IconShield } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+
 import {
   Field,
   FieldContent,
@@ -39,6 +33,7 @@ import {
 import { SaveStatus } from "../components/workspace-ui"
 import type { GuildModerationAction, GuildOverview, SaveState } from "../types"
 
+/** Save moderation routing with pending/error feedback and disable configuration when the bot has left. */
 export function ModerationSection({
   isBotLeft,
   overview,
@@ -89,16 +84,24 @@ export function ModerationSection({
   }
 
   return (
-    <div className="flex max-w-5xl flex-col gap-6">
-      <form className="max-w-3xl" onSubmit={handleSubmit}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Moderation</CardTitle>
-            <CardDescription>
+    <div className="flex max-w-5xl flex-col gap-10">
+      <form className="max-w-2xl" onSubmit={handleSubmit}>
+        <section
+          className="min-w-0 space-y-5"
+          aria-labelledby="moderation-heading"
+        >
+          <header className="space-y-2">
+            <h2
+              className="font-heading text-base font-medium"
+              id="moderation-heading"
+            >
+              Moderation
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
               Configure stored moderation settings and log channels.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-5">
+            </p>
+          </header>
+          <div className="flex flex-col gap-5">
             <FieldGroup>
               <Field orientation="horizontal">
                 <Switch
@@ -143,8 +146,8 @@ export function ModerationSection({
                 {saveState === "saving" ? "Saving…" : "Save Moderation"}
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </form>
 
       <RecentModerationActions result={moderationActionsResult} />
@@ -152,6 +155,7 @@ export function ModerationSection({
   )
 }
 
+/** Keep forbidden, missing, loading and empty moderation history distinct from stored actions. */
 function RecentModerationActions({
   result,
 }: {
@@ -166,14 +170,22 @@ function RecentModerationActions({
     | undefined
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Moderation Actions</CardTitle>
-        <CardDescription>
+    <section
+      className="min-w-0 space-y-5"
+      aria-labelledby="recent-moderation-actions-heading"
+    >
+      <header className="space-y-2">
+        <h2
+          className="font-heading text-base font-medium"
+          id="recent-moderation-actions-heading"
+        >
+          Recent Moderation Actions
+        </h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
           Stored ban and kick outcomes from the Discord bot runtime.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </header>
+      <div className="space-y-5">
         {result?.status === "notFound" ? (
           <ModerationActionsEmpty
             description="This Discord server has not been synced to Cleo yet."
@@ -187,7 +199,7 @@ function RecentModerationActions({
         ) : result === undefined ? (
           <ModerationActionsSkeleton />
         ) : result.status === "ready" && result.actions.length > 0 ? (
-          <div className="flex flex-col gap-0 overflow-hidden rounded-lg border">
+          <div className="flex min-w-0 flex-col gap-0 border-y">
             {result.actions.map((action, index) => (
               <ModerationActionRow
                 action={action}
@@ -197,7 +209,7 @@ function RecentModerationActions({
             ))}
           </div>
         ) : (
-          <Empty className="min-h-64 border">
+          <Empty className="min-h-40 rounded-none px-0">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <IconShield aria-hidden />
@@ -210,8 +222,8 @@ function RecentModerationActions({
             </EmptyHeader>
           </Empty>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }
 
@@ -223,7 +235,7 @@ function ModerationActionsEmpty({
   title: string
 }) {
   return (
-    <Empty className="min-h-64 border">
+    <Empty className="min-h-40 rounded-none px-0">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <IconShield aria-hidden />

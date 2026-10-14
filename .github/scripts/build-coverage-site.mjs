@@ -1,5 +1,10 @@
-import { cp, mkdir, rm, writeFile } from "node:fs/promises"
+import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
+
+import {
+  validateCoverageHtml,
+  validateCoverageXml,
+} from "./validate-coverage-reports.mjs"
 
 const reports = [
   { name: "Dashboard", path: "apps/dashboard" },
@@ -16,17 +21,48 @@ const reports = [
 const sourceRoot = path.resolve("coverage")
 const outputRoot = path.resolve("coverage-site")
 
+// Validate every report before replacing the previous site. Incomplete,
+// malformed, empty or non-file inputs must not destroy valid published output.
+const invalid = []
+for (const report of reports) {
+  for (const file of ["cobertura-coverage.xml", "index.html"]) {
+    const location = path.join(sourceRoot, report.path, file)
+    const info = await stat(location).catch(() => null)
+    if (!info?.isFile() || info.size === 0) {
+      invalid.push(`${location}: missing or empty`)
+      continue
+    }
+    try {
+      const contents = await readFile(location, "utf8")
+      if (file === "index.html") validateCoverageHtml(contents)
+      else validateCoverageXml(contents)
+    } catch (error) {
+      invalid.push(
+        `${location}: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+}
+if (invalid.length > 0)
+  throw new Error(
+    `Missing, empty or invalid coverage reports:\n${invalid.join("\n")}`
+  )
+
 await rm(outputRoot, { recursive: true, force: true })
 await mkdir(outputRoot, { recursive: true })
 
 for (const report of reports) {
-  await cp(path.join(sourceRoot, report.path), path.join(outputRoot, report.path), {
-    recursive: true,
-  })
+  await cp(
+    path.join(sourceRoot, report.path),
+    path.join(outputRoot, report.path),
+    {
+      recursive: true,
+    }
+  )
 }
 
 const repository = process.env.GITHUB_REPOSITORY ?? "jcodog/Cleo"
-const sha = process.env.GITHUB_SHA ?? "local"
+const sha = process.env.COVERAGE_SOURCE_SHA ?? process.env.GITHUB_SHA ?? "local"
 const shortSha = sha.slice(0, 12)
 const runUrl =
   process.env.GITHUB_SERVER_URL && process.env.GITHUB_RUN_ID
@@ -111,4 +147,6 @@ const html = `<!doctype html>
 await writeFile(path.join(outputRoot, "index.html"), html)
 await writeFile(path.join(outputRoot, ".nojekyll"), "")
 
-console.log(`Built coverage site for ${reports.length} workspaces at ${outputRoot}`)
+console.log(
+  `Built coverage site for ${reports.length} workspaces at ${outputRoot}`
+)

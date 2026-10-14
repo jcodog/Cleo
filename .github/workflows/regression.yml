@@ -10,11 +10,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  regression:
-    name: Tests, lint, typecheck, and coverage
-    runs-on: ubuntu-24.04
+# PRs share a group per PR. Pushes and manual runs each keep their own run ID.
+concurrency:
+  group: regression-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+jobs:
+  code-quality:
+    name: Code quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -24,6 +29,8 @@ jobs:
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -33,37 +40,40 @@ jobs:
       - name: Install dependencies
         run: bun ci
 
-      - name: Validate production operations scripts
+      - name: Validate CI contracts and production operations scripts
         run: |
-          bash -n .github/scripts/package-discord-release.sh
-          bash -n .github/scripts/check-discord-bundle-symlinks.sh
-          bash -n ops/discord/bootstrap-host.sh
-          bash -n ops/discord/bin/check-discord-runner
-          bash -n ops/discord/bin/check-discord-env
-          bash -n ops/discord/bin/check-discord-runtime
-          bash -n ops/discord/bin/deploy-discord-release
-          bash -n ops/discord/bin/deploy-discord-release.test.sh
-          bash -n ops/discord/bin/deploy-discord-release.validation.test.sh
-          bash -n ops/discord/bin/migrate-discord-deployment-state
-          bash -n ops/discord/bin/migrate-discord-deployment-state.test.sh
-          bash -n ops/discord/bin/read-discord-deployment-state
-          bash -n ops/discord/bin/read-discord-deployment-state.test.sh
-          bash -n ops/discord/bin/check-discord-env.test.sh
-          bash -n ops/discord/bin/run-discord-release
-          bash -n ops/discord/bin/run-discord-release.test.sh
-          bash ops/discord/bin/check-discord-env.test.sh
-          bash ops/discord/bin/run-discord-release.test.sh
-          bash ops/discord/bin/read-discord-deployment-state.test.sh
-          bash ops/discord/bin/migrate-discord-deployment-state.test.sh
-          bash ops/discord/bin/deploy-discord-release.test.sh
-          bash ops/discord/bin/deploy-discord-release.validation.test.sh
-          bash ops/twitch/test.sh
+          bun run test:ci
+          bash .github/scripts/test-operations.sh
 
       - name: Typecheck workspace
         run: bun run typecheck
 
       - name: Lint workspace with zero warnings
         run: bun run lint:ci
+
+  web-verification:
+    name: Web verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: bun ci
 
       - name: Build both web applications
         # Public compile-only fixtures. No production credentials or backend calls.
@@ -84,14 +94,6 @@ jobs:
       - name: Verify guild welcome controls in Chromium and Firefox
         run: bun run --filter @workspace/dashboard test:welcome:browser
 
-      - name: Upload welcome browser evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: welcome-browser-verification
-          if-no-files-found: error
-          path: apps/dashboard/test-results/welcome
-
       - name: Test served dashboard PWA
         # Signed-out fixtures do not authenticate users or call Clerk/Convex APIs.
         env:
@@ -101,34 +103,42 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://cleoai.cloud
           NEXT_PUBLIC_APP_URL: https://localhost:3100
           PWA_TEST_ORIGIN: https://localhost:3100
-        run: |
-          set -euo pipefail
-          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
-            -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost' \
-            -keyout "$RUNNER_TEMP/pwa.key" -out "$RUNNER_TEMP/pwa.crt"
-          export NODE_EXTRA_CA_CERTS="$RUNNER_TEMP/pwa.crt"
-          node .github/scripts/serve-dashboard-pwa.mjs \
-            "$RUNNER_TEMP/pwa.key" "$RUNNER_TEMP/pwa.crt" \
-            > "$RUNNER_TEMP/dashboard-pwa.log" 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
-          ready=0
-          for attempt in {1..30}; do
-            if curl --cacert "$RUNNER_TEMP/pwa.crt" --fail --silent \
-              --output /dev/null "$PWA_TEST_ORIGIN/sign-in"; then
-              ready=1
-              break
-            fi
-            sleep 1
-          done
-          if [[ "$ready" != 1 ]]; then
-            cat "$RUNNER_TEMP/dashboard-pwa.log"
-            exit 1
-          fi
-          if ! bun run --filter @workspace/dashboard test:pwa; then
-            cat "$RUNNER_TEMP/dashboard-pwa.log"
-            exit 1
-          fi
+        run: bash .github/scripts/test-dashboard-pwa.sh
+
+      - name: Upload browser and PWA evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: welcome-browser-verification
+          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
+          retention-days: 7
+          path: |
+            apps/dashboard/test-results/welcome
+            ${{ runner.temp }}/dashboard-pwa.log
+
+  tests-coverage:
+    name: Tests and coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: bun ci
 
       - name: Run workspace tests with coverage
         run: |
@@ -141,210 +151,21 @@ jobs:
         with:
           name: failed-coverage-output
           if-no-files-found: ignore
-          path: ${{ runner.temp }}/coverage-test.log
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/coverage-test.log
 
-      - name: Verify coverage reports
-        run: |
-          reports=(
-            "coverage/apps/dashboard/cobertura-coverage.xml"
-            "coverage/apps/landing/cobertura-coverage.xml"
-            "coverage/apps/discord-bot/cobertura-coverage.xml"
-            "coverage/apps/twitch-bot/cobertura-coverage.xml"
-            "coverage/packages/backend/cobertura-coverage.xml"
-            "coverage/packages/env/cobertura-coverage.xml"
-            "coverage/packages/logger/cobertura-coverage.xml"
-            "coverage/packages/shared/cobertura-coverage.xml"
-            "coverage/packages/ui/cobertura-coverage.xml"
-            "coverage/apps/dashboard/index.html"
-            "coverage/apps/landing/index.html"
-            "coverage/apps/discord-bot/index.html"
-            "coverage/apps/twitch-bot/index.html"
-            "coverage/packages/backend/index.html"
-            "coverage/packages/env/index.html"
-            "coverage/packages/logger/index.html"
-            "coverage/packages/shared/index.html"
-            "coverage/packages/ui/index.html"
-          )
-
-          missing=0
-          for report in "${reports[@]}"; do
-            if [[ ! -f "$report" ]]; then
-              echo "Missing coverage report: $report"
-              missing=1
-            fi
-          done
-
-          exit "$missing"
-
-      - name: Build browsable coverage site
-        run: node .github/scripts/build-coverage-site.mjs
-
-      - name: Test Twitch Linux x64 release packaging
-        run: |
-          set -euo pipefail
-          test "$(node --version)" = "v24.15.0"
-          test "$(node -p '`${process.platform}-${process.arch}`')" = "linux-x64"
-          release_sha="$(git rev-parse HEAD)"
-          output_dir="${RUNNER_TEMP}/cleo-twitch-package-test"
-          extract_dir="$(mktemp -d "${RUNNER_TEMP}/cleo-twitch-package-extract.XXXXXX")"
-          bun run --filter @workspace/twitch-bot build
-          find apps/twitch-bot/dist -type f -print0 | sort -z | xargs -0 sha256sum > "${RUNNER_TEMP}/twitch-dist-before.sha256"
-          bun run --filter @workspace/twitch-bot package:release "$output_dir" "$release_sha"
-          find apps/twitch-bot/dist -type f -print0 | sort -z | xargs -0 sha256sum > "${RUNNER_TEMP}/twitch-dist-after.sha256"
-          diff -u "${RUNNER_TEMP}/twitch-dist-before.sha256" "${RUNNER_TEMP}/twitch-dist-after.sha256"
-          archive="$output_dir/cleo-twitch-${release_sha}.tar.gz"
-          checksum="$archive.sha256"
-          test -f "$archive"
-          test -f "$checksum"
-          (cd "$output_dir" && sha256sum -c "$(basename "$checksum")")
-          tar -xzf "$archive" -C "$extract_dir"
-          node --input-type=module - "$extract_dir" "$release_sha" <<'NODE'
-          import { validateArtifact } from "./apps/twitch-bot/src/deployment/validateArtifact.mjs"
-          await validateArtifact(process.argv[2], process.argv[3])
-          NODE
-          node .github/scripts/check-twitch-entrypoints.mjs "$extract_dir"
-          node .github/scripts/test-twitch-package.mjs
-          node .github/scripts/test-twitch-private-files.mjs
-
-      - name: Test Discord release packaging
-        run: |
-          output_dir="${RUNNER_TEMP}/cleo-discord-package-test"
-          extract_dir="${RUNNER_TEMP}/cleo-discord-package-extract"
-          release_sha="$(git rev-parse HEAD)"
-          bun run --filter @workspace/discord-bot build
-          find apps/discord-bot/dist -type f -print0 | sort -z | xargs -0 sha256sum > "${RUNNER_TEMP}/discord-dist-before.sha256"
-          CLEO_DISCORD_RELEASE_SHA="$release_sha" \
-            bash .github/scripts/package-discord-release.sh "$output_dir"
-          find apps/discord-bot/dist -type f -print0 | sort -z | xargs -0 sha256sum > "${RUNNER_TEMP}/discord-dist-after.sha256"
-          diff -u "${RUNNER_TEMP}/discord-dist-before.sha256" "${RUNNER_TEMP}/discord-dist-after.sha256"
-          archive="$output_dir/cleo-discord-${release_sha}.tar.gz"
-          checksum="$archive.sha256"
-          test -f "$archive"
-          test -f "$checksum"
-          (cd "$output_dir" && sha256sum -c "$(basename "$checksum")")
-          rm -rf "$extract_dir"
-          mkdir -p "$extract_dir"
-          tar -xzf "$archive" -C "$extract_dir"
-          test -f "$extract_dir/dist/index.js"
-          test -f "$extract_dir/dist/index.js.map"
-          test -f "$extract_dir/dist/scripts/registerCommands.js"
-          test -f "$extract_dir/dist/scripts/registerCommands.js.map"
-          test -f "$extract_dir/runtime-artifact.json"
-          test -f "$extract_dir/release-manifest.json"
-          test ! -e "$extract_dir/node_modules/@workspace/discord-bot"
-          test ! -e "$extract_dir/src/index.ts"
-          test ! -e "$extract_dir/node_modules/tsx/dist/cli.mjs"
-          test -f "$extract_dir/.cleo-release-sha"
-          test -f "$extract_dir/.cleo-release-platform"
-          test "$(cat "$extract_dir/.cleo-release-sha")" = "$release_sha"
-          test "$(cat "$extract_dir/.cleo-release-platform")" = "linux-x64"
-          test "$(node -p "require('$extract_dir/release-manifest.json').commitSha")" = "$release_sha"
-          test "$(node -p "require('$extract_dir/release-manifest.json').platform")" = "linux"
-          test "$(node -p "require('$extract_dir/release-manifest.json').architecture")" = "x64"
-          CLEO_DISCORD_TEST_BUNDLE_ROOT="$extract_dir" \
-            bash ops/discord/bin/run-discord-release.test.sh
-          (
-            cd apps/discord-bot
-            node --import tsx --input-type=module - "$extract_dir" <<'NODE'
-          import assert from "node:assert/strict"
-          import { readFileSync } from "node:fs"
-          import path from "node:path"
-          import { pathToFileURL } from "node:url"
-          import { commandVerificationVersion, getGlobalCommandDefinitions } from "./src/scripts/registerCommands.ts"
-          const root = process.argv[2]
-          const sourcePackage = JSON.parse(readFileSync("package.json", "utf8"))
-          const packagedPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
-          const manifest = JSON.parse(readFileSync(path.join(root, "release-manifest.json"), "utf8"))
-          const packaged = await import(pathToFileURL(path.join(root, "dist/scripts/registerCommands.js")).href)
-          const intended = await getGlobalCommandDefinitions()
-          assert.equal(packagedPackage.name, sourcePackage.name)
-          assert.equal(packagedPackage.version, sourcePackage.version)
-          assert.equal(manifest.botVersion, sourcePackage.version)
-          assert.equal(manifest.commandVerificationVersion, commandVerificationVersion)
-          assert.deepEqual(manifest.globalCommandNames, intended.map(command => command.name).sort())
-          assert.deepEqual(await packaged.getGlobalCommandDefinitions(), intended)
-          NODE
-          )
-          (
-            cd "$extract_dir"
-            node --input-type=module -e '
-              import assert from "node:assert/strict"
-              import { readFileSync } from "node:fs"
-              const { commandVerificationVersion, getGlobalCommandDefinitions, verifyCommandDefinitions } =
-                await import("./dist/scripts/registerCommands.js")
-              const commands = await getGlobalCommandDefinitions()
-              const pkg = JSON.parse(readFileSync("package.json", "utf8"))
-              const manifest = JSON.parse(readFileSync("release-manifest.json", "utf8"))
-              assert.equal(pkg.name, "@workspace/discord-bot")
-              assert.equal(pkg.version, manifest.botVersion)
-              assert.equal(commandVerificationVersion, manifest.commandVerificationVersion)
-              assert.equal(commandVerificationVersion, 1)
-              assert.ok(commands.some(command => command.name === "8ball"))
-              assert.deepEqual(commands.map(command => command.name).sort(), manifest.globalCommandNames)
-              assert.throws(() => verifyCommandDefinitions(commands, commands.filter(command => command.name !== "8ball")))
-            '
-            node --input-type=module -e '
-              const { createCanvas } = await import("@napi-rs/canvas")
-              await createCanvas(2, 2).encode("png")
-            '
-          )
-          mv apps/discord-bot/dist "${RUNNER_TEMP}/discord-dist"
-          if CLEO_DISCORD_RELEASE_SHA="$release_sha" \
-            bash .github/scripts/package-discord-release.sh "$output_dir"; then
-            echo "Packaging unexpectedly succeeded without compiled output" >&2
-            exit 1
-          fi
-          mv "${RUNNER_TEMP}/discord-dist" apps/discord-bot/dist
-
-          ln -s index.js apps/discord-bot/dist/untrusted-runtime-link.js
-          if CLEO_DISCORD_RELEASE_SHA="$release_sha" \
-            bash .github/scripts/package-discord-release.sh "$output_dir"; then
-            echo "Packaging unexpectedly accepted a symlink in validated dist output" >&2
-            exit 1
-          fi
-          rm -f apps/discord-bot/dist/untrusted-runtime-link.js
-
-          symlink_fixture="$(mktemp -d "${RUNNER_TEMP}/discord-symlink-fixture.XXXXXX")"
-          outside_fixture="$(mktemp "${RUNNER_TEMP}/discord-symlink-outside.XXXXXX")"
-          symlink_log="$(mktemp "${RUNNER_TEMP}/discord-symlink-log.XXXXXX")"
-          ln -s missing-target "$symlink_fixture/dangling-link"
-          if bash .github/scripts/check-discord-bundle-symlinks.sh \
-            "$symlink_fixture" >"$symlink_log" 2>&1; then
-            echo "Packaging symlink validation unexpectedly accepted a dangling link" >&2
-            exit 1
-          fi
-          grep -F "contains a dangling symlink" "$symlink_log"
-          rm -f "$symlink_fixture/dangling-link"
-          ln -s "$outside_fixture" "$symlink_fixture/escaping-link"
-          if bash .github/scripts/check-discord-bundle-symlinks.sh \
-            "$symlink_fixture" >"$symlink_log" 2>&1; then
-            echo "Packaging symlink validation unexpectedly accepted a bundle-escaping link" >&2
-            exit 1
-          fi
-          grep -F "symlink escapes the bundle" "$symlink_log"
-          rm -rf "$symlink_fixture"
-          rm -f "$outside_fixture" "$symlink_log"
-
-      - name: Verify packaged welcome PNGs without host fonts
+      - name: Verify reports and build browsable coverage site
         env:
-          DISABLE_SYSTEM_FONTS_LOAD: "1"
-        run: |
-          node "$RUNNER_TEMP/cleo-discord-package-extract/dist/verifyWelcomeRendering.js" \
-            "$RUNNER_TEMP/welcome-render-verification" \
-            "$RUNNER_TEMP/cleo-discord-package-extract/dist/welcome-assets"
-
-      - name: Upload welcome rendering evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: welcome-render-verification
-          if-no-files-found: error
-          path: ${{ runner.temp }}/welcome-render-verification
+          COVERAGE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node .github/scripts/build-coverage-site.mjs
 
       - name: Upload Cobertura artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cobertura-coverage-reports
           if-no-files-found: error
+          retention-days: 14
           path: |
             coverage/apps/dashboard/cobertura-coverage.xml
             coverage/apps/landing/cobertura-coverage.xml
@@ -361,4 +182,98 @@ jobs:
         with:
           name: html-coverage-reports
           if-no-files-found: error
+          retention-days: 14
           path: coverage-site
+  release-verification:
+    name: Release verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: bun ci
+
+      - name: Verify Twitch Linux release and packaging security
+        run: |
+          set -o pipefail
+          bash .github/scripts/verify-twitch-release.sh 2>&1 | tee "$RUNNER_TEMP/twitch-release-verification.log"
+
+      - name: Verify Discord Linux release and packaging security
+        run: |
+          set -o pipefail
+          bash .github/scripts/verify-discord-release.sh 2>&1 | tee "$RUNNER_TEMP/discord-release-verification.log"
+
+      - name: Verify packaged welcome PNGs without host fonts
+        env:
+          DISABLE_SYSTEM_FONTS_LOAD: "1"
+        run: |
+          node "$RUNNER_TEMP/cleo-discord-package-extract/dist/verifyWelcomeRendering.js" \
+            "$RUNNER_TEMP/welcome-render-verification" \
+            "$RUNNER_TEMP/cleo-discord-package-extract/dist/welcome-assets"
+
+      - name: Upload welcome rendering evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: welcome-render-verification
+          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/welcome-render-verification
+
+      - name: Upload release verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-verification
+          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/*-release-verification.log
+            ${{ runner.temp }}/*-release-contents.txt
+            ${{ runner.temp }}/*-dist-*.sha256
+            ${{ runner.temp }}/cleo-*-package-test/*.sha256
+            ${{ runner.temp }}/cleo-discord-package-extract/release-manifest.json
+            ${{ runner.temp }}/cleo-twitch-package-extract.*/manifest.json
+
+  regression:
+    name: Tests, lint, typecheck, and coverage
+    needs:
+      [code-quality, web-verification, tests-coverage, release-verification]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require every regression job to succeed
+        if: always()
+        env:
+          QUALITY_RESULT: ${{ needs.code-quality.result }}
+          WEB_RESULT: ${{ needs.web-verification.result }}
+          COVERAGE_RESULT: ${{ needs.tests-coverage.result }}
+          RELEASE_RESULT: ${{ needs.release-verification.result }}
+        run: |
+          results=("$QUALITY_RESULT" "$WEB_RESULT" "$COVERAGE_RESULT" "$RELEASE_RESULT")
+          names=("Code quality" "Web verification" "Tests and coverage" "Release verification")
+          failed=0
+          for index in "${!results[@]}"; do
+            printf '%s: %s\n' "${names[$index]}" "${results[$index]}"
+            if [[ "${results[$index]}" != success ]]; then
+              failed=1
+            fi
+          done
+          exit "$failed"

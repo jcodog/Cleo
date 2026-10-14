@@ -3,13 +3,7 @@
 import { IconAlertTriangle, IconLifebuoy } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+
 import {
   Empty,
   EmptyDescription,
@@ -28,6 +22,7 @@ import {
 } from "@workspace/ui/components/table"
 import { useQuery } from "convex/react"
 
+/** Present the private support queue only after its server query confirms staff access. */
 export function SupportTicketsPageShell() {
   const result = useQuery(api.queries.dashboard.supportTickets.listJcn.list, {})
 
@@ -43,21 +38,29 @@ export function SupportTicketsPageShell() {
         </p>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Support Queue</CardTitle>
-          <CardDescription>
+      <section
+        className="min-w-0 space-y-5"
+        aria-labelledby="support-queue-heading"
+      >
+        <header className="space-y-2">
+          <h2
+            className="font-heading text-base font-medium"
+            id="support-queue-heading"
+          >
+            Support Queue
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Only messages explicitly submitted through `/help` are stored.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </header>
+        <div className="space-y-5">
           {result === undefined ? (
             <div className="flex flex-col gap-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
           ) : result.status === "forbidden" ? (
-            <Empty className="min-h-64 border">
+            <Empty className="min-h-40 rounded-none px-0">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <IconAlertTriangle aria-hidden />
@@ -69,7 +72,7 @@ export function SupportTicketsPageShell() {
               </EmptyHeader>
             </Empty>
           ) : result.tickets.length === 0 ? (
-            <Empty className="min-h-64 border">
+            <Empty className="min-h-40 rounded-none px-0">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <IconLifebuoy aria-hidden />
@@ -81,7 +84,7 @@ export function SupportTicketsPageShell() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="overflow-hidden rounded-lg border">
+            <div className="min-w-0 border-y">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -114,8 +117,8 @@ export function SupportTicketsPageShell() {
               </Table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </main>
   )
 }

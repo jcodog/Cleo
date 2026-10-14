@@ -12,6 +12,7 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:ci": "bun .github/scripts/test-ci.mjs && bun .github/scripts/test-dashboard-pwa.mjs",
     "test:coverage": "turbo test:coverage"
   },
   "devDependencies": {
@@ -38,7 +39,7 @@
       "packages/*"
     ],
     "catalog": {
-      "@next/eslint-plugin-next": "^16.4.0",
+      "@next/eslint-plugin-next": "^16.4.1",
       "@tailwindcss/postcss": "^4.3.3",
       "@turbo/gen": "^2.11.8",
       "@types/node": "^26.6.5",

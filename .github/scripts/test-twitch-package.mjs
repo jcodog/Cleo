@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { gunzipSync } from "node:zlib"
 
 assert.equal(`${process.platform}-${process.arch}`, "linux-x64")
 assert.equal(process.version, "v24.15.0")
@@ -20,12 +21,81 @@ const repository = fileURLToPath(new URL("../../", import.meta.url))
 const temporary = await mkdtemp(join(tmpdir(), "cleo-twitch-package-test-"))
 const fixture = join(temporary, "repository")
 const app = join(fixture, "apps/twitch-bot")
+/** Run fixture-repository Git commands without changing the user's checkout. */
 const git = (...args) =>
   execFileSync("git", ["-C", fixture, ...args], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   }).trim()
 let sequence = 0
+
+/** Assert GNU tar headers directly, without locale-sensitive listing output or extracting entries. */
+function assertArchiveMetadata(compressed, timestamp) {
+  const archive = gunzipSync(compressed)
+  const names = []
+  let offset = 0
+  while (offset + 512 <= archive.length) {
+    const header = archive.subarray(offset, offset + 512)
+    if (header.every((byte) => byte === 0)) break
+    assert.deepEqual(
+      header.subarray(257, 265),
+      Buffer.from("ustar  \0"),
+      "GNU format"
+    )
+    const name = header.subarray(0, 100).toString("ascii").replace(/\0.*$/s, "")
+    names.push(name)
+    assert.equal(header[156], 48, `${name}: regular file`)
+    assert.equal(
+      header.subarray(157, 257).every((byte) => byte === 0),
+      true,
+      "No link target"
+    )
+    assert.equal(
+      header.subarray(265, 329).every((byte) => byte === 0),
+      true,
+      "Numeric ownership without user/group names"
+    )
+    /** Read the non-negative octal fields used by these small deterministic release members. */
+    const octal = (start, length) => {
+      const value = header
+        .subarray(start, start + length)
+        .toString("ascii")
+        .replace(/\0.*$/s, "")
+        .trim()
+      assert.match(value, /^[0-7]+$/)
+      return Number.parseInt(value, 8)
+    }
+    assert.equal(octal(100, 8), 0o644, `${name}: normalized mode`)
+    assert.equal(octal(108, 8), 0, `${name}: uid`)
+    assert.equal(octal(116, 8), 0, `${name}: gid`)
+    assert.equal(octal(136, 12), timestamp, `${name}: commit timestamp`)
+    const checksum = header.reduce(
+      (sum, byte, index) => sum + (index >= 148 && index < 156 ? 32 : byte),
+      0
+    )
+    assert.equal(octal(148, 8), checksum, `${name}: header checksum`)
+    const size = octal(124, 12)
+    assert.ok(size > 0 && size <= 10 * 1024 * 1024, `${name}: bounded content`)
+    offset += 512 + Math.ceil(size / 512) * 512
+    assert.ok(offset <= archive.length, "Complete member content")
+  }
+  assert.deepEqual(names, [
+    "dist/index.js",
+    "dist/scripts/authorizeBot.js",
+    "dist/scripts/checkReadiness.js",
+    "dist/scripts/sendSmokeMessage.js",
+    "manifest.json",
+    "package.json",
+    "runtime-artifact.json",
+  ])
+  assert.ok(archive.length - offset >= 1024, "Two tar end markers")
+  assert.equal(
+    archive.subarray(offset).every((byte) => byte === 0),
+    true,
+    "Only zero padding after members"
+  )
+}
+
 try {
   await mkdir(join(app, "scripts"), { recursive: true })
   await mkdir(join(app, "src/deployment"), { recursive: true })
@@ -54,19 +124,28 @@ try {
     "Artifact fixture"
   )
   const sha = git("rev-parse", "HEAD")
-  const packageRelease = (expectedStatus = 0, diagnostic) => {
+  const timestamp = Number(git("show", "-s", "--format=%ct", sha))
+  /** Package the isolated commit under a caller environment and require the expected exit/diagnostic. */
+  const packageRelease = (expectedStatus = 0, diagnostic, environment = {}) => {
     const output = join(temporary, `output-${++sequence}`)
     const result = spawnSync(
       process.execPath,
       [join(app, "scripts/package-release.mjs"), output, sha],
-      { cwd: fixture, encoding: "utf8", timeout: 10000 }
+      {
+        cwd: fixture,
+        env: { ...process.env, ...environment },
+        encoding: "utf8",
+        timeout: 10000,
+      }
     )
     assert.ifError(result.error)
     assert.equal(result.status, expectedStatus, result.stderr)
     if (diagnostic) assert.match(result.stderr, diagnostic)
     return output
   }
-  const first = packageRelease()
+  const first = packageRelease(0, undefined, { TZ: "UTC0", LC_ALL: "C" })
+  const firstArchive = await readFile(join(first, `cleo-twitch-${sha}.tar.gz`))
+  assertArchiveMetadata(firstArchive, timestamp)
   execFileSync(
     "sh",
     [
@@ -80,11 +159,16 @@ try {
   )
   await utimes(join(app, "dist/index.js"), new Date(0), new Date(0))
   await new Promise((resolve) => setTimeout(resolve, 1100))
-  const second = packageRelease()
-  assert.deepEqual(
-    await readFile(join(first, `cleo-twitch-${sha}.tar.gz`)),
-    await readFile(join(second, `cleo-twitch-${sha}.tar.gz`))
+  // C and POSIX are always available; POSIX TZ strings require no installed locale or zone data.
+  const second = packageRelease(0, undefined, {
+    TZ: "EST5EDT",
+    LC_ALL: "POSIX",
+  })
+  const secondArchive = await readFile(
+    join(second, `cleo-twitch-${sha}.tar.gz`)
   )
+  assertArchiveMetadata(secondArchive, timestamp)
+  assert.deepEqual(firstArchive, secondArchive)
   const extracted = join(temporary, "extracted")
   await mkdir(extracted)
   execFileSync("tar", [
@@ -160,7 +244,7 @@ try {
   await symlink(outside, dist)
   packageRelease(1, /without symlinks/)
   console.log(
-    "Twitch packaging rejects dirty/untracked sources, symlinks, directories, FIFO and escaping parents; archives are reproducible."
+    "Twitch packaging rejects dirty/untracked sources, symlinks, directories, FIFO and escaping parents; GNU headers, ordered contents, ownership, modes and commit timestamps are verified; archive bytes survive mtime, locale and timezone changes."
   )
 } finally {
   await rm(temporary, { recursive: true, force: true })

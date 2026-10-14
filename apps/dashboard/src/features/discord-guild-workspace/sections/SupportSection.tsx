@@ -4,14 +4,7 @@ import { IconLifebuoy } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+
 import {
   Empty,
   EmptyDescription,
@@ -138,6 +131,7 @@ export function SupportSection({
   )
 }
 
+/** Preserve saved routing and ticket visibility while the replacement support flow keeps every edit disabled. */
 function SupportWorkspace({
   config,
   discordGuildId,
@@ -153,8 +147,8 @@ function SupportWorkspace({
   const disabled = true
 
   return (
-    <div className="flex max-w-5xl flex-col gap-6">
-      <Alert>
+    <div className="flex max-w-5xl flex-col gap-10">
+      <Alert className="rounded-none border-0 border-l-2 bg-transparent py-0">
         <IconInfoCircle aria-hidden />
         <AlertTitle>Support is temporarily unavailable</AlertTitle>
         <AlertDescription>
@@ -166,18 +160,26 @@ function SupportWorkspace({
         </AlertDescription>
       </Alert>
 
-      <Card>
-        <CardHeader>
+      <section
+        className="max-w-2xl space-y-5"
+        aria-labelledby="guild-support-routing-heading"
+      >
+        <header className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>Guild Support Routing</CardTitle>
+            <h2
+              className="font-heading text-base font-medium"
+              id="guild-support-routing-heading"
+            >
+              Guild Support Routing
+            </h2>
             <Badge variant="secondary">Temporarily disabled</Badge>
           </div>
-          <CardDescription>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Review the server&apos;s saved support routing configuration.
             Configuration changes cannot currently be made.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </header>
+        <div className="space-y-5">
           <FieldGroup>
             <Field orientation="horizontal" data-disabled={disabled}>
               <FieldContent>
@@ -268,8 +270,8 @@ function SupportWorkspace({
               </FieldDescription>
             </Field>
           </FieldGroup>
-        </CardContent>
-        <CardFooter>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <Button disabled type="button">
               Save Support Routing
@@ -279,26 +281,35 @@ function SupportWorkspace({
               flow has been fully implemented and tested.
             </p>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Guild Support Tickets</CardTitle>
-          <CardDescription>
+      <section
+        className="min-w-0 space-y-5"
+        aria-labelledby="guild-support-tickets-heading"
+      >
+        <header className="space-y-2">
+          <h2
+            className="font-heading text-base font-medium"
+            id="guild-support-tickets-heading"
+          >
+            Guild Support Tickets
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Existing support records remain available for review while new
             `/help` requests are disabled.
             {isBotLeft ? " Cleo is no longer in this server." : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </header>
+        <div className="space-y-5">
           <GuildSupportTicketList tickets={tickets} />
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   )
 }
 
+/** Render existing ticket records, keeping a missing message explicit and new requests unavailable. */
 function GuildSupportTicketList({
   tickets,
 }: {
@@ -306,7 +317,7 @@ function GuildSupportTicketList({
 }) {
   if (tickets.length === 0) {
     return (
-      <Empty className="min-h-56 border">
+      <Empty className="min-h-40 rounded-none px-0">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <IconLifebuoy aria-hidden />
@@ -321,7 +332,7 @@ function GuildSupportTicketList({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div className="min-w-0 border-y">
       <Table>
         <TableHeader>
           <TableRow>

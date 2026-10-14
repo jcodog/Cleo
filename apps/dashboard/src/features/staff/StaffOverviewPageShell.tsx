@@ -10,13 +10,7 @@ import {
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+
 import {
   Empty,
   EmptyDescription,
@@ -65,10 +59,7 @@ type StaffActivity = {
 }
 
 type GuildPaginationStatus =
-  | "LoadingFirstPage"
-  | "CanLoadMore"
-  | "LoadingMore"
-  | "Exhausted"
+  "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted"
 
 export function StaffOverviewPageShell() {
   const result = useQuery(api.queries.dashboard.staff.access.overview, {})
@@ -92,6 +83,7 @@ export function StaffOverviewPageShell() {
   )
 }
 
+/** Keep loading and forbidden responses separate from staff-only records and totals. */
 export function StaffOverviewContent({
   result,
   guilds,
@@ -117,7 +109,7 @@ export function StaffOverviewContent({
       {result === undefined ? (
         <OverviewSkeleton />
       ) : result.status === "forbidden" ? (
-        <Empty className="min-h-72 border">
+        <Empty className="min-h-40 rounded-none px-0">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <IconAlertTriangle aria-hidden />
@@ -130,20 +122,21 @@ export function StaffOverviewContent({
         </Empty>
       ) : (
         <>
-          <MetricCards metrics={result.metrics} />
-          <GuildsCard
+          <OperationalTotals metrics={result.metrics} />
+          <GuildsSection
             guilds={guilds}
             status={guildStatus}
             loadMore={loadMore}
           />
-          <ActivityCard activity={result.activity} />
+          <ActivitySection activity={result.activity} />
         </>
       )}
     </main>
   )
 }
 
-function MetricCards({
+/** Summarize persisted member snapshots, whose sum does not represent unique people. */
+function OperationalTotals({
   metrics,
 }: {
   metrics: {
@@ -152,27 +145,33 @@ function MetricCards({
   }
 }) {
   return (
-    <section
-      aria-label="Cleo operational totals"
-      className="grid gap-4 md:grid-cols-2"
-    >
-      <MetricCard
-        description="Servers Cleo is currently installed in."
-        icon={<IconServer aria-hidden />}
-        label="Guilds"
-        value={metrics.guildCount}
-      />
-      <MetricCard
-        description="Sum of current server member-count snapshots, not unique people."
-        icon={<IconUsers aria-hidden />}
-        label="Users"
-        value={metrics.userCount}
-      />
+    <section aria-labelledby="operational-totals-heading" className="space-y-5">
+      <h2
+        id="operational-totals-heading"
+        className="font-heading text-base font-medium"
+      >
+        Cleo operational totals
+      </h2>
+      <dl className="grid gap-6 sm:grid-cols-2">
+        <OperationalTotal
+          description="Servers Cleo is currently installed in."
+          icon={<IconServer aria-hidden />}
+          label="Guilds"
+          value={metrics.guildCount}
+        />
+        <OperationalTotal
+          description="Sum of current server member-count snapshots, not unique people."
+          icon={<IconUsers aria-hidden />}
+          label="Users"
+          value={metrics.userCount}
+        />
+      </dl>
     </section>
   )
 }
 
-function MetricCard({
+/** Keep numeric snapshots in definition values so they do not become meaningless navigation headings. */
+function OperationalTotal({
   description,
   icon,
   label,
@@ -184,26 +183,23 @@ function MetricCard({
   value: number
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="min-w-0">
-          <CardDescription>{label}</CardDescription>
-          <CardTitle className="mt-2 text-3xl tabular-nums">
-            {value.toLocaleString()}
-          </CardTitle>
-        </div>
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted text-muted-foreground">
-          {icon}
-        </div>
-      </CardHeader>
-      <CardContent>
+    <div className="min-w-0">
+      <dt className="flex items-center gap-2 text-sm text-muted-foreground [&_svg]:size-4">
+        {icon}
+        {label}
+      </dt>
+      <dd className="mt-2 space-y-1">
+        <p className="font-heading text-3xl font-medium tabular-nums">
+          {value.toLocaleString()}
+        </p>
         <p className="text-xs text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
+      </dd>
+    </div>
   )
 }
 
-function GuildsCard({
+/** Show installation snapshots with pagination controls disabled during a pending page read. */
+function GuildsSection({
   guilds,
   status,
   loadMore,
@@ -215,18 +211,26 @@ function GuildsCard({
   const loadingFirstPage = status === "LoadingFirstPage"
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Discord Servers</CardTitle>
-        <CardDescription>
+    <section
+      className="min-w-0 space-y-5"
+      aria-labelledby="discord-servers-heading"
+    >
+      <header className="space-y-2">
+        <h2
+          className="font-heading text-base font-medium"
+          id="discord-servers-heading"
+        >
+          Discord Servers
+        </h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
           Active Cleo installations ordered by the latest member-count snapshot.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </p>
+      </header>
+      <div className="space-y-4">
         {loadingFirstPage ? (
           <Skeleton className="h-56 w-full" />
         ) : guilds.length === 0 ? (
-          <Empty className="min-h-56 border">
+          <Empty className="min-h-40 rounded-none px-0">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <IconServer aria-hidden />
@@ -238,7 +242,7 @@ function GuildsCard({
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="overflow-hidden rounded-lg border">
+          <div className="min-w-0 border-y">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -290,31 +294,41 @@ function GuildsCard({
             </Button>
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }
 
-function ActivityCard({ activity }: { activity: StaffActivity[] }) {
+/** Render the staff-safe event summary fields without exposing raw event metadata. */
+function ActivitySection({ activity }: { activity: StaffActivity[] }) {
   return (
-    <Card>
-      <CardHeader>
+    <section
+      className="min-w-0 space-y-5"
+      aria-labelledby="recent-cleo-activity-heading"
+    >
+      <header className="space-y-2">
         <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted text-muted-foreground">
-            <IconActivity aria-hidden />
-          </div>
+          <IconActivity
+            aria-hidden
+            className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+          />
           <div className="min-w-0">
-            <CardTitle>Recent Cleo Activity</CardTitle>
-            <CardDescription>
+            <h2
+              className="font-heading text-base font-medium"
+              id="recent-cleo-activity-heading"
+            >
+              Recent Cleo Activity
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
               The latest 100 lifecycle and Discord events. User identity,
               message content, reasons and raw event metadata are not exposed.
-            </CardDescription>
+            </p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
+      </header>
+      <div className="space-y-5">
         {activity.length === 0 ? (
-          <Empty className="min-h-56 border">
+          <Empty className="min-h-40 rounded-none px-0">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <IconActivity aria-hidden />
@@ -326,7 +340,7 @@ function ActivityCard({ activity }: { activity: StaffActivity[] }) {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="overflow-hidden rounded-lg border">
+          <div className="min-w-0 border-y">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -359,8 +373,8 @@ function ActivityCard({ activity }: { activity: StaffActivity[] }) {
             </Table>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }
 

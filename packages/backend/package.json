@@ -25,7 +25,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@workspace/typescript-config": "workspace:*",
-    "convex-test": "^0.0.61",
+    "convex-test": "^0.0.62",
     "typescript": "catalog:"
   },
   "exports": {

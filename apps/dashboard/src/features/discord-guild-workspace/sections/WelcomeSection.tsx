@@ -41,6 +41,7 @@ const presetDescriptions = {
 }
 const palettes = ["cyan", "orchid", "forest", "amber"] as const
 
+/** Render shared Welcome settings and expose design controls only with server-provided access. */
 export function WelcomeSection({
   isBotLeft,
   overview,
@@ -329,34 +330,26 @@ export function WelcomeSection({
                 subtext={subtext}
                 server={overview.name}
               />
-              <div className="flex gap-3 rounded-lg border border-primary/15 bg-primary/5 p-4">
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  Save to use this design for new members. If Premium expires,
-                  Cleo sends Classic and keeps your saved design for when access
-                  returns.
-                </p>
-              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Save to use this design for new members. If Premium expires,
+                Cleo sends Classic and keeps your saved design for when access
+                returns.
+              </p>
             </aside>
           </div>
         </>
       )}
       <section
-        className="space-y-5 border-t pt-6"
-        aria-labelledby="free-welcome-heading"
+        className="max-w-2xl space-y-5"
+        aria-labelledby="welcome-settings-heading"
       >
-        <div className="space-y-1">
-          <h3 id="free-welcome-heading" className="text-base font-semibold">
-            {overview.welcomeCardStudioAvailable
-              ? "Your welcome settings"
-              : "Your active free welcome"}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {overview.welcomeCardStudioAvailable
-              ? "These settings control the welcome card Cleo sends to Discord."
-              : "These settings control the Classic card Cleo sends to Discord."}
-          </p>
-        </div>
-        <FieldGroup className="max-w-2xl">
+        <h3
+          id="welcome-settings-heading"
+          className="font-heading text-base font-medium"
+        >
+          Welcome settings
+        </h3>
+        <FieldGroup>
           <Field data-disabled={disabled} orientation="horizontal">
             <FieldContent>
               <FieldTitle>Welcome messages</FieldTitle>
@@ -410,17 +403,11 @@ export function WelcomeSection({
             }
             type="submit"
           >
-            {saveState === "saving"
-              ? "Saving settings…"
-              : overview.welcomeCardStudioAvailable
-                ? "Save welcome settings"
-                : "Save free settings"}
+            {saveState === "saving" ? "Saving…" : "Save Welcome"}
           </Button>
           {saveState === "success" ? (
             <p role="status" className="text-sm text-emerald-400">
-              {overview.welcomeCardStudioAvailable
-                ? "Welcome settings saved."
-                : "Free welcome settings saved."}
+              Welcome settings saved.
             </p>
           ) : (
             <SaveStatus errorMessage={errorMessage} state={saveState} />
