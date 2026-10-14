@@ -21,6 +21,10 @@ on:
         description: Successful push-to-main regression run ID for deploy
         type: string
         required: false
+      run_attempt:
+        description: Explicit successful complete regression attempt for deploy
+        type: string
+        required: false
       service:
         description: Validation scope or runtime to roll back. Deploy always uses classification.
         type: choice
@@ -46,11 +50,13 @@ permissions: {}
 concurrency:
   group: cleo-production-promotion
   cancel-in-progress: false
+  queue: max
 
 env:
   INPUT_OPERATION: ${{ inputs.operation || 'deploy' }}
   INPUT_SHA: ${{ inputs.sha }}
   INPUT_RUN_ID: ${{ inputs.run_id }}
+  INPUT_RUN_ATTEMPT: ${{ inputs.run_attempt }}
   INPUT_SERVICE: ${{ inputs.service || 'both' }}
 
 jobs:
@@ -80,6 +86,12 @@ jobs:
       digest: ${{ steps.policy.outputs.digest }}
       artifact: ${{ steps.policy.outputs.artifact }}
     steps:
+      - name: Validate operation selection
+        run: |
+          if [[ "$INPUT_OPERATION" == rollback && "$INPUT_SERVICE" != discord && "$INPUT_SERVICE" != twitch ]]; then
+            echo '::error::Rollback requires exactly one runtime: discord or twitch.'
+            exit 1
+          fi
       # workflow_sha identifies trusted workflow code, never a PR artifact or input ref.
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
@@ -131,7 +143,7 @@ jobs:
         run: node .github/scripts/production-policy.mjs plan
 
   discord-package:
-    name: Validate and package discord bot
+    name: Validate and package Discord bot
     needs: authorise
     if: needs.authorise.outputs.discord == 'true'
     environment: discord-production
@@ -209,7 +221,7 @@ jobs:
           echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
 
   twitch-package:
-    name: Validate and package twitch bot
+    name: Validate and package Twitch bot
     needs: authorise
     if: needs.authorise.outputs.twitch == 'true'
     environment: twitch-production
@@ -376,8 +388,12 @@ jobs:
         if: needs.authorise.outputs.backend == 'true' && steps.claim.outputs.apply == 'true'
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
         run: |
-          node "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
+          if ! node "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck; then
+            node "$RUNNER_TEMP/production-policy/production-policy.mjs" release
+            exit 1
+          fi
           bun run --filter @workspace/backend deploy
       - name: Confirm durable backend success
         if: needs.authorise.outputs.backend == 'true' && steps.claim.outputs.apply == 'true'
@@ -392,7 +408,7 @@ jobs:
         run: echo "Backend barrier passed for $RELEASE_SHA. Convex required=$REQUIRED, applied=${APPLIED:-false}, receipt=${RECEIPT:-none}." >> "$GITHUB_STEP_SUMMARY"
 
   discord-activate:
-    name: Activate discord release on production VPS
+    name: Activate Discord release on production VPS
     needs: [control, authorise, discord-package, backend]
     if: >-
       !cancelled() && needs.control.result == 'success' && needs.authorise.result == 'success' &&
@@ -539,6 +555,7 @@ jobs:
           echo "Command deployment started: $metadata"
           "$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" recheck
           test "$(basename "$release_root")" = "$RELEASE_SHA"
+          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE" >/dev/null 2>&1 || true
           sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
           test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
           command_result=verified
@@ -587,6 +604,7 @@ jobs:
           NODE
           )"
           echo "Command deployment started: $metadata"
+          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE" >/dev/null 2>&1 || true
           sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
           test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
           command_result=verified
@@ -602,7 +620,7 @@ jobs:
         run: '"$CLEO_DISCORD_HOST_NODE" "$RUNNER_TEMP/production-policy/production-policy.mjs" complete'
 
   twitch-activate:
-    name: Activate twitch release on production VPS
+    name: Activate Twitch release on production VPS
     needs: [control, authorise, twitch-package, backend]
     if: >-
       !cancelled() && needs.control.result == 'success' && needs.authorise.result == 'success' &&
@@ -808,6 +826,7 @@ jobs:
           NODE
           )"
           echo "Command deployment started: $metadata"
+          sudo -n /usr/bin/systemctl reset-failed "$CLEO_DISCORD_COMMAND_SERVICE" >/dev/null 2>&1 || true
           sudo -n /usr/bin/systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"
           test "$(readlink -f "$CLEO_DISCORD_DEPLOY_ROOT/current")" = "$release_root"
           command_result=verified

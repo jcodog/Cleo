@@ -69,6 +69,15 @@ for (const id of required) {
   assert.equal(node.with["node-version-file"], ".nvmrc")
   assert.equal(job.steps.filter((step) => step.run === "bun ci").length, 1)
 }
+/** Local reusable workflows share the caller commit; remote calls must be pinned. */
+function requirePinned(reference) {
+  if (!reference.startsWith("./")) assert.match(reference, /@[a-f0-9]{40}$/)
+}
+assert.throws(() =>
+  requirePinned("owner/repo/.github/workflows/release.yml@main")
+)
+requirePinned("./.github/workflows/production-release.yml")
+requirePinned(`owner/repo/.github/workflows/release.yml@${"a".repeat(40)}`)
 for (const name of [
   "regression.yml",
   "publish-coverage.yml",
@@ -77,11 +86,24 @@ for (const name of [
   "discord-runner-smoke.yml",
   "production-release.yml",
 ])
-  for (const job of Object.values(readWorkflow(name).jobs))
-    for (const step of job.steps ?? [])
-      if (step.uses) assert.match(step.uses, /@[a-f0-9]{40}$/)
+  for (const job of Object.values(readWorkflow(name).jobs)) {
+    if (job.uses) requirePinned(job.uses)
+    for (const step of job.steps ?? []) if (step.uses) requirePinned(step.uses)
+  }
+
+const smoke = readWorkflow("discord-runner-smoke.yml")
+assert.equal(smoke.concurrency["cancel-in-progress"], false)
+assert.equal(smoke.jobs.smoke.if, "github.ref == 'refs/heads/main'")
+assert.equal(smoke.jobs.smoke.environment, "discord-production")
+assert.equal(smoke.jobs.smoke["runs-on"], "cleo-prod")
+assert.ok(
+  !smoke.jobs.smoke.steps.some((step) =>
+    step.uses?.startsWith("actions/checkout@")
+  )
+)
 
 const gate = workflow.jobs.regression
+await import("./test-discord-workflow.mjs")
 await import("./test-production-policy.mjs")
 await import("./test-production-workflow.mjs")
 assert.equal(gate.name, "Tests, lint, typecheck, and coverage")

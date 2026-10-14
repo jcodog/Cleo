@@ -28,6 +28,7 @@ assert.deepEqual(workflow.permissions, {})
 assert.deepEqual(workflow.concurrency, {
   group: "cleo-production-promotion",
   "cancel-in-progress": false,
+  queue: "max",
 })
 for (const service of ["discord", "twitch"]) {
   const wrapper = read(`${service}-production.yml`)
@@ -223,6 +224,37 @@ for (const service of ["discord", "twitch"]) {
   )
 }
 const manualGithub = { ...github, event_name: "workflow_dispatch", event: {} }
+// The first control step validates rollback scope before artifacts or privileged jobs.
+const operationGuard = workflow.jobs.control.steps[0].run
+for (const [operation, service, expected] of [
+  ["validate", "both", 0],
+  ["deploy", "both", 0],
+  ["rollback", "discord", 0],
+  ["rollback", "twitch", 0],
+  ["rollback", "both", 1],
+  ["rollback", "unknown", 1],
+]) {
+  const result = spawnSync("bash", ["-e", "-c", operationGuard], {
+    env: { ...process.env, INPUT_OPERATION: operation, INPUT_SERVICE: service },
+    encoding: "utf8",
+  })
+  assert.ifError(result.error)
+  assert.equal(
+    result.status,
+    expected,
+    `${operation}/${service}: ${result.stderr}`
+  )
+  if (expected) {
+    const rejected = graph({
+      githubContext: manualGithub,
+      inputs: { operation, service },
+      overrides: { control: "failure" },
+    })
+    assertBlocked(rejected)
+    for (const runtime of ["discord", "twitch"])
+      assert.equal(rejected[`${runtime}-rollback`].result, "skipped")
+  }
+}
 assertBlocked(
   graph({
     githubContext: manualGithub,
@@ -253,8 +285,26 @@ for (const id of productionJobs) {
   assert.equal(job.permissions.deployments, "write")
   const claim = job.steps.find((step) => step.id === "claim")
   assert.ok(claim.run.includes('production-policy.mjs" claim'))
-  const action = job.steps.find((step) => step.run?.includes(" recheck\n"))
-  assert.ok(action, `${id} must recheck directly before its production action`)
+  const mutation = {
+    backend: "bun run --filter @workspace/backend deploy",
+    "discord-activate": "/usr/local/libexec/cleo/deploy-discord-release deploy",
+    "twitch-activate":
+      "/usr/local/libexec/cleo/twitch/deploy-twitch-release deploy",
+  }[id]
+  const actions = job.steps.filter((step) => step.run?.includes(mutation))
+  assert.equal(actions.length, 1, `${id}: one guarded production command`)
+  const requireRecheck = (script) => {
+    const guard = script.indexOf('production-policy.mjs" recheck')
+    assert.ok(
+      guard >= 0 && guard < script.indexOf(mutation),
+      `${id}: same shell must recheck before mutation`
+    )
+  }
+  requireRecheck(actions[0].run)
+  assert.throws(() =>
+    requireRecheck(mutation + '\nnode production-policy.mjs" recheck')
+  )
+  assert.throws(() => requireRecheck(mutation))
   assert.ok(
     job.steps.find(
       (step) => step.name === "Verify trusted control file checksum"
@@ -324,6 +374,7 @@ try {
     INPUT_OPERATION: "deploy",
     INPUT_SHA: mainSha,
     INPUT_RUN_ID: "10",
+    INPUT_RUN_ATTEMPT: "1",
     INPUT_SERVICE: "both",
     DISCORD_REQUIRED: "true",
     TWITCH_REQUIRED: "true",
@@ -331,6 +382,79 @@ try {
     TWITCH_RESULT: "success",
     DISCORD_ENABLED: "true",
     TWITCH_ENABLED: "true",
+  }
+  // Run both actual protected gates, including case handling and invalid values.
+  for (const service of ["discord", "twitch"]) {
+    const gate = workflow.jobs[`${service}-package`].steps.find(
+      (step) => step.id === "gate"
+    )
+    assert.equal(
+      gate.env.DEPLOY_ENABLED,
+      `\${{ vars.CLEO_${service.toUpperCase()}_DEPLOY_ENABLED }}`
+    )
+    for (const value of [
+      "true",
+      "TRUE",
+      "True",
+      "tRuE",
+      "false",
+      "yes",
+      "1",
+      "",
+      " true",
+      "true ",
+    ]) {
+      const output = join(fixtureDirectory, `${service}-gate-output`)
+      writeFileSync(output, "")
+      const result = spawnSync(
+        "bash",
+        ["-e", "-o", "pipefail", "-c", gate.run],
+        {
+          env: { ...process.env, DEPLOY_ENABLED: value, GITHUB_OUTPUT: output },
+          encoding: "utf8",
+          timeout: 10000,
+        }
+      )
+      assert.ifError(result.error)
+      assert.equal(result.status, 0, result.stderr)
+      assert.equal(
+        readFileSync(output, "utf8").trim(),
+        `enabled=${value.toLowerCase() === "true"}`
+      )
+    }
+  }
+  // A rejected final recheck releases only the unused claim. Once deploy starts,
+  // any failure retains the uncertain claim and can never silently retry Convex.
+  const backendScript = backendActions[0].run
+  for (const [recheckStatus, deployStatus, expectedStatus, expectedCalls] of [
+    [1, 0, 1, ["recheck", "release"]],
+    [0, 1, 1, ["recheck", "deploy"]],
+    [0, 0, 0, ["recheck", "deploy"]],
+  ]) {
+    const log = join(fixtureDirectory, "backend-calls")
+    writeFileSync(log, "")
+    const stubs =
+      'node() { echo "${@: -1}" >> "$CALL_LOG"; if [[ "${@: -1}" == recheck ]]; then return "$RECHECK_STATUS"; fi; }\nbun() { echo deploy >> "$CALL_LOG"; return "$DEPLOY_STATUS"; }\n'
+    const result = spawnSync(
+      "bash",
+      ["-e", "-o", "pipefail", "-c", stubs + backendScript],
+      {
+        env: {
+          ...process.env,
+          CALL_LOG: log,
+          RECHECK_STATUS: String(recheckStatus),
+          DEPLOY_STATUS: String(deployStatus),
+        },
+        encoding: "utf8",
+        timeout: 10000,
+      }
+    )
+    assert.ifError(result.error)
+    assert.equal(result.status, expectedStatus, result.stderr)
+    assert.deepEqual(
+      readFileSync(log, "utf8").trim().split("\n"),
+      expectedCalls
+    )
   }
   for (const [patch, expected] of [
     [{}, 0],

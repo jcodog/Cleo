@@ -2,8 +2,10 @@
 
 JCN-206 coordinates Convex, Discord and Twitch production promotion. The four
 parallel regression jobs and the required aggregate check are unchanged. Coverage
-thresholds, nine workspace reports, Pages publishing, browser/PWA checks, welcome
-rendering, Linux packaging tests and failure evidence remain in the regression.
+thresholds, nine workspace reports, browser/PWA checks, welcome rendering, Linux
+packaging tests and failure evidence remain in the regression. The unchanged
+Pages publisher is a separate sibling workflow triggered after successful main
+regression, rather than a job required by the aggregate.
 
 ## Verified defect
 
@@ -76,10 +78,14 @@ release identity. The coordinator reads source evidence from the GitHub REST API
 - Current `main` still equals the selected SHA. An attempt change during promotion
   also invalidates authorisation.
 
+The checked-out workflow policy must also match that release SHA. If a queued
+manual request carries an older workflow snapshot, start a new coordinator run
+on current main instead of classifying newer code with the older policy.
+
 API failures, missing fields and inconsistent evidence fail closed. API job and
-deployment history queries paginate. Manual deployment supplies both the SHA and
-regression run ID; the same verifier applies. An unrelated run, an old SHA, a PR,
-a fork or a manual regression cannot authorise a release.
+deployment history queries paginate. Manual deployment supplies the SHA,
+regression run ID and explicit attempt; the same verifier applies. An unrelated
+run, an old SHA, a PR, a fork or a manual regression cannot authorise a release.
 
 If a partial rerun omits required jobs from the selected attempt, rerun all
 regression jobs. Production requires a complete successful attempt.
@@ -111,8 +117,9 @@ Pages is a sibling. There are no trigger loops or dispatch-token chains.
 
 Permissions default to empty. Authentication receives contents/actions/deployments
 read access. Packages receive contents read only. Production actions receive
-contents/actions read and deployments write for durable receipts. All third-party
-Actions remain pinned by full commit SHA. Existing `discord-production` and
+contents/actions read and deployments write for durable receipts. Rollback jobs
+receive contents read and deployments write, with no Actions read permission.
+All third-party Actions remain pinned by full commit SHA. Existing `discord-production` and
 `twitch-production` environments restrict jobs to `main`. Their enablement
 variables are read inside environment jobs and consumed by the package barrier.
 The central backend uses the existing Discord production environment and its
@@ -149,15 +156,22 @@ The entire coordinator, including manual operations, holds concurrency group
 `cleo-production-promotion` with cancellation disabled. No bot workflow separately
 deploys Convex. The lock spans backend deployment and both activations, so automatic
 and manual releases cannot interleave. GitHub need not run queued requests in
-order; every production command independently rejects a superseded SHA. A newer
-push may replace an older pending request; classification against deployment
-receipts carries forward changes the skipped request never deployed.
+order; every production command independently rejects a superseded SHA.
+`queue: max` retains up to 100 pending runs rather than replacing a pending manual
+recovery with a newer event. Classification against deployment receipts carries
+forward changes that superseded requests never deployed. Queue capacity and GitHub
+scheduling still apply; operators must confirm their recovery run is queued.
 
 Before Convex is touched, a durable receipt is created and marked in progress.
-A confirmed successful receipt for the same SHA prevents another deployment on
-duplicate events, historical reruns or manual retries. Failure, cancellation,
+A confirmed successful deployment receipt for the same SHA prevents another
+deployment on duplicate events, historical reruns or manual retries. Failure, cancellation,
 network loss after claiming, or a crash before confirmation leave an uncertain
 receipt. The same SHA cannot automatically redeploy Convex in that state.
+If the final recheck rejects authorisation before the Convex command starts, the
+same shell marks only its own unused backend claim inactive, then fails. That
+cleanup verifies the receipt's task, operation, SHA, source run/attempt,
+coordinator ownership and unfinished state. It never clears a claim after the
+deployment command starts or treats a rollback receipt as backend success.
 
 An operator must inspect the coordinator logs and Convex history. If deployment
 is proven successful, mark that exact `cleo-backend` receipt successful through
@@ -174,8 +188,8 @@ automatic retries. The current verified main SHA can then be promoted again.
   It does not claim deployment receipts, change Convex, register commands, restart
   services or activate production. Production enablement may remain off.
 - **Deploy:** `Production Release`, operation `deploy`, explicit current main SHA
-  and a successful push regression run ID for that exact SHA. Classification and
-  both affected environment controls apply. Selecting a service cannot bypass
+  and a successful push regression run ID and explicit attempt for that exact SHA.
+  Classification and both affected environment controls apply. Selecting a service cannot bypass
   required packages or the backend. Stale deployment is never a manual exception.
 - **Rollback:** either bot's manual operations wrapper, or `Production Release`
   with operation `rollback` and exactly one service. Only a trusted main invocation
@@ -241,8 +255,20 @@ gates require a later explicitly authorised operational rollout.
 Local verification passed `bun run test:ci`, `bun run test`,
 `bun run test:coverage`, `bun run lint:ci`, `bun run typecheck`, and `bun run build`
 with the existing public compile-only fixtures. Targeted Discord coverage and
-typechecking also passed after the final classifier changes. Actionlint 1.7.12,
-changed-file Prettier checks, and Bash syntax checks passed.
+typechecking also passed after the final classifier changes. Changed-file
+Prettier checks and Bash syntax checks passed. Actionlint 1.7.12 passes with only
+its obsolete rejection of `concurrency.queue` filtered. GitHub's
+[concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
+supports `queue: max`; the executable workflow contract checks that exact setting.
+
+The [first PR regression](https://github.com/jcodog/Cleo/actions/runs/38648891228)
+passed Linux release verification, nine-workspace coverage and browser/PWA checks,
+but failed code quality because a Discord operation fixture still extracted its
+command shells from the retired workflow. The aggregate correctly failed. The
+fixture now shares the coordinator extractor with the portable CI contracts, so
+this stale reference is caught even on hosts that cannot run POSIX permission
+fixtures. Twitch extraction is scoped to its own package job. Hosted regression
+must pass again on the combined review corrections before merge readiness.
 
 The new fixtures exercise 81 rejected source-evidence cases, real Git merge and
 multi-commit histories, actual workflow job conditions, the actual package-barrier

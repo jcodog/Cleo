@@ -118,7 +118,17 @@ export function invocation(env, event) {
     /^[1-9][0-9]*$/,
     "Select a regression run ID"
   )
-  return { operation, sha: env.INPUT_SHA, runId: Number(env.INPUT_RUN_ID) }
+  assert.match(
+    env.INPUT_RUN_ATTEMPT ?? "",
+    /^[1-9][0-9]*$/,
+    "Select an explicit regression attempt"
+  )
+  return {
+    operation,
+    sha: env.INPUT_SHA,
+    runId: Number(env.INPUT_RUN_ID),
+    attempt: Number(env.INPUT_RUN_ATTEMPT),
+  }
 }
 
 /** Read/write only this repository. Pagination never silently truncates evidence. */
@@ -228,6 +238,11 @@ export async function claim(
     assert.equal(operation, "deploy")
     for (const record of await receipts(api, component)) {
       if (record.sha !== identity.sha) continue
+      assert.equal(
+        record.payload?.operation,
+        "deploy",
+        "Backend receipt does not record a deployment"
+      )
       const state = await receiptState(api, record)
       if (state === "success") return { id: record.id, apply: false }
       assert.equal(
@@ -259,6 +274,27 @@ export async function claim(
     auto_inactive: false,
   })
   return { id: record.id, apply: true }
+}
+
+/** Only a pre-deployment recheck failure may release this run's unused claim. */
+export async function releaseClaim(api, identity, receiptId, coordinatorRun) {
+  assert.match(String(receiptId), /^[1-9][0-9]*$/)
+  const record = await api(`deployments/${receiptId}`)
+  assert.equal(record.task, "cleo-backend")
+  assert.equal(record.sha, identity.sha)
+  assert.equal(record.payload?.operation, "deploy")
+  assert.equal(String(record.payload?.coordinatorRun), String(coordinatorRun))
+  assert.equal(record.payload?.sourceRun, identity.runId)
+  assert.equal(record.payload?.sourceAttempt, identity.attempt)
+  assert.ok(
+    ["pending", "in_progress"].includes(await receiptState(api, record)),
+    "Cannot release a completed claim"
+  )
+  await api(`deployments/${receiptId}/statuses`, "POST", {
+    state: "inactive",
+    auto_inactive: false,
+    description: "Authorisation failed before Convex deployment started",
+  })
 }
 
 /** Allow skipped package jobs only when the verified plan did not require them. */
@@ -299,6 +335,11 @@ async function main() {
       assert.equal(selected.operation, "validate")
       assert.equal((await api("branches/main")).commit?.sha, selected.sha)
     }
+    assert.equal(
+      execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+      trusted.sha,
+      "Workflow policy checkout differs from release SHA; start a new coordinator on current main"
+    )
     output("sha", trusted.sha)
     output("source_run", trusted.runId ?? "")
     output("source_attempt", trusted.attempt ?? "")
@@ -371,6 +412,10 @@ async function main() {
     summary(
       `\nConfirmed ${env.COMPONENT} success for \`${identity.sha}\`, receipt ${env.RECEIPT_ID}.`
     )
+  } else if (command === "release") {
+    assert.equal(selected.operation, "deploy")
+    assert.equal(env.COMPONENT, "backend")
+    await releaseClaim(api, identity, env.RECEIPT_ID, env.GITHUB_RUN_ID)
   } else if (command === "packages") {
     packagesReady(
       {

@@ -348,10 +348,15 @@ function isDirectEntrypoint(): boolean {
 }
 
 if (isDirectEntrypoint()) {
-  const [, , mode = "commands", baseSha = "", headSha = "HEAD"] = process.argv
+  const [, , mode = "commands", baseSha = "", requestedHeadSha] = process.argv
   if (!["commands", "backend", "twitch", "deploy"].includes(mode)) {
     throw new Error("Unknown classification mode")
   }
+  const headSha =
+    requestedHeadSha ??
+    execFileSync("git", ["rev-parse", "--verify", "HEAD^{commit}"], {
+      encoding: "utf8",
+    }).trim()
   const changedPaths = changedPathsBetween(baseSha, headSha)
   const changed =
     changedPaths === null

@@ -5,7 +5,7 @@ A successful complete push-to-main regression authenticates the exact release SH
 before packaging, one Convex deployment when required, and affected runtime
 activation. The Discord operations workflow retains manual validation and recorded
 rollback. Manual deployment uses the coordinator with an explicit current main SHA
-and matching successful regression run ID. Vercel remains a separate boundary.
+and matching successful regression run ID and attempt. Vercel remains a separate boundary.
 
 ## Architecture
 
@@ -17,15 +17,19 @@ The production VPS is an application host, not a CI build machine.
 
 1. checks out the exact commit;
 2. installs the locked workspace with `bun ci`;
-3. runs Discord and backend tests, typechecks, and lint;
+3. relies on the complete upstream regression for automatic deployment; manual
+   validation also runs Discord tests, typechecks and lint;
 4. builds the Discord Node ESM runtime exactly once;
 5. packages the already-validated `dist` tree without rebuilding or mutating it;
 6. installs only the Discord production dependency closure into a standalone,
    hoisted Bun staging layout;
 7. validates native `@napi-rs/canvas` on Linux x64 GNU;
 8. creates an immutable release manifest and deterministic tarball;
-9. uploads the release tarball and SHA-256 checksum;
-10. deploys Convex for a real deploy operation.
+9. uploads the release tarball and SHA-256 checksum.
+
+The coordinator requires every affected runtime package to succeed before its
+separate backend stage can deploy Convex once when needed. Discord activation
+then requires that backend barrier and its own successful package.
 
 The packager fails if the compiled output is missing, if packaging changes the
 validated `dist` tree, or if the packaged `dist` differs from the validated build.
@@ -50,8 +54,9 @@ Activation performs:
 - atomic deployment-state update;
 - automatic restoration of the previous release when activation fails.
 
-After runtime activation and health checks succeed, the workflow explicitly resets
-and starts `cleo-discord-register-commands.service` for every release, regardless
+After runtime activation and health checks succeed, the workflow clears the
+failure counter on a best-effort basis and starts
+`cleo-discord-register-commands.service` for every release, regardless
 of fingerprint equality. That service runs the active release's registration
 program as `cleo`, using `/etc/cleo/discord-bot.env`. Tokens never reach the runner.
 The workflow completes only after this command step succeeds.
@@ -213,7 +218,7 @@ Use this sequence for the migration:
    hosted x64 validation/package job to pass.
 8. Set `CLEO_DISCORD_DEPLOY_ENABLED=true`.
 9. Dispatch **Production Release** with `operation=deploy`, the explicit current
-   main SHA and its successful complete push regression run ID.
+   main SHA and its successful complete push regression run ID and attempt.
 10. Inspect the activation job summary and confirm the attempted SHA, running SHA,
     persisted application SHA, and active systemd service agree.
 11. After a second manifest-based release exists, exercise `operation=rollback` and
@@ -326,10 +331,15 @@ the VPS.
 
 ### Deploy
 
-Manual `operation=deploy`, or a relevant trusted `main` push while the deployment
-gate is enabled, validates and packages on hosted Linux x64, deploys Convex, and
-then sends the validated artifact to `cleo-prod` for activation. The VPS does not
-build or install packages.
+Automatic deployment starts only after successful complete trusted main
+regression. Manual deployment uses **Production Release** with `operation=deploy`,
+the explicit current main SHA, and its matching successful push regression run ID
+and attempt. The coordinator authenticates that evidence, classifies outstanding
+changes, packages all affected runtimes on hosted Linux x64, then deploys Convex
+once if required. Affected runtimes activate only after the package and backend
+barriers succeed and the protected enablement controls pass. The VPS consumes
+verified artifacts without building or installing packages. **Discord Production
+Operations** accepts only `validate` or `rollback`.
 
 ### Rollback
 

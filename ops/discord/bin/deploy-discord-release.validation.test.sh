@@ -62,6 +62,10 @@ case "$operation" in
       echo "Failed to reset failed state of unit $1: Unit $1 not loaded." >&2
       exit 1
     fi
+    if [[ -n "${CLEO_DISCORD_TEST_COMMAND_STATE:-}" &&
+          "$(cat "$CLEO_DISCORD_TEST_COMMAND_STATE")" == ratelimited ]]; then
+      printf '%s\n' inactive > "$CLEO_DISCORD_TEST_COMMAND_STATE"
+    fi
     ;;
   show)
     unit="$1"
@@ -85,6 +89,11 @@ case "$operation" in
     esac
     ;;
   start)
+    if [[ -n "${CLEO_DISCORD_TEST_COMMAND_STATE:-}" &&
+          "$(cat "$CLEO_DISCORD_TEST_COMMAND_STATE")" == ratelimited ]]; then
+      echo 'Start request repeated too quickly' >&2
+      exit 1
+    fi
     if [[ -n "${CLEO_DISCORD_TEST_COMMAND_LOG:-}" ]]; then
       readlink -f "$CLEO_DISCORD_TEST_DEPLOY_ROOT/current" >> "$CLEO_DISCORD_TEST_COMMAND_LOG"
     fi
@@ -427,26 +436,7 @@ echo "Discord host release validation tests passed."
 
 # Execute the workflow's actual shell blocks against the controller fixtures.
 # The three paths must use the same command deployment contract.
-"$host_node" --input-type=module - \
-  "$script_dir/../../../.github/workflows/discord-production.yml" "$fixture_root" <<'NODE'
-import assert from "node:assert/strict"
-import { readFileSync, writeFileSync } from "node:fs"
-import path from "node:path"
-const [workflowPath, outputRoot] = process.argv.slice(2)
-const lines = readFileSync(workflowPath, "utf8").split(/\r?\n/)
-const scripts = []
-for (let i = 0; i < lines.length; i++) {
-  if (!/^      - name: Deploy and verify (active|restored) release commands$/.test(lines[i])) continue
-  while (lines[++i] !== "        run: |") assert.ok(i < lines.length)
-  const body = []
-  while (++i < lines.length && (lines[i].startsWith("          ") || lines[i] === "")) body.push(lines[i].slice(10))
-  scripts.push(body.join("\n").trim() + "\n")
-}
-assert.equal(scripts.length, 3)
-assert.equal(scripts[0], scripts[1])
-assert.equal(scripts[0], scripts[2])
-scripts.forEach((body, i) => writeFileSync(path.join(outputRoot, `workflow-commands-${i}.sh`), body))
-NODE
+"$host_node" "$script_dir/../../../.github/scripts/test-discord-workflow.mjs" "$fixture_root"
 
 export CLEO_DISCORD_COMMAND_SERVICE=cleo-discord-register-commands.service
 export CLEO_DISCORD_TEST_COMMAND_LOG="$fixture_root/workflow-command-starts"
@@ -463,6 +453,16 @@ EOF
 chmod 0755 "$CLEO_DISCORD_TEST_COMMAND_PROGRAM"
 printf '%s\n' inactive > "$CLEO_DISCORD_TEST_COMMAND_STATE"
 export GITHUB_STEP_SUMMARY="$fixture_root/workflow-summary"
+export RUNNER_TEMP="$fixture_root" RELEASE_SHA="$release_sha"
+export CLEO_DISCORD_TEST_AUTHORIZED=true
+mkdir -p "$RUNNER_TEMP/production-policy"
+# The policy has separate API-evidence fixtures. Here only its decision is supplied
+# so the actual workflow shell can prove rejection occurs before command changes.
+cat > "$RUNNER_TEMP/production-policy/production-policy.mjs" <<'NODE'
+import assert from "node:assert/strict"
+assert.equal(process.argv[2], "recheck")
+assert.equal(process.env.CLEO_DISCORD_TEST_AUTHORIZED, "true")
+NODE
 reset_deployment
 create_valid_release
 package_release
@@ -487,7 +487,28 @@ for script in "$fixture_root"/workflow-commands-*.sh; do
 done
 [[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 3 ]]
 [[ "$(wc -l < "$CLEO_DISCORD_TEST_REGISTRATION_LOG")" -eq 4 ]]
+# A loaded unit that exhausted StartLimitBurst needs its failure counter cleared.
+# Every path must recover while preserving the unloaded-unit case above.
+for script in "$fixture_root"/workflow-commands-*.sh; do
+  printf '%s\n' ratelimited > "$CLEO_DISCORD_TEST_COMMAND_STATE"
+  if systemctl start "$CLEO_DISCORD_COMMAND_SERVICE"; then
+    echo 'Fixture unexpectedly started a rate-limited unit' >&2
+    exit 1
+  fi
+  bash "$script"
+  [[ "$(cat "$CLEO_DISCORD_TEST_COMMAND_STATE")" == unloaded ]]
+done
 : > "$CLEO_DISCORD_TEST_COMMAND_LOG"
+if CLEO_DISCORD_TEST_AUTHORIZED=false bash "$fixture_root/workflow-commands-0.sh"; then
+  echo "Workflow accepted rejected release authorisation" >&2
+  exit 1
+fi
+[[ ! -s "$CLEO_DISCORD_TEST_COMMAND_LOG" ]]
+if RELEASE_SHA=ffffffffffffffffffffffffffffffffffffffff bash "$fixture_root/workflow-commands-0.sh"; then
+  echo "Workflow accepted a source SHA different from the active release" >&2
+  exit 1
+fi
+[[ ! -s "$CLEO_DISCORD_TEST_COMMAND_LOG" ]]
 bash "$fixture_root/workflow-commands-0.sh"
 [[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 1 ]]
 grep -F 'bot=3.1.2' "$GITHUB_STEP_SUMMARY" >/dev/null
@@ -514,6 +535,7 @@ fingerprint="$(sha256sum "$deploy_root/releases/$release_sha/dist/scripts/regist
 printf 'APPLICATION_SHA=%s\nPREVIOUS_APPLICATION_SHA=%s\nCOMMAND_FINGERPRINT=%s\n' \
   "$release_sha" "$rollback_sha" "$fingerprint" > "$deploy_root/shared/deployment-state.env"
 bash "$controller" rollback
+export RELEASE_SHA="$rollback_sha"
 bash "$fixture_root/workflow-commands-2.sh"
 [[ "$(tail -1 "$CLEO_DISCORD_TEST_COMMAND_LOG")" == "$deploy_root/releases/$rollback_sha" ]]
 [[ "$(wc -l < "$CLEO_DISCORD_TEST_COMMAND_LOG")" -eq 3 ]]

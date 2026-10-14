@@ -7,8 +7,12 @@ const workflow = readFileSync(
   new URL("../workflows/production-release.yml", import.meta.url),
   "utf8"
 )
-const gate = workflow.match(
-  /id: gate[\s\S]*?run: \|\r?\n([\s\S]*?) {6}- name:/
+const twitchPackage = workflow.slice(
+  workflow.indexOf("\n  twitch-package:"),
+  workflow.indexOf("\n  packages-ready:")
+)
+const gate = twitchPackage.match(
+  /id: gate[\s\S]*?run: \|\r?\n((?: {10}[^\r\n]*\r?\n)+)/
 )?.[1]
 assert.ok(gate)
 const script = gate

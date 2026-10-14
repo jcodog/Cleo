@@ -1,20 +1,16 @@
 import assert from "node:assert/strict"
 import { execFileSync, spawnSync } from "node:child_process"
-import {
-  mkdtempSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs"
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import {
   apiClient,
   authenticate,
   baseline,
   claim,
+  releaseClaim,
   invocation,
   packagesReady,
   repository,
@@ -170,18 +166,23 @@ const manual = {
   GITHUB_EVENT_NAME: "workflow_dispatch",
   INPUT_SHA: sha,
   INPUT_RUN_ID: "10",
+  INPUT_RUN_ATTEMPT: "1",
   INPUT_OPERATION: "deploy",
 }
 assert.deepEqual(invocation(manual, {}), {
   operation: "deploy",
   sha,
   runId: 10,
+  attempt: 1,
 })
 for (const patch of [
   { INPUT_SHA: "main" },
   { INPUT_SHA: "" },
   { INPUT_RUN_ID: "" },
   { INPUT_RUN_ID: "10;deploy" },
+  { INPUT_RUN_ATTEMPT: "" },
+  { INPUT_RUN_ATTEMPT: "0" },
+  { INPUT_RUN_ATTEMPT: "1;deploy" },
   { INPUT_SERVICE: "untrusted" },
 ])
   assert.throws(() => invocation({ ...manual, ...patch }, {}))
@@ -228,6 +229,7 @@ function fixture({
           id: 101 + records.length,
           sha: body.ref,
           payload: body.payload,
+          task: body.task,
         }
         records.unshift(record)
         return record
@@ -248,6 +250,8 @@ function fixture({
       }
     }
     if (path === "branches/main") return { commit: { sha: main } }
+    if (/^deployments\/\d+$/.test(path))
+      return records.find((record) => record.id === Number(path.split("/")[1]))
     if (path.startsWith("deployments?")) return records
     if (/^deployments\/\d+\/statuses/.test(path))
       return statuses[Number(path.split("/")[1])]
@@ -314,6 +318,54 @@ assert.equal(
   (await claim(backend.api, identity, "backend", "deploy", "104")).apply,
   true
 )
+const unused = fixture()
+const unusedClaim = await claim(
+  unused.api,
+  identity,
+  "backend",
+  "deploy",
+  "100"
+)
+await assert.rejects(
+  releaseClaim(unused.api, identity, unusedClaim.id, "other-run")
+)
+for (const alteredIdentity of [
+  { ...identity, sha: "b".repeat(40) },
+  { ...identity, runId: 11 },
+  { ...identity, attempt: 2 },
+])
+  await assert.rejects(
+    releaseClaim(unused.api, alteredIdentity, unusedClaim.id, "100")
+  )
+assert.equal(unused.statuses[unusedClaim.id], "in_progress")
+unused.statuses[unusedClaim.id] = "success"
+await assert.rejects(
+  releaseClaim(unused.api, identity, unusedClaim.id, "100"),
+  /completed claim/
+)
+unused.statuses[unusedClaim.id] = "in_progress"
+await releaseClaim(unused.api, identity, unusedClaim.id, "100")
+assert.equal(unused.statuses[unusedClaim.id], "inactive")
+assert.equal(
+  (await claim(unused.api, identity, "backend", "deploy", "101")).apply,
+  true
+)
+const misleading = fixture({
+  records: [
+    {
+      id: 900,
+      sha,
+      task: "cleo-backend",
+      payload: { cleoProductionVersion: 1, operation: "rollback" },
+    },
+  ],
+  statuses: { 900: "success" },
+})
+await assert.rejects(
+  claim(misleading.api, identity, "backend", "deploy", "100"),
+  /does not record a deployment/
+)
+assert.deepEqual(misleading.writes, [])
 const rollback = fixture({ source: { ...run, conclusion: "failure" } })
 assert.equal(
   (await claim(rollback.api, { sha }, "discord", "rollback", "105")).apply,
@@ -414,6 +466,12 @@ const classify = (mode, before, after) =>
 try {
   git("init", "-b", "main")
   const base = commit("README.md", "fixture")
+  const defaultClassification = spawnSync(process.execPath, [classifier], {
+    cwd: directory,
+    encoding: "utf8",
+  })
+  assert.equal(defaultClassification.status, 0, defaultClassification.stderr)
+  assert.equal(defaultClassification.stdout, "true")
   const web = commit("apps/dashboard/page.tsx", "web")
   for (const mode of ["backend", "deploy", "twitch"])
     assert.equal(classify(mode, base, web), "false")
@@ -475,7 +533,100 @@ try {
   assert.equal(classify("backend", workflowSha, config), "true")
   assert.ok(readFileSync(classifier, "utf8").includes('"-z"'))
 } finally {
-  rmSync(directory, {
+  await rm(directory, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 100,
+  })
+}
+
+// Run the real planner with a read-only API fixture. A queued manual request
+// cannot classify a newer release using an older checked-out workflow policy.
+const cliDirectory = mkdtempSync(join(tmpdir(), "cleo-policy-cli-"))
+try {
+  const root = fileURLToPath(new URL("../../", import.meta.url))
+  const checkoutSha = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim()
+  const mock = join(cliDirectory, "api.mjs")
+  const evidencePath = join(cliDirectory, "evidence.json")
+  const eventPath = join(cliDirectory, "event.json")
+  const outputPath = join(cliDirectory, "output")
+  const summaryPath = join(cliDirectory, "summary")
+  writeFileSync(eventPath, "{}")
+  writeFileSync(
+    mock,
+    `
+    import { readFileSync } from "node:fs"
+    const fixture = JSON.parse(readFileSync(process.env.POLICY_TEST_EVIDENCE, "utf8"))
+    globalThis.fetch = async (url, options) => {
+      if (options.method !== "GET") throw new Error("Planner attempted a production mutation")
+      const path = new URL(url).pathname
+      let data
+      if (path.endsWith("/actions/runs/10")) data = fixture.run
+      else if (path.endsWith("/actions/workflows/${workflowId}")) data = fixture.workflow
+      else if (path.endsWith("/jobs")) data = { jobs: fixture.jobs, total_count: fixture.jobs.length }
+      else if (path.endsWith("/branches/main")) data = { commit: { sha: fixture.sha } }
+      else if (path.endsWith("/deployments")) data = []
+      else throw new Error("Unexpected GitHub fixture request")
+      return Response.json(data)
+    }
+  `
+  )
+  const invoke = (operation, fixtureSha) => {
+    writeFileSync(
+      evidencePath,
+      JSON.stringify({
+        run: { ...run, head_sha: fixtureSha },
+        workflow,
+        jobs: jobs.map((job) => ({ ...job, head_sha: fixtureSha })),
+        sha: fixtureSha,
+      })
+    )
+    writeFileSync(outputPath, "")
+    return spawnSync(
+      "node",
+      [
+        "--import",
+        pathToFileURL(mock).href,
+        join(root, ".github/scripts/production-policy.mjs"),
+        "plan",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 30000,
+        env: {
+          ...process.env,
+          ...manual,
+          INPUT_OPERATION: operation,
+          INPUT_SHA: fixtureSha,
+          GITHUB_EVENT_PATH: eventPath,
+          GITHUB_OUTPUT: outputPath,
+          GITHUB_STEP_SUMMARY: summaryPath,
+          GH_TOKEN: "read-only-fixture",
+          POLICY_TEST_EVIDENCE: evidencePath,
+        },
+      }
+    )
+  }
+  const divergent = invoke("deploy", sha)
+  assert.ifError(divergent.error)
+  assert.notEqual(divergent.status, 0)
+  assert.match(divergent.stderr, /Workflow policy checkout differs/)
+  assert.equal(readFileSync(outputPath, "utf8"), "")
+  for (const operation of ["validate", "deploy"]) {
+    const result = invoke(operation, checkoutSha)
+    assert.ifError(result.error)
+    assert.equal(result.status, 0, result.stderr)
+    const output = readFileSync(outputPath, "utf8")
+    assert.ok(output.includes(`sha=${checkoutSha}\n`))
+    assert.ok(output.includes(`backend=${operation === "deploy"}\n`))
+  }
+} finally {
+  await rm(cliDirectory, {
     recursive: true,
     force: true,
     maxRetries: 5,
