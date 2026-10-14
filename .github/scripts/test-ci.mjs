@@ -27,7 +27,18 @@ assert.deepEqual(workflow.on.push.branches, ["main"])
 assert.deepEqual(workflow.on.pull_request.branches, ["main"])
 assert.ok("workflow_dispatch" in workflow.on)
 assert.deepEqual(workflow.permissions, { contents: "read" })
-assert.deepEqual(Object.keys(workflow.jobs), [...required, "regression"])
+/** Verify exact job membership without coupling CI to YAML declaration order. */
+function assertJobMembership(jobs) {
+  assert.deepEqual(Object.keys(jobs).sort(), [...required, "regression"].sort())
+}
+assertJobMembership(workflow.jobs)
+assertJobMembership(Object.fromEntries(Object.entries(workflow.jobs).reverse()))
+assert.throws(() => assertJobMembership({ ...workflow.jobs, unexpected: {} }))
+assert.throws(() => {
+  const incomplete = { ...workflow.jobs }
+  delete incomplete.regression
+  assertJobMembership(incomplete)
+})
 for (const id of required) {
   const job = workflow.jobs[id]
   assert.equal(job.needs, undefined, `${id} must run independently`)
@@ -247,12 +258,18 @@ try {
   const absent = build()
   assert.ifError(absent.error)
   assert.equal(absent.status, 1)
-  assert.match(absent.stderr, /Missing or empty coverage reports/)
+  assert.match(absent.stderr, /Missing, empty or invalid coverage reports/)
   for (const report of reports) {
     const folder = join(directory, "coverage", report)
     mkdirSync(folder, { recursive: true })
-    writeFileSync(join(folder, "index.html"), `<html>${report}</html>`)
-    writeFileSync(join(folder, "cobertura-coverage.xml"), "<coverage />")
+    writeFileSync(
+      join(folder, "index.html"),
+      `<!doctype html><html lang="en"><head><title>${report} coverage</title></head><body><table class="coverage-summary"><tbody><tr><td>${report}</td></tr></tbody></table></body></html>`
+    )
+    writeFileSync(
+      join(folder, "cobertura-coverage.xml"),
+      `<?xml version="1.0"?><coverage line-rate="1" branch-rate="1"><sources/><packages><package name="${report}"><classes><class filename="example.ts"/></classes></package></packages></coverage>`
+    )
   }
   const result = build()
   assert.ifError(result.error)
@@ -271,15 +288,34 @@ try {
     directory,
     "coverage/apps/dashboard/cobertura-coverage.xml"
   )
-  writeFileSync(empty, "")
-  const rejected = build()
-  assert.ifError(rejected.error)
-  assert.equal(rejected.status, 1)
-  assert.match(rejected.stderr, /dashboard.*cobertura-coverage.xml/)
-  assert.equal(
-    readFileSync(join(directory, "coverage-site/index.html"), "utf8"),
-    index
+  const validXml = readFileSync(empty, "utf8")
+  const html = join(directory, "coverage/apps/dashboard/index.html")
+  const validHtml = readFileSync(html, "utf8")
+  // Every rejection must preserve the last complete, already built coverage site.
+  function expectInvalidReport(file, content) {
+    writeFileSync(file, content)
+    const rejected = build()
+    assert.ifError(rejected.error)
+    assert.equal(rejected.status, 1)
+    assert.match(
+      rejected.stderr,
+      /dashboard.*(cobertura-coverage\.xml|index\.html)/
+    )
+    assert.equal(
+      readFileSync(join(directory, "coverage-site/index.html"), "utf8"),
+      index
+    )
+  }
+  expectInvalidReport(empty, "")
+  expectInvalidReport(empty, validXml.replace("</coverage>", "</coverag>"))
+  expectInvalidReport(empty, validXml.replace("<packages>", "<packages"))
+  writeFileSync(empty, validXml)
+  expectInvalidReport(html, validHtml.slice(0, -7))
+  expectInvalidReport(
+    html,
+    validHtml.replace('class="coverage-summary"', 'class="unrelated"')
   )
+  writeFileSync(html, validHtml)
   rmSync(empty)
   mkdirSync(empty)
   const invalid = build()
