@@ -1,0 +1,32 @@
+apps/dashboard/tests/pwa-build.test.ts
+  s_8c883a9d5071d4::t_6cb027daea3956 4,40-98
+apps/dashboard/src/app/layout.tsx
+  s_8c883a9d5071d4::t_d1704c0de3a8c1 3,126-128
+  s_8c883a9d5071d4::t_529552dc6c228d 34
+apps/landing/package.json
+  s_8c883a9d5071d4::t_5806048c88bb8b 22
+apps/dashboard/package.json
+  s_8c883a9d5071d4::t_5806048c88bb8b 30
+packages/backend/package.json
+  s_8c883a9d5071d4::t_5806048c88bb8b 28
+package.json
+  s_8c883a9d5071d4::t_5806048c88bb8b 42
+bun.lock
+  s_8c883a9d5071d4::t_89631a7dc578bd 36,83,126,215,568,570,572,574,576,578,580,582,584,586,882,906,948,1368,1838-1841
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f8d22b05c84847d84f6a204d61cd71612531bfb8",
+  "prompts": {},
+  "sessions": {
+    "s_8c883a9d5071d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b5a-650d-7113-8a4a-a491b306002b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
