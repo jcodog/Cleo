@@ -1,0 +1,73 @@
+ops/discord/bin/deploy-discord-release.test.sh
+  s_602e6bdafe6a33::t_9287b5903290f9 70-82,102-103,143-152,168-180
+  s_602e6bdafe6a33::t_e3848742eda0cc 117
+.github/scripts/test-twitch-workflow.mjs
+  s_602e6bdafe6a33::t_3cda4ea19620fb 23-34,37-46
+  s_602e6bdafe6a33::t_197d8d582c66cb 14-21
+  s_602e6bdafe6a33::t_ca10470e7277ea 22,35-36
+.github/scripts/test-ci.mjs
+  s_602e6bdafe6a33::t_8465c453d8c3af 107
+ops/discord/bin/check-discord-runner
+  s_602e6bdafe6a33::t_6845cf6507ea96 147-148
+ops/discord/sudoers/cleo-discord-deploy
+  s_602e6bdafe6a33::t_6845cf6507ea96 3
+.github/workflows/discord-runner-smoke.yml
+  s_602e6bdafe6a33::t_e3848742eda0cc 21
+ops/discord/bin/deploy-discord-release.validation.test.sh
+  s_602e6bdafe6a33::t_e3848742eda0cc 128,457
+.github/scripts/test-production-security.mjs
+  s_602e6bdafe6a33::t_6042ffe30de9ad 128-130,132-147
+  s_602e6bdafe6a33::t_b45e3ab81d1b90 1-6,8-26,29-32,43-51,60-73,76-88,90-96,98-105,107-127,150-159,162-165,167-174,177-206,216,227,229,243-245,251
+  s_602e6bdafe6a33::t_099856837b89d9 131,148
+  s_602e6bdafe6a33::t_b0841192c8d3a3 7,27-28,33-42,52-59,74-75,89,97,106,149,160-161,166,175-176,207-215,217-226,228,230-242,246-250
+docs/production-release-gating.md
+  s_602e6bdafe6a33::t_21741a3a5de123 50-51,210,242-244,249-316,336-337,350-357
+apps/discord-bot/src/deployment/deploymentPipeline.test.ts
+  s_602e6bdafe6a33::t_1ebbd0bcb08f9a 153-155
+.github/scripts/test-production-workflow.mjs
+  s_602e6bdafe6a33::t_3cda4ea19620fb 13,22-33,43-45,47-78,93-98,139-169,193,205-214,247-254,264-265,440
+  s_602e6bdafe6a33::t_197d8d582c66cb 99-107
+  s_602e6bdafe6a33::t_981132299a4909 34-39,41-42,46,79-80,82-88,90-92
+  s_602e6bdafe6a33::t_bb184ceea57579 40,81,89
+.github/scripts/test-production-policy.mjs
+  s_602e6bdafe6a33::t_8637fc7347242c 729-762,765,767-774,776-796,798-804
+  s_602e6bdafe6a33::t_3cda4ea19620fb 13,62,144-146,393-488
+  s_602e6bdafe6a33::t_986e341d2281ad 763-764,766,775,797
+.github/scripts/actions-condition.mjs
+  s_602e6bdafe6a33::t_418edb3f79f758 86,95
+  s_602e6bdafe6a33::t_3cda4ea19620fb 10-13,16-19,27,43-48,51-55,58-61,64-69,72,79-85,87-94,96-101,106-109,114-117,122-124
+  s_602e6bdafe6a33::t_0c75182ec8eacd 1-9,14-15,20-26,28-42,49-50,56-57,62-63,70-71,73-78,102-105,110-113,118-121,125
+.github/scripts/test-discord-workflow.mjs
+  s_602e6bdafe6a33::t_3cda4ea19620fb 32,45-48
+.github/workflows/production-release.yml
+  s_602e6bdafe6a33::t_19b5e020900c74 866-870,970-974
+  s_602e6bdafe6a33::t_3cda4ea19620fb 56,64-83,86,88,408-409,414,418-420,423,427,456,499-500,507-508,513-517,523-524,566-567,569,572,595,613,615-618,630,663-665,667,669,713-714,718,720,722,725-729,736-737,751-753,755,757-758,772,809-810,830-831,878,911-919,950-951,955,961-962,976-983
+  s_602e6bdafe6a33::t_099856837b89d9 625
+  s_602e6bdafe6a33::t_a5f5aa599a1436 619,984
+ops/discord/bin/deploy-discord-release
+  s_602e6bdafe6a33::t_6845cf6507ea96 6,193
+.github/scripts/production-policy.mjs
+  s_602e6bdafe6a33::t_3cda4ea19620fb 83-87,289-294,303-306,316-319,324-338,342-345,383-386,391-392,472-483,489-496
+  s_602e6bdafe6a33::t_d2ee0a26870b6a 366-367,387-390
+  s_602e6bdafe6a33::t_54c47490df7b6b 378-381
+  s_602e6bdafe6a33::t_11805f2935aebd 237-238,241-242,273-274,276,288,295-296,299,301,307-308,314,323,339,341,346-348,464-465,469,471,485
+  s_602e6bdafe6a33::t_f187435ced2e89 340
+docs/discord-production-deployment.md
+  s_602e6bdafe6a33::t_21741a3a5de123 88-89,149,178-216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "83fb75ab3e668c3d861b97e063440af9a03e4600",
+  "prompts": {},
+  "sessions": {
+    "s_602e6bdafe6a33": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13c72-c0c9-7d60-86be-4f65d9f5671a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
