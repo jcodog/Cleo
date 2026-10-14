@@ -1,0 +1,35 @@
+apps/dashboard/src/features/discord-guild-workspace/sections/WelcomeSection.test.ts
+  s_8bbdf1073b062e::t_ecc0654ec02529 254-279
+apps/dashboard/package.json
+  s_37929f027a8555::t_8b691c11ba9c7a 21-22,30,37
+apps/discord-bot/package.json
+  s_37929f027a8555::t_35af973583330f 28,43
+package.json
+  s_37929f027a8555::t_aa9c8fb1370378 41,43-44,48-49,52,55
+packages/shared/package.json
+  s_37929f027a8555::t_603862254d818c 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3f6f66e04d76d02e52ed75197f4f48bff302609",
+  "prompts": {},
+  "sessions": {
+    "s_37929f027a8555": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12031-ec8f-7021-8886-ec8208051e54",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_8bbdf1073b062e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12057-4055-7880-96f8-110ab0a6c55f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
