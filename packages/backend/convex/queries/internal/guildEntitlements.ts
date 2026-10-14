@@ -12,8 +12,8 @@ export const resolve = internalQuery({
   returns: v.object({
     capabilities: v.array(guildCapability),
     capabilityDeadlines: v.object({
-      [GUILD_WELCOME_PREMIUM_STYLE]: v.optional(v.number()),
-      [GUILD_TWITCH_PREMIUM_STYLE]: v.optional(v.number()),
+      welcomePremiumStyle: v.optional(v.number()),
+      twitchPremiumStyle: v.optional(v.number()),
     }),
     state: v.union(
       v.literal("active"),
@@ -31,13 +31,23 @@ export const resolve = internalQuery({
         q.eq("discordGuildId", args.discordGuildId)
       )
       .unique()
-    return guild
-      ? getGuildAccess(ctx, guild)
+    const access = guild
+      ? await getGuildAccess(ctx, guild)
       : {
           capabilities: [],
           capabilityDeadlines: {},
           state: "expired" as const,
           validUntil: Date.now(),
         }
+    return {
+      ...access,
+      // Capability names remain values; declared Convex fields use identifiers.
+      capabilityDeadlines: {
+        welcomePremiumStyle:
+          access.capabilityDeadlines[GUILD_WELCOME_PREMIUM_STYLE],
+        twitchPremiumStyle:
+          access.capabilityDeadlines[GUILD_TWITCH_PREMIUM_STYLE],
+      },
+    }
   },
 })

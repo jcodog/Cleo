@@ -8,6 +8,7 @@ import { GUILD_BILLING_MAX_FRESHNESS_MS } from "@workspace/shared/cleoEntitlemen
 import { getGuildAccess } from "./lib/guildEntitlements"
 import { GUILD_BILLING_MAX_CONCURRENT_SOURCES } from "@workspace/shared/cleoEntitlements"
 import * as billingFunctions from "./mutations/internal/guildBilling"
+import { resolve as resolveQuery } from "./queries/internal/guildEntitlements"
 
 const modules = {
   "./_generated/server.js": () => import("./_generated/server.js"),
@@ -111,6 +112,50 @@ async function fixture() {
 test("billing writes are internal-only", () => {
   for (const fn of Object.values(billingFunctions))
     assert.equal(fn.isInternal, true)
+})
+
+test("guild entitlement return validator exports deployable field names", () => {
+  assert.ok("exportReturns" in resolveQuery)
+  assert.equal(typeof resolveQuery.exportReturns, "function")
+  if (typeof resolveQuery.exportReturns !== "function")
+    throw Error("Expected Convex return validator exporter")
+  assert.doesNotMatch(
+    resolveQuery.exportReturns(),
+    /"guild\.(?:welcome|twitch)\.premium-style":/,
+    "Capability strings cannot be declared Convex object field identifiers"
+  )
+})
+
+test("guild entitlement query preserves independent deadlines across its return boundary", async () => {
+  const { t, ids, now } = await fixture()
+  for (const [grantKey, capability, endsAt] of [
+    ["welcome", "guild.welcome.premium-style", now + 10000],
+    ["twitch", "guild.twitch.premium-style", now + 20000],
+  ] as const)
+    await t.mutation(billing.issueGrant, {
+      grantKey,
+      discordGuildId: guildA,
+      category: "test",
+      capabilities: [capability],
+      startsAt: now,
+      endsAt,
+      issuedBy: ids.staffId,
+      reason: "Return boundary verification",
+    })
+  const access = await t.query(resolve, { discordGuildId: guildA })
+  assert.deepEqual(access.capabilityDeadlines, {
+    welcomePremiumStyle: now + 10000,
+    twitchPremiumStyle: now + 20000,
+  })
+  assert.equal(access.validUntil, now + 10000)
+  assert.deepEqual(
+    (await t.query(resolve, { discordGuildId: guildB })).capabilityDeadlines,
+    {}
+  )
+  assert.deepEqual(
+    (await t.query(resolve, { discordGuildId: "unknown" })).capabilityDeadlines,
+    {}
+  )
 })
 
 test("subscriptions grant only the selected guild; paid saving, overview and runtime agree", async () => {

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://v2-10-0.turborepo.dev/schema.json",
+  "$schema": "https://v2-11-8.turborepo.dev/schema.json",
   "ui": "tui",
   "globalDependencies": [
     "scripts/prepare-welcome-assets.mjs",

@@ -15,17 +15,17 @@
   },
   "dependencies": {
     "discord.js": "^14.27.0",
-    "zod": "^4.6.5",
+    "zod": "^4.6.7",
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
     "convex": "^1.46.0",
-    "svix": "^2.6.2"
+    "svix": "^2.8.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "@workspace/typescript-config": "workspace:*",
-    "convex-test": "^0.0.60",
+    "convex-test": "^0.0.61",
     "typescript": "catalog:"
   },
   "exports": {

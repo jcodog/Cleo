@@ -1537,29 +1537,31 @@ export declare const api: {
       "public",
       { discordGuildId: string },
       {
-        ownerKey: string;
-        verifiedAt: number;
+        botLeft: boolean;
         config:
           | {
+              _creationTime: number;
+              _id: Id<"guildLiveNotificationConfigs">;
+              broadcasterId?: string;
+              createdAt: number;
               guildId: Id<"guilds">;
-              liveNotificationsEnabled: boolean;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
-              broadcasterId?: string;
-              ownerUserId?: Id<"users">;
+              liveNotificationsEnabled: boolean;
               ownerDiscordId?: string;
-              createdAt: number;
+              ownerUserId?: Id<"users">;
               updatedAt: number;
-              _id: Id<"guildLiveNotificationConfigs">;
-              _creationTime: number;
             }
           | {
-              liveNotificationsEnabled: boolean;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
+              liveNotificationsEnabled: boolean;
             };
+        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
+        isOwner: boolean;
+        ownerKey: string;
         source:
           | {
               status:
@@ -1570,15 +1572,12 @@ export declare const api: {
                 | "missingPermission";
             }
           | {
-              status: "ready";
-              broadcasterId: string;
-              login: string;
-              displayName: string;
               avatarUrl?: string;
+              broadcasterId: string;
+              displayName: string;
+              login: string;
+              status: "ready";
             };
-        isOwner: boolean;
-        botLeft: boolean;
-        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
         subscriptionStatus:
           | "disabled"
           | "connecting"
@@ -1586,6 +1585,7 @@ export declare const api: {
           | "failed"
           | "providerUnavailable"
           | "revoked";
+        verifiedAt: number;
       }
     >;
     receiveOnline: FunctionReference<
@@ -1614,27 +1614,30 @@ export declare const api: {
       "public",
       { discordGuildId: string },
       {
+        botLeft: boolean;
         config:
           | {
+              _creationTime: number;
+              _id: Id<"guildLiveNotificationConfigs">;
+              broadcasterId?: string;
+              createdAt: number;
               guildId: Id<"guilds">;
-              liveNotificationsEnabled: boolean;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
-              broadcasterId?: string;
-              ownerUserId?: Id<"users">;
+              liveNotificationsEnabled: boolean;
               ownerDiscordId?: string;
-              createdAt: number;
+              ownerUserId?: Id<"users">;
               updatedAt: number;
-              _id: Id<"guildLiveNotificationConfigs">;
-              _creationTime: number;
             }
           | {
-              liveNotificationsEnabled: boolean;
               liveNotificationChannelId?: string;
               liveNotificationMentionMode: "none" | "everyone" | "role";
               liveNotificationRoleId?: string;
+              liveNotificationsEnabled: boolean;
             };
+        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
+        isOwner: boolean;
         ownerKey: string;
         source:
           | {
@@ -1646,15 +1649,12 @@ export declare const api: {
                 | "missingPermission";
             }
           | {
-              status: "ready";
-              broadcasterId: string;
-              login: string;
-              displayName: string;
               avatarUrl?: string;
+              broadcasterId: string;
+              displayName: string;
+              login: string;
+              status: "ready";
             };
-        isOwner: boolean;
-        botLeft: boolean;
-        discordStatus: "ready" | "unavailable" | "needsChannel" | "needsRole";
         subscriptionStatus:
           | "disabled"
           | "connecting"
@@ -5764,23 +5764,23 @@ export declare const internal: {
         configurePrice: FunctionReference<
           "mutation",
           "internal",
-          { stripeProductId: string; stripePriceId: string; enabled: boolean },
+          { enabled: boolean; stripePriceId: string; stripeProductId: string },
           null
         >;
         issueGrant: FunctionReference<
           "mutation",
           "internal",
           {
-            grantKey: string;
-            discordGuildId: string;
-            category: "complimentary" | "staff" | "test";
             capabilities: Array<
               "guild.welcome.premium-style" | "guild.twitch.premium-style"
             >;
-            startsAt: number;
+            category: "complimentary" | "staff" | "test";
+            discordGuildId: string;
             endsAt: number;
+            grantKey: string;
             issuedBy: Id<"users">;
             reason: string;
+            startsAt: number;
           },
           Id<"guildEntitlementGrants">
         >;
@@ -5788,14 +5788,17 @@ export declare const internal: {
           "mutation",
           "internal",
           {
-            stripeCustomerId: string;
+            cancelAtPeriodEnd: boolean;
+            canceledAt?: number;
             discordGuildId: string;
-            stripeSubscriptionId: string;
-            stripeProductId: string;
-            stripePriceId: string;
-            eventId: string;
+            endsAt: number;
             eventCreatedAt: number;
+            eventId: string;
+            graceEndsAt?: number;
+            paymentFailedAt?: number;
             revision: number;
+            revokedAt?: number;
+            startsAt: number;
             status:
               | "active"
               | "trialing"
@@ -5807,21 +5810,18 @@ export declare const internal: {
               | "paused"
               | "expired"
               | "revoked";
-            startsAt: number;
-            endsAt: number;
+            stripeCustomerId: string;
+            stripePriceId: string;
+            stripeProductId: string;
+            stripeSubscriptionId: string;
             trialEndsAt?: number;
-            graceEndsAt?: number;
-            paymentFailedAt?: number;
-            cancelAtPeriodEnd: boolean;
-            canceledAt?: number;
-            revokedAt?: number;
           },
           "applied" | "duplicate" | "stale"
         >;
         revokeGrant: FunctionReference<
           "mutation",
           "internal",
-          { grantKey: string; revokedBy: Id<"users">; reason: string },
+          { grantKey: string; reason: string; revokedBy: Id<"users"> },
           null
         >;
       };
@@ -6448,8 +6448,8 @@ export declare const internal: {
               "guild.welcome.premium-style" | "guild.twitch.premium-style"
             >;
             capabilityDeadlines: {
-              "guild.welcome.premium-style"?: number;
-              "guild.twitch.premium-style"?: number;
+              twitchPremiumStyle?: number;
+              welcomePremiumStyle?: number;
             };
             state: "active" | "trial" | "grace" | "expired" | "revoked";
             validUntil: number;

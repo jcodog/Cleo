@@ -1993,9 +1993,9 @@ export type DataModel = {
   };
   guildBillingPrices: {
     document: {
-      stripeProductId: string;
-      stripePriceId: string;
       enabled: boolean;
+      stripePriceId: string;
+      stripeProductId: string;
       updatedAt: number;
       _id: Id<"guildBillingPrices">;
       _creationTime: number;
@@ -2074,21 +2074,21 @@ export type DataModel = {
   };
   guildEntitlementGrants: {
     document: {
-      grantKey: string;
-      guildId: Id<"guilds">;
-      discordGuildId: string;
-      category: "complimentary" | "staff" | "test";
       capabilities: Array<
         "guild.welcome.premium-style" | "guild.twitch.premium-style"
       >;
-      startsAt: number;
+      category: "complimentary" | "staff" | "test";
+      createdAt: number;
+      discordGuildId: string;
       endsAt: number;
+      grantKey: string;
+      guildId: Id<"guilds">;
       issuedBy: Id<"users">;
       reason: string;
-      revokedAt?: number;
       revocationReason?: string;
+      revokedAt?: number;
       revokedBy?: Id<"users">;
-      createdAt: number;
+      startsAt: number;
       _id: Id<"guildEntitlementGrants">;
       _creationTime: number;
     };
@@ -2233,12 +2233,21 @@ export type DataModel = {
   };
   guildSubscriptions: {
     document: {
+      cancelAtPeriodEnd: boolean;
+      canceledAt?: number;
+      createdAt: number;
       customerId: Id<"billingCustomers">;
-      guildId: Id<"guilds">;
       discordGuildId: string;
-      stripeSubscriptionId: string;
-      stripeProductId: string;
-      stripePriceId: string;
+      endsAt: number;
+      eventCreatedAt: number;
+      graceEndsAt?: number;
+      guildId: Id<"guilds">;
+      lastEventId: string;
+      paymentFailedAt?: number;
+      reconciledAt: number;
+      revision: number;
+      revokedAt?: number;
+      startsAt: number;
       status:
         | "active"
         | "trialing"
@@ -2250,19 +2259,10 @@ export type DataModel = {
         | "paused"
         | "expired"
         | "revoked";
-      startsAt: number;
-      endsAt: number;
+      stripePriceId: string;
+      stripeProductId: string;
+      stripeSubscriptionId: string;
       trialEndsAt?: number;
-      graceEndsAt?: number;
-      paymentFailedAt?: number;
-      cancelAtPeriodEnd: boolean;
-      canceledAt?: number;
-      revokedAt?: number;
-      lastEventId: string;
-      eventCreatedAt: number;
-      revision: number;
-      reconciledAt: number;
-      createdAt: number;
       updatedAt: number;
       _id: Id<"guildSubscriptions">;
       _creationTime: number;
@@ -2294,7 +2294,7 @@ export type DataModel = {
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
-      by_stripe_subscription_id: ["stripeSubscriptionId", "_creationTime"];
+      by_customer_id: ["customerId", "_creationTime"];
       by_guild_id: ["guildId", "_creationTime"];
       by_guild_status_end: ["guildId", "status", "endsAt", "_creationTime"];
       by_guild_status_grace: [
@@ -2303,7 +2303,7 @@ export type DataModel = {
         "graceEndsAt",
         "_creationTime",
       ];
-      by_customer_id: ["customerId", "_creationTime"];
+      by_stripe_subscription_id: ["stripeSubscriptionId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
