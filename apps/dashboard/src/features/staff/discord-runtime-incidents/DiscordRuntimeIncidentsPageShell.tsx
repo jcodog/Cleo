@@ -5,13 +5,7 @@ import { IconAlertTriangle, IconBug, IconRefresh } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+
 import {
   Empty,
   EmptyDescription,
@@ -106,15 +100,23 @@ export function DiscordRuntimeIncidentsPageShell() {
         </p>
       </header>
 
-      <Card>
-        <CardHeader>
+      <section
+        className="min-w-0 space-y-5"
+        aria-labelledby="incidents-heading"
+      >
+        <header className="space-y-2">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
-              <CardTitle>Incidents</CardTitle>
-              <CardDescription>
+              <h2
+                className="font-heading text-base font-medium"
+                id="incidents-heading"
+              >
+                Incidents
+              </h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 Read-only view of stored incident fingerprints and redacted
                 metadata.
-              </CardDescription>
+              </p>
             </div>
             <Button
               onClick={() => {
@@ -129,8 +131,8 @@ export function DiscordRuntimeIncidentsPageShell() {
               Reset Filters
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+        </header>
+        <div className="flex flex-col gap-4">
           <IncidentFilters
             discordGuildId={discordGuildId}
             onDiscordGuildIdChange={setDiscordGuildId}
@@ -155,7 +157,7 @@ export function DiscordRuntimeIncidentsPageShell() {
           ) : result.incidents.length > 0 ? (
             <IncidentTable incidents={result.incidents} />
           ) : (
-            <Empty className="min-h-72 border">
+            <Empty className="min-h-40 rounded-none px-0">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <IconBug aria-hidden />
@@ -167,8 +169,8 @@ export function DiscordRuntimeIncidentsPageShell() {
               </EmptyHeader>
             </Empty>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </main>
   )
 }
@@ -189,7 +191,7 @@ function IncidentFilters({
   severity: SeverityFilter
 }) {
   return (
-    <div className="grid gap-3 rounded-lg border p-3 md:grid-cols-[180px_220px_minmax(220px,1fr)]">
+    <div className="grid gap-4 md:grid-cols-[180px_220px_minmax(220px,1fr)]">
       <label className="flex min-w-0 flex-col gap-1.5">
         <span className="text-xs font-medium text-muted-foreground">
           Severity
@@ -263,7 +265,7 @@ function IncidentTable({
   }>
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div className="min-w-0 border-y">
       <Table>
         <TableHeader>
           <TableRow>
@@ -353,7 +355,7 @@ function RuntimeIncidentState({
   title: string
 }) {
   return (
-    <Empty className="min-h-72 border">
+    <Empty className="min-h-40 rounded-none px-0">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <IconAlertTriangle aria-hidden />

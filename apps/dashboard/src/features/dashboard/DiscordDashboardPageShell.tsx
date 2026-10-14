@@ -6,13 +6,7 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+
 import {
   Empty,
   EmptyDescription,
@@ -72,19 +66,27 @@ export function DiscordDashboardPageShell() {
         <ServerListSkeleton />
       ) : (
         <div className="flex flex-col gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <section
+            className="min-w-0 space-y-5"
+            aria-labelledby="servers-heading"
+          >
+            <header className="flex flex-row items-center justify-between gap-3">
               <div className="min-w-0">
-                <CardTitle>Servers</CardTitle>
-                <CardDescription>
+                <h2
+                  className="font-heading text-base font-medium"
+                  id="servers-heading"
+                >
+                  Servers
+                </h2>
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   Discord servers this account can manage in Cleo.
-                </CardDescription>
+                </p>
               </div>
               <Badge variant="outline">{servers.length}</Badge>
-            </CardHeader>
-            <CardContent>
+            </header>
+            <div className="space-y-5">
               {servers.length > 0 ? (
-                <div className="overflow-hidden rounded-lg border">
+                <div className="min-w-0 border-y">
                   {servers.map((guild, index) => (
                     <ServerRow
                       guild={guild}
@@ -94,7 +96,7 @@ export function DiscordDashboardPageShell() {
                   ))}
                 </div>
               ) : (
-                <Empty className="min-h-72 border">
+                <Empty className="min-h-40 rounded-none px-0">
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
                       <IconServer aria-hidden />
@@ -107,8 +109,8 @@ export function DiscordDashboardPageShell() {
                   </EmptyHeader>
                 </Empty>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         </div>
       )}
     </DashboardFrame>
@@ -143,17 +145,17 @@ function DashboardFrame({ children }: { children: ReactNode }) {
 
 function ServerListSkeleton() {
   return (
-    <Card>
-      <CardHeader>
+    <div className="min-w-0 space-y-5">
+      <header className="space-y-2">
         <Skeleton className="h-5 w-28" />
         <Skeleton className="h-4 w-72" />
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      </header>
+      <div className="flex flex-col gap-2">
         <Skeleton className="h-14 w-full" />
         <Skeleton className="h-14 w-full" />
         <Skeleton className="h-14 w-full" />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 

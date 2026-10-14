@@ -330,13 +330,11 @@ export function WelcomeSection({
                 subtext={subtext}
                 server={overview.name}
               />
-              <div className="flex gap-3 rounded-lg border border-primary/15 bg-primary/5 p-4">
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  Save to use this design for new members. If Premium expires,
-                  Cleo sends Classic and keeps your saved design for when access
-                  returns.
-                </p>
-              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Save to use this design for new members. If Premium expires,
+                Cleo sends Classic and keeps your saved design for when access
+                returns.
+              </p>
             </aside>
           </div>
         </>

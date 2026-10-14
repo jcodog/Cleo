@@ -10,13 +10,7 @@ import {
 } from "@workspace/ui/components/alert"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+
 import {
   Field,
   FieldContent,
@@ -155,38 +149,54 @@ export function LogsSection({
   }
 
   return (
-    <div className="flex max-w-5xl flex-col gap-6">
+    <div className="flex max-w-5xl flex-col gap-10">
       <LoggingConfig
         key={overview.discordGuildId}
         isBotLeft={isBotLeft}
         overview={overview}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Live Cleo Events</CardTitle>
-          <CardDescription>
+      <section
+        className="min-w-0 space-y-5"
+        aria-labelledby="live-cleo-events-heading"
+      >
+        <header className="space-y-2">
+          <h2
+            className="font-heading text-base font-medium"
+            id="live-cleo-events-heading"
+          >
+            Live Cleo Events
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Guild activity captured live by Cleo&apos;s Discord gateway.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </header>
+        <div className="space-y-5">
           <AuditEventList
             emptyDescription="Supported member, ban, channel, role, and message-delete events will appear here while Cleo is connected."
             emptyTitle="No Live Cleo Events"
             events={liveEventResult.events}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
+      <section
+        className="min-w-0 space-y-5"
+        aria-labelledby="discord-server-audit-log-heading"
+      >
+        <header className="space-y-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <CardTitle>Discord Server Audit Log</CardTitle>
-              <CardDescription>
+              <h2
+                className="font-heading text-base font-medium"
+                id="discord-server-audit-log-heading"
+              >
+                Discord Server Audit Log
+              </h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 Recovery and backfill from Discord&apos;s server-side REST audit
                 log.
-              </CardDescription>
+              </p>
             </div>
             <Button
               disabled={syncState === "saving"}
@@ -198,8 +208,8 @@ export function LogsSection({
               {syncState === "saving" ? "Syncing…" : "Sync Discord Audit Log"}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+        </header>
+        <div className="flex flex-col gap-4">
           <SyncStatus state={syncState} message={syncMessage} />
           <AuditSyncSummary syncState={serverAuditResult.syncState} />
 
@@ -208,35 +218,51 @@ export function LogsSection({
             emptyTitle="No Discord Audit Entries"
             events={serverAuditResult.events}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Dashboard Audit Log</CardTitle>
-          <CardDescription>
+      <section
+        className="min-w-0 space-y-5"
+        aria-labelledby="dashboard-audit-log-heading"
+      >
+        <header className="space-y-2">
+          <h2
+            className="font-heading text-base font-medium"
+            id="dashboard-audit-log-heading"
+          >
+            Dashboard Audit Log
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Configuration changes made from this dashboard workspace.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </header>
+        <div className="space-y-5">
           <AuditEventList
             emptyDescription="Module and channel configuration saves will appear here with the signed-in Discord identity where available."
             emptyTitle="No Dashboard Audit Events"
             events={dashboardAuditResult.events}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>System Logs</CardTitle>
-          <CardDescription>
+      <section
+        className="min-w-0 space-y-5"
+        aria-labelledby="system-logs-heading"
+      >
+        <header className="space-y-2">
+          <h2
+            className="font-heading text-base font-medium"
+            id="system-logs-heading"
+          >
+            System Logs
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Guild-scoped system errors and backend operational logs.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </header>
+        <div className="space-y-5">
           {logsResult.logs.length > 0 ? (
-            <div className="flex flex-col gap-0 overflow-hidden rounded-lg border">
+            <div className="flex min-w-0 flex-col gap-0 border-y">
               {logsResult.logs.map((log, index) => (
                 <SystemLogRow
                   isLast={index === logsResult.logs.length - 1}
@@ -246,7 +272,7 @@ export function LogsSection({
               ))}
             </div>
           ) : (
-            <Empty className="min-h-64 border">
+            <Empty className="min-h-40 rounded-none px-0">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <IconLogs aria-hidden />
@@ -259,8 +285,8 @@ export function LogsSection({
               </EmptyHeader>
             </Empty>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   )
 }
@@ -322,14 +348,22 @@ function LoggingConfig({
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Logging</CardTitle>
-          <CardDescription>
+      <section
+        className="max-w-2xl space-y-5"
+        aria-labelledby="logging-heading"
+      >
+        <header className="space-y-2">
+          <h2
+            className="font-heading text-base font-medium"
+            id="logging-heading"
+          >
+            Logging
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Configure Discord delivery for Cleo operational events.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </header>
+        <div className="space-y-5">
           <FieldGroup>
             <Field data-disabled={disabled} orientation="horizontal">
               <FieldContent>
@@ -385,12 +419,12 @@ function LoggingConfig({
 
             <SaveStatus errorMessage={errorMessage} state={saveState} />
 
-            <Button disabled={disabled} type="submit">
+            <Button className="self-start" disabled={disabled} type="submit">
               {saveState === "saving" ? "Saving…" : "Save Logging"}
             </Button>
           </FieldGroup>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </form>
   )
 }
@@ -408,7 +442,7 @@ function AuditSyncSummary({
 }) {
   if (!syncState) {
     return (
-      <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-3">
+      <div className="grid gap-4 py-2 sm:grid-cols-3">
         <AuditSummaryItem label="Sync Status" value="Not Synced" />
         <AuditSummaryItem label="Last Sync" value="Not Synced" />
         <AuditSummaryItem label="Newest Entry" value="Not Synced" />
@@ -417,7 +451,7 @@ function AuditSyncSummary({
   }
 
   return (
-    <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-3">
+    <div className="grid gap-4 py-2 sm:grid-cols-3">
       <AuditSummaryItem
         label="Sync Status"
         value={toTitleCase(syncState.lastSyncStatus)}
@@ -463,7 +497,7 @@ function AuditEventList({
 }) {
   if (events.length === 0) {
     return (
-      <Empty className="min-h-64 border">
+      <Empty className="min-h-40 rounded-none px-0">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <IconLogs aria-hidden />
@@ -476,7 +510,7 @@ function AuditEventList({
   }
 
   return (
-    <div className="flex flex-col gap-0 overflow-hidden rounded-lg border">
+    <div className="flex min-w-0 flex-col gap-0 border-y">
       {events.map((event, index) => (
         <AuditEventRow
           event={event}

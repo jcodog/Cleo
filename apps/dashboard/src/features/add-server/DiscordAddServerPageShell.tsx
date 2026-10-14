@@ -601,12 +601,12 @@ function GuildList({
   title: string
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border">
-      <div className="flex items-center justify-between gap-3 border-b px-3 py-2 text-sm">
-        <span className="font-medium">{title}</span>
+    <section aria-label={title} className="min-w-0">
+      <header className="flex items-center justify-between gap-3 pb-3 text-sm">
+        <h2 className="font-heading text-base font-medium">{title}</h2>
         <span className="text-muted-foreground">{guilds.length}</span>
-      </div>
-      <div className="divide-y">
+      </header>
+      <div className="divide-y border-y">
         {guilds.map((guild) => (
           <div
             className="flex min-w-0 items-center justify-between gap-3 px-3 py-2.5"
@@ -638,7 +638,7 @@ function GuildList({
           </div>
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 

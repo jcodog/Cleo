@@ -1,32 +1,18 @@
 "use client"
 
-import {
-  IconLifebuoy,
-  IconLogs,
-  IconShield,
-  IconSparkles,
-  IconBroadcast,
-} from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Badge } from "@workspace/ui/components/badge"
-import { buttonVariants } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { useQuery } from "convex/react"
 import Link from "next/link"
 
-import { BotStatusBadge } from "../components/workspace-ui"
 import { formatDateTime } from "../lib/format"
 import type { GuildOverview } from "../types"
 import { useLiveNotifications } from "./useLiveNotifications"
 import { getLiveNotificationState } from "../lib/liveNotifications"
 
+/** Link each feature's persisted readiness to its settings without duplicating navigation. */
 export function OverviewSection({
   isBotLeft,
   overview,
@@ -49,21 +35,26 @@ export function OverviewSection({
       : []
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>Cleo status</CardTitle>
-            <BotStatusBadge isBotLeft={isBotLeft} overview={overview} />
-          </div>
-          <CardDescription>
+    <div className="flex max-w-5xl flex-col gap-10">
+      <section
+        className="max-w-2xl min-w-0 space-y-5"
+        aria-labelledby="cleo-status-heading"
+      >
+        <header className="space-y-2">
+          <h2
+            className="font-heading text-base font-medium"
+            id="cleo-status-heading"
+          >
+            Cleo status
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             {isBotLeft
               ? "Cleo cannot run features or accept configuration changes for this server."
               : "Cleo is available for the configured Discord features below."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
+          </p>
+        </header>
+        <div className="space-y-5">
+          <div className="flex flex-col divide-y">
             <FeatureState
               enabled={
                 getLiveNotificationState(live.view, live.error) === "Ready"
@@ -128,57 +119,32 @@ export function OverviewSection({
               }
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuration</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <OverviewLink
-            href={`/dashboard/${overview.discordGuildId}/live-notifications`}
-            icon={IconBroadcast}
-            label="Live notifications"
-          />
-          <OverviewLink
-            href={`/dashboard/${overview.discordGuildId}/welcome`}
-            icon={IconSparkles}
-            label="Welcome"
-          />
-          <OverviewLink
-            href={`/dashboard/${overview.discordGuildId}/moderation`}
-            icon={IconShield}
-            label="Moderation"
-          />
-          <OverviewLink
-            href={`/dashboard/${overview.discordGuildId}/support`}
-            icon={IconLifebuoy}
-            label="Support"
-          />
-          <OverviewLink
-            href={`/dashboard/${overview.discordGuildId}/logs`}
-            icon={IconLogs}
-            label="Logs"
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Recent configuration changes</CardTitle>
-          <CardDescription>
+      <section
+        className="min-w-0 space-y-5"
+        aria-labelledby="recent-configuration-changes-heading"
+      >
+        <header className="space-y-2">
+          <h2
+            className="font-heading text-base font-medium"
+            id="recent-configuration-changes-heading"
+          >
+            Recent configuration changes
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Audit records created by dashboard actions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </header>
+        <div className="space-y-5">
           {dashboardAuditResult === undefined ? (
             <div className="flex flex-col gap-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
           ) : recentEvents.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border">
+            <div className="min-w-0 border-y">
               {recentEvents.map((event, index) => (
                 <div
                   className={
@@ -198,8 +164,8 @@ export function OverviewSection({
               No dashboard changes have been recorded for this server.
             </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   )
 }
@@ -228,36 +194,13 @@ function FeatureState({
 }) {
   return (
     <Link
-      className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+      className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-primary"
       href={href}
     >
       <span className="font-medium">{label}</span>
       <Badge variant={enabled ? "secondary" : "outline"}>
         {stateLabel ?? (enabled ? "Enabled" : "Disabled")}
       </Badge>
-    </Link>
-  )
-}
-
-function OverviewLink({
-  href,
-  icon: Icon,
-  label,
-}: {
-  href: string
-  icon: typeof IconLogs
-  label: string
-}) {
-  return (
-    <Link
-      className={buttonVariants({
-        variant: "outline",
-        className: "justify-start",
-      })}
-      href={href}
-    >
-      <Icon aria-hidden data-icon="inline-start" />
-      {label}
     </Link>
   )
 }

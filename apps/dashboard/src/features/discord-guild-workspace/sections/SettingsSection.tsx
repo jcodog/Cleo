@@ -1,11 +1,3 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
-
 import { BotStatusFields, OverviewField } from "../components/workspace-ui"
 import type { GuildOverview } from "../types"
 
@@ -17,14 +9,22 @@ export function SettingsSection({
   overview: GuildOverview
 }) {
   return (
-    <Card className="max-w-3xl">
-      <CardHeader>
-        <CardTitle>Server access</CardTitle>
-        <CardDescription>
+    <section
+      className="max-w-2xl min-w-0 space-y-5"
+      aria-labelledby="server-access-heading"
+    >
+      <header className="space-y-2">
+        <h2
+          className="font-heading text-base font-medium"
+          id="server-access-heading"
+        >
+          Server access
+        </h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
           Current Cleo presence and your verified management access.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </header>
+      <div className="space-y-5">
         <dl className="grid gap-4 sm:grid-cols-2">
           <OverviewField label="Server" value={overview.name} />
           <OverviewField
@@ -33,7 +33,7 @@ export function SettingsSection({
           />
           <BotStatusFields isBotLeft={isBotLeft} overview={overview} />
         </dl>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }
