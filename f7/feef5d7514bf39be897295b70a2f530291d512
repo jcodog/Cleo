@@ -1,0 +1,30 @@
+docs/discord-production-deployment.md
+  s_602e6bdafe6a33::t_a6cabcbc2fb370 3-8,302,308
+  s_602e6bdafe6a33::t_37f96b5cb0d8d0 212,215-216
+docs/twitch/bootstrap.md
+  s_602e6bdafe6a33::t_a6cabcbc2fb370 70,78
+docs/production-release-gating.md
+  s_602e6bdafe6a33::t_37f96b5cb0d8d0 84-86,138,140-141
+  s_602e6bdafe6a33::t_e963a2190ba9df 1-12,19-83,87-137,139,142-188,195-237
+  s_602e6bdafe6a33::t_0a117e75882516 189-194
+  s_602e6bdafe6a33::t_d302a37108a607 13-18
+  s_602e6bdafe6a33::t_e99fa45c434bd1 238-257
+.github/ci-simplification.md
+  s_602e6bdafe6a33::t_a6cabcbc2fb370 41,135-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7feef5d7514bf39be897295b70a2f530291d512",
+  "prompts": {},
+  "sessions": {
+    "s_602e6bdafe6a33": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13c72-c0c9-7d60-86be-4f65d9f5671a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
