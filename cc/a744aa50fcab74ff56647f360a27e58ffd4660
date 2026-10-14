@@ -1,0 +1,49 @@
+apps/dashboard/src/features/staff/StaffOverviewPageShell.test.ts
+  s_8c883a9d5071d4::t_45f1e0870cd8f6 79-83
+apps/dashboard/src/features/discord-guild-workspace/sections/OverviewSection.tsx
+  s_8c883a9d5071d4::t_0a80924257c904 44-49
+  s_8c883a9d5071d4::t_4bef48c8887e61 38,40
+  s_8c883a9d5071d4::t_5ec40bd7320e52 15
+  s_8c883a9d5071d4::t_4647ce263a400b 5,39,41-43,50,54-57,122-123,125-136,138-140,147,167-168,197
+apps/dashboard/src/features/staff/support-tickets/SupportTicketsPageShell.tsx
+  s_8c883a9d5071d4::t_4647ce263a400b 6,40-51,53-55,62,74,86,119-120
+apps/dashboard/src/features/discord-guild-workspace/sections/WelcomeSection.tsx
+  s_8c883a9d5071d4::t_45f1e0870cd8f6 333-337
+apps/dashboard/src/features/dashboard/DiscordDashboardPageShell.tsx
+  s_8c883a9d5071d4::t_4647ce263a400b 9,69-73,75-81,83,86-87,89,99,112-113,148-149,152-153,157-158
+apps/dashboard/src/features/discord-guild-workspace/sections/ModerationSection.tsx
+  s_8c883a9d5071d4::t_4647ce263a400b 8,86-99,101-103,148-149,171-182,184-186,200,210,223-224,236
+apps/dashboard/src/features/add-server/DiscordAddServerPageShell.tsx
+  s_8c883a9d5071d4::t_99a7dace6e6e24 604-606,608-609,641
+apps/dashboard/src/features/discord-guild-workspace/sections/SettingsSection.tsx
+  s_8c883a9d5071d4::t_4647ce263a400b 12-23,25-27,36-37
+apps/dashboard/src/features/staff/discord-runtime-incidents/DiscordRuntimeIncidentsPageShell.tsx
+  s_8c883a9d5071d4::t_4647ce263a400b 8,103-107,110-116,119,134-135,160,172-173,194,268,358
+apps/dashboard/src/features/staff/StaffOverviewPageShell.tsx
+  s_8c883a9d5071d4::t_66a7de77344681 148-152,156-167,310-313
+  s_8c883a9d5071d4::t_5ec40bd7320e52 86,138,200,301
+  s_8c883a9d5071d4::t_4647ce263a400b 13,62,112,213-224,226-228,232,244,296-297,304-308,315-321,324,327-328,330,342,375-376
+  s_8c883a9d5071d4::t_c25a4284781381 125-126,131,139,153-155,168,173,185-193,195-196,201,302
+apps/dashboard/src/features/discord-guild-workspace/sections/SupportSection.tsx
+  s_8c883a9d5071d4::t_30d96f2fe76766 150
+  s_8c883a9d5071d4::t_4647ce263a400b 7,149,162-166,168-173,176,179-181,272-273,283-284,286-297,301-303,305-306,318,333
+apps/dashboard/src/features/discord-guild-workspace/sections/LogsSection.tsx
+  s_8c883a9d5071d4::t_4647ce263a400b 13,152,159-170,172-174,180-187,190-196,199,211-212,221-235,237-239,245-259,261-263,265,275,288-289,351-362,364-366,426-427,445,454,500,513
+  s_8c883a9d5071d4::t_0a80924257c904 422
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cca744aa50fcab74ff56647f360a27e58ffd4660",
+  "prompts": {},
+  "sessions": {
+    "s_8c883a9d5071d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b5a-650d-7113-8a4a-a491b306002b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
