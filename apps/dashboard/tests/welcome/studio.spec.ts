@@ -10,10 +10,26 @@ test("non-Premium guilds keep free welcome settings and never see the studio", a
   await expect(page.getByRole("radio")).toHaveCount(0)
   await expect(page.locator("canvas")).toHaveCount(0)
   await expect(page.getByText(/Premium/)).toHaveCount(0)
+  const settings = page.getByRole("region", {
+    name: "Welcome settings",
+    exact: true,
+  })
+  await expect(settings).toHaveCount(1)
+  await expect(
+    settings.getByRole("heading", {
+      level: 3,
+      name: "Welcome settings",
+      exact: true,
+    })
+  ).toBeVisible()
+  await expect(
+    settings.getByRole("button", { name: "Save Welcome", exact: true })
+  ).toHaveCount(1)
   await page.getByLabel("Card subtext").fill("Free hello 👋🏽")
   await expect(page.locator("form")).toHaveCount(1)
   await expect(page.locator('button[type="submit"]')).toHaveCount(1)
   await expect(page.locator("form .border-t")).toHaveCount(0)
+  await expect(page.locator('form [data-slot="card"]')).toHaveCount(0)
   await expect(page.getByText("Your active free welcome")).toHaveCount(0)
   await page.screenshot({
     path: testInfo.outputPath("welcome-free.png"),
@@ -29,12 +45,40 @@ test("non-Premium guilds keep free welcome settings and never see the studio", a
       welcome: { subtext: "Free hello 👋🏽" },
     },
   ])
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth
+    )
+  ).toBe(true)
+  await expect(
+    settings.getByRole("button", { name: "Save Welcome", exact: true })
+  ).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath("welcome-free-mobile.png"),
+    fullPage: true,
+  })
 })
 
 test("Premium fixture supports keyboard designs, palettes, validation and Premium saves", async ({
   page,
 }, testInfo) => {
   await page.goto("/?guild=premium")
+  const settings = page.getByRole("region", {
+    name: "Welcome settings",
+    exact: true,
+  })
+  await expect(settings).toHaveCount(1)
+  await expect(
+    settings.getByRole("heading", {
+      level: 3,
+      name: "Welcome settings",
+      exact: true,
+    })
+  ).toBeVisible()
+  await expect(
+    settings.getByRole("button", { name: "Save Welcome", exact: true })
+  ).toHaveCount(1)
   const preview = page.getByRole("complementary", {
     name: "Live welcome-card preview",
   })
@@ -98,6 +142,7 @@ test("Premium fixture supports keyboard designs, palettes, validation and Premiu
   await expect(page.locator("form")).toHaveCount(1)
   await expect(page.locator('button[type="submit"]')).toHaveCount(1)
   await expect(page.locator("form .border-t")).toHaveCount(0)
+  await expect(page.locator('form [data-slot="card"]')).toHaveCount(0)
   await page.getByRole("button", { name: "Save Welcome", exact: true }).click()
   await expect(page.getByText("Welcome settings saved.")).toBeVisible()
   const saves = await page.evaluate(() => window.welcomeTestSaves)
@@ -122,6 +167,12 @@ test("Premium fixture supports keyboard designs, palettes, validation and Premiu
   ).toBeChecked()
   await expect(page.getByLabel("Greeting", { exact: true })).toHaveValue(
     "Welcome, {member}"
+  )
+  // Wait for the reset design to render, rather than accepting the previous
+  // design's identical ready status before the debounced redraw starts.
+  await expect(preview.getByRole("img")).toHaveAttribute(
+    "aria-label",
+    /^Welcome card preview: Welcome, 🇬🇧 Family/
   )
   await expect(preview.getByRole("status")).toHaveText(
     "Preview updated. No message will be sent."

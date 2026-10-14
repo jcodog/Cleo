@@ -18,16 +18,19 @@ type Props = {
   style?: WelcomeCardStyle
   "aria-label"?: string
   "aria-invalid"?: boolean
+  "aria-labelledby"?: string
   onChange?: (event: { target: { value: string } }) => void
   onCheckedChange?: (checked: boolean) => void
   onClick?: () => void
   onSubmit?: (event: { preventDefault: () => void }) => Promise<void>
 }
+/** Walk the mocked JSX tree so assertions can inspect native controls without a DOM. */
 function nodes(node: React.ReactNode): React.ReactElement<Props>[] {
   return React.isValidElement<Props>(node)
     ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)]
     : []
 }
+/** Read text children from the mocked tree, including nested control labels. */
 function copy(node: React.ReactNode): string {
   return typeof node === "string"
     ? node
@@ -243,6 +246,12 @@ test("welcome studio validates and saves Premium styles only with server-provide
   assert.doesNotMatch(copy(freeOnly), /Premium|Live preview|preview-only/)
   assert.match(copy(freeOnly), /Save Welcome/)
   assert.doesNotMatch(copy(freeOnly), /Save free|Your active free welcome/)
+  const region = nodes(freeOnly).find((node) => node.type === "section")
+  assert.equal(region?.props["aria-labelledby"], "welcome-settings-heading")
+  const heading = nodes(freeOnly).find(
+    (node) => node.props.id === "welcome-settings-heading"
+  )
+  assert.equal(heading?.type, "h3")
   cursor = 0
   const denied = WelcomeSection({
     isBotLeft: false,

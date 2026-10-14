@@ -5,13 +5,6 @@ import { IconAlignCenter, IconAlignLeft, IconCheck } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Button } from "@workspace/ui/components/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
-import {
   Field,
   FieldContent,
   FieldDescription,
@@ -48,6 +41,7 @@ const presetDescriptions = {
 }
 const palettes = ["cyan", "orchid", "forest", "amber"] as const
 
+/** Render shared Welcome settings and expose design controls only with server-provided access. */
 export function WelcomeSection({
   isBotLeft,
   overview,
@@ -347,83 +341,81 @@ export function WelcomeSection({
           </div>
         </>
       )}
-      <Card className="max-w-3xl" aria-labelledby="welcome-settings-heading">
-        <CardHeader>
-          <CardTitle id="welcome-settings-heading">Welcome</CardTitle>
-          <CardDescription>
-            Configure welcome messages and card text.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <FieldGroup>
-            <Field data-disabled={disabled} orientation="horizontal">
-              <FieldContent>
-                <FieldTitle>Welcome messages</FieldTitle>
-                <FieldDescription>
-                  Say hello when a new member joins.
-                </FieldDescription>
-              </FieldContent>
-              <Switch
-                aria-label="Welcome messages"
-                checked={enabled}
-                disabled={disabled}
-                onCheckedChange={(checked) => {
-                  setEnabled(checked)
-                  markDirty()
-                }}
-              />
-            </Field>
-            <DiscordChannelSelect
-              description="Cleo sends welcome cards to this channel."
+      <section
+        className="max-w-2xl space-y-5"
+        aria-labelledby="welcome-settings-heading"
+      >
+        <h3
+          id="welcome-settings-heading"
+          className="font-heading text-base font-medium"
+        >
+          Welcome settings
+        </h3>
+        <FieldGroup>
+          <Field data-disabled={disabled} orientation="horizontal">
+            <FieldContent>
+              <FieldTitle>Welcome messages</FieldTitle>
+              <FieldDescription>
+                Say hello when a new member joins.
+              </FieldDescription>
+            </FieldContent>
+            <Switch
+              aria-label="Welcome messages"
+              checked={enabled}
               disabled={disabled}
-              label="Destination"
-              onChange={(value) => {
-                setChannelId(value)
+              onCheckedChange={(checked) => {
+                setEnabled(checked)
                 markDirty()
               }}
-              optionsState={optionsState}
-              value={channelId}
             />
-            <Field data-disabled={disabled}>
-              <FieldLabel htmlFor="welcome-subtext">Card subtext</FieldLabel>
-              <Input
-                autoComplete="off"
-                disabled={disabled}
-                id="welcome-subtext"
-                maxLength={120}
-                value={subtext}
-                placeholder="Settle in, say hello, and enjoy the server."
-                onChange={(event) => {
-                  setSubtext(event.target.value)
-                  markDirty()
-                }}
-              />
-              <FieldDescription>
-                The line below the member name.
-              </FieldDescription>
-            </Field>
-          </FieldGroup>
-          <div className="flex flex-wrap items-center gap-4">
-            <Button
-              disabled={
-                disabled ||
-                (overview.welcomeCardStudioAvailable &&
-                  styleError !== undefined)
-              }
-              type="submit"
-            >
-              {saveState === "saving" ? "Saving…" : "Save Welcome"}
-            </Button>
-            {saveState === "success" ? (
-              <p role="status" className="text-sm text-emerald-400">
-                Welcome settings saved.
-              </p>
-            ) : (
-              <SaveStatus errorMessage={errorMessage} state={saveState} />
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          </Field>
+          <DiscordChannelSelect
+            description="Cleo sends welcome cards to this channel."
+            disabled={disabled}
+            label="Destination"
+            onChange={(value) => {
+              setChannelId(value)
+              markDirty()
+            }}
+            optionsState={optionsState}
+            value={channelId}
+          />
+          <Field data-disabled={disabled}>
+            <FieldLabel htmlFor="welcome-subtext">Card subtext</FieldLabel>
+            <Input
+              autoComplete="off"
+              disabled={disabled}
+              id="welcome-subtext"
+              maxLength={120}
+              value={subtext}
+              placeholder="Settle in, say hello, and enjoy the server."
+              onChange={(event) => {
+                setSubtext(event.target.value)
+                markDirty()
+              }}
+            />
+            <FieldDescription>The line below the member name.</FieldDescription>
+          </Field>
+        </FieldGroup>
+        <div className="flex flex-wrap items-center gap-4">
+          <Button
+            disabled={
+              disabled ||
+              (overview.welcomeCardStudioAvailable && styleError !== undefined)
+            }
+            type="submit"
+          >
+            {saveState === "saving" ? "Saving…" : "Save Welcome"}
+          </Button>
+          {saveState === "success" ? (
+            <p role="status" className="text-sm text-emerald-400">
+              Welcome settings saved.
+            </p>
+          ) : (
+            <SaveStatus errorMessage={errorMessage} state={saveState} />
+          )}
+        </div>
+      </section>
     </form>
   )
 }
