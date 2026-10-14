@@ -241,7 +241,8 @@ test("welcome studio validates and saves Premium styles only with server-provide
     false
   )
   assert.doesNotMatch(copy(freeOnly), /Premium|Live preview|preview-only/)
-  assert.match(copy(freeOnly), /These settings control the Classic card/)
+  assert.match(copy(freeOnly), /Save Welcome/)
+  assert.doesNotMatch(copy(freeOnly), /Save free|Your active free welcome/)
   cursor = 0
   const denied = WelcomeSection({
     isBotLeft: false,

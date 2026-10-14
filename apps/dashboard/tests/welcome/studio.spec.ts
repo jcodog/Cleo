@@ -2,19 +2,25 @@ import { expect, test } from "@playwright/test"
 
 test("non-Premium guilds keep free welcome settings and never see the studio", async ({
   page,
-}) => {
+}, testInfo) => {
   await page.goto("/")
   await expect(
-    page.getByRole("button", { name: "Save free settings" })
+    page.getByRole("button", { name: "Save Welcome", exact: true })
   ).toBeVisible()
   await expect(page.getByRole("radio")).toHaveCount(0)
   await expect(page.locator("canvas")).toHaveCount(0)
   await expect(page.getByText(/Premium/)).toHaveCount(0)
   await page.getByLabel("Card subtext").fill("Free hello 👋🏽")
-  await page.getByRole("button", { name: "Save free settings" }).click()
-  await expect(page.getByRole("status")).toHaveText(
-    "Free welcome settings saved."
-  )
+  await expect(page.locator("form")).toHaveCount(1)
+  await expect(page.locator('button[type="submit"]')).toHaveCount(1)
+  await expect(page.locator("form .border-t")).toHaveCount(0)
+  await expect(page.getByText("Your active free welcome")).toHaveCount(0)
+  await page.screenshot({
+    path: testInfo.outputPath("welcome-free.png"),
+    fullPage: true,
+  })
+  await page.getByRole("button", { name: "Save Welcome", exact: true }).click()
+  await expect(page.getByRole("status")).toHaveText("Welcome settings saved.")
   expect(await page.evaluate(() => window.welcomeTestSaves)).toEqual([
     {
       discordGuildId: "123456789012345678",
@@ -83,13 +89,16 @@ test("Premium fixture supports keyboard designs, palettes, validation and Premiu
     "Welcome card preview unavailable"
   )
   await expect(
-    page.getByRole("button", { name: "Save welcome settings" })
+    page.getByRole("button", { name: "Save Welcome", exact: true })
   ).toBeDisabled()
   expect(await page.evaluate(() => window.welcomeTestSaves)).toHaveLength(0)
   await page
     .getByLabel("Greeting", { exact: true })
     .fill("Hi {member} in {server} 👋🏽")
-  await page.getByRole("button", { name: "Save welcome settings" }).click()
+  await expect(page.locator("form")).toHaveCount(1)
+  await expect(page.locator('button[type="submit"]')).toHaveCount(1)
+  await expect(page.locator("form .border-t")).toHaveCount(0)
+  await page.getByRole("button", { name: "Save Welcome", exact: true }).click()
   await expect(page.getByText("Welcome settings saved.")).toBeVisible()
   const saves = await page.evaluate(() => window.welcomeTestSaves)
   expect(saves).toHaveLength(1)

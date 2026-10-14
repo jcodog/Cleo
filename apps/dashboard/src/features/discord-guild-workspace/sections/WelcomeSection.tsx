@@ -5,6 +5,13 @@ import { IconAlignCenter, IconAlignLeft, IconCheck } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Button } from "@workspace/ui/components/button"
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
+import {
   Field,
   FieldContent,
   FieldDescription,
@@ -340,93 +347,83 @@ export function WelcomeSection({
           </div>
         </>
       )}
-      <section
-        className="space-y-5 border-t pt-6"
-        aria-labelledby="free-welcome-heading"
-      >
-        <div className="space-y-1">
-          <h3 id="free-welcome-heading" className="text-base font-semibold">
-            {overview.welcomeCardStudioAvailable
-              ? "Your welcome settings"
-              : "Your active free welcome"}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {overview.welcomeCardStudioAvailable
-              ? "These settings control the welcome card Cleo sends to Discord."
-              : "These settings control the Classic card Cleo sends to Discord."}
-          </p>
-        </div>
-        <FieldGroup className="max-w-2xl">
-          <Field data-disabled={disabled} orientation="horizontal">
-            <FieldContent>
-              <FieldTitle>Welcome messages</FieldTitle>
+      <Card className="max-w-3xl" aria-labelledby="welcome-settings-heading">
+        <CardHeader>
+          <CardTitle id="welcome-settings-heading">Welcome</CardTitle>
+          <CardDescription>
+            Configure welcome messages and card text.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          <FieldGroup>
+            <Field data-disabled={disabled} orientation="horizontal">
+              <FieldContent>
+                <FieldTitle>Welcome messages</FieldTitle>
+                <FieldDescription>
+                  Say hello when a new member joins.
+                </FieldDescription>
+              </FieldContent>
+              <Switch
+                aria-label="Welcome messages"
+                checked={enabled}
+                disabled={disabled}
+                onCheckedChange={(checked) => {
+                  setEnabled(checked)
+                  markDirty()
+                }}
+              />
+            </Field>
+            <DiscordChannelSelect
+              description="Cleo sends welcome cards to this channel."
+              disabled={disabled}
+              label="Destination"
+              onChange={(value) => {
+                setChannelId(value)
+                markDirty()
+              }}
+              optionsState={optionsState}
+              value={channelId}
+            />
+            <Field data-disabled={disabled}>
+              <FieldLabel htmlFor="welcome-subtext">Card subtext</FieldLabel>
+              <Input
+                autoComplete="off"
+                disabled={disabled}
+                id="welcome-subtext"
+                maxLength={120}
+                value={subtext}
+                placeholder="Settle in, say hello, and enjoy the server."
+                onChange={(event) => {
+                  setSubtext(event.target.value)
+                  markDirty()
+                }}
+              />
               <FieldDescription>
-                Say hello when a new member joins.
+                The line below the member name.
               </FieldDescription>
-            </FieldContent>
-            <Switch
-              aria-label="Welcome messages"
-              checked={enabled}
-              disabled={disabled}
-              onCheckedChange={(checked) => {
-                setEnabled(checked)
-                markDirty()
-              }}
-            />
-          </Field>
-          <DiscordChannelSelect
-            description="Cleo sends welcome cards to this channel."
-            disabled={disabled}
-            label="Destination"
-            onChange={(value) => {
-              setChannelId(value)
-              markDirty()
-            }}
-            optionsState={optionsState}
-            value={channelId}
-          />
-          <Field data-disabled={disabled}>
-            <FieldLabel htmlFor="welcome-subtext">Card subtext</FieldLabel>
-            <Input
-              autoComplete="off"
-              disabled={disabled}
-              id="welcome-subtext"
-              maxLength={120}
-              value={subtext}
-              placeholder="Settle in, say hello, and enjoy the server."
-              onChange={(event) => {
-                setSubtext(event.target.value)
-                markDirty()
-              }}
-            />
-            <FieldDescription>The line below the member name.</FieldDescription>
-          </Field>
-        </FieldGroup>
-        <div className="flex flex-wrap items-center gap-4">
-          <Button
-            disabled={
-              disabled ||
-              (overview.welcomeCardStudioAvailable && styleError !== undefined)
-            }
-            type="submit"
-          >
-            {saveState === "saving"
-              ? "Saving settings…"
-              : overview.welcomeCardStudioAvailable
-                ? "Save welcome settings"
-                : "Save free settings"}
-          </Button>
-          {saveState === "success" ? (
-            <p role="status" className="text-sm text-emerald-400">
-              {overview.welcomeCardStudioAvailable
-                ? "Welcome settings saved."
-                : "Free welcome settings saved."}
-            </p>
-          ) : (
-            <SaveStatus errorMessage={errorMessage} state={saveState} />
-          )}
-        </div>
-      </section>
+            </Field>
+          </FieldGroup>
+          <div className="flex flex-wrap items-center gap-4">
+            <Button
+              disabled={
+                disabled ||
+                (overview.welcomeCardStudioAvailable &&
+                  styleError !== undefined)
+              }
+              type="submit"
+            >
+              {saveState === "saving" ? "Saving…" : "Save Welcome"}
+            </Button>
+            {saveState === "success" ? (
+              <p role="status" className="text-sm text-emerald-400">
+                Welcome settings saved.
+              </p>
+            ) : (
+              <SaveStatus errorMessage={errorMessage} state={saveState} />
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </form>
   )
 }
