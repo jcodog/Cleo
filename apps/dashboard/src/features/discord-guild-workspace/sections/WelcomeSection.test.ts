@@ -251,4 +251,35 @@ test("welcome studio validates and saves Premium styles only with server-provide
     nodes(denied).some((node) => node.type === "WelcomeCardPreview"),
     false
   )
+
+  // Convex may return the same style with a different property order.
+  slots = []
+  fail = false
+  assert.ok(overview.guildConfig)
+  overview.guildConfig.welcomeStyle = {
+    align: FREE_WELCOME_STYLE.align,
+    greeting: FREE_WELCOME_STYLE.greeting,
+    palette: FREE_WELCOME_STYLE.palette,
+    preset: "aurora",
+  }
+  const reset = nodes(render()).find(
+    (node) => node.type === "Button" && copy(node) === "Reset to free design"
+  )
+  assert.ok(reset?.props.onClick)
+  reset.props.onClick()
+  find("Aurora").onChange?.({ target: { value: "aurora" } })
+  const unchanged = render().props.onSubmit({ preventDefault() {} })
+  assert.deepEqual(
+    saves.at(-1),
+    {
+      discordGuildId: overview.discordGuildId,
+      modules: { welcomeEnabled: true },
+      channels: { welcomeChannelId: "234567890123456789" },
+      welcome: { subtext: "Hello" },
+    },
+    "Equal styles with reordered properties must not resubmit styling"
+  )
+  assert.ok(finishSave)
+  finishSave()
+  await unchanged
 })

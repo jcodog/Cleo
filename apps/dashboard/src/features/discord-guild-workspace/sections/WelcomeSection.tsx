@@ -67,7 +67,11 @@ export function WelcomeSection({
   )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [savedStyle, setSavedStyle] = useState(style)
-  const styleModified = JSON.stringify(style) !== JSON.stringify(savedStyle)
+  const styleModified =
+    style.preset !== savedStyle.preset ||
+    style.palette !== savedStyle.palette ||
+    style.greeting !== savedStyle.greeting ||
+    style.align !== savedStyle.align
   const premiumPreview = !isFreeWelcomeStyle(style)
   const disabled = isBotLeft || saveState === "saving"
   let styleError: string | undefined
