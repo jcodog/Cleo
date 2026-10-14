@@ -39,7 +39,7 @@
       "packages/*"
     ],
     "catalog": {
-      "@next/eslint-plugin-next": "^16.4.0",
+      "@next/eslint-plugin-next": "^16.4.1",
       "@tailwindcss/postcss": "^4.3.3",
       "@turbo/gen": "^2.11.8",
       "@types/node": "^26.6.5",

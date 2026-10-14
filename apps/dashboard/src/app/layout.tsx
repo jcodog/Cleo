@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono, Outfit } from "next/font/google"
 import type { Metadata, Viewport } from "next"
+import Script from "next/script"
 import "@clerk/ui/themes/shadcn.css"
 import "@workspace/ui/globals.css"
 import { dashboardEnv } from "@workspace/env/dashboard"
@@ -30,7 +31,7 @@ const metadataBase = new URL(
   })
 )
 
-// Keep this pre-paint resolver aligned with ThemeProvider's storage and system rules.
+// Keep this pre-hydration resolver aligned with ThemeProvider's storage and system rules.
 const themeScript = `try{const storedTheme=localStorage.getItem("theme");const isDark=storedTheme==="dark"||(storedTheme!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);const root=document.documentElement;root.classList.toggle("dark",isDark);root.style.colorScheme=isDark?"dark":"light";root.style.backgroundColor=isDark?"#0a0a0b":"#ffffff"}catch{}`
 
 const description =
@@ -122,7 +123,9 @@ export default function RootLayout({
       )}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <Script id="cleo-theme" strategy="beforeInteractive">
+          {themeScript}
+        </Script>
       </head>
       <body className="flex h-full min-h-screen w-full min-w-full flex-col overflow-x-hidden scroll-smooth bg-background text-foreground antialiased">
         <ThemeProvider>
