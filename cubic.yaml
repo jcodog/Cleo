@@ -2,14 +2,19 @@
 
 version: 1
 reviews:
-  # Keep cloud capacity for deliberate release reviews such as PR 172.
+  # Cloud reviews focus on implementation; local reviews and CodeRabbit cover tests.
   enabled: true
-  incremental_commits: false
+  incremental_commits: true
   check_drafts: true
   ignore:
     files:
       - "**/*.test.*"
       - "**/*.spec.*"
+      - ".github/scripts/test-*"
+      - "**/test-*"
+      - "**/test.sh"
+      - "**/*_test.*"
+      - "**/*-test.*"
       - "**/__tests__/**"
       - "tests/**"
       - "test/**"

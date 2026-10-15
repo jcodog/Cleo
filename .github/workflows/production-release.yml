@@ -662,7 +662,16 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Finalise confirmed discord activate receipt
         if: >-
-          !cancelled() && steps.runtime.outputs.completed == 'true' && (steps.commands.outcome == 'skipped' || steps.commands.outputs.completed == 'true') && (steps.recovery.outcome == 'skipped' || steps.recovery.outputs.completed == 'true') && (steps.restored_commands.outcome == 'skipped' || steps.restored_commands.outputs.completed == 'true')
+          !cancelled() && steps.runtime.outputs.completed == 'true' && (
+            (steps.runtime.outcome == 'success' && steps.commands.outputs.completed == 'true' && (
+              steps.commands.outcome == 'success' ||
+              (steps.commands.outcome == 'failure' && steps.recovery.outputs.completed == 'true' && (
+                steps.recovery.outcome == 'failure' ||
+                (steps.recovery.outcome == 'success' && steps.restored_commands.outputs.completed == 'true')
+              ))
+            )) ||
+            (steps.runtime.outcome == 'failure' && steps.restored_commands.outputs.completed == 'true')
+          )
         env:
           GH_TOKEN: ${{ github.token }}
           RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
@@ -910,7 +919,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Finalise confirmed discord rollback receipt
         if: >-
-          !cancelled() && steps.runtime.outputs.completed == 'true' && (steps.commands.outcome == 'skipped' || steps.commands.outputs.completed == 'true')
+          !cancelled() && steps.runtime.outputs.completed == 'true' && (
+            steps.runtime.outcome == 'failure' ||
+            (steps.runtime.outcome == 'success' && steps.commands.outputs.completed == 'true')
+          )
         env:
           GH_TOKEN: ${{ github.token }}
           RECEIPT_ID: ${{ steps.claim.outputs.receipt }}

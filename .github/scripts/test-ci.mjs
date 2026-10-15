@@ -12,6 +12,38 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("../../", import.meta.url))
+const cubic = Bun.YAML.parse(readFileSync(join(root, "cubic.yaml"), "utf8"))
+assert.equal(cubic.reviews.enabled, true)
+assert.equal(cubic.reviews.incremental_commits, true)
+const exclusions = cubic.reviews.ignore.files.map(
+  (pattern) => new Bun.Glob(pattern)
+)
+for (const file of [
+  ".github/scripts/test-production-security.mjs",
+  ".github/scripts/test-operations.sh",
+  "ops/twitch/test.sh",
+  "ops/discord/bin/deploy-discord-release.validation.test.sh",
+  "scripts/example_test.mjs",
+  "scripts/example-test.sh",
+])
+  assert.ok(
+    exclusions.some((pattern) => pattern.match(file)),
+    file
+  )
+for (const file of [
+  ".github/scripts/production-policy.mjs",
+  ".github/scripts/actions-condition.mjs",
+  ".github/workflows/production-release.yml",
+  ".github/workflows/regression.yml",
+  "ops/discord/bin/deploy-discord-release",
+  "ops/twitch/bin/deploy-twitch-release",
+  "ops/discord/bin/check-discord-runner",
+  "ops/discord/sudoers/cleo-discord-deploy",
+  "apps/discord-bot/src/deployment/classifyChanges.ts",
+  "cubic.yaml",
+  ".coderabbit.yaml",
+])
+  assert.ok(!exclusions.some((pattern) => pattern.match(file)), file)
 /** Parse a repository workflow as data without evaluating its Actions expressions. */
 const readWorkflow = (name) =>
   Bun.YAML.parse(readFileSync(join(root, ".github/workflows", name), "utf8"))

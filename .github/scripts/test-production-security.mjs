@@ -17,6 +17,46 @@ const workflow = Bun.YAML.parse(
     "utf8"
   )
 )
+/** Enforce credential boundaries on actual YAML at every inheritance level, including aliases. */
+function requireCredentialIsolation(candidate) {
+  const keys = ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"]
+  for (const key of keys)
+    assert.equal(candidate.env?.[key], undefined, `workflow: ${key}`)
+  for (const [id, job] of Object.entries(candidate.jobs)) {
+    for (const key of keys)
+      assert.equal(job.env?.[key], undefined, `${id}: ${key}`)
+    for (const step of job.steps ?? []) {
+      assert.equal(
+        step.env?.GITHUB_TOKEN,
+        undefined,
+        "Use only explicit policy GH_TOKEN"
+      )
+      if (step.env?.GH_TOKEN) assert.match(step.run, /production-policy\.mjs/)
+      if (step.env?.CONVEX_DEPLOY_KEY)
+        assert.match(step.run, /bun run --filter @workspace\/backend deploy/)
+      if (/\bbun\s+(?:ci|install)\b|\bbuild\b/.test(step.run ?? ""))
+        for (const key of keys)
+          assert.equal(step.env?.[key], undefined, `${id} build: ${key}`)
+    }
+  }
+}
+requireCredentialIsolation(workflow)
+for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"]) {
+  const inherited = structuredClone(workflow)
+  inherited.env[key] = "unsafe"
+  assert.throws(() => requireCredentialIsolation(inherited))
+  for (const id of Object.keys(workflow.jobs)) {
+    const candidate = structuredClone(workflow)
+    candidate.jobs[id].env = { ...candidate.jobs[id].env, [key]: "unsafe" }
+    assert.throws(() => requireCredentialIsolation(candidate))
+    for (const [index, step] of workflow.jobs[id].steps.entries())
+      if (/\bbun\s+(?:ci|install)\b|\bbuild\b/.test(step.run ?? "")) {
+        const build = structuredClone(workflow)
+        build.jobs[id].steps[index].env = { ...step.env, [key]: "unsafe" }
+        assert.throws(() => requireCredentialIsolation(build))
+      }
+  }
+}
 const directory = mkdtempSync(join(tmpdir(), "cleo-production-environment-"))
 const sha = "a".repeat(40)
 try {
@@ -33,6 +73,11 @@ try {
   const policyNode = writeTool(
     "policy-node",
     `
+if [[ "\${1:-}" == --input-type=module ]]; then
+  [[ -z "\${GH_TOKEN+x}" && -z "\${GITHUB_TOKEN+x}" && -z "\${CONVEX_DEPLOY_KEY+x}" ]]
+  echo fixture-metadata
+  exit 0
+fi
 command="\${@: -1}"
 echo "$command" >> "$CALL_LOG"
 [[ "\${GH_TOKEN:-}" == fixture-github-token ]]
@@ -93,6 +138,7 @@ exit "$CONTROLLER_STATUS"
         CLEO_DISCORD_EXPECTED_SHA: sha,
         CLEO_DISCORD_DEPLOY_ROOT: "/fixture",
         CLEO_DISCORD_SERVICE: "cleo-discord.service",
+        CLEO_DISCORD_COMMAND_SERVICE: "cleo-discord-register-commands.service",
         RUNNER_TEMP: directory.replaceAll("\\", "/"),
         GITHUB_OUTPUT: output,
         GITHUB_STEP_SUMMARY: summary,
@@ -129,17 +175,6 @@ exit "$CONTROLLER_STATUS"
           /Automatic production promotion is disabled/
         )
     }
-  for (const [id, job] of Object.entries(workflow.jobs)) {
-    assert.equal(job.env?.GH_TOKEN, undefined, `${id}: no job-wide token`)
-    assert.equal(job.env?.CONVEX_DEPLOY_KEY, undefined)
-    for (const step of job.steps ?? []) {
-      if (step.env?.GH_TOKEN) assert.match(step.run, /production-policy\.mjs/)
-      if (/bun ci| build(?:\n|$)/.test(step.run ?? "")) {
-        assert.equal(step.env?.GH_TOKEN, undefined)
-        assert.equal(step.env?.CONVEX_DEPLOY_KEY, undefined)
-      }
-    }
-  }
   const restoredCondition = workflow.jobs["discord-activate"].steps.find(
     (step) => step.id === "restored_commands"
   ).if
@@ -230,10 +265,18 @@ exit "$CONTROLLER_STATUS"
           operation === "activate" ? ["recheck", "controller"] : ["controller"]
         )
         const steps = {
-          runtime: { outputs: { completed: status === "143" ? "" : "true" } },
+          runtime: {
+            outcome: status === "0" ? "success" : "failure",
+            outputs: { completed: status === "143" ? "" : "true" },
+          },
         }
         for (const name of ["commands", "recovery", "restored_commands"])
           steps[name] = { outcome: "skipped" }
+        if (service === "discord")
+          steps[status === "0" ? "commands" : "restored_commands"] = {
+            outcome: "success",
+            outputs: { completed: "true" },
+          }
         assert.equal(
           evaluate(finalise.if, { steps }, [
             status === "0" ? "success" : "failure",
@@ -254,6 +297,209 @@ exit "$CONTROLLER_STATUS"
             !result.output.includes("attempted=true") &&
               !result.output.includes("completed=true")
           )
+        }
+      }
+      if (service === "discord") {
+        /** A completed failure is terminal failure; missing confirmation stays uncertain. */
+        const state = (outcome, completed = true) => ({
+          outcome,
+          outputs: { completed: completed ? "true" : "" },
+        })
+        const cases =
+          operation === "activate"
+            ? [
+                [
+                  "success",
+                  { runtime: state("success"), commands: state("success") },
+                  true,
+                ],
+                [
+                  "success",
+                  {
+                    runtime: state("success"),
+                    commands: state("skipped", false),
+                  },
+                  false,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("success"),
+                    commands: state("failure", false),
+                  },
+                  false,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("success"),
+                    commands: state("failure"),
+                    recovery: state("skipped", false),
+                  },
+                  false,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("success"),
+                    commands: state("failure"),
+                    recovery: state("failure", false),
+                  },
+                  false,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("success"),
+                    commands: state("failure"),
+                    recovery: state("failure"),
+                  },
+                  true,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("success"),
+                    commands: state("failure"),
+                    recovery: state("success"),
+                    restored_commands: state("success"),
+                  },
+                  true,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("success"),
+                    commands: state("failure"),
+                    recovery: state("success"),
+                    restored_commands: state("failure"),
+                  },
+                  true,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("success"),
+                    commands: state("failure"),
+                    recovery: state("success"),
+                    restored_commands: state("failure", false),
+                  },
+                  false,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("failure"),
+                    restored_commands: state("success"),
+                  },
+                  true,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("failure"),
+                    restored_commands: state("skipped", false),
+                  },
+                  false,
+                ],
+              ]
+            : [
+                [
+                  "success",
+                  { runtime: state("success"), commands: state("success") },
+                  true,
+                ],
+                [
+                  "success",
+                  {
+                    runtime: state("success"),
+                    commands: state("skipped", false),
+                  },
+                  false,
+                ],
+                [
+                  "failure",
+                  { runtime: state("success"), commands: state("failure") },
+                  true,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("success"),
+                    commands: state("failure", false),
+                  },
+                  false,
+                ],
+                [
+                  "failure",
+                  {
+                    runtime: state("failure"),
+                    commands: state("skipped", false),
+                  },
+                  true,
+                ],
+              ]
+        cases.push([
+          "success",
+          { runtime: state("success"), commands: state("success", false) },
+          false,
+        ])
+        /** Check actual YAML receipt eligibility and ensure failed recovery never becomes a success receipt. */
+        const checkFinalisation = (condition) => {
+          for (const [status, patch, expected] of cases) {
+            const steps = Object.fromEntries(
+              ["runtime", "commands", "recovery", "restored_commands"].map(
+                (name) => [name, state("skipped", false)]
+              )
+            )
+            Object.assign(steps, patch)
+            assert.equal(
+              evaluate(condition, { steps }, [status]),
+              expected,
+              JSON.stringify(patch)
+            )
+            assert.equal(evaluate(condition, { steps }, ["cancelled"]), false)
+            if (expected && status === "failure")
+              assert.equal(finalise.env.RECEIPT_STATE, "${{ job.status }}")
+          }
+        }
+        checkFinalisation(finalise.if)
+        assert.throws(() =>
+          checkFinalisation(
+            "!cancelled() && steps.runtime.outputs.completed == 'true'"
+          )
+        )
+        assert.throws(() =>
+          checkFinalisation(
+            finalise.if.replaceAll(
+              "steps.commands.outputs.completed == 'true'",
+              "true"
+            )
+          )
+        )
+        for (const id of ["commands", "recovery", "restored_commands"]) {
+          const followup = job.steps.find((step) => step.id === id)
+          if (!followup) continue
+          const commandScript =
+            stubs +
+            `sudo() { if [[ "$*" == *reset-failed* ]]; then return 0; fi; echo commands >> "$CALL_LOG"; return "$CONTROLLER_STATUS"; }\n` +
+            followup.run.replaceAll(
+              "/usr/local/libexec/cleo/deploy-discord-release",
+              '"$POLICY_TEST_CONTROLLER"'
+            )
+          for (const status of ["0", "1", "143"]) {
+            const result = run(commandScript, {
+              GH_TOKEN: followup.env?.GH_TOKEN
+                ? "fixture-github-token"
+                : undefined,
+              CONTROLLER_STATUS: status,
+            })
+            assert.equal(result.status, Number(status), result.stderr)
+            assert.equal(
+              result.output.includes("completed=true"),
+              status !== "143"
+            )
+          }
         }
       }
     }

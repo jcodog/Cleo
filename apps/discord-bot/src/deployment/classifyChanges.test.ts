@@ -44,6 +44,9 @@ test("Convex classification includes imported packages, dependency resolution an
     "convex.json",
     "tsconfig.json",
     "tsconfig.build.json",
+    "apps/kick-bot/package.json",
+    "packages/future-runtime/package.json",
+    "apps/new-runtime/package.json",
   ])
     assert.equal(isConvexDeployPath(path), true, path)
   for (const path of [

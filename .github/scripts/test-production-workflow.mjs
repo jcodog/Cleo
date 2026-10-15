@@ -70,8 +70,48 @@ function requireReleaseWiring(candidate) {
   )
   for (const id of ["discord-activate", "discord-rollback"])
     assert.equal(candidate.jobs[id].env.CLEO_DISCORD_HOST_CONTRACT_VERSION, "5")
+  const barrier = candidate.jobs["packages-ready"].steps.at(-1)
+  for (const service of ["discord", "twitch"]) {
+    assert.equal(
+      candidate.jobs[`${service}-package`].outputs.enabled,
+      "${{ steps.gate.outputs.enabled }}"
+    )
+    for (const [suffix, reference] of Object.entries({
+      REQUIRED: `needs.authorise.outputs.${service}`,
+      RESULT: `needs.${service}-package.result`,
+      ENABLED: `needs.${service}-package.outputs.enabled`,
+    }))
+      assert.equal(
+        barrier.env[`${service.toUpperCase()}_${suffix}`],
+        `\${{ ${reference} }}`
+      )
+  }
 }
 requireReleaseWiring(workflow)
+for (const service of ["discord", "twitch"])
+  for (const value of [
+    undefined,
+    "true",
+    "${{ true }}",
+    "${{ steps.other.outputs.enabled }}",
+  ]) {
+    const candidate = structuredClone(workflow)
+    candidate.jobs[`${service}-package`].outputs.enabled = value
+    assert.throws(() => requireReleaseWiring(candidate))
+  }
+for (const service of ["DISCORD", "TWITCH"])
+  for (const suffix of ["REQUIRED", "RESULT", "ENABLED"])
+    for (const value of [
+      undefined,
+      "true",
+      "${{ needs.other.outputs.enabled }}",
+    ]) {
+      const candidate = structuredClone(workflow)
+      candidate.jobs["packages-ready"].steps.at(-1).env[
+        `${service}_${suffix}`
+      ] = value
+      assert.throws(() => requireReleaseWiring(candidate))
+    }
 for (const value of [
   undefined,
   true,
@@ -298,6 +338,13 @@ assert.equal(evaluate("!cancelled()", {}, ["cancelled"]), false)
 assert.equal(evaluate("failure() && !cancelled()", {}, ["failure"]), true)
 assert.equal(evaluate("true || false && false", {}, []), true)
 assert.equal(evaluate("(true || false) && false", {}, []), false)
+assert.equal(evaluate("needs.x == '0'", { needs: { x: null } }, []), true)
+assert.equal(evaluate("needs.x == '0'", { needs: {} }, []), false)
+assert.equal(evaluate("needs.x == null", { needs: { x: null } }, []), true)
+assert.equal(
+  evaluate("needs.x || 'fallback'", { needs: { x: null } }, []),
+  true
+)
 for (const expression of [
   "('release' || 'other') == 'release'",
   "('' || 'other') == 'other'",
@@ -338,6 +385,7 @@ function graph({
   autoEnabled = "true",
   evidence,
   candidate = workflow,
+  packageEnabled = { discord: "true", twitch: "true" },
 } = {}) {
   const results = {}
   for (const [id, job] of Object.entries(candidate.jobs)) {
@@ -369,10 +417,37 @@ function graph({
     }
     if (id === "packages-ready" && eligible) {
       try {
-        packagesReady(scope, {
-          discord: results["discord-package"].result,
-          twitch: results["twitch-package"].result,
-        })
+        const environment = Object.fromEntries(
+          Object.entries(job.steps.at(-1).env).map(([key, expression]) => {
+            const match =
+              /^\$\{\{ needs\.([\w-]+)\.(?:(outputs)\.)?([\w-]+) \}\}$/.exec(
+                expression
+              )
+            assert.ok(match, "Unsupported barrier reference")
+            return [
+              key,
+              match[2]
+                ? needs[match[1]].outputs[match[3]]
+                : needs[match[1]][match[3]],
+            ]
+          })
+        )
+        packagesReady(
+          {
+            discord: environment.DISCORD_REQUIRED === "true",
+            twitch: environment.TWITCH_REQUIRED === "true",
+          },
+          {
+            discord: environment.DISCORD_RESULT,
+            twitch: environment.TWITCH_RESULT,
+          }
+        )
+        if ((inputs.operation || "deploy") === "deploy")
+          for (const service of ["DISCORD", "TWITCH"])
+            assert.ok(
+              environment[`${service}_REQUIRED`] !== "true" ||
+                environment[`${service}_ENABLED`] === "true"
+            )
       } catch {
         result = "failure"
       }
@@ -389,24 +464,30 @@ function graph({
       },
       gate: {
         enabled: String(
-          githubContext.event_name !== "workflow_run" ||
-            autoEnabled.toLowerCase() === "true"
+          id.endsWith("-package")
+            ? packageEnabled[id.split("-")[0]] === "true"
+            : githubContext.event_name !== "workflow_run" ||
+                autoEnabled.toLowerCase() === "true"
         ),
       },
     }
-    const outputs = ["authorise", "rollout"].includes(id)
-      ? Object.fromEntries(
-          Object.entries(job.outputs).map(([key, reference]) => {
-            const match =
-              /^\$\{\{ steps\.(plan|gate)\.outputs\.([a-z_]+) \}\}$/.exec(
-                reference
-              )
-            assert.ok(match, "Unsupported fixture output reference")
-            assert.ok(Object.hasOwn(stepValues[match[1]], match[2]))
-            return [key, stepValues[match[1]][match[2]]]
-          })
-        )
-      : {}
+    const outputs =
+      result === "success" &&
+      ["authorise", "rollout", "discord-package", "twitch-package"].includes(id)
+        ? Object.fromEntries(
+            Object.entries(job.outputs)
+              .filter(([key]) => key !== "artifact_name")
+              .map(([key, reference]) => {
+                const match =
+                  /^\$\{\{ steps\.(plan|gate)\.outputs\.([a-z_]+) \}\}$/.exec(
+                    reference
+                  )
+                assert.ok(match, "Unsupported fixture output reference")
+                assert.ok(Object.hasOwn(stepValues[match[1]], match[2]))
+                return [key, stepValues[match[1]][match[2]]]
+              })
+          )
+        : {}
     results[id] = { result, outputs }
   }
   return results
@@ -420,6 +501,13 @@ const assertBlocked = (result) => {
 }
 for (const autoEnabled of ["", "false", "yes", " true"])
   assertBlocked(graph({ autoEnabled }))
+for (const service of ["discord", "twitch"])
+  for (const value of ["", "false", "yes", " true"])
+    assertBlocked(
+      graph({
+        packageEnabled: { discord: "true", twitch: "true", [service]: value },
+      })
+    )
 const success = graph()
 for (const id of productionJobs) assert.equal(success[id].result, "success")
 for (const id of rollbackJobs) assert.equal(success[id].result, "skipped", id)

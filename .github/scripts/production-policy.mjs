@@ -216,23 +216,39 @@ export async function authenticate(api, identity, automatic = false) {
 }
 
 /**
- * Read all custom component receipts, newest first, separately from environment deployments.
+ * Read the newest component receipt, or paginate only one SHA's backend reuse history.
  * @param {Function} api Repository-scoped API client.
  * @param {string} component Supported backend, Discord or Twitch receipt task/environment.
- * @returns {Promise<object[]>} Fully paginated receipts; unknown components or invalid responses reject.
+ * @param {string} [sha] Exact release SHA for backend deduplication; omitted for bounded latest-state checks.
+ * @returns {Promise<object[]>} Newest-first matching receipts; invalid or cross-component responses reject.
  */
-export async function receipts(api, component) {
+export async function receipts(api, component, sha) {
   assert.ok(Object.hasOwn(environments, component))
+  if (sha !== undefined) assert.match(sha, shaPattern)
+  const perPage = sha === undefined ? 1 : 100
   const records = []
   for (let page = 1; ; page++) {
     const batch = await api(
-      `deployments?task=cleo-${component}&environment=${environments[component]}&per_page=100&page=${page}`
+      `deployments?task=cleo-${component}&environment=${environments[component]}${sha === undefined ? "" : `&sha=${sha}`}&per_page=${perPage}&page=${page}`
     )
     assert.ok(Array.isArray(batch))
-    records.push(...batch)
-    if (batch.length < 100) break
+    assert.ok(batch.length <= perPage, "Oversized receipt response")
+    for (const record of batch) {
+      assert.equal(record.task, `cleo-${component}`, "Wrong receipt component")
+      assert.equal(
+        record.environment,
+        environments[component],
+        "Wrong receipt environment"
+      )
+      if (sha !== undefined) assert.equal(record.sha, sha, "Wrong receipt SHA")
+      assert.ok(Number.isSafeInteger(record.id) && record.id > 0)
+      if (records.length)
+        assert.ok(records.at(-1).id > record.id, "Receipt order changed")
+      records.push(record)
+    }
+    if (sha === undefined || batch.length < perPage) break
   }
-  return records.sort((a, b) => b.id - a.id)
+  return records
 }
 
 /**
@@ -295,8 +311,7 @@ export async function claim(
   else assert.equal(operation, "rollback")
   if (component === "backend") {
     assert.equal(operation, "deploy")
-    for (const record of await receipts(api, component)) {
-      if (record.sha !== identity.sha) continue
+    for (const record of await receipts(api, component, identity.sha)) {
       assert.equal(
         record.payload?.operation,
         "deploy",
@@ -356,6 +371,11 @@ async function updateReceipt(
   assert.match(String(receiptId), /^[1-9][0-9]*$/)
   const record = await api(`deployments/${receiptId}`)
   assert.equal(record.task, `cleo-${component}`)
+  assert.equal(
+    record.environment,
+    environments[component],
+    "Wrong receipt environment"
+  )
   assert.equal(record.sha, identity.sha)
   assert.equal(record.payload?.operation, operation)
   assert.equal(String(record.payload?.coordinatorRun), String(coordinatorRun))
@@ -452,8 +472,9 @@ async function main() {
   const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
   const selected = invocation(env, event)
   const api = apiClient(env.GH_TOKEN)
-  // API client captures its token; Git/classifier subprocesses must not inherit it.
-  delete env.GH_TOKEN
+  // API client captures its token; Git/classifier subprocesses receive no deploy credentials.
+  for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"])
+    delete env[key]
   const automatic = env.GITHUB_EVENT_NAME === "workflow_run"
   const command = process.argv[2]
   /** Publish known identity/plan scalars as Actions outputs; credentials must never be passed here. */

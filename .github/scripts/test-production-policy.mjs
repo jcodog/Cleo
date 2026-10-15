@@ -12,6 +12,7 @@ import {
   claim,
   finishClaim,
   releaseClaim,
+  receipts,
   invocation,
   packagesReady,
   repository,
@@ -19,6 +20,26 @@ import {
   verifyEvidence,
   workflowId,
 } from "./production-policy.mjs"
+
+/** Remove ambient deployment credentials before any disposable Git, classifier or policy subprocess. */
+function fixtureEnvironment(environment = process.env) {
+  return Object.fromEntries(
+    Object.entries(environment).filter(
+      ([key]) =>
+        !["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"].includes(
+          key.toUpperCase()
+        )
+    )
+  )
+}
+const childEnvironment = fixtureEnvironment({
+  ...process.env,
+  GH_TOKEN: "ambient-fixture",
+  GITHUB_TOKEN: "ambient-fixture",
+  CONVEX_DEPLOY_KEY: "ambient-fixture",
+})
+for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"])
+  assert.equal(childEnvironment[key], undefined)
 
 const sha = "a".repeat(40)
 const other = "b".repeat(40)
@@ -237,10 +258,11 @@ function fixture({
       writes.push({ path, method, body })
       if (path === "deployments") {
         const record = {
-          id: 101 + records.length,
+          id: Math.max(100, ...records.map((record) => record.id)) + 1,
           sha: body.ref,
           payload: body.payload,
           task: body.task,
+          environment: body.environment,
         }
         records.unshift(record)
         return record
@@ -263,7 +285,21 @@ function fixture({
     if (path === "branches/main") return { commit: { sha: main } }
     if (/^deployments\/\d+$/.test(path))
       return records.find((record) => record.id === Number(path.split("/")[1]))
-    if (path.startsWith("deployments?")) return records
+    if (path.startsWith("deployments?")) {
+      const query = new URL(`https://fixture/${path}`).searchParams
+      const perPage = Number(query.get("per_page") || 30)
+      const page = Number(query.get("page") || 1)
+      return records
+        .filter(
+          (record) =>
+            (!query.has("task") || record.task === query.get("task")) &&
+            (!query.has("environment") ||
+              record.environment === query.get("environment")) &&
+            (!query.has("sha") || record.sha === query.get("sha"))
+        )
+        .sort((a, b) => b.id - a.id)
+        .slice((page - 1) * perPage, page * perPage)
+    }
     if (/^deployments\/\d+\/statuses/.test(path))
       return statuses[Number(path.split("/")[1])]
         ? [{ state: statuses[Number(path.split("/")[1])] }]
@@ -273,6 +309,99 @@ function fixture({
   return { api, writes, requests, records, statuses }
 }
 const identity = { sha, runId: 10, attempt: 1 }
+// Query fixtures obey real filters; another runtime or historical SHA cannot suppress Convex.
+const mixed = fixture({
+  records: [
+    {
+      id: 1000,
+      sha,
+      task: "cleo-backend",
+      environment: "unprotected",
+      payload: { cleoProductionVersion: 1, operation: "deploy" },
+    },
+    {
+      id: 900,
+      sha,
+      task: "cleo-twitch",
+      environment: "twitch-production",
+      payload: { cleoProductionVersion: 1, operation: "deploy" },
+    },
+    {
+      id: 800,
+      sha,
+      task: "cleo-discord",
+      environment: "discord-production",
+      payload: { cleoProductionVersion: 1, operation: "deploy" },
+    },
+    {
+      id: 700,
+      sha: "b".repeat(40),
+      task: "cleo-backend",
+      environment: "discord-production",
+      payload: { cleoProductionVersion: 1, operation: "deploy" },
+    },
+  ],
+  statuses: { 1000: "success", 900: "success", 800: "success", 700: "success" },
+})
+assert.equal(
+  (await claim(mixed.api, identity, "backend", "deploy", "100")).apply,
+  true
+)
+for (const component of ["backend", "discord", "twitch"]) {
+  const latest = await receipts(mixed.api, component)
+  assert.equal(latest.length, 1)
+  assert.equal(latest[0].task, `cleo-${component}`)
+}
+for (const key of ["task", "environment", "sha"]) {
+  const record = {
+    id: 1,
+    sha,
+    task: "cleo-backend",
+    environment: "discord-production",
+  }
+  record[key] = "untrusted"
+  await assert.rejects(
+    receipts(async () => [record], "backend", sha),
+    /Wrong receipt/
+  )
+}
+const history = fixture({
+  records: Array.from({ length: 250 }, (_, index) => ({
+    id: 1000 - index,
+    sha: index < 149 ? "b".repeat(40) : sha,
+    task: "cleo-backend",
+    environment: "discord-production",
+    payload: { cleoProductionVersion: 1, operation: "deploy" },
+  })),
+  statuses: Object.fromEntries(
+    Array.from({ length: 250 }, (_, index) => [
+      1000 - index,
+      index === 249 ? "success" : "inactive",
+    ])
+  ),
+})
+assert.equal(await baseline(history.api, "backend"), "")
+assert.equal(
+  history.requests.filter((path) => path.startsWith("deployments?")).length,
+  1
+)
+assert.match(history.requests[0], /per_page=1&page=1$/)
+history.requests.length = 0
+assert.deepEqual(
+  await claim(history.api, identity, "backend", "deploy", "100"),
+  { id: 751, apply: false }
+)
+const queries = history.requests.filter((path) =>
+  path.startsWith("deployments?")
+)
+assert.equal(queries.length, 2)
+assert.ok(queries.every((path) => path.includes(`&sha=${sha}&per_page=100`)))
+await assert.rejects(
+  receipts(async () => {
+    throw new Error("API unavailable")
+  }, "backend"),
+  /API unavailable/
+)
 const successApi = fixture()
 assert.deepEqual(await authenticate(successApi.api, identity), identity)
 assert.ok(successApi.requests.some((path) => path.endsWith("page=3")))
@@ -337,6 +466,12 @@ const unusedClaim = await claim(
   "deploy",
   "100"
 )
+unused.records[0].environment = "unprotected"
+await assert.rejects(
+  releaseClaim(unused.api, identity, unusedClaim.id, "100"),
+  /Wrong receipt environment/
+)
+unused.records[0].environment = "discord-production"
 await assert.rejects(
   releaseClaim(unused.api, identity, unusedClaim.id, "other-run")
 )
@@ -367,6 +502,7 @@ const misleading = fixture({
       id: 900,
       sha,
       task: "cleo-backend",
+      environment: "discord-production",
       payload: { cleoProductionVersion: 1, operation: "rollback" },
     },
   ],
@@ -392,6 +528,8 @@ const incident = fixture({
     {
       id: 200,
       sha,
+      task: "cleo-discord",
+      environment: "discord-production",
       payload: { cleoProductionVersion: 1, operation: "rollback" },
     },
   ],
@@ -616,6 +754,7 @@ const git = (...args) =>
       cwd: directory,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      env: childEnvironment,
     }
   ).trim()
 /** Build artificial history with unsigned fixture-only commits; repository commits retain configured signing. */
@@ -637,17 +776,39 @@ const commit = (file, text) => {
   return git("rev-parse", "HEAD")
 }
 /** Execute the real classifier against fixture commits and return its exact conservative boolean output. */
-const classify = (mode, before, after) =>
-  execFileSync(process.execPath, [classifier, mode, before, after], {
+const classify = (mode, before, after, failure = "") =>
+  execFileSync("node", [classifier, mode, before, after], {
     cwd: directory,
     encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...childEnvironment,
+      NODE_OPTIONS: `--import=${pathToFileURL(join(directory, "git-faults.mjs")).href}`,
+      CLASSIFIER_GIT_FAILURE: failure,
+    },
   }).trim()
 try {
   git("init", "-b", "main")
+  writeFileSync(
+    join(directory, "git-faults.mjs"),
+    `
+    import assert from "node:assert/strict"
+    import child from "node:child_process"
+    import { syncBuiltinESMExports } from "node:module"
+    for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"]) assert.equal(process.env[key], undefined)
+    const execute = child.execFileSync
+    child.execFileSync = (file, args, options) => {
+      if (file === "git" && args[0] === process.env.CLASSIFIER_GIT_FAILURE) throw new Error("Fixture Git failure: " + args[0])
+      return execute(file, args, options)
+    }
+    syncBuiltinESMExports()
+  `
+  )
   const base = commit("README.md", "fixture")
-  const defaultClassification = spawnSync(process.execPath, [classifier], {
+  const defaultClassification = spawnSync("node", [classifier], {
     cwd: directory,
     encoding: "utf8",
+    env: childEnvironment,
   })
   assert.equal(defaultClassification.status, 0, defaultClassification.stderr)
   assert.equal(defaultClassification.stdout, "true")
@@ -678,6 +839,10 @@ try {
   assert.equal(classify("twitch", discord, merge), "true")
   assert.equal(classify("deploy", discord, merge), "false")
   assert.equal(classify("backend", base, merge), "false")
+  assert.throws(
+    () => classify("deploy", discord, merge, "diff"),
+    /Fixture Git failure: diff/
+  )
   const backendSha = commit("packages/backend/convex/schema.ts", "backend")
   for (const mode of ["backend", "deploy", "twitch"]) {
     assert.equal(classify(mode, merge, backendSha), "true")
@@ -700,9 +865,10 @@ try {
     ["backend", "--all", web],
     ["deploy", base, "HEAD"],
   ]) {
-    const result = spawnSync(process.execPath, [classifier, ...args], {
+    const result = spawnSync("node", [classifier, ...args], {
       cwd: directory,
       encoding: "utf8",
+      env: childEnvironment,
     })
     assert.notEqual(result.status, 0)
     assert.equal(result.stdout, "")
@@ -710,6 +876,28 @@ try {
   // New configuration files must conservatively classify instead of crashing on git show.
   const config = commit("packages/env/package.json", "{}")
   assert.equal(classify("backend", workflowSha, config), "true")
+  const exportsBase = commit(
+    "packages/env/package.json",
+    '{"exports":{"./backend":"./src/backend.ts","./landing":"./src/old.ts"}}'
+  )
+  const exportsWeb = commit(
+    "packages/env/package.json",
+    '{"exports":{"./backend":"./src/backend.ts","./landing":"./src/new.ts"}}'
+  )
+  assert.equal(classify("backend", exportsBase, exportsWeb), "false")
+  assert.equal(
+    classify("backend", exportsBase, exportsWeb, "show"),
+    "true",
+    "Snapshot API failure must be conservative"
+  )
+  assert.equal(classify("backend", exportsBase, exportsWeb, "cat-file"), "true")
+  assert.equal(
+    classify("backend", exportsBase, exportsWeb, "merge-base"),
+    "true"
+  )
+  const unknownWorkspace = commit("packages/future-runtime/package.json", "{}")
+  for (const mode of ["backend", "deploy", "twitch"])
+    assert.equal(classify(mode, exportsWeb, unknownWorkspace), "true")
   assert.ok(readFileSync(classifier, "utf8").includes('"-z"'))
 } finally {
   await rm(directory, {
@@ -728,6 +916,7 @@ try {
   const checkoutSha = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: root,
     encoding: "utf8",
+    env: childEnvironment,
   }).trim()
   const mock = join(cliDirectory, "api.mjs")
   const evidencePath = join(cliDirectory, "evidence.json")
@@ -741,6 +930,8 @@ try {
     import { readFileSync } from "node:fs"
     const fixture = JSON.parse(readFileSync(process.env.POLICY_TEST_EVIDENCE, "utf8"))
     globalThis.fetch = async (url, options) => {
+      for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"])
+        if (process.env[key] !== undefined) throw new Error("Policy retained child credential: " + key)
       if (options.method !== "GET") throw new Error("Planner attempted a production mutation")
       const path = new URL(url).pathname
       let data
@@ -755,7 +946,7 @@ try {
   `
   )
   /** Invoke the real planner CLI with read-only API evidence, capturing outputs to detect identity divergence. */
-  const invoke = (operation, fixtureSha) => {
+  const invoke = (operation, fixtureSha, environment = {}) => {
     writeFileSync(
       evidencePath,
       JSON.stringify({
@@ -779,7 +970,7 @@ try {
         encoding: "utf8",
         timeout: 30000,
         env: {
-          ...process.env,
+          ...childEnvironment,
           ...manual,
           INPUT_OPERATION: operation,
           INPUT_SHA: fixtureSha,
@@ -788,6 +979,7 @@ try {
           GITHUB_STEP_SUMMARY: summaryPath,
           GH_TOKEN: "read-only-fixture",
           POLICY_TEST_EVIDENCE: evidencePath,
+          ...environment,
         },
       }
     )
@@ -805,6 +997,11 @@ try {
     assert.ok(output.includes(`sha=${checkoutSha}\n`))
     assert.ok(output.includes(`backend=${operation === "deploy"}\n`))
   }
+  const sanitised = invoke("validate", checkoutSha, {
+    GITHUB_TOKEN: "explicit-dummy",
+    CONVEX_DEPLOY_KEY: "explicit-dummy",
+  })
+  assert.equal(sanitised.status, 0, sanitised.stderr)
   // Exercise the real rollback CLI with no source regression identity at all.
   // Its receipt identifies recovery intent at main, not the restored artifact.
   const ownerMock = join(cliDirectory, "receipt-api.mjs")
@@ -814,6 +1011,8 @@ try {
     `
     import { readFileSync, writeFileSync } from "node:fs"
     globalThis.fetch = async (url, options) => {
+      for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"])
+        if (process.env[key] !== undefined) throw new Error("Receipt CLI retained credential: " + key)
       const state = JSON.parse(readFileSync(process.env.POLICY_TEST_STATE, "utf8"))
       const path = new URL(url).pathname
       if (path.endsWith("/deployments/900") && options.method === "GET") return Response.json(state.record)
@@ -834,6 +1033,7 @@ try {
             id: 900,
             sha: checkoutSha,
             task: "cleo-discord",
+            environment: "discord-production",
             payload: {
               cleoProductionVersion: 1,
               operation: "rollback",
@@ -863,7 +1063,7 @@ try {
             encoding: "utf8",
             timeout: 10000,
             env: {
-              ...process.env,
+              ...childEnvironment,
               ...manual,
               INPUT_OPERATION: "rollback",
               INPUT_SERVICE: "discord",

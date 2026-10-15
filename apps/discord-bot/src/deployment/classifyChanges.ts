@@ -260,7 +260,13 @@ export function isConvexDeployPath(file: string): boolean {
       "apps/discord-bot/src/deployment/classifyChanges.ts",
       "apps/discord-bot/src/deployment/classifyChanges.test.ts",
     ].includes(file) ||
-    /^tsconfig(?:\.[^/]+)?\.json$/.test(file)
+    /^tsconfig(?:\.[^/]+)?\.json$/.test(file) ||
+    (/^(?:apps|packages)\/[^/]+\/package\.json$/.test(file) &&
+      ![
+        "apps/discord-bot/package.json",
+        "apps/twitch-bot/package.json",
+        "packages/ui/package.json",
+      ].includes(file))
   )
 }
 

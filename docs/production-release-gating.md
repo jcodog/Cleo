@@ -135,6 +135,12 @@ GitHub's normal environment deployment records. A receipt records the source run
 attempt, coordinator run, SHA and operation. Runtime receipts become successful
 only after controller readiness and, for Discord, command verification succeed.
 
+Latest-baseline and incident-hold queries request one receipt filtered by component
+task and protected environment. Backend deduplication paginates only receipts for
+the exact intended SHA. Responses with mismatched task, environment, SHA or order
+fail closed, and updates also verify the receipt's protected environment. Release
+authorisation no longer scans the repository's entire deployment history.
+
 Each component compares its last successful receipt's SHA with the intended SHA
 using an ancestor-checked Git diff. This covers merge commits, multi-commit pushes,
 and earlier pushes that were superseded before release. It does not assume that a
@@ -147,6 +153,8 @@ The lockfile filter covers dependencies exclusive to either web application.
 Discord runtime changes select Discord; Twitch runtime changes select Twitch.
 Each bot's own manifest retains that runtime's scope. Root/shared lockfile
 changes whose impact cannot be isolated conservatively select all components.
+Unknown workspace manifests select all components; the known web-only UI manifest
+and the two scoped bot manifests retain their existing narrower behaviour.
 Backend/shared dependency changes select the backend and both compatible runtimes.
 Coordinator/policy/classifier changes select all three. Service infrastructure
 selects its runtime. Malformed SHA or classifier modes fail; absent config blobs
@@ -330,6 +338,9 @@ claim inactive. A completed controller and all required verification permit a
 terminal success; confirmed candidate failure remains failure even if the existing
 controller restores a healthy previous runtime. A completed incident rollback
 records success only after readiness and Discord command verification. Confirmed
+command failures finalise as failure only after required recovery steps report
+completion. Skipped required commands or missing recovery completion keep the
+receipt uncertain, even when an earlier runtime step succeeded. Confirmed
 rollback failure records failure. Rollback success is recovery intent for the main
 revision observed when claimed, not a deploy baseline for that revision.
 
@@ -379,6 +390,10 @@ An early `grep -q` match could make tar fail with a pipe error, hiding the match
 under `pipefail`. The controller now requires a complete successful listing before
 checking paths. A deterministic fixture rejects the old guard and also verifies
 that failed listings cannot proceed. The failed aggregate correctly blocked promotion.
+
+[Run `38732142779`](https://github.com/jcodog/Cleo/actions/runs/38732142779)
+subsequently passed all five checks at signed `4aa739456ad6de64bd41652fdd92128500c4fee5`.
+Later review corrections require a new complete regression on their own signed HEAD.
 
 The new fixtures exercise 81 rejected source-evidence cases, real Git merge and
 multi-commit histories, actual workflow job conditions, the actual package-barrier

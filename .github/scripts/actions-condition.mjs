@@ -76,7 +76,7 @@ export function evaluate(expression, context, statuses) {
         ["string", "number", "boolean"].includes(typeof value),
       "Expression requires a scalar"
     )
-    return value ?? ""
+    return value === undefined ? "" : value
   }
   /** Apply logical negation before comparison and conjunction, matching Actions precedence. */
   const unary = () => (take("!") ? !unary() : primary())
