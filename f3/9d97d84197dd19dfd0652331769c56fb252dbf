@@ -1,0 +1,63 @@
+.github/scripts/test-production-security.mjs
+  s_602e6bdafe6a33::t_8a043d2d2599ee 23-24,26-27,29-33,35-36,38-39,268-271,276-279,304-441,450-454,456-460,462-463,467-479,483-489,491-496,498-501
+  s_602e6bdafe6a33::t_c06eb9447d4429 442-444,446
+  s_602e6bdafe6a33::t_4838bb666acf1b 20-22,25,28,34,37,40-59,275,504
+  s_602e6bdafe6a33::t_14cce3235abf47 76-80,141,302-303,447-449,455,461,464-466,480-482,490,497,502-503
+  s_602e6bdafe6a33::t_b57c7bb3796f18 445
+.github/scripts/production-policy.mjs
+  s_602e6bdafe6a33::t_8a043d2d2599ee 238-242,245-246,476-477
+  s_602e6bdafe6a33::t_d9ff19c1ac3ad0 219,222-223,225,227-228,232,235-237,243-244,247-249,314,475
+  s_602e6bdafe6a33::t_c7a6a50b4cb6b1 374-378
+  s_602e6bdafe6a33::t_cc7b03a5b1b5af 251
+.github/scripts/test-production-workflow.mjs
+  s_602e6bdafe6a33::t_8a043d2d2599ee 75-78,83-87,92-97,104-108,110-112,344-347,420-444,447-450,467-470,474-490,506-510
+  s_602e6bdafe6a33::t_30a5a1deaf4081 73-74,79-82,88,91,98-103,109,113-114,341-343,388,445-446,504-505
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_602e6bdafe6a33::t_8a043d2d2599ee 265-267,269
+  s_602e6bdafe6a33::t_c7a6a50b4cb6b1 268
+  s_602e6bdafe6a33::t_d9ff19c1ac3ad0 263-264
+.github/workflows/production-release.yml
+  s_602e6bdafe6a33::t_4838bb666acf1b 665-674,922-925
+.github/scripts/test-ci.mjs
+  s_602e6bdafe6a33::t_c06eb9447d4429 15-26,28-43,45-46
+  s_602e6bdafe6a33::t_2e57ace12c0343 27,44
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_602e6bdafe6a33::t_5082c9921469f8 47-49
+CONTRIBUTING.md
+  s_602e6bdafe6a33::t_c06eb9447d4429 150-169
+docs/production-release-gating.md
+  s_602e6bdafe6a33::t_dd44108ea1f81b 394-397
+  s_602e6bdafe6a33::t_cc7b03a5b1b5af 138-143,156-157,341-343
+.github/scripts/test-production-policy.mjs
+  s_602e6bdafe6a33::t_195b94c382af13 315-321
+  s_602e6bdafe6a33::t_c7a6a50b4cb6b1 469-474,1036
+  s_602e6bdafe6a33::t_172edc324e444b 933-934,949,982,1004,1014-1015
+  s_602e6bdafe6a33::t_5082c9921469f8 779-780,795-804,808,868,887,893,899-900
+  s_602e6bdafe6a33::t_c76b57636e619a 15,24-25,34-35,39-43,261,265,288-291,302,505,531-532,757,811,871,919,973,1066
+  s_602e6bdafe6a33::t_9bf98a2c1daf88 344
+  s_602e6bdafe6a33::t_5f168cdbbb372d 783
+  s_602e6bdafe6a33::t_8a043d2d2599ee 26-33,36-38,292-301,322-343,346-349,356-361,363-366,370-373,376-381,384-387,390-396,399-404,784-788,792-794,805-806,842-845,879-886,888-892,894-898,1000-1003
+  s_602e6bdafe6a33::t_968cec2e8b11eb 312-314,345,350-355,362,367-369,374-375,382-383,388-389,397-398
+AGENTS.md
+  s_602e6bdafe6a33::t_d9ff19c1ac3ad0 152-159
+.github/scripts/actions-condition.mjs
+  s_602e6bdafe6a33::t_d9ff19c1ac3ad0 79
+cubic.yaml
+  s_602e6bdafe6a33::t_d9ff19c1ac3ad0 5,7,13-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f39d97d84197dd19dfd0652331769c56fb252dbf",
+  "prompts": {},
+  "sessions": {
+    "s_602e6bdafe6a33": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13c72-c0c9-7d60-86be-4f65d9f5671a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
