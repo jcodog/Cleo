@@ -19,6 +19,7 @@ assert.match(
   barrier,
   /^ {10}TWITCH_ENABLED: \$\{\{ needs\.twitch-package\.outputs\.enabled \}\}$/m
 )
+/** Reject loss of the scoped package environment, its protected flag or gate output before shell testing. */
 function requireProtectedPackage(block) {
   assert.equal(
     block.match(/^ {4}environment: ([^\r\n]+)$/m)?.[1],

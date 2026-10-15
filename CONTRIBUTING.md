@@ -127,6 +127,26 @@ These commands intentionally validate the workspace graph and catch integration 
 
 If an environment prevents a full-root check from running, run every relevant workspace check instead and document exactly what was not run and why. Do not claim tests, coverage, linting, typechecking, or builds that did not actually execute.
 
+## Commits and production troubleshooting
+
+Use meaningful conventional commit subjects, for example
+`fix(release): reject stale promotion attempts`, and GPG-sign commits with the
+configured identity. Explain the problem, change and validation in the commit
+body. Include an issue or release reference for production-troubleshooting work.
+Normal main changes go through a pull request and the required regression checks.
+
+Use workflow reruns or the documented manual dispatch controls to retry checks,
+validate packages or perform authorised recovery. Never add placeholder files or
+low-signal commits to trigger deployment. An empty commit is acceptable only when
+an approved process requires a new revision that rerun/dispatch cannot provide;
+record the reason, approval and issue/release reference, and retain normal signed
+PR/check requirements. It is not a release-gate bypass.
+
+See [release troubleshooting discipline](docs/production-release-gating.md#commit-and-troubleshooting-discipline).
+Issue #193 remains partially addressed; its emergency administrator exception is
+not implemented. The existing Protect main ruleset and zero bypass actors must
+remain intact pending a separately approved policy decision.
+
 ## Licensing
 
 Cleo is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).

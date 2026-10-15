@@ -235,6 +235,33 @@ and dashboard Vercel production as independently triggered until their project
 settings and integration are explicitly audited and gated. This PR changes no
 Vercel settings and does not claim platform-wide production gating.
 
+## Commit and troubleshooting discipline
+
+Use pull requests for normal main changes and GPG-signed conventional commits
+such as `fix(release): reject stale promotion attempts`. A production-troubleshooting
+commit must explain the concrete problem, intended result and validation in its
+body, with an issue or release reference such as `Refs #193 / JCN-206` or a release
+tag. Messages such as `x`, `temp`, `dummy` or `retry` do not explain a change.
+
+Retry an existing workflow run or use the documented `workflow_dispatch` controls
+for validation, promotion or recovery. Do not add placeholder source files or
+commits merely to trigger CI or deployment. An empty commit is exceptional: use
+one only when an approved process genuinely needs a new revision and rerun/dispatch
+cannot satisfy it. It must follow the normal signed PR/check controls and state
+why the new revision is necessary, who approved it and the issue/release reference,
+for example `chore(release): record approved verification revision` with that
+reason in its body. An empty commit never bypasses regression or rollout gates.
+
+GitHub issue [#193](https://github.com/jcodog/Cleo/issues/193), mirrored as JCN-206,
+is **partially addressed** by this PR and must remain open. The existing main
+ruleset already requires PRs, the aggregate regression, current branches, resolved
+conversations and verified signatures, and blocks force pushes/deletion. Its zero
+bypass actors remain unchanged. The issue's requested emergency administrator
+exception is outstanding and needs a separately approved, auditable policy and
+settings decision. The manual runtime rollback controls here are not a branch
+protection bypass and do not complete that requirement. Do not weaken the ruleset
+or claim an exception exists.
+
 ## Settings and rollout
 
 Ruleset `Protect main`, ID `25120348`, was read and remains unchanged, including
@@ -332,9 +359,14 @@ but failed code quality because a Discord operation fixture still extracted its
 command shells from the retired workflow. The aggregate correctly failed. The
 fixture now shares the coordinator extractor with the portable CI contracts, so
 this stale reference is caught even on hosts that cannot run POSIX permission
-fixtures. Twitch extraction is scoped to its own package job. Hosted regression
-passed in hosted run `38652686837` at reviewed HEAD `041caf6`. The current security
-and lifecycle corrections require a new hosted regression on their signed HEAD.
+fixtures. Twitch extraction is scoped to its own package job. Historical hosted regression
+`38652686837` passed at `041caf6`. The subsequent
+[run `38655961433`](https://github.com/jcodog/Cleo/actions/runs/38655961433)
+passed all four parallel jobs and the aggregate at signed HEAD
+`83fb75ab3e668c3d861b97e063440af9a03e4600`, including the security, receipt lifecycle
+and contract-5 Linux recovery fixtures. These successes authenticate those exact
+revisions only. Each later commit needs its own successful complete hosted
+regression; the PR description records the latest checked SHA and run.
 
 The new fixtures exercise 81 rejected source-evidence cases, real Git merge and
 multi-commit histories, actual workflow job conditions, the actual package-barrier
@@ -344,9 +376,9 @@ run `38642179305` using its unmodified GitHub API run, workflow and job evidence
 
 On this Windows host, `bash .github/scripts/test-operations.sh` passed its new
 Node policy tests, then rejected the POSIX permissions fixture. Both release
-verification scripts correctly refused Linux packaging on `win32-x64`. Those
-checks need the unmodified Linux hosted regression, alongside Chromium/Firefox,
-PWA and welcome rendering evidence. No production operation was invoked locally.
+verification scripts correctly refused Linux packaging on `win32-x64`. The historical Linux run above executed those checks successfully alongside
+Chromium/Firefox, PWA and welcome rendering evidence. Later commits still need
+the same complete hosted verification. No production operation was invoked locally.
 
 The restricted Actions condition interpreter rejects unsupported/malicious syntax
 without dynamic JavaScript execution. Added fixtures execute the actual rollout,

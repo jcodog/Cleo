@@ -14,11 +14,142 @@ import { evaluate } from "./actions-condition.mjs"
 import { packagesReady, verifyEvidence } from "./production-policy.mjs"
 import { rejectedEvidence } from "./test-production-policy.mjs"
 
+/** Parse repository YAML as data so contract assertions inspect actual fields, never translated code. */
 const read = (name) =>
   Bun.YAML.parse(
     readFileSync(new URL(`../workflows/${name}`, import.meta.url), "utf8")
   )
 const workflow = read("production-release.yml")
+/**
+ * Require real step-to-job output mappings before simulating release eligibility.
+ * A fabricated fixture output cannot substitute for a missing gate or planner.
+ * @param {object} candidate Parsed production workflow, including mutated fixtures.
+ * @throws {AssertionError} If a hold, planner invocation, identity or host contract is disconnected.
+ */
+function requireReleaseWiring(candidate) {
+  assert.equal(
+    candidate.env.AUTO_PROMOTION_ENABLED,
+    "${{ vars.CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED }}"
+  )
+  assert.deepEqual(candidate.jobs.rollout.outputs, {
+    enabled: "${{ steps.gate.outputs.enabled }}",
+  })
+  const gates = candidate.jobs.rollout.steps.filter(
+    (step) => step.id === "gate"
+  )
+  assert.equal(gates.length, 1)
+  assert.equal(gates[0].env.EVENT_NAME, "${{ github.event_name }}")
+  assert.equal(candidate.jobs.control.needs, "rollout")
+  assert.ok(
+    candidate.jobs.control.if.includes(
+      "needs.rollout.outputs.enabled == 'true'"
+    )
+  )
+  const plans = candidate.jobs.authorise.steps.filter(
+    (step) => step.id === "plan"
+  )
+  assert.equal(plans.length, 1)
+  assert.equal(plans[0].run, "node .github/scripts/production-policy.mjs plan")
+  assert.equal(
+    plans[0].if,
+    undefined,
+    "Planning cannot be conditionally omitted"
+  )
+  assert.deepEqual(
+    candidate.jobs.authorise.outputs,
+    Object.fromEntries(
+      [
+        "sha",
+        "source_run",
+        "source_attempt",
+        "backend",
+        "discord",
+        "twitch",
+      ].map((name) => [name, `\${{ steps.plan.outputs.${name} }}`])
+    )
+  )
+  for (const id of ["discord-activate", "discord-rollback"])
+    assert.equal(candidate.jobs[id].env.CLEO_DISCORD_HOST_CONTRACT_VERSION, "5")
+}
+requireReleaseWiring(workflow)
+for (const value of [
+  undefined,
+  true,
+  "true",
+  "false",
+  "${{ true }}",
+  "${{ steps.other.outputs.enabled }}",
+]) {
+  const candidate = structuredClone(workflow)
+  if (value === undefined) delete candidate.jobs.rollout.outputs.enabled
+  else candidate.jobs.rollout.outputs.enabled = value
+  assert.throws(
+    () => requireReleaseWiring(candidate),
+    `Unsafe rollout output: ${value}`
+  )
+}
+for (const mutation of [
+  (candidate) => {
+    candidate.jobs.rollout.steps[0].id = "unconnected"
+  },
+  (candidate) => {
+    delete candidate.env.AUTO_PROMOTION_ENABLED
+  },
+  (candidate) => {
+    delete candidate.jobs.control.needs
+  },
+  (candidate) => {
+    candidate.jobs.control.if = "true"
+  },
+  (candidate) => {
+    candidate.jobs.authorise.steps = candidate.jobs.authorise.steps.filter(
+      (step) => step.id !== "plan"
+    )
+  },
+  (candidate) => {
+    candidate.jobs.authorise.steps.find((step) => step.id === "plan").run =
+      "echo fabricated-plan"
+  },
+  (candidate) => {
+    candidate.jobs.authorise.steps.find((step) => step.id === "plan").id =
+      "other"
+  },
+  (candidate) => {
+    candidate.jobs.authorise.steps.find((step) => step.id === "plan").if =
+      "false"
+  },
+]) {
+  const candidate = structuredClone(workflow)
+  mutation(candidate)
+  assert.throws(() => requireReleaseWiring(candidate))
+}
+for (const name of Object.keys(workflow.jobs.authorise.outputs))
+  for (const value of [
+    undefined,
+    "true",
+    "${{ steps.other.outputs.sha }}",
+    "${{ steps.plan.outputs.fabricated }}",
+  ]) {
+    const candidate = structuredClone(workflow)
+    if (value === undefined) delete candidate.jobs.authorise.outputs[name]
+    else candidate.jobs.authorise.outputs[name] = value
+    assert.throws(
+      () => requireReleaseWiring(candidate),
+      `Unsafe planner output: ${name}`
+    )
+  }
+for (const id of ["discord-activate", "discord-rollback"])
+  for (const value of [undefined, "4", 5]) {
+    const candidate = structuredClone(workflow)
+    if (value === undefined)
+      delete candidate.jobs[id].env.CLEO_DISCORD_HOST_CONTRACT_VERSION
+    else candidate.jobs[id].env.CLEO_DISCORD_HOST_CONTRACT_VERSION = value
+    assert.throws(
+      () => requireReleaseWiring(candidate),
+      `Unsafe host contract: ${id}`
+    )
+  }
+/** Reject mutable checkouts, persisted credentials and cross-run policy artifacts in real or mutated YAML. */
 function requirePolicySources(candidate) {
   for (const id of ["control", "authorise"]) {
     const checkout = candidate.jobs[id].steps.find((step) =>
@@ -185,6 +316,11 @@ const github = {
   event: { workflow_run: sourceRun },
 }
 
+/**
+ * Evaluate actual job conditions and output mappings against controlled step outcomes.
+ * @param {object} options Source context, component scope, API evidence and dependency failures.
+ * @returns {object} Per-job results and YAML-resolved outputs; fixtures never invoke production.
+ */
 function graph({
   githubContext = github,
   inputs = {},
@@ -231,32 +367,42 @@ function graph({
         result = "failure"
       }
     }
-    results[id] = {
-      result,
-      outputs:
-        id === "authorise"
-          ? {
-              ...Object.fromEntries(
-                Object.entries(scope).map(([key, value]) => [
-                  key,
-                  String(value),
-                ])
-              ),
-              sha: mainSha,
-            }
-          : id === "rollout"
-            ? {
-                enabled: String(
-                  githubContext.event_name !== "workflow_run" ||
-                    autoEnabled.toLowerCase() === "true"
-                ),
-              }
-            : {},
+    // Resolve simulated step values through the validated YAML job-output fields.
+    const stepValues = {
+      plan: {
+        ...Object.fromEntries(
+          Object.entries(scope).map(([key, value]) => [key, String(value)])
+        ),
+        sha: mainSha,
+        source_run: "10",
+        source_attempt: "1",
+      },
+      gate: {
+        enabled: String(
+          githubContext.event_name !== "workflow_run" ||
+            autoEnabled.toLowerCase() === "true"
+        ),
+      },
     }
+    const outputs = ["authorise", "rollout"].includes(id)
+      ? Object.fromEntries(
+          Object.entries(job.outputs).map(([key, reference]) => {
+            const match =
+              /^\$\{\{ steps\.(plan|gate)\.outputs\.([a-z_]+) \}\}$/.exec(
+                reference
+              )
+            assert.ok(match, "Unsupported fixture output reference")
+            assert.ok(Object.hasOwn(stepValues[match[1]], match[2]))
+            return [key, stepValues[match[1]][match[2]]]
+          })
+        )
+      : {}
+    results[id] = { result, outputs }
   }
   return results
 }
 const productionJobs = ["backend", "discord-activate", "twitch-activate"]
+/** Require all production mutation jobs to be skipped for rejected event/dependency evidence. */
 const assertBlocked = (result) => {
   for (const id of productionJobs)
     assert.equal(result[id].result, "skipped", id)
@@ -398,6 +544,7 @@ for (const id of productionJobs) {
   }[id]
   const actions = job.steps.filter((step) => step.run?.includes(mutation))
   assert.equal(actions.length, 1, `${id}: one guarded production command`)
+  /** Require the actual mutation command to follow its policy recheck within the same shell. */
   const requireRecheck = (script) => {
     const guard = script.indexOf('production-policy.mjs" recheck')
     assert.ok(

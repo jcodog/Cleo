@@ -7,10 +7,12 @@ import { test } from "node:test"
 
 const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url))
 
+/** Read real deployment inputs relative to the repository, independently of the workspace test directory. */
 function repositoryFile(relativePath: string): string {
   return readFileSync(path.join(repositoryRoot, relativePath), "utf8")
 }
 
+/** Isolate a named YAML job for host-contract assertions, rejecting missing boundaries instead of testing unrelated text. */
 function workflowJob(workflow: string, job: string, nextJob?: string): string {
   const start = workflow.indexOf(`  ${job}:`)
   const end =

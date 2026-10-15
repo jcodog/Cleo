@@ -19,7 +19,12 @@ const environments = {
 }
 const shaPattern = /^[a-f0-9]{40}$(?![\s\S])/
 
-/** Authenticate GitHub API evidence, including the jobs from this exact attempt. */
+/**
+ * Authenticate one complete push-to-main regression using GitHub API evidence.
+ * @param {object} evidence Run/workflow records, all attempt jobs, expected identity and fresh main SHA.
+ * @returns {{sha:string,runId:number,attempt:number}} The exact authenticated source identity.
+ * @throws {AssertionError} On stale, missing, ambiguous, untrusted or incomplete evidence; never grants partial approval.
+ */
 export function verifyEvidence({
   run,
   workflow,
@@ -72,7 +77,13 @@ export function verifyEvidence({
   return { sha, runId: run.id, attempt: run.run_attempt }
 }
 
-/** Restrict all callers before reading credentials or making API requests. */
+/**
+ * Validate the coordinator's event and manual inputs before accessing credentials.
+ * @param {object} env GitHub context, explicit manual inputs and the default-off automatic flag.
+ * @param {object} event Parsed GitHub event; automatic releases require a trusted completed push.
+ * @returns {object} Selected operation and source identity; rollback deliberately needs no regression.
+ * @throws {AssertionError} For unsupported callers, disabled automatic promotion or malformed selections.
+ */
 export function invocation(env, event) {
   assert.equal(env.GITHUB_REPOSITORY, repository)
   assert.equal(env.GITHUB_REF, "refs/heads/main")
@@ -136,7 +147,12 @@ export function invocation(env, event) {
   }
 }
 
-/** Read/write only this repository. Pagination never silently truncates evidence. */
+/**
+ * Create an API caller confined to this repository, with redirects disabled.
+ * @param {string} token Credential captured in the client, never logged or returned.
+ * @param {Function} fetcher HTTP transport, injectable for offline failure fixtures.
+ * @returns {Function} JSON request function; rejects missing credentials, transport errors and non-success responses.
+ */
 export function apiClient(token, fetcher = fetch) {
   return async (path, method = "GET", body) => {
     assert.ok(token, "GitHub token missing")
@@ -160,6 +176,13 @@ export function apiClient(token, fetcher = fetch) {
   }
 }
 
+/**
+ * Re-read run/job evidence, incident intent and current main before promotion.
+ * @param {Function} api Repository-scoped API client; job evidence is fully paginated.
+ * @param {object} identity Exact source SHA, run ID and attempt already selected by the caller.
+ * @param {boolean} automatic Whether a rollback hold must block this invocation.
+ * @returns {Promise<object>} Authenticated identity; API errors and superseded attempts reject without mutation.
+ */
 export async function authenticate(api, identity, automatic = false) {
   const run = await api(`actions/runs/${identity.runId}`)
   const workflow = await api(`actions/workflows/${workflowId}`)
@@ -192,7 +215,12 @@ export async function authenticate(api, identity, automatic = false) {
   })
 }
 
-/** Custom deployment tasks distinguish durable release receipts from environment jobs. */
+/**
+ * Read all custom component receipts, newest first, separately from environment deployments.
+ * @param {Function} api Repository-scoped API client.
+ * @param {string} component Supported backend, Discord or Twitch receipt task/environment.
+ * @returns {Promise<object[]>} Fully paginated receipts; unknown components or invalid responses reject.
+ */
 export async function receipts(api, component) {
   assert.ok(Object.hasOwn(environments, component))
   const records = []
@@ -207,6 +235,12 @@ export async function receipts(api, component) {
   return records.sort((a, b) => b.id - a.id)
 }
 
+/**
+ * Read a schema-checked receipt's latest status without assuming missing confirmation is success.
+ * @param {Function} api Repository-scoped API client.
+ * @param {object} record Custom receipt with a supported schema and valid intent SHA.
+ * @returns {Promise<string>} Latest status, conservatively pending when no status exists; API failures reject.
+ */
 export async function receiptState(api, record) {
   assert.equal(
     record.payload?.cleoProductionVersion,
@@ -218,6 +252,12 @@ export async function receiptState(api, record) {
   return statuses[0]?.state ?? "pending"
 }
 
+/**
+ * Select a comparison baseline only from the latest confirmed forward deployment.
+ * @param {Function} api Repository-scoped API client.
+ * @param {string} component Component whose outstanding changes will be classified.
+ * @returns {Promise<string>} Confirmed SHA, or empty for unknown/failed/rollback intent; errors reject planning.
+ */
 export async function baseline(api, component) {
   const [latest] = await receipts(api, component)
   if (!latest) return ""
@@ -227,7 +267,18 @@ export async function baseline(api, component) {
     : ""
 }
 
-/** A backend receipt is claimed BEFORE deploy. Unknown outcomes require operator reconciliation. */
+/**
+ * Record production intent before mutation, authenticating every forward deployment.
+ * @param {Function} api Repository-scoped API client with receipt-write permission.
+ * @param {object} identity Source identity; rollback records recovery intent at observed main instead.
+ * @param {string} component Backend or runtime task; backend supports deployment only.
+ * @param {string} operation Forward deploy or controlled incident rollback.
+ * @param {string} coordinatorRun Owner run ID, paired with its attempt for later updates.
+ * @param {boolean} automatic Enforce incident holds for automatic releases.
+ * @param {string} coordinatorAttempt Owner attempt; an older rerun cannot finish another attempt's claim.
+ * @returns {Promise<{id:number,apply:boolean}>} New intent, or apply=false for an already successful same-SHA backend.
+ * @throws {AssertionError} For invalid evidence or an uncertain backend outcome; never retries Convex blindly.
+ */
 export async function claim(
   api,
   identity,
@@ -285,7 +336,15 @@ export async function claim(
   return { id: record.id, apply: true }
 }
 
-/** Update only an unfinished receipt owned by this exact coordinator attempt. */
+/**
+ * Persist a status only after matching the receipt's complete immutable ownership tuple.
+ * @param {Function} api Repository-scoped API client.
+ * @param {object} identity Expected intent SHA and source run/attempt.
+ * @param {number|string} receiptId Existing receipt ID; no arbitrary task can be updated.
+ * @param {object} owner Component, operation, coordinator run/attempt and intended terminal state.
+ * @returns {Promise<void>} Resolves only after GitHub acknowledges the status mutation.
+ * @throws {Error} On ownership mismatch, completed status or API failure, including a response lost after persistence.
+ */
 async function updateReceipt(
   api,
   identity,
@@ -320,7 +379,16 @@ async function updateReceipt(
   })
 }
 
-/** Call only from the rejected preflight branch, before any mutation begins. */
+/**
+ * Mark an owned forward claim inactive only in a proven pre-mutation rejection branch.
+ * @param {Function} api Repository-scoped API client.
+ * @param {object} identity Expected source SHA/run/attempt.
+ * @param {number|string} receiptId Unfinished claim belonging to this coordinator.
+ * @param {string} coordinatorRun Owner run ID.
+ * @param {string} component Backend or runtime whose controller has not started.
+ * @param {string} coordinatorAttempt Owner attempt.
+ * @returns {Promise<void>} Acknowledged release; callers must preserve uncertainty after any mutation starts or API loss.
+ */
 export async function releaseClaim(
   api,
   identity,
@@ -338,6 +406,15 @@ export async function releaseClaim(
   })
 }
 
+/**
+ * Record a confirmed controller/verification outcome without changing completed history.
+ * @param {Function} api Repository-scoped API client.
+ * @param {object} identity Expected source or rollback-intent identity.
+ * @param {number|string} receiptId Owned unfinished receipt.
+ * @param {object} owner Component, operation and coordinator run/attempt.
+ * @param {string} state Confirmed success or failure, never a guess after interruption.
+ * @returns {Promise<void>} Acknowledged terminal update; rejected or lost responses propagate to the workflow.
+ */
 export async function finishClaim(api, identity, receiptId, owner, state) {
   assert.ok(
     ["success", "failure"].includes(state),
@@ -346,7 +423,13 @@ export async function finishClaim(api, identity, receiptId, owner, state) {
   await updateReceipt(api, identity, receiptId, { ...owner, state })
 }
 
-/** Allow skipped package jobs only when the verified plan did not require them. */
+/**
+ * Enforce the package barrier against the authenticated component plan.
+ * @param {object} plan Boolean Discord/Twitch requirements from the source planner.
+ * @param {object} results Actual dependency conclusions, including skipped/cancelled results.
+ * @returns {void} Only selected success and unselected skipped results are accepted.
+ * @throws {AssertionError} If any required package is missing or its result differs from the plan.
+ */
 export function packagesReady(plan, results) {
   for (const component of ["discord", "twitch"]) {
     assert.equal(
@@ -357,7 +440,13 @@ export function packagesReady(plan, results) {
   }
 }
 
-/** Command-line entrypoint also runs on the VPS using its installed pinned Node. */
+/**
+ * Execute a policy command on the hosted runner or the VPS's pinned Node runtime.
+ * Validates invocation before API access, removes the captured token from child
+ * environments and preserves source/receipt ownership across command boundaries.
+ * @returns {Promise<void>} Writes only declared Actions outputs and non-secret summaries.
+ * @throws {Error} Propagated to the entrypoint handler for a nonzero exit; failure never prints confirmed success.
+ */
 async function main() {
   const env = process.env
   const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
@@ -367,8 +456,10 @@ async function main() {
   delete env.GH_TOKEN
   const automatic = env.GITHUB_EVENT_NAME === "workflow_run"
   const command = process.argv[2]
+  /** Publish known identity/plan scalars as Actions outputs; credentials must never be passed here. */
   const output = (key, value) =>
     appendFileSync(env.GITHUB_OUTPUT, `${key}=${value}\n`)
+  /** Record non-secret evidence only after the corresponding API or verification operation succeeds. */
   const summary = (text) => appendFileSync(env.GITHUB_STEP_SUMMARY, `${text}\n`)
   const identity =
     command === "plan"

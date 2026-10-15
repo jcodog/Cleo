@@ -216,6 +216,11 @@ assert.throws(() =>
 )
 
 // API fixtures exercise the real read/claim implementation and record all writes.
+/**
+ * Model GitHub receipt/run APIs in memory, preserving accepted writes and current status.
+ * @param {object} options Trusted or negative source evidence and pre-existing receipt history.
+ * @returns {object} API transport plus recorded reads/writes/state for failure-order assertions.
+ */
 function fixture({
   source = run,
   sourceJobs = jobs,
@@ -225,6 +230,7 @@ function fixture({
 } = {}) {
   const writes = []
   const requests = []
+  /** Apply each accepted API write before returning, so wrappers can lose only the response. */
   const api = async (path, method = "GET", body) => {
     requests.push(path)
     if (method !== "GET") {
@@ -427,6 +433,7 @@ for (const component of ["discord", "twitch"]) {
           )
         )
       const writesBefore = api.writes.length
+      /** Reject before persistence; this must remain distinct from an accepted-but-unacknowledged write. */
       const unavailable = async (...args) => {
         if (args[1] === "POST") throw new Error("API unavailable")
         return api.api(...args)
@@ -439,7 +446,7 @@ for (const component of ["discord", "twitch"]) {
       assert.equal(
         api.statuses[intent.id],
         "in_progress",
-        "Lost confirmation remains uncertain"
+        "Pre-write failure leaves the unfinished claim uncertain"
       )
       assert.equal(await baseline(api.api, component), "")
       await finishClaim(api.api, identity, intent.id, owner, state)
@@ -517,6 +524,74 @@ assert.throws(() =>
     { discord: "failure", twitch: "skipped" }
   )
 )
+// GitHub can persist a terminal status before losing its response in transit.
+// The caller fails; subsequent reads must reject overwriting that completed receipt.
+for (const component of ["backend", "discord", "twitch"]) {
+  for (const operation of component === "backend"
+    ? ["deploy"]
+    : ["deploy", "rollback"]) {
+    for (const state of ["success", "failure"]) {
+      const api = fixture()
+      const owner = {
+        component,
+        operation,
+        coordinatorRun: "800",
+        coordinatorAttempt: "1",
+      }
+      const intent = await claim(api.api, identity, component, operation, "800")
+      const writesBefore = api.writes.length
+      /** Apply GitHub's mutation first, then lose its acknowledgement without undoing server state. */
+      const lostResponse = async (...args) => {
+        const response = await api.api(...args)
+        if (args[1] === "POST")
+          throw new Error("Response lost after status persisted")
+        return response
+      }
+      await assert.rejects(
+        finishClaim(lostResponse, identity, intent.id, owner, state),
+        /Response lost/
+      )
+      assert.equal(api.writes.length, writesBefore + 1)
+      assert.equal(api.statuses[intent.id], state)
+      assert.equal(
+        await baseline(api.api, component),
+        operation === "deploy" && state === "success" ? sha : ""
+      )
+      for (const nextState of ["success", "failure"])
+        await assert.rejects(
+          finishClaim(api.api, identity, intent.id, owner, nextState),
+          /completed/
+        )
+      assert.equal(
+        api.writes.length,
+        writesBefore + 1,
+        "Retry must not repeat a persisted status mutation"
+      )
+      if (component === "backend") {
+        if (state === "success")
+          assert.deepEqual(
+            await claim(api.api, identity, component, operation, "801"),
+            { id: intent.id, apply: false }
+          )
+        else
+          await assert.rejects(
+            claim(api.api, identity, component, operation, "801"),
+            /uncertain/
+          )
+        assert.equal(
+          api.writes.length,
+          writesBefore + 1,
+          "Persisted backend result prevents another Convex claim"
+        )
+      }
+      if (operation === "rollback")
+        await assert.rejects(
+          authenticate(api.api, identity, true),
+          /Incident rollback holds/
+        )
+    }
+  }
+}
 const failedHttp = apiClient("fixture", async () => ({
   ok: false,
   status: 403,
@@ -532,6 +607,7 @@ const classifier = fileURLToPath(
     import.meta.url
   )
 )
+/** Run Git only inside the disposable history, disabling background maintenance for deterministic cleanup. */
 const git = (...args) =>
   execFileSync(
     "git",
@@ -542,6 +618,7 @@ const git = (...args) =>
       stdio: ["ignore", "pipe", "pipe"],
     }
   ).trim()
+/** Build artificial history with unsigned fixture-only commits; repository commits retain configured signing. */
 const commit = (file, text) => {
   mkdirSync(resolve(directory, file, ".."), { recursive: true })
   writeFileSync(join(directory, file), text)
@@ -559,6 +636,7 @@ const commit = (file, text) => {
   )
   return git("rev-parse", "HEAD")
 }
+/** Execute the real classifier against fixture commits and return its exact conservative boolean output. */
 const classify = (mode, before, after) =>
   execFileSync(process.execPath, [classifier, mode, before, after], {
     cwd: directory,
@@ -676,6 +754,7 @@ try {
     }
   `
   )
+  /** Invoke the real planner CLI with read-only API evidence, capturing outputs to detect identity divergence. */
   const invoke = (operation, fixtureSha) => {
     writeFileSync(
       evidencePath,
@@ -739,7 +818,7 @@ try {
       const path = new URL(url).pathname
       if (path.endsWith("/deployments/900") && options.method === "GET") return Response.json(state.record)
       if (path.endsWith("/deployments/900/statuses")) {
-        if (options.method === "POST") { state.status = JSON.parse(options.body).state; writeFileSync(process.env.POLICY_TEST_STATE, JSON.stringify(state)); return Response.json({}) }
+        if (options.method === "POST") { state.status = JSON.parse(options.body).state; state.writes++; writeFileSync(process.env.POLICY_TEST_STATE, JSON.stringify(state)); if (process.env.POLICY_LOST_RESPONSE === "true") throw new Error("Response lost after persistence"); return Response.json({}) }
         return Response.json([{ state: state.status }])
       }
       throw new Error("Unexpected receipt API request")
@@ -747,60 +826,83 @@ try {
   `
   )
   for (const state of ["success", "failure"]) {
-    writeFileSync(
-      statePath,
-      JSON.stringify({
-        record: {
-          id: 900,
-          sha: checkoutSha,
-          task: "cleo-discord",
-          payload: {
-            cleoProductionVersion: 1,
-            operation: "rollback",
-            sourceRun: 0,
-            sourceAttempt: 0,
-            coordinatorRun: "700",
-            coordinatorAttempt: "2",
+    for (const responseLost of [false, true]) {
+      writeFileSync(
+        statePath,
+        JSON.stringify({
+          record: {
+            id: 900,
+            sha: checkoutSha,
+            task: "cleo-discord",
+            payload: {
+              cleoProductionVersion: 1,
+              operation: "rollback",
+              sourceRun: 0,
+              sourceAttempt: 0,
+              coordinatorRun: "700",
+              coordinatorAttempt: "2",
+            },
           },
-        },
-        status: "in_progress",
-      })
-    )
-    const result = spawnSync(
-      "node",
-      [
-        "--import",
-        pathToFileURL(ownerMock).href,
-        join(root, ".github/scripts/production-policy.mjs"),
-        "complete",
-      ],
-      {
-        cwd: root,
-        encoding: "utf8",
-        timeout: 10000,
-        env: {
-          ...process.env,
-          ...manual,
-          INPUT_OPERATION: "rollback",
-          INPUT_SERVICE: "discord",
-          RELEASE_SHA: checkoutSha,
-          SOURCE_RUN_ID: "",
-          SOURCE_ATTEMPT: "",
-          GITHUB_RUN_ID: "700",
-          GITHUB_RUN_ATTEMPT: "2",
-          COMPONENT: "discord",
-          RECEIPT_ID: "900",
-          RECEIPT_STATE: state,
-          GITHUB_EVENT_PATH: eventPath,
-          GITHUB_STEP_SUMMARY: summaryPath,
-          GH_TOKEN: "receipt-fixture",
-          POLICY_TEST_STATE: statePath,
-        },
+          status: "in_progress",
+          writes: 0,
+        })
+      )
+      writeFileSync(summaryPath, "")
+      /** Retry the exact CLI invocation to prove persisted terminal state cannot be overwritten after response loss. */
+      const complete = () =>
+        spawnSync(
+          "node",
+          [
+            "--import",
+            pathToFileURL(ownerMock).href,
+            join(root, ".github/scripts/production-policy.mjs"),
+            "complete",
+          ],
+          {
+            cwd: root,
+            encoding: "utf8",
+            timeout: 10000,
+            env: {
+              ...process.env,
+              ...manual,
+              INPUT_OPERATION: "rollback",
+              INPUT_SERVICE: "discord",
+              RELEASE_SHA: checkoutSha,
+              SOURCE_RUN_ID: "",
+              SOURCE_ATTEMPT: "",
+              GITHUB_RUN_ID: "700",
+              GITHUB_RUN_ATTEMPT: "2",
+              COMPONENT: "discord",
+              RECEIPT_ID: "900",
+              RECEIPT_STATE: state,
+              GITHUB_EVENT_PATH: eventPath,
+              GITHUB_STEP_SUMMARY: summaryPath,
+              GH_TOKEN: "receipt-fixture",
+              POLICY_TEST_STATE: statePath,
+              POLICY_LOST_RESPONSE: String(responseLost),
+            },
+          }
+        )
+      const result = complete()
+      assert.ifError(result.error)
+      assert.equal(result.status, responseLost ? 1 : 0, result.stderr)
+      const persisted = JSON.parse(readFileSync(statePath, "utf8"))
+      assert.equal(persisted.status, state)
+      assert.equal(persisted.writes, 1)
+      if (responseLost) {
+        assert.match(result.stderr, /Response lost/)
+        assert.equal(
+          readFileSync(summaryPath, "utf8"),
+          "",
+          "Lost acknowledgement must not print a success summary"
+        )
+        const retried = complete()
+        assert.equal(retried.status, 1)
+        assert.match(retried.stderr, /completed claim/)
+        assert.equal(JSON.parse(readFileSync(statePath, "utf8")).writes, 1)
+        assert.equal(readFileSync(summaryPath, "utf8"), "")
       }
-    )
-    assert.ifError(result.error)
-    assert.equal(result.status, 0, result.stderr)
-    assert.equal(JSON.parse(readFileSync(statePath, "utf8")).status, state)
+    }
   }
 } finally {
   await rm(cliDirectory, {

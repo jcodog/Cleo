@@ -1,6 +1,13 @@
 import assert from "node:assert/strict"
 
-/** Interpret only the boolean Actions subset used by our job contracts. */
+/**
+ * Interpret our boolean Actions subset without executing workflow-controlled code.
+ * @param {string} expression Job condition, optionally wrapped in Actions delimiters.
+ * @param {object} context Scalar GitHub/input/needs/step values, read through own properties only.
+ * @param {string[]} statuses Dependency conclusions used for implicit success and status functions.
+ * @returns {boolean} Eligibility including implicit success unless an explicit status function is present.
+ * @throws {AssertionError} On unsupported/malformed syntax, unsafe references or excessive complexity.
+ */
 export function evaluate(expression, context, statuses) {
   let source = expression.trim()
   if (source.startsWith("${{")) {
@@ -24,7 +31,9 @@ export function evaluate(expression, context, statuses) {
   }
   let index = 0
   let statusFunction = false
+  /** Consume exactly one expected token; never interpret an identifier as JavaScript. */
   const take = (token) => tokens[index] === token && (++index, true)
+  /** Parse literals, grouped conditions, allow-listed zero-argument status calls and scalar context paths. */
   const primary = () => {
     if (take("(")) {
       const value = or()
@@ -69,13 +78,16 @@ export function evaluate(expression, context, statuses) {
     )
     return value ?? ""
   }
+  /** Apply logical negation before comparison and conjunction, matching Actions precedence. */
   const unary = () => (take("!") ? !unary() : primary())
+  /** Compare scalars using case-insensitive string equality and Actions numeric coercion. */
   const comparison = () => {
     const left = unary()
     const operator = tokens[index]
     if (!["==", "!="].includes(operator)) return left
     index++
     const right = unary()
+    /** Coerce supported JSON numbers, booleans and empty values; invalid numeric strings stay NaN. */
     const numeric = (value) => {
       if (
         value === null ||
@@ -101,6 +113,7 @@ export function evaluate(expression, context, statuses) {
           : left === right
     return operator === "==" ? equal : !equal
   }
+  /** Consume both operands even when false, so unsupported syntax cannot hide behind short-circuiting. */
   const and = () => {
     let value = comparison()
     while (take("&&")) {
@@ -109,6 +122,7 @@ export function evaluate(expression, context, statuses) {
     }
     return value
   }
+  /** Parse the lowest-precedence disjunction, still validating every operand. */
   const or = () => {
     let value = and()
     while (take("||")) {

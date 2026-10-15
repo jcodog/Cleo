@@ -22,6 +22,7 @@ const sha = "a".repeat(40)
 try {
   const bin = join(directory, "bin")
   mkdirSync(bin)
+  /** Install a disposable command adapter; it asserts child environments without touching installed host tooling. */
   const writeTool = (name, body) => {
     const file = join(bin, name)
     writeFileSync(file, "#!/usr/bin/env bash\nset -euo pipefail\n" + body, {
@@ -58,6 +59,12 @@ echo deploy >> "$CALL_LOG"
 exit "$CONTROLLER_STATUS"
 `
   )
+  /**
+   * Execute an actual workflow shell with non-secret credentials and isolated controller adapters.
+   * @param {string} script Unchanged shell ordering, with only absolute tool paths adapted for fixtures.
+   * @param {object} patch Controlled command outcomes or event/rollout inputs.
+   * @returns {object} Exit status, outputs, summary and command order for preflight/interruption assertions.
+   */
   const run = (script, patch = {}) => {
     const output = join(directory, "outputs")
     const calls = join(directory, "calls")

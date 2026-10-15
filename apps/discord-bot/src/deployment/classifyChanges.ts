@@ -14,6 +14,7 @@ const webFiles = new Set([
   "apps/discord-bot/src/deployment/webOnlyChanges.test.ts",
 ])
 
+/** Return whether a repository-relative path belongs only to web apps or their explicitly shared web helpers. */
 export function isWebOnlyPath(file: string): boolean {
   return (
     file.startsWith("apps/landing/") ||
@@ -22,17 +23,23 @@ export function isWebOnlyPath(file: string): boolean {
   )
 }
 
+/** Narrow parsed JSON at the configuration boundary; arrays and null are not configuration records. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-// Follow Bun's package-location keys, including nested versions and workspace links.
+/**
+ * Follow Bun package-location keys through nested dependencies and workspace links.
+ * @returns Package keys reachable from the supplied workspace roots.
+ * @throws If required dependencies cannot be resolved, preventing unsafe web-only filtering.
+ */
 function lockPackagesUsedBy(
   workspaces: Record<string, unknown>,
   packages: Record<string, unknown>,
   roots: unknown[]
 ): Set<string> {
   const used = new Set<string>()
+  /** Traverse each reachable lock entry once; optional/peer entries may legitimately be absent. */
   function visitDependencies(metadata: unknown, context: string) {
     if (!isRecord(metadata)) return
     for (const field of [
@@ -84,6 +91,7 @@ function lockPackagesUsedBy(
   return used
 }
 
+/** Strip only known web-exclusive settings/dependencies; malformed or unresolved input throws to the conservative caller. */
 function configWithoutWebEntries(file: string, source: string): unknown {
   const config: unknown = JSON.parse(withoutTrailingCommas(source))
   if (!isRecord(config)) throw new Error("Invalid configuration")
@@ -141,6 +149,7 @@ function configWithoutWebEntries(file: string, source: string): unknown {
   return config
 }
 
+/** Remove JSONC-style trailing commas while preserving quoted commas and escapes in Bun configuration text. */
 function withoutTrailingCommas(source: string): string {
   let quoted = false
   let escaped = false
@@ -162,6 +171,13 @@ function withoutTrailingCommas(source: string): string {
   return result
 }
 
+/**
+ * Compare supported configuration after removing known web-only entries.
+ * @param file Repository-relative supported config path.
+ * @param before Previous commit's complete file content.
+ * @param after Intended release's complete file content.
+ * @returns True only when non-web configuration is provably equal; parse failures remain deployment-relevant.
+ */
 export function isWebOnlyConfigChange(
   file: string,
   before: string,
@@ -220,6 +236,7 @@ const COMMAND_FILES = new Set<string>([
   "apps/discord-bot/src/scripts/registerCommands.ts",
 ])
 
+/** Select backend/shared/toolchain changes that require one backend stage and compatible runtimes, excluding web-only paths. */
 export function isConvexDeployPath(file: string): boolean {
   if (isWebOnlyPath(file)) return false
   return (
@@ -246,6 +263,7 @@ export function isConvexDeployPath(file: string): boolean {
   )
 }
 
+/** Include Discord runtime/infrastructure and shared backend changes without restarting it for isolated web work. */
 export function isDiscordDeployPath(file: string): boolean {
   if (isWebOnlyPath(file)) return false
   return (
@@ -255,6 +273,7 @@ export function isDiscordDeployPath(file: string): boolean {
   )
 }
 
+/** Identify command-registry inputs; this classification does not bypass explicit post-activation verification. */
 export function isCommandRegistrationPath(file: string): boolean {
   return (
     COMMAND_FILES.has(file) ||
@@ -262,6 +281,7 @@ export function isCommandRegistrationPath(file: string): boolean {
   )
 }
 
+/** Select Twitch runtime/infrastructure and shared backend changes while retaining independent service scope. */
 export function isTwitchDeployPath(file: string): boolean {
   return (
     !isWebOnlyPath(file) &&
@@ -273,6 +293,7 @@ export function isTwitchDeployPath(file: string): boolean {
   )
 }
 
+/** Summarize Discord activation and command-registry relevance for already validated repository paths. */
 export function classifyChangedPaths(files: string[]) {
   return {
     deploy: files.some(isDiscordDeployPath),
@@ -280,6 +301,11 @@ export function classifyChangedPaths(files: string[]) {
   }
 }
 
+/**
+ * Compare ancestor-checked commit snapshots using NUL-delimited paths and conservative config filtering.
+ * @returns Relevant paths, or null when a trustworthy baseline is unavailable and deployment must be conservative.
+ * @throws For malformed identities or failed Git diff, instead of silently skipping a necessary release.
+ */
 function changedPathsBetween(
   baseSha: string,
   headSha: string
@@ -339,6 +365,7 @@ function changedPathsBetween(
     })
 }
 
+/** Keep classification side effects out of module imports; run the CLI only for this resolved entrypoint. */
 function isDirectEntrypoint(): boolean {
   const entrypoint = process.argv[1]
   return (

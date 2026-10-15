@@ -3,7 +3,12 @@ import { readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
-/** Read the actual registration shells without needing a Linux host fixture. */
+/**
+ * Extract and compare the coordinator's real forward, recovery and rollback command shells.
+ * @param {string} workflow YAML text whose fixed indentation identifies the three run blocks.
+ * @returns {string[]} Registration scripts for portable checks and disposable Linux operation fixtures.
+ * @throws {AssertionError} If a path is missing, freshness ordering regresses or recovery contracts diverge.
+ */
 export function extractCommandScripts(workflow) {
   const lines = workflow.split(/\r?\n/)
   const scripts = []
