@@ -1,0 +1,33 @@
+docs/production-release-gating.md
+  s_602e6bdafe6a33::t_dad4e1b429d580 341-342,369-372
+  s_602e6bdafe6a33::t_70679d313ff2da 336-340
+.github/scripts/actions-condition.mjs
+  s_602e6bdafe6a33::t_70679d313ff2da 121,130
+apps/discord-bot/src/deployment/classifyChanges.test.ts
+  s_602e6bdafe6a33::t_70679d313ff2da 23-24
+.github/scripts/test-production-security.mjs
+  s_602e6bdafe6a33::t_70679d313ff2da 69,75-76,85
+  s_602e6bdafe6a33::t_39a1f9c4be3d11 70-74
+.github/scripts/test-production-workflow.mjs
+  s_602e6bdafe6a33::t_70679d313ff2da 301-309,415,418,425,528-534
+  s_602e6bdafe6a33::t_6f3c3fda1dc261 340,343,525-526,535,537,541-553
+  s_602e6bdafe6a33::t_04b2f9570f3a91 527
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_602e6bdafe6a33::t_70679d313ff2da 261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0c1cfc1d91622e99942fc3a428392523898496c",
+  "prompts": {},
+  "sessions": {
+    "s_602e6bdafe6a33": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13c72-c0c9-7d60-86be-4f65d9f5671a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
