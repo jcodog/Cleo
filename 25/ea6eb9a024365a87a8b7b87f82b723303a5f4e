@@ -1,0 +1,45 @@
+apps/discord-bot/src/deployment/classifyChanges.ts
+  s_602e6bdafe6a33::t_e7378352d19317 17,26,31-35,42,94,152,174-180,239,266,276,284,296,304-308,368
+.github/scripts/production-policy.mjs
+  s_602e6bdafe6a33::t_f5f8e881bb17e9 459,462
+  s_602e6bdafe6a33::t_262565908a3082 22-27,80-86,150-155,179-185,218-223,238-243,255-260,270-281,339-347,382-391,409-417,426-432,443-449
+apps/discord-bot/src/deployment/deploymentPipeline.test.ts
+  s_602e6bdafe6a33::t_2798e41f519676 10,15
+.github/scripts/actions-condition.mjs
+  s_602e6bdafe6a33::t_e7378352d19317 3-10,34,36,81,83,90,116,125
+.github/scripts/test-twitch-workflow.mjs
+  s_602e6bdafe6a33::t_e7378352d19317 22
+.github/scripts/test-production-policy.mjs
+  s_602e6bdafe6a33::t_f5f8e881bb17e9 851
+  s_602e6bdafe6a33::t_262565908a3082 219-223,233,436,449,527-538,540-542,549,586
+  s_602e6bdafe6a33::t_d396e33065bdf2 539,543-548,550-585,587-594,610,621,639,757,821,829-844,846-850,852-903,905
+.github/scripts/test-production-workflow.mjs
+  s_602e6bdafe6a33::t_e7378352d19317 17,23-34,36,39-47,50-66,69-80,82-91,93-94,96-97,99-100,102-103,107-108,111-112,115-116,119-130,132-152,319-323,370-377,379-383,385,387-400,405
+  s_602e6bdafe6a33::t_cbf386ea1011de 35,37-38,48-49,67-68,81,92,95,98,101,104-106,109-110,113-114,117-118,131,378,384,547
+.github/scripts/test-discord-workflow.mjs
+  s_602e6bdafe6a33::t_e7378352d19317 6-11
+.github/scripts/test-production-security.mjs
+  s_602e6bdafe6a33::t_e7378352d19317 25,62-67
+.github/ci-simplification.md
+  s_602e6bdafe6a33::t_86c9cc59f6f71e 84-90
+CONTRIBUTING.md
+  s_602e6bdafe6a33::t_0f402be8047238 130-149
+docs/production-release-gating.md
+  s_602e6bdafe6a33::t_e5a9005e18fe8a 238-264,362-369,379-381
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25ea6eb9a024365a87a8b7b87f82b723303a5f4e",
+  "prompts": {},
+  "sessions": {
+    "s_602e6bdafe6a33": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13c72-c0c9-7d60-86be-4f65d9f5671a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
