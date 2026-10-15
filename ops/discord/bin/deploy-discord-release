@@ -288,7 +288,14 @@ verify_release_artifact() {
     sha256sum -c "$checksum_name"
   ) || return 1
 
-  if tar -tzf "$release_archive" | grep -Eq '(^|[/\\])\.\.([/\\]|$)|^[/\\]'; then
+  # Finish listing before grep can exit early; pipefail must not hide a match
+  # behind tar's SIGPIPE. A partial or failed listing never permits extraction.
+  local archive_entries
+  archive_entries="$(tar -tzf "$release_archive")" || {
+    echo "Discord release archive could not be listed safely." >&2
+    return 1
+  }
+  if grep -Eq '(^|[/\\])\.\.([/\\]|$)|^[/\\]' <<< "$archive_entries"; then
     echo "Discord release archive contains an unsafe path." >&2
     return 1
   fi

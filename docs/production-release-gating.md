@@ -373,6 +373,13 @@ These successes authenticate those exact
 revisions only. Each later commit needs its own successful complete hosted
 regression; the PR description records the latest checked SHA and run.
 
+[Run `38730977589`](https://github.com/jcodog/Cleo/actions/runs/38730977589)
+at `f0c1cfc` exposed an intermittent existing Discord archive guard failure.
+An early `grep -q` match could make tar fail with a pipe error, hiding the match
+under `pipefail`. The controller now requires a complete successful listing before
+checking paths. A deterministic fixture rejects the old guard and also verifies
+that failed listings cannot proceed. The failed aggregate correctly blocked promotion.
+
 The new fixtures exercise 81 rejected source-evidence cases, real Git merge and
 multi-commit histories, actual workflow job conditions, the actual package-barrier
 shell and protected enablement flags, artifact producer/consumer names, durable

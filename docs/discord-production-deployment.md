@@ -184,6 +184,12 @@ keeps its separate reset/start behavior. The sudoers rule adds only the exact
 runtime reset command, with no wildcard or new service permissions. Both the
 coordinator and runner smoke reject an installed contract-4 controller.
 
+This unreleased contract-5 controller also completes and validates archive listings
+before checking traversal paths. This avoids a `pipefail` race when an early grep
+match closes tar's output, and rejects partial or failed listings before extraction.
+Install the exact reviewed source, not another revision that reports the same
+contract number. The byte comparisons below verify this correction was included.
+
 An operator must install these files from the reviewed, verified current main
 checkout while automatic promotion is disabled and no deployment/recovery is
 running. These instructions do not execute in application deployment. The full
@@ -202,6 +208,8 @@ sudo install -o root -g root -m 0440 ops/discord/sudoers/cleo-discord-deploy /et
 sudo visudo -cf /etc/sudoers.d/cleo-discord-deploy
 sudo install -o root -g root -m 0755 ops/discord/bin/check-discord-runner /usr/local/libexec/cleo/check-discord-runner
 sudo install -o root -g root -m 0755 ops/discord/bin/deploy-discord-release /usr/local/libexec/cleo/deploy-discord-release
+sudo cmp ops/discord/bin/check-discord-runner /usr/local/libexec/cleo/check-discord-runner
+sudo cmp ops/discord/bin/deploy-discord-release /usr/local/libexec/cleo/deploy-discord-release
 /usr/local/libexec/cleo/deploy-discord-release contract-version  # must print 5
 sudo -u github-runner /usr/local/libexec/cleo/check-discord-runner 5 24.15.0 linux-x64
 ```

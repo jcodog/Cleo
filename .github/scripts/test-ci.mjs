@@ -107,6 +107,16 @@ await import("./test-discord-workflow.mjs")
 await import("./test-production-security.mjs")
 await import("./test-production-policy.mjs")
 await import("./test-production-workflow.mjs")
+const archiveGuard = spawnSync(
+  "bash",
+  [".github/scripts/test-discord-archive-guard.sh"],
+  {
+    cwd: root,
+    encoding: "utf8",
+  }
+)
+assert.ifError(archiveGuard.error)
+assert.equal(archiveGuard.status, 0, archiveGuard.stdout + archiveGuard.stderr)
 assert.equal(gate.name, "Tests, lint, typecheck, and coverage")
 assert.deepEqual(gate.needs, required)
 assert.equal(gate.if, "always()")
