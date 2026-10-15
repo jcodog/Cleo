@@ -127,6 +127,46 @@ These commands intentionally validate the workspace graph and catch integration 
 
 If an environment prevents a full-root check from running, run every relevant workspace check instead and document exactly what was not run and why. Do not claim tests, coverage, linting, typechecking, or builds that did not actually execute.
 
+## Commits and production troubleshooting
+
+Use meaningful conventional commit subjects, for example
+`fix(release): reject stale promotion attempts`, and GPG-sign commits with the
+configured identity. Explain the problem, change and validation in the commit
+body. Include an issue or release reference for production-troubleshooting work.
+Normal main changes go through a pull request and the required regression checks.
+
+Use workflow reruns or the documented manual dispatch controls to retry checks,
+validate packages or perform authorised recovery. Never add placeholder files or
+low-signal commits to trigger deployment. An empty commit is acceptable only when
+an approved process requires a new revision that rerun/dispatch cannot provide;
+record the reason, approval and issue/release reference, and retain normal signed
+PR/check requirements. It is not a release-gate bypass.
+
+See [release troubleshooting discipline](docs/production-release-gating.md#commit-and-troubleshooting-discipline).
+Issue #193 remains partially addressed; its emergency administrator exception is
+not implemented. The existing Protect main ruleset and zero bypass actors must
+remain intact pending a separately approved policy decision.
+
+## Local and cloud review
+
+Run focused tests while developing. Before the final signed commit, use an already
+installed, authenticated `cubic review -b origin/main` and an available independent
+local reviewer. Confirm read-only permissions and sandbox support before invoking
+another model. Include production source and relevant tests, reproduce findings,
+then complete repository validation. Report unavailable authentication, allowances
+or sandbox support rather than silently installing tools or purchasing API access.
+
+CLI reviews use a [separate allowance](https://docs.cubic.dev/account/ai-review-usage)
+from GitHub PR reviews. Cloud Cubic excludes tests and fixtures to conserve its
+reviewed-line quota; implementation, workflows, security policy and controllers
+remain in scope. CodeRabbit continues reviewing both implementation and tests.
+Let automatic incremental reviews handle pushes instead of repeatedly requesting
+full PR reviews. Record the reviewed SHA and actual findings, not assumed approval.
+
+Cubic reads `cubic.yaml` from the default branch. This PR's incremental-review and
+test-exclusion changes become effective only after merging into `main`, subject to
+workspace quota. They do not change main now or enable automatic GitHub approval.
+
 ## Licensing
 
 Cleo is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).

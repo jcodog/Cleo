@@ -38,7 +38,7 @@ conclusion. Its existing publishing concurrency and minimal permissions remain.
 Independent main runs can finish out of order. The publisher handles successful
 runs in completion order; this change does not add source-SHA ordering to Pages.
 
-Production workflows remain unchanged, including exact revisions, protected
+At PR #250, production workflows remained unchanged, including exact revisions, protected
 environments, deployment gates, self-hosted activation and rollback. They retain
 their own validation because they are independent production trust boundaries.
 Discord's extra frozen runtime-only install is necessary for portable releases;
@@ -81,10 +81,13 @@ another copy of the large archives.
 
 ## Repository settings and issue context
 
-GitHub returned no main branch protection and no repository rulesets during the
-inspection. No required-check migration is needed because the original check
-name is retained. To implement JCN-206, require that aggregate check in a main
-ruleset through a separately approved repository-settings change.
+During the earlier PR #250 inspection, GitHub returned no main branch protection
+or repository rulesets. That historical observation is superseded: Protect main,
+ID `25120348`, is active and requires the existing aggregate, signed PR changes,
+up-to-date branches and resolved conversations, with no bypass actors. PR #251
+preserves it without settings changes. See the current
+[release discipline and partial #193 scope](../docs/production-release-gating.md#commit-and-troubleshooting-discipline);
+the emergency administrator exception remains outstanding.
 
 Linear tools were unavailable in this session. GitHub mirrors supplied context:
 [JCN-93](https://github.com/jcodog/Cleo/issues/69),
@@ -132,3 +135,7 @@ and commit-derived timestamps. They compare complete archive bytes after a
 source mtime change and packaging under distinct caller locale/TZ values.
 Only universally available C/POSIX locales and POSIX timezone strings are used.
 The Linux packager, manifest verification and all negative release tests remain.
+
+JCN-206 now coordinates production promotion after this unchanged regression.
+See [production release gating](../docs/production-release-gating.md) for the
+current dependency graph, trust checks and manual operations.

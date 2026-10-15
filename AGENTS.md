@@ -149,6 +149,14 @@ This uses the root Turborepo development script and may start multiple workspace
 
 ## Validation and finishing work
 
+### Review workflow
+
+- Run focused tests while developing, then the relevant full validation before pushing.
+- Before the final signed commit, prefer authenticated Cubic CLI branch review and an available independent local model review. Use read-only controls and report unavailable tools, authentication or quota limits.
+- Keep cloud Cubic focused on implementation and critical configuration; CodeRabbit reviews implementation and tests.
+- Let automatic incremental reviews handle new commits. Avoid repeated manual full-PR requests. Cubic reads configuration from the default branch, so PR configuration changes take effect only after merge.
+- Reproduce reviewer findings, fix valid issues and reply with commit-specific evidence before resolving threads. Report only reviews or formal approvals that were actually submitted; automated reviewing does not enable automatic GitHub approval.
+
 During development, run the checks that cover the workspace or workspaces you changed. Do not repeatedly run the entire monorepo for a small isolated edit unless broad validation is useful.
 
 Before opening or finalising a pull request, strongly prefer the full repository validation suite from the root:

@@ -7,10 +7,12 @@ import { test } from "node:test"
 
 const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url))
 
+/** Read real deployment inputs relative to the repository, independently of the workspace test directory. */
 function repositoryFile(relativePath: string): string {
   return readFileSync(path.join(repositoryRoot, relativePath), "utf8")
 }
 
+/** Isolate a named YAML job for host-contract assertions, rejecting missing boundaries instead of testing unrelated text. */
 function workflowJob(workflow: string, job: string, nextJob?: string): string {
   const start = workflow.indexOf(`  ${job}:`)
   const end =
@@ -21,7 +23,7 @@ function workflowJob(workflow: string, job: string, nextJob?: string): string {
 }
 
 test("production workflow builds once and packages the validated output", () => {
-  const workflow = repositoryFile(".github/workflows/discord-production.yml")
+  const workflow = repositoryFile(".github/workflows/production-release.yml")
   const packager = repositoryFile(".github/scripts/package-discord-release.sh")
   const buildInvocations = workflow.match(
     /bun run --filter @workspace\/discord-bot build/g
@@ -49,9 +51,9 @@ test("production workflow builds once and packages the validated output", () => 
 })
 
 test("VPS activation and rollback are source and package-manager independent", () => {
-  const workflow = repositoryFile(".github/workflows/discord-production.yml")
-  const activate = workflowJob(workflow, "activate", "rollback")
-  const rollback = workflowJob(workflow, "rollback")
+  const workflow = repositoryFile(".github/workflows/production-release.yml")
+  const activate = workflowJob(workflow, "discord-activate", "twitch-activate")
+  const rollback = workflowJob(workflow, "discord-rollback", "twitch-rollback")
   const forbidden = [
     /actions\/checkout/,
     /setup-bun/,
@@ -81,16 +83,16 @@ test("VPS activation and rollback are source and package-manager independent", (
   assert.match(rollback, /Rollback target/)
   assert.ok(
     activate.indexOf("deploy-discord-release contract-version") <
-      activate.indexOf("actions/download-artifact")
+      activate.indexOf("Download validated release artifact")
   )
   assert.doesNotMatch(rollback, /needs:\s*classify/)
 })
 
 test("workflow requires explicit verified command deployment after runtime activation and rollback", () => {
-  const workflow = repositoryFile(".github/workflows/discord-production.yml")
+  const workflow = repositoryFile(".github/workflows/production-release.yml")
   for (const job of [
-    workflowJob(workflow, "activate", "rollback"),
-    workflowJob(workflow, "rollback"),
+    workflowJob(workflow, "discord-activate", "twitch-activate"),
+    workflowJob(workflow, "discord-rollback", "twitch-rollback"),
   ]) {
     const runtime = job.indexOf("        id: runtime")
     const commands = job.indexOf("        id: commands")
@@ -104,16 +106,22 @@ test("workflow requires explicit verified command deployment after runtime activ
       /continue-on-error|commandFingerprint\s*(?:===|!==)/
     )
     assert.match(job, /commandVerificationVersion !== 1/)
-    assert.match(job, /CLEO_DISCORD_HOST_NODE: \/usr\/local\/libexec\/cleo\/node/)
+    assert.match(
+      job,
+      /CLEO_DISCORD_HOST_NODE: \/usr\/local\/libexec\/cleo\/node/
+    )
     assert.match(job, /"\$CLEO_DISCORD_HOST_NODE" --input-type=module/)
     assert.match(job, /command_result=verified/)
   }
-  const activate = workflowJob(workflow, "activate", "rollback")
+  const activate = workflowJob(workflow, "discord-activate", "twitch-activate")
   assert.match(activate, /steps\.commands\.outcome == 'failure'/)
   assert.match(activate, /attempting one runtime rollback/)
   assert.match(activate, /Deploy and verify restored release commands/)
   assert.match(activate, /steps\.runtime\.outcome == 'failure'/)
-  assert.match(workflowJob(workflow, "rollback"), /runtime rollback/)
+  assert.match(
+    workflowJob(workflow, "discord-rollback", "twitch-rollback"),
+    /runtime rollback/
+  )
 })
 
 test("host deployment controller uses release fingerprints without Git history", () => {
@@ -136,7 +144,7 @@ test("host deployment controller uses release fingerprints without Git history",
 })
 
 test("workflow and installed controller enforce the same host contract", () => {
-  const workflow = repositoryFile(".github/workflows/discord-production.yml")
+  const workflow = repositoryFile(".github/workflows/production-release.yml")
   const smokeWorkflow = repositoryFile(
     ".github/workflows/discord-runner-smoke.yml"
   )
@@ -144,9 +152,9 @@ test("workflow and installed controller enforce the same host contract", () => {
   const runnerCheck = repositoryFile("ops/discord/bin/check-discord-runner")
   const bootstrap = repositoryFile("ops/discord/bootstrap-host.sh")
 
-  assert.match(workflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"/)
-  assert.match(smokeWorkflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "4"/)
-  assert.match(controller, /controller_contract_version="4"/)
+  assert.match(workflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "5"/)
+  assert.match(smokeWorkflow, /CLEO_DISCORD_HOST_CONTRACT_VERSION: "5"/)
+  assert.match(controller, /controller_contract_version="5"/)
   assert.match(controller, /operation" == "contract-version"/)
   assert.match(runnerCheck, /deploy_controller contract-version/)
   assert.match(bootstrap, /trusted_node_version="v24\.15\.0"/)

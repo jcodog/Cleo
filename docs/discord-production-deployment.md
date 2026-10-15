@@ -1,10 +1,11 @@
 # Discord production deployment
 
-Cleo deploys the Discord runtime only from trusted `main` pushes or an explicit
-manual workflow dispatch. Pull requests never activate production. Vercel owns the
-dashboard deployment; the Discord production workflow validates the bot and backend,
-packages the Discord runtime, deploys Convex when appropriate, and activates the
-validated release on the production VPS.
+Production promotion is coordinated by [the production release gate](production-release-gating.md).
+A successful complete push-to-main regression authenticates the exact release SHA
+before packaging, one Convex deployment when required, and affected runtime
+activation. The Discord operations workflow retains manual validation and recorded
+rollback. Manual deployment uses the coordinator with an explicit current main SHA
+and matching successful regression run ID and attempt. Vercel remains a separate boundary.
 
 ## Architecture
 
@@ -16,15 +17,19 @@ The production VPS is an application host, not a CI build machine.
 
 1. checks out the exact commit;
 2. installs the locked workspace with `bun ci`;
-3. runs Discord and backend tests, typechecks, and lint;
+3. relies on the complete upstream regression for automatic deployment; manual
+   validation also runs Discord tests, typechecks and lint;
 4. builds the Discord Node ESM runtime exactly once;
 5. packages the already-validated `dist` tree without rebuilding or mutating it;
 6. installs only the Discord production dependency closure into a standalone,
    hoisted Bun staging layout;
 7. validates native `@napi-rs/canvas` on Linux x64 GNU;
 8. creates an immutable release manifest and deterministic tarball;
-9. uploads the release tarball and SHA-256 checksum;
-10. deploys Convex for a real deploy operation.
+9. uploads the release tarball and SHA-256 checksum.
+
+The coordinator requires every affected runtime package to succeed before its
+separate backend stage can deploy Convex once when needed. Discord activation
+then requires that backend barrier and its own successful package.
 
 The packager fails if the compiled output is missing, if packaging changes the
 validated `dist` tree, or if the packaged `dist` differs from the validated build.
@@ -49,8 +54,9 @@ Activation performs:
 - atomic deployment-state update;
 - automatic restoration of the previous release when activation fails.
 
-After runtime activation and health checks succeed, the workflow explicitly resets
-and starts `cleo-discord-register-commands.service` for every release, regardless
+After runtime activation and health checks succeed, the workflow clears the
+failure counter on a best-effort basis and starts
+`cleo-discord-register-commands.service` for every release, regardless
 of fingerprint equality. That service runs the active release's registration
 program as `cleo`, using `/etc/cleo/discord-bot.env`. Tokens never reach the runner.
 The workflow completes only after this command step succeeds.
@@ -79,7 +85,8 @@ message. A runtime restoration to such an artifact must not be treated as a comp
 rollback. Recover through a new production release containing the desired runtime
 code and the fixed registration program. Existing immutable artifacts are not
 patched in place. No root-owned host file, sudo permission, artifact schema version
-or host contract version changes are required for this hotfix.
+changes were required for that command-registration hotfix. Release gating now
+requires the separate contract-5 host controller update below.
 
 ## Deployment observability
 
@@ -139,7 +146,7 @@ returns the command list used for verification, with full localization dictionar
 ## Host contract
 
 The workflow, runner check, and deployment controller share host contract version
-`4`. Activation verifies the installed controller contract before downloading an
+`5`. Activation verifies the installed controller contract before downloading an
 artifact. A stale bootstrap installation therefore fails closed.
 
 The expected host controller Node version is `24.15.0` and the release platform is
@@ -167,6 +174,53 @@ The expected host controller Node version is `24.15.0` and the release platform 
 The state reader never evaluates the state file as shell code. It requires a regular
 non-symlink file with the expected ownership and mode, accepts only the known state
 keys, rejects duplicates and unknown keys, and validates SHA and fingerprint shapes.
+
+## Update the installed release controller
+
+Contract 5 adds a best-effort reset of **only** `cleo-discord.service` before
+controlled activation, rollback and recovery restarts. A failed reset does not
+hide a subsequent restart/readiness failure. The command-registration service
+keeps its separate reset/start behavior. The sudoers rule adds only the exact
+runtime reset command, with no wildcard or new service permissions. Both the
+coordinator and runner smoke reject an installed contract-4 controller.
+
+This unreleased contract-5 controller also completes and validates archive listings
+before checking traversal paths. This avoids a `pipefail` race when an early grep
+match closes tar's output, and rejects partial or failed listings before extraction.
+Install the exact reviewed source, not another revision that reports the same
+contract number. The byte comparisons below verify this correction was included.
+
+An operator must install these files from the reviewed, verified current main
+checkout while automatic promotion is disabled and no deployment/recovery is
+running. These instructions do not execute in application deployment. The full
+bootstrap also restarts an active service; use this targeted update to avoid that
+extra service action:
+
+```bash
+# Run from the verified repository root on the host, with operator sudo access.
+# Validate all candidates before installing root-owned host files.
+bash -n ops/discord/bin/deploy-discord-release
+bash -n ops/discord/bin/check-discord-runner
+sudo visudo -cf ops/discord/sudoers/cleo-discord-deploy
+bash ops/discord/bin/deploy-discord-release contract-version  # must print 5
+# Preserve the currently installed three files in the operator's incident backup.
+sudo install -o root -g root -m 0440 ops/discord/sudoers/cleo-discord-deploy /etc/sudoers.d/cleo-discord-deploy
+sudo visudo -cf /etc/sudoers.d/cleo-discord-deploy
+sudo install -o root -g root -m 0755 ops/discord/bin/check-discord-runner /usr/local/libexec/cleo/check-discord-runner
+sudo install -o root -g root -m 0755 ops/discord/bin/deploy-discord-release /usr/local/libexec/cleo/deploy-discord-release
+sudo cmp ops/discord/bin/check-discord-runner /usr/local/libexec/cleo/check-discord-runner
+sudo cmp ops/discord/bin/deploy-discord-release /usr/local/libexec/cleo/deploy-discord-release
+/usr/local/libexec/cleo/deploy-discord-release contract-version  # must print 5
+sudo -u github-runner /usr/local/libexec/cleo/check-discord-runner 5 24.15.0 linux-x64
+```
+
+The final runner check verifies ownership, permissions, pinned Node, installed
+contract, systemd configuration and the exact runtime/command sudo permissions.
+It does not restart the bot. No daemon reload is needed for these executable and
+sudoers changes. If installation or verification fails, leave automatic promotion
+disabled and restore or reconcile host files under operator control before any
+new application release. Existing installed emergency mechanisms remain available;
+the new workflow requires the updated host contract.
 
 ## Release artifact contract
 
@@ -208,10 +262,11 @@ Use this sequence for the migration:
    The smoke workflow executes `check-discord-runtime` as `cleo`, using the same
    NVM runtime contract as `run-discord-release`, so a missing or stale runtime
    fails before deployment.
-7. Dispatch **Deploy Discord Production** with `operation=validate` and require the
+7. Dispatch **Discord Production Operations** with `operation=validate` and require the
    hosted x64 validation/package job to pass.
 8. Set `CLEO_DISCORD_DEPLOY_ENABLED=true`.
-9. Dispatch **Deploy Discord Production** with `operation=deploy`.
+9. Dispatch **Production Release** with `operation=deploy`, the explicit current
+   main SHA and its successful complete push regression run ID and attempt.
 10. Inspect the activation job summary and confirm the attempted SHA, running SHA,
     persisted application SHA, and active systemd service agree.
 11. After a second manifest-based release exists, exercise `operation=rollback` and
@@ -297,13 +352,13 @@ sudo -u cleo /usr/local/libexec/cleo/check-discord-env \
 
 ## GitHub production environment
 
-The `discord-production` environment requires `CONVEX_DEPLOY_KEY`. Restrict the
+The `discord-production` environment holds `CONVEX_DEPLOY_KEY` for the coordinated backend stage. Restrict the
 environment to `main`.
 
 `CLEO_DISCORD_DEPLOY_ENABLED` controls automatic and manual deploy activation:
 
 - unset or `false`: automatic deployment and manual `deploy` are blocked;
-- `true`: relevant trusted `main` pushes and manual `deploy` may activate production;
+- `true`: authenticated successful main regressions and coordinator manual `deploy` may activate production;
 - manual `validate` remains available while the gate is off;
 - manual `rollback` remains available while the gate is off.
 
@@ -324,10 +379,15 @@ the VPS.
 
 ### Deploy
 
-Manual `operation=deploy`, or a relevant trusted `main` push while the deployment
-gate is enabled, validates and packages on hosted Linux x64, deploys Convex, and
-then sends the validated artifact to `cleo-prod` for activation. The VPS does not
-build or install packages.
+Automatic deployment starts only after successful complete trusted main
+regression. Manual deployment uses **Production Release** with `operation=deploy`,
+the explicit current main SHA, and its matching successful push regression run ID
+and attempt. The coordinator authenticates that evidence, classifies outstanding
+changes, packages all affected runtimes on hosted Linux x64, then deploys Convex
+once if required. Affected runtimes activate only after the package and backend
+barriers succeed and the protected enablement controls pass. The VPS consumes
+verified artifacts without building or installing packages. **Discord Production
+Operations** accepts only `validate` or `rollback`.
 
 ### Rollback
 

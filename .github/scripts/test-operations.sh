@@ -3,6 +3,11 @@
 # production controllers or use production service accounts.
 set -euo pipefail
 
+# Exercise release evidence, durable claims and real Git classification on the
+# same pinned Node runtime used by production, before disposable host fixtures.
+node .github/scripts/test-production-policy.mjs
+bash .github/scripts/test-discord-archive-guard.sh
+
 for script in .github/scripts/*.sh; do
   bash -n "$script"
 done

@@ -4,11 +4,49 @@ import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { execFileSync } from "node:child_process"
 const workflow = readFileSync(
-  new URL("../workflows/twitch-production.yml", import.meta.url),
+  new URL("../workflows/production-release.yml", import.meta.url),
   "utf8"
 )
-const gate = workflow.match(
-  /id: gate[\s\S]*?run: \|\r?\n([\s\S]*?) {6}- name:/
+const twitchPackage = workflow.slice(
+  workflow.indexOf("\n  twitch-package:"),
+  workflow.indexOf("\n  packages-ready:")
+)
+const barrier = workflow.slice(
+  workflow.indexOf("\n  packages-ready:"),
+  workflow.indexOf("\n  backend:")
+)
+assert.match(
+  barrier,
+  /^ {10}TWITCH_ENABLED: \$\{\{ needs\.twitch-package\.outputs\.enabled \}\}$/m
+)
+/** Reject loss of the scoped package environment, its protected flag or gate output before shell testing. */
+function requireProtectedPackage(block) {
+  assert.equal(
+    block.match(/^ {4}environment: ([^\r\n]+)$/m)?.[1],
+    "twitch-production"
+  )
+  assert.match(
+    block,
+    /^ {10}DEPLOY_ENABLED: \$\{\{ vars\.CLEO_TWITCH_DEPLOY_ENABLED \}\}$/m
+  )
+  assert.match(
+    block,
+    /^ {6}enabled: \$\{\{ steps\.gate\.outputs\.enabled \}\}$/m
+  )
+}
+requireProtectedPackage(twitchPackage)
+assert.throws(() =>
+  requireProtectedPackage(
+    twitchPackage.replace("    environment: twitch-production", "")
+  )
+)
+assert.throws(() =>
+  requireProtectedPackage(
+    twitchPackage.replace("vars.CLEO_TWITCH_DEPLOY_ENABLED", "vars.UNPROTECTED")
+  )
+)
+const gate = twitchPackage.match(
+  /id: gate[\s\S]*?run: \|\r?\n((?: {10}[^\r\n]*\r?\n)+)/
 )?.[1]
 assert.ok(gate)
 const script = gate
@@ -38,21 +76,15 @@ try {
       `enabled=${value.toLowerCase() === "true"}`
     )
   }
-  for (const job of ["backend", "activate"]) {
-    const block = workflow.match(
-      new RegExp(`\\n  ${job}:[\\s\\S]*?(?=\\n  [a-zA-Z-]+:|$)`)
-    )?.[0]
-    assert.ok(
-      block?.includes(
-        "needs.validate-package.outputs.deploy_enabled == 'true'"
-      ),
-      `${job} must consume validated output`
-    )
-    assert.ok(block.includes("environment: twitch-production"))
-  }
   assert.ok(
-    workflow.includes("deploy_enabled: ${{ steps.gate.outputs.enabled }}")
+    workflow.includes(
+      "TWITCH_ENABLED: ${{ needs.twitch-package.outputs.enabled }}"
+    )
   )
+  assert.ok(
+    workflow.includes('"$TWITCH_REQUIRED" != true || "$TWITCH_ENABLED" == true')
+  )
+  assert.ok(workflow.includes("enabled: ${{ steps.gate.outputs.enabled }}"))
   assert.ok(
     workflow.includes("CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}")
   )

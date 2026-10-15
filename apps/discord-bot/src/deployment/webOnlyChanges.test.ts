@@ -141,6 +141,54 @@ test("unknown or malformed configuration remains conservative", () => {
   )
 })
 
+test("dashboard-only lockfile dependencies do not restart bots or hide shared dependency changes", () => {
+  const before = {
+    workspaces: { "apps/discord-bot": { dependencies: { shared: "1" } } },
+    packages: { shared: ["shared@1", "", {}, "integrity"] },
+  }
+  const after = {
+    workspaces: {
+      ...before.workspaces,
+      "apps/dashboard": { dependencies: { dashboard: "1", shared: "1" } },
+    },
+    packages: {
+      ...before.packages,
+      "@workspace/dashboard": ["workspace:apps/dashboard"],
+      dashboard: ["dashboard@1", "", {}, "integrity"],
+    },
+  }
+  assert.equal(
+    isWebOnlyConfigChange(
+      "bun.lock",
+      JSON.stringify(before),
+      JSON.stringify(after)
+    ),
+    true
+  )
+  assert.equal(
+    isWebOnlyConfigChange(
+      "bun.lock",
+      JSON.stringify(after),
+      JSON.stringify(before)
+    ),
+    true
+  )
+  assert.equal(
+    isWebOnlyConfigChange(
+      "bun.lock",
+      JSON.stringify(before),
+      JSON.stringify({
+        ...after,
+        packages: {
+          ...after.packages,
+          shared: ["shared@2", "", {}, "new integrity"],
+        },
+      })
+    ),
+    false
+  )
+})
+
 test("landing-only lockfile dependencies and their transitive entries do not activate runtimes", () => {
   const before = {
     workspaces: {
@@ -310,32 +358,24 @@ test("Twitch classifier and workflow retain runtime deployment and short-circuit
     assert.equal(isTwitchDeployPath(path), true, path)
   const workflow = readFileSync(
     new URL(
-      "../../../../.github/workflows/twitch-production.yml",
+      "../../../../.github/workflows/production-release.yml",
       import.meta.url
     ),
     "utf8"
   ).replace(/\r\n/g, "\n")
   for (const name of [
     "Frozen dependency install",
-    "Twitch and backend behavior checks",
     "Host deployment behavior checks",
     "Build Twitch once",
     "Package and verify Linux x64 artifact",
     "Upload verified release",
   ]) {
-    assert.ok(
-      workflow.includes(
-        `- name: ${name}\n        if: steps.changes.outputs.runtime == 'true'`
-      ),
-      name
-    )
+    assert.ok(workflow.includes(`- name: ${name}`), name)
   }
-  assert.ok(
-    workflow.includes("needs.validate-package.outputs.runtime == 'true'")
-  )
-  assert.ok(
-    workflow.includes(
-      'runtime="$(node apps/discord-bot/src/deployment/classifyChanges.ts twitch'
-    )
-  )
+  const packageStart = workflow.indexOf("  twitch-package:")
+  const packageEnd = workflow.indexOf("  packages-ready:")
+  const packageJob = workflow.slice(packageStart, packageEnd)
+  assert.ok(packageJob.includes("if: needs.authorise.outputs.twitch == 'true'"))
+  assert.ok(!packageJob.includes("@workspace/backend deploy"))
+  assert.ok(workflow.includes("needs.authorise.outputs.twitch == 'true'"))
 })

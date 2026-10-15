@@ -12,6 +12,38 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("../../", import.meta.url))
+const cubic = Bun.YAML.parse(readFileSync(join(root, "cubic.yaml"), "utf8"))
+assert.equal(cubic.reviews.enabled, true)
+assert.equal(cubic.reviews.incremental_commits, true)
+const exclusions = cubic.reviews.ignore.files.map(
+  (pattern) => new Bun.Glob(pattern)
+)
+for (const file of [
+  ".github/scripts/test-production-security.mjs",
+  ".github/scripts/test-operations.sh",
+  "ops/twitch/test.sh",
+  "ops/discord/bin/deploy-discord-release.validation.test.sh",
+  "scripts/example_test.mjs",
+  "scripts/example-test.sh",
+])
+  assert.ok(
+    exclusions.some((pattern) => pattern.match(file)),
+    file
+  )
+for (const file of [
+  ".github/scripts/production-policy.mjs",
+  ".github/scripts/actions-condition.mjs",
+  ".github/workflows/production-release.yml",
+  ".github/workflows/regression.yml",
+  "ops/discord/bin/deploy-discord-release",
+  "ops/twitch/bin/deploy-twitch-release",
+  "ops/discord/bin/check-discord-runner",
+  "ops/discord/sudoers/cleo-discord-deploy",
+  "apps/discord-bot/src/deployment/classifyChanges.ts",
+  "cubic.yaml",
+  ".coderabbit.yaml",
+])
+  assert.ok(!exclusions.some((pattern) => pattern.match(file)), file)
 /** Parse a repository workflow as data without evaluating its Actions expressions. */
 const readWorkflow = (name) =>
   Bun.YAML.parse(readFileSync(join(root, ".github/workflows", name), "utf8"))
@@ -69,37 +101,54 @@ for (const id of required) {
   assert.equal(node.with["node-version-file"], ".nvmrc")
   assert.equal(job.steps.filter((step) => step.run === "bun ci").length, 1)
 }
+/** Local reusable workflows share the caller commit; remote calls must be pinned. */
+function requirePinned(reference) {
+  if (!reference.startsWith("./")) assert.match(reference, /@[a-f0-9]{40}$/)
+}
+assert.throws(() =>
+  requirePinned("owner/repo/.github/workflows/release.yml@main")
+)
+requirePinned("./.github/workflows/production-release.yml")
+requirePinned(`owner/repo/.github/workflows/release.yml@${"a".repeat(40)}`)
 for (const name of [
   "regression.yml",
   "publish-coverage.yml",
   "discord-production.yml",
   "twitch-production.yml",
   "discord-runner-smoke.yml",
+  "production-release.yml",
 ])
-  for (const job of Object.values(readWorkflow(name).jobs))
-    for (const step of job.steps)
-      if (step.uses) assert.match(step.uses, /@[a-f0-9]{40}$/)
+  for (const job of Object.values(readWorkflow(name).jobs)) {
+    if (job.uses) requirePinned(job.uses)
+    for (const step of job.steps ?? []) if (step.uses) requirePinned(step.uses)
+  }
+
+const smoke = readWorkflow("discord-runner-smoke.yml")
+assert.equal(smoke.concurrency["cancel-in-progress"], false)
+assert.equal(smoke.jobs.smoke.if, "github.ref == 'refs/heads/main'")
+assert.equal(smoke.jobs.smoke.environment, "discord-production")
+assert.equal(smoke.jobs.smoke["runs-on"], "cleo-prod")
+assert.ok(
+  !smoke.jobs.smoke.steps.some((step) =>
+    step.uses?.startsWith("actions/checkout@")
+  )
+)
 
 const gate = workflow.jobs.regression
-for (const name of [
-  "discord-production.yml",
-  "twitch-production.yml",
-  "discord-runner-smoke.yml",
-]) {
-  const production = readWorkflow(name)
-  assert.equal(production.concurrency["cancel-in-progress"], false)
-  for (const job of Object.values(production.jobs)) {
-    assert.ok(job.if.includes("github.ref == 'refs/heads/main'"))
-    if (job["runs-on"] === "cleo-prod") {
-      assert.ok(
-        ["discord-production", "twitch-production"].includes(job.environment)
-      )
-      assert.ok(
-        !job.steps.some((item) => item.uses?.startsWith("actions/checkout@"))
-      )
-    }
+await import("./test-discord-workflow.mjs")
+await import("./test-production-security.mjs")
+await import("./test-production-policy.mjs")
+await import("./test-production-workflow.mjs")
+const archiveGuard = spawnSync(
+  "bash",
+  [".github/scripts/test-discord-archive-guard.sh"],
+  {
+    cwd: root,
+    encoding: "utf8",
   }
-}
+)
+assert.ifError(archiveGuard.error)
+assert.equal(archiveGuard.status, 0, archiveGuard.stdout + archiveGuard.stderr)
 assert.equal(gate.name, "Tests, lint, typecheck, and coverage")
 assert.deepEqual(gate.needs, required)
 assert.equal(gate.if, "always()")

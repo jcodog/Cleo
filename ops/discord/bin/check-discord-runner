@@ -144,6 +144,8 @@ sudo -n -u "$runtime_user" "$env_check" "$env_file" ||
   fail "Discord production environment validation failed"
 sudo -n -l /usr/bin/systemctl restart "$service_name" >/dev/null 2>&1 ||
   fail "missing sudo rule for restarting $service_name"
+sudo -n -l /usr/bin/systemctl reset-failed "$service_name" >/dev/null 2>&1 ||
+  fail "missing sudo rule for resetting $service_name"
 sudo -n -l /usr/bin/systemctl stop "$service_name" >/dev/null 2>&1 ||
   fail "missing sudo rule for stopping $service_name"
 sudo -n -l /usr/bin/systemctl start "$command_service_name" >/dev/null 2>&1 ||
