@@ -333,11 +333,13 @@ records success only after readiness and Discord command verification. Confirmed
 rollback failure records failure. Rollback success is recovery intent for the main
 revision observed when claimed, not a deploy baseline for that revision.
 
-Cancellation, signal termination, incomplete verification, or API loss before
-confirmation leaves an uncertain receipt pending/in progress. Such outcomes are
-never automatically marked successful or cleared. Inspect actual host state and
-logs to reconcile them. Repeated controlled recovery creates a separate owned
-intent. Failed and rollback receipts never become trusted deployment baselines;
+Cancellation, signal termination and incomplete verification preserve unfinished
+receipts. An API response can also be lost after GitHub persists a terminal status.
+The caller reports failure without claiming success, and a retry reads the persisted
+status and rejects another completion. Unfinished uncertain outcomes are never
+automatically marked successful or cleared. Inspect the persisted receipt, actual
+host state and logs to reconcile them. Repeated controlled recovery creates a
+separate owned intent. Failed and rollback receipts never become trusted deployment baselines;
 rollback intent holds its observed main revision against historical automatic
 runs regardless of terminal success or failure. The shared production lock still
 covers validation, backend, both runtime activations and recovery.
@@ -364,7 +366,10 @@ fixtures. Twitch extraction is scoped to its own package job. Historical hosted 
 [run `38655961433`](https://github.com/jcodog/Cleo/actions/runs/38655961433)
 passed all four parallel jobs and the aggregate at signed HEAD
 `83fb75ab3e668c3d861b97e063440af9a03e4600`, including the security, receipt lifecycle
-and contract-5 Linux recovery fixtures. These successes authenticate those exact
+and contract-5 Linux recovery fixtures. The later
+[run `38728605136`](https://github.com/jcodog/Cleo/actions/runs/38728605136)
+also passed all five checks at signed HEAD `25ea6eb9a024365a87a8b7b87f82b723303a5f4e`.
+These successes authenticate those exact
 revisions only. Each later commit needs its own successful complete hosted
 regression; the PR description records the latest checked SHA and run.
 

@@ -66,6 +66,14 @@ exit "$CONTROLLER_STATUS"
    * @returns {object} Exit status, outputs, summary and command order for preflight/interruption assertions.
    */
   const run = (script, patch = {}) => {
+    // Real operator credentials must never influence or reach disposable adapters.
+    const environment = {
+      ...process.env,
+      GITHUB_TOKEN: "ambient-fixture-github-token",
+      CONVEX_DEPLOY_KEY: "ambient-fixture-convex-key",
+    }
+    for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"])
+      delete environment[key]
     const output = join(directory, "outputs")
     const calls = join(directory, "calls")
     const summary = join(directory, "summary")
@@ -74,7 +82,7 @@ exit "$CONTROLLER_STATUS"
       encoding: "utf8",
       timeout: 10000,
       env: {
-        ...process.env,
+        ...environment,
         PATH: `${bin}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`,
         GH_TOKEN: "fixture-github-token",
         CLEO_DISCORD_HOST_NODE: policyNode,

@@ -20,6 +20,8 @@ test("service manifests keep runtime scope while shared infrastructure selects a
     "ops/convex/production.env.example",
     ".github/workflows/production-release.yml",
     ".github/scripts/production-policy.mjs",
+    "apps/discord-bot/src/deployment/classifyChanges.ts",
+    "apps/discord-bot/src/deployment/classifyChanges.test.ts",
   ]) {
     assert.equal(isConvexDeployPath(file), true)
     assert.equal(isDiscordDeployPath(file), true)

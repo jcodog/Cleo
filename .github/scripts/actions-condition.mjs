@@ -118,7 +118,7 @@ export function evaluate(expression, context, statuses) {
     let value = comparison()
     while (take("&&")) {
       const right = comparison()
-      value = Boolean(value && right)
+      value = value && right
     }
     return value
   }
@@ -127,7 +127,7 @@ export function evaluate(expression, context, statuses) {
     let value = and()
     while (take("||")) {
       const right = and()
-      value = Boolean(value || right)
+      value = value || right
     }
     return value
   }

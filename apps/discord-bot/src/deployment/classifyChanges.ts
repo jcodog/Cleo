@@ -258,6 +258,7 @@ export function isConvexDeployPath(file: string): boolean {
       ".github/workflows/production-release.yml",
       ".github/scripts/production-policy.mjs",
       "apps/discord-bot/src/deployment/classifyChanges.ts",
+      "apps/discord-bot/src/deployment/classifyChanges.test.ts",
     ].includes(file) ||
     /^tsconfig(?:\.[^/]+)?\.json$/.test(file)
   )

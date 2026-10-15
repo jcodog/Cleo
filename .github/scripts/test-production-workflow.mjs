@@ -298,6 +298,15 @@ assert.equal(evaluate("!cancelled()", {}, ["cancelled"]), false)
 assert.equal(evaluate("failure() && !cancelled()", {}, ["failure"]), true)
 assert.equal(evaluate("true || false && false", {}, []), true)
 assert.equal(evaluate("(true || false) && false", {}, []), false)
+for (const expression of [
+  "('release' || 'other') == 'release'",
+  "('' || 'other') == 'other'",
+  "('release' && 'other') == 'other'",
+  "('' && 'other') == ''",
+  "(0 || 7) == 7",
+  "(false && 'other') == false",
+])
+  assert.equal(evaluate(expression, {}, []), true, expression)
 const mainSha = "a".repeat(40)
 const sourceRun = {
   repository: { full_name: "jcodog/Cleo" },
@@ -328,9 +337,10 @@ function graph({
   overrides = {},
   autoEnabled = "true",
   evidence,
+  candidate = workflow,
 } = {}) {
   const results = {}
-  for (const [id, job] of Object.entries(workflow.jobs)) {
+  for (const [id, job] of Object.entries(candidate.jobs)) {
     const dependencies =
       typeof job.needs === "string" ? [job.needs] : (job.needs ?? [])
     const needs = Object.fromEntries(
@@ -402,15 +412,17 @@ function graph({
   return results
 }
 const productionJobs = ["backend", "discord-activate", "twitch-activate"]
+const rollbackJobs = ["discord-rollback", "twitch-rollback"]
 /** Require all production mutation jobs to be skipped for rejected event/dependency evidence. */
 const assertBlocked = (result) => {
-  for (const id of productionJobs)
+  for (const id of [...productionJobs, ...rollbackJobs])
     assert.equal(result[id].result, "skipped", id)
 }
 for (const autoEnabled of ["", "false", "yes", " true"])
   assertBlocked(graph({ autoEnabled }))
 const success = graph()
 for (const id of productionJobs) assert.equal(success[id].result, "success")
+for (const id of rollbackJobs) assert.equal(success[id].result, "skipped", id)
 for (const evidence of rejectedEvidence) assertBlocked(graph({ evidence }))
 for (const conclusion of ["failure", "cancelled", "skipped", null])
   assertBlocked(
@@ -502,8 +514,6 @@ for (const [operation, service, expected] of [
       overrides: { control: "failure" },
     })
     assertBlocked(rejected)
-    for (const runtime of ["discord", "twitch"])
-      assert.equal(rejected[`${runtime}-rollback`].result, "skipped")
   }
 }
 assertBlocked(
@@ -512,15 +522,35 @@ assertBlocked(
     inputs: { operation: "validate", sha: mainSha },
   })
 )
+/** Require incident recovery to select exactly one runtime and no forward mutation. */
+const assertRecovery = (recovery, service) => {
+  assert.equal(recovery[`${service}-rollback`].result, "success")
+  assert.equal(
+    recovery[`${service === "discord" ? "twitch" : "discord"}-rollback`].result,
+    "skipped"
+  )
+  assert.equal(recovery.authorise.result, "skipped")
+  for (const id of productionJobs)
+    assert.equal(recovery[id].result, "skipped", id)
+}
 for (const service of ["discord", "twitch"]) {
-  const recovery = graph({
+  const options = {
     githubContext: manualGithub,
     inputs: { operation: "rollback", service },
     overrides: { authorise: "failure", backend: "failure" },
-  })
-  assert.equal(recovery[`${service}-rollback`].result, "success")
-  assert.equal(recovery.authorise.result, "skipped")
-  assertBlocked(recovery)
+  }
+  assertRecovery(graph(options), service)
+  const candidate = structuredClone(workflow)
+  candidate.jobs[
+    `${service === "discord" ? "twitch" : "discord"}-rollback`
+  ].if = "always()"
+  assert.throws(() => assertRecovery(graph({ ...options, candidate }), service))
+}
+for (const id of rollbackJobs) {
+  const candidate = structuredClone(workflow)
+  candidate.jobs[id].if = "always()"
+  assert.throws(() => assertBlocked(graph({ candidate })), id)
+  assert.throws(() => assertBlocked(graph({ candidate, autoEnabled: "" })), id)
 }
 
 // Trace real dependencies to production actions, and inspect each action's guard.
