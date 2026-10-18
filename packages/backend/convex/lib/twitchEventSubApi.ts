@@ -19,7 +19,7 @@ const pageSchema = z.object({
   pagination: z.object({ cursor: z.string().optional() }).optional(),
 })
 export class EventSubProviderError extends Error {
-  constructor(readonly kind: "failed" | "providerUnavailable") {
+  constructor(readonly kind: "failed" | "providerUnavailable" | "revoked") {
     super("Twitch subscription operation unavailable.")
   }
 }
@@ -65,7 +65,7 @@ export class TwitchEventSubApi {
       "Content-Type": "application/json",
     }
   }
-  async find(token: string, key: EventKey, condition: Record<string, string>) {
+  async find(token: string, key: EventKey, condition: Record<string, string>, reauthorize = false) {
     const definition = eventDefinitions[key]
     const cursors = new Set<string>()
     let cursor: string | undefined
@@ -91,6 +91,8 @@ export class TwitchEventSubApi {
           )
       )
       for (const row of matches) {
+        if (key === "chatMessage" && row.status === "authorization_revoked" && !reauthorize)
+          throw new EventSubProviderError("revoked")
         if (
           row.status === "enabled" ||
           row.status === "webhook_callback_verification_pending"

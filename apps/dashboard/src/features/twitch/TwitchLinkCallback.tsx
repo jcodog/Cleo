@@ -42,7 +42,7 @@ export function TwitchLinkCallback() {
           )
           return
         }
-        const result = await sync({})
+        const result = await sync({ reauthorizeTwitch: true })
         if (result.status !== "ready") {
           setFailure(
             "The account provider is unavailable. Retry sync from your Twitch workspace."

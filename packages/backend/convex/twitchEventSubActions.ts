@@ -32,19 +32,27 @@ export function controlPlaneConfig() {
   return config
 }
 export const reconcile = internalAction({
-  args: { subscription: v.id("twitchEventSubscriptions") },
+  args: {
+    subscription: v.id("twitchEventSubscriptions"),
+    attempt: v.optional(v.number()),
+    reauthorize: v.optional(v.boolean()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const lease = randomUUID()
     const row = await ctx.runMutation(internal.twitchEventSub.acquire, {
-      ...args,
+      subscription: args.subscription,
       lease,
     })
     if (!row) return null
     let subscriptionId = row.subscriptionId
     let status:
-      "disabled" | "ready" | "connecting" | "failed" | "providerUnavailable" =
-      "disabled"
+      | "disabled"
+      | "ready"
+      | "connecting"
+      | "failed"
+      | "providerUnavailable"
+      | "revoked" = "disabled"
     try {
       if (!isEventKey(row.key)) throw new Error("Unknown event.")
       const api = new TwitchEventSubApi({
@@ -59,8 +67,56 @@ export const reconcile = internalAction({
         if (existing) await api.delete(token, existing.id)
         subscriptionId = undefined
       } else {
+        if (row.key === "chatMessage") {
+          if (row.status === "revoked") {
+            status = "failed"
+            throw new EventSubProviderError("failed")
+          }
+          const consumer = row.consumers.find((value) =>
+            value.startsWith("chat:")
+          )
+          const owner = consumer
+            ? await ctx.runQuery(internal.twitchChat.contextForConsumer, {
+                consumer,
+              })
+            : null
+          if (
+            !owner?.runtimeReady ||
+            backendEnv.TWITCH_CHAT_PRESENCE_ENABLED !== "true"
+          )
+            throw new EventSubProviderError("providerUnavailable")
+          const source =
+            owner.user &&
+            owner.user.status !== "disabled" &&
+            owner.discord.length === 1 &&
+            owner.discord[0] &&
+            owner.twitch[0]
+              ? await verifyOwnerTwitch(
+                  {
+                    status: "linked",
+                    user: owner.user,
+                    discord: owner.discord[0],
+                    twitch: owner.twitch[0],
+                    twitchAccounts: owner.twitch,
+                  },
+                  ["channel:bot"],
+                  controlPlaneConfig().clientId
+                )
+              : null
+          if (
+            source?.status === "unavailable" ||
+            source?.status === "configurationUnavailable"
+          )
+            throw new EventSubProviderError("providerUnavailable")
+          if (
+            source?.status !== "ready" ||
+            source.broadcasterId !== row.broadcasterId ||
+            source.broadcasterId === controlPlaneConfig().botId
+          )
+            throw new EventSubProviderError("failed")
+        }
         const subscription =
-          (await api.find(token, row.key, row.condition)) ??
+          (await api.find(token, row.key, row.condition, args.reauthorize)) ??
           (await api.create(token, row.key, row.condition))
         subscriptionId = subscription.id
         status = subscription.status === "enabled" ? "ready" : "connecting"
@@ -72,7 +128,7 @@ export const reconcile = internalAction({
           : "providerUnavailable"
     }
     await ctx.runMutation(internal.twitchEventSub.settle, {
-      ...args,
+      subscription: args.subscription,
       lease,
       revision: row.revision,
       subscriptionId,
@@ -81,6 +137,16 @@ export const reconcile = internalAction({
         ? { failure: status }
         : {}),
     })
+    if (
+      row.key === "chatMessage" &&
+      status === "providerUnavailable" &&
+      (args.attempt ?? 0) < 3
+    )
+      await ctx.scheduler.runAfter(
+        30000 * 2 ** (args.attempt ?? 0),
+        internal.twitchEventSubActions.reconcile,
+        { subscription: args.subscription, attempt: (args.attempt ?? 0) + 1 }
+      )
     if (status === "connecting")
       await ctx.scheduler.runAfter(
         5000,
@@ -120,6 +186,7 @@ export const confirmSubscription = internalAction({
           revoked: false,
           key: row.key,
           broadcasterId: row.broadcasterId,
+          confirmed: true,
         })
         return null
       }
@@ -262,6 +329,7 @@ export const reserveEvent = action({
       !/^[1-9]\d*$/.test(args.broadcasterId)
     )
       throw new ConvexError("Invalid event.")
+    if (args.key === "chatMessage") return { kind: "ignored" as const }
     if (args.eventJson) {
       if (args.eventJson.length > 65536) throw new ConvexError("Invalid event.")
       const event = eventDefinitions[args.key].parse(JSON.parse(args.eventJson))
@@ -369,6 +437,7 @@ export const webhookState = action({
     revoked: v.boolean(),
     key: v.optional(v.string()),
     broadcasterId: v.optional(v.string()),
+    reason: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, { secret, ...args }) => {

@@ -47,7 +47,7 @@ async function withEnvironment<T>(
   }
 }
 
-test("explicit smoke uses app lookup and bot grant chat, default/override only send on invocation", async () => {
+test("explicit smoke validates the bot grant and uses app chat, default/override only send on invocation", async () => {
   await withGrant(async (store, directory) => {
     await store.write(createGrant(botToken, apiConfig))
     const env = runtimeEnv(store.path, join(directory, "state.json"))
@@ -58,6 +58,8 @@ test("explicit smoke uses app lookup and bot grant chat, default/override only s
     const base = runtimeHttp()
     const http = httpFake((url, init) => {
       if (url.pathname.endsWith("messages")) {
+        assert.equal(new Headers(init.headers).get("Authorization"), "Bearer test-only-app")
+        assert.equal(JSON.parse(String(init.body)).sender_id, "111")
         sent.push(JSON.parse(String(init.body)).message)
         return json({ data: [{ is_sent: true, message_id: "test-message" }] })
       }

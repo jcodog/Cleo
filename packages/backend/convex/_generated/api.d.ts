@@ -8,7 +8,7 @@
  * @module
  */
 
-import type { FunctionReference } from "convex/server";
+import type { FunctionReference, FunctionReturnType } from "convex/server";
 import type { GenericId as Id } from "convex/values";
 
 /**
@@ -1135,7 +1135,7 @@ export declare const api: {
           sync: FunctionReference<
             "action",
             "public",
-            {},
+            { reauthorizeTwitch?: boolean },
             | {
                 linkedAccounts: Array<{
                   _creationTime: number;
@@ -2780,6 +2780,42 @@ export declare const api: {
       };
     };
   };
+  twitchChat: {
+    status: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        activated: boolean;
+        authorization: string;
+        botReady: boolean;
+        botValidUntil: number;
+        chat:
+          | "disabled"
+          | "connecting"
+          | "ready"
+          | "failed"
+          | "providerUnavailable"
+          | "revoked"
+          | "notConnected";
+        checkedAt?: number;
+      }
+    >;
+  };
+  twitchChatActions: {
+    reportReadiness: FunctionReference<
+      "action",
+      "public",
+      { botId: string; clientId: string; secret: string },
+      null
+    >;
+    retry: FunctionReference<
+      "action",
+      "public",
+      { reauthorize?: boolean },
+      string
+    >;
+  };
   twitchEventSub: {
     settings: FunctionReference<
       "query",
@@ -2862,6 +2898,7 @@ export declare const api: {
       {
         broadcasterId?: string;
         key?: string;
+        reason?: string;
         revoked: boolean;
         secret: string;
         subscriptionId: string;
@@ -6458,6 +6495,127 @@ export declare const internal: {
       };
     };
   };
+  twitchChat: {
+    context: FunctionReference<
+      "query",
+      "internal",
+      { userId: Id<"users"> },
+      {
+        discord: Array<{
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        }>;
+        evidence: string;
+        runtimeReady: boolean;
+        chatState:
+          | "disabled"
+          | "connecting"
+          | "ready"
+          | "failed"
+          | "providerUnavailable"
+          | "revoked"
+          | "notConnected";
+        twitch: Array<{
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        }>;
+        user: {
+          _creationTime: number;
+          _id: Id<"users">;
+          clerkUserId: string;
+          createdAt: number;
+          displayName?: string | null;
+          email: string;
+          imageUrl?: string | null;
+          onboardingCompletedAt?: number;
+          onboardingProvenance?: "pre-rollout" | "post-rollout";
+          onboardingVersion?: number;
+          role: "user" | "staff" | "admin" | "superadmin";
+          status?: "active" | "disabled";
+          updatedAt: number;
+        } | null;
+      }
+    >;
+    contextForConsumer: FunctionReference<
+      "query",
+      "internal",
+      { consumer: string },
+      null | Omit<
+        FunctionReturnType<typeof internal.twitchChat.context>,
+        "evidence" | "chatState"
+      >
+    >;
+    eligiblePage: FunctionReference<
+      "query",
+      "internal",
+      { cursor?: string },
+      { cursor: string | null; userIds: Array<Id<"users">> }
+    >;
+    reportReadiness: FunctionReference<
+      "mutation",
+      "internal",
+      { botId: string; clientId: string },
+      null
+    >;
+    save: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        authorization: string;
+        broadcasterId?: string;
+        evidence: string;
+        reauthorize: boolean;
+        userId: Id<"users">;
+      },
+      Array<Id<"twitchEventSubscriptions">>
+    >;
+  };
+  twitchChatActions: {
+    migrate: FunctionReference<
+      "action",
+      "internal",
+      { cursor?: string },
+      { cursor: string | null; deferred: number; processed: number }
+    >;
+    retire: FunctionReference<
+      "action",
+      "internal",
+      { cursor?: string },
+      { processed: number; cursor: string | null }
+    >;
+    syncUser: FunctionReference<
+      "action",
+      "internal",
+      { attempt?: number; userId: Id<"users">; reauthorize?: boolean },
+      null
+    >;
+  };
   twitchEventSub: {
     account: FunctionReference<
       "query",
@@ -6766,7 +6924,9 @@ export declare const internal: {
       "internal",
       {
         broadcasterId?: string;
+        confirmed?: boolean;
         key?: string;
+        reason?: string;
         revoked: boolean;
         subscriptionId: string;
       },
@@ -6783,7 +6943,11 @@ export declare const internal: {
     reconcile: FunctionReference<
       "action",
       "internal",
-      { subscription: Id<"twitchEventSubscriptions"> },
+      {
+        attempt?: number;
+        reauthorize?: boolean;
+        subscription: Id<"twitchEventSubscriptions">;
+      },
       null
     >;
     recover: FunctionReference<

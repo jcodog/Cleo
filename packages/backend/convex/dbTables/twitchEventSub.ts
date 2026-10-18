@@ -5,6 +5,18 @@ export const twitchEventConsumers = defineTable({
   subscription: v.id("twitchEventSubscriptions"),
 }).index("by_consumer", ["consumer"])
 
+export const twitchBotRuntime = defineTable({
+  key: v.literal("chat-v1"),
+  clientId: v.string(),
+  botId: v.string(),
+  updatedAt: v.number(),
+}).index("by_key", ["key"])
+export const twitchChatConnections = defineTable({
+  userId: v.id("users"),
+  authorization: v.string(),
+  checkedAt: v.number(),
+}).index("by_user", ["userId"])
+
 export const subscriptionStatus = v.union(
   v.literal("disabled"),
   v.literal("connecting"),

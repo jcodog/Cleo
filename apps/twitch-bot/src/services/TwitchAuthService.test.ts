@@ -67,7 +67,7 @@ test("auth keeps a validated app token, refreshes expired authorization and does
   })
 })
 
-test("chat uses the validated/refreshed persisted bot grant while app-only callers retain the app token", async () => {
+test("chat validates the persisted bot grant but sends with an app token and dedicated sender", async () => {
   for (const expired of [false, true])
     await withGrant(async (store) => {
       const grant = createGrant(botToken, apiConfig)
@@ -115,14 +115,14 @@ test("chat uses the validated/refreshed persisted bot grant while app-only calle
           assert.equal(url.pathname, "/helix/chat/messages")
           assert.equal(
             authorization,
-            `Bearer ${expired ? "refreshed-bot" : botToken.access_token}`
+            "Bearer app-only-token"
           )
           assert.deepEqual(JSON.parse(String(init.body)), {
             broadcaster_id: "222",
             sender_id: "111",
             message: "Hello Viewer",
           })
-          assert.equal(appRequests, 0)
+          assert.equal(appRequests, 1)
           sends++
           return json({ data: [{ message_id: "message", is_sent: true }] })
         })

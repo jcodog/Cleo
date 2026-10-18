@@ -45,8 +45,32 @@ test("client startup, token maintenance, local health, clean shutdown and failur
     await client.run(controller.signal)
     assert.equal(JSON.parse(await readFile(path, "utf8")).state, "stopped")
     assert.ok(calls.every((url) => !url.includes("subscriptions")))
-    assert.equal(calls.filter((url) => url.includes("convex")).length, 1)
+    assert.equal(calls.filter((url) => url.includes("convex")).length, 3)
     assert.equal(client.webhook.isListening, false)
+    const warnings: string[] = []
+    const reportAbort = new AbortController()
+    tick = () => reportAbort.abort()
+    const degraded = new TwitchClient(
+      config,
+      {
+        ...silentLogger,
+        warn: (message) => {
+          warnings.push(message)
+        },
+      },
+      async (input, init) => {
+        if (
+          String(input).includes("/api/action") &&
+          JSON.parse(String(init?.body)).path ===
+            "twitchChatActions:reportReadiness"
+        )
+          throw new Error("temporary provider failure")
+        return request(input, init)
+      }
+    )
+    await degraded.run(reportAbort.signal)
+    assert.deepEqual(warnings, ["Twitch control-plane readiness unavailable"])
+    assert.equal(JSON.parse(await readFile(path, "utf8")).state, "stopped")
     const failed = new TwitchClient(config, silentLogger, async () => {
       throw new Error("network")
     })

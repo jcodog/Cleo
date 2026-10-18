@@ -2537,6 +2537,43 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  twitchBotRuntime: {
+    document: {
+      botId: string;
+      clientId: string;
+      key: "chat-v1";
+      updatedAt: number;
+      _id: Id<"twitchBotRuntime">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      "_creationTime" | "_id" | "botId" | "clientId" | "key" | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_key: ["key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchChatConnections: {
+    document: {
+      authorization: string;
+      checkedAt: number;
+      userId: Id<"users">;
+      _id: Id<"twitchChatConnections">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      "_creationTime" | "_id" | "authorization" | "checkedAt" | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_user: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   twitchEventConsumers: {
     document: {
       consumer: string;

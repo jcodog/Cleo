@@ -26,9 +26,362 @@ const modules = {
   "./http.ts": () => import("./http"),
   "./twitchEventSub.ts": () => import("./twitchEventSub"),
   "./twitchEventSubActions.ts": () => import("./twitchEventSubActions"),
+  "./twitchChat.ts": () => import("./twitchChat"),
+  "./twitchChatActions.ts": () => import("./twitchChatActions"),
+  "./mutations/integrations/clerk/users.ts": () =>
+    import("./mutations/integrations/clerk/users"),
   "./queries/bot/discord/guildConfigs/runtimeConfigByDiscordId.ts": () =>
     import("./queries/bot/discord/guildConfigs/runtimeConfigByDiscordId"),
 }
+
+async function activateChat(
+  t: TestContext,
+  backend: ReturnType<typeof convexTest>
+) {
+  const { backendEnv } = await import("@workspace/env/backend")
+  const previous = Object.getOwnPropertyDescriptor(
+    backendEnv,
+    "TWITCH_CHAT_PRESENCE_ENABLED"
+  )!
+  Object.defineProperty(backendEnv, "TWITCH_CHAT_PRESENCE_ENABLED", {
+    ...previous,
+    value: "true",
+  })
+  t.after(() =>
+    Object.defineProperty(backendEnv, "TWITCH_CHAT_PRESENCE_ENABLED", previous)
+  )
+  await backend.action(api.twitchChatActions.reportReadiness, {
+    secret: "test-runtime-secret",
+    clientId: "test-client",
+    botId: "111",
+  })
+}
+
+test("chat verification requires provider confirmation and transport failures repair without OAuth reconnect", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: false,
+  })
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "connecting"
+  )
+  await f.t.action(internal.twitchEventSubActions.confirmSubscription, {
+    subscription: row._id,
+    attempt: 0,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  f.externalSubscriptions[0]!.status = "notification_failures_exceeded"
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: true,
+    reason: "notification_failures_exceeded",
+  })
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "providerUnavailable"
+  )
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    2
+  )
+})
+
+test("disabled users lose chat consumers; trusted replacement identity gets a new subscription", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const original = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        id: "owner",
+        email_addresses: [{ email_address: "owner@example.com" }],
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+          {
+            provider: "oauth_twitch",
+            provider_user_id: "444",
+            approved_scopes: "channel:bot",
+          },
+        ],
+      },
+    }
+  )
+  f.setLinkedId("444")
+  f.setTokenId("444")
+  await f.t.action(internal.twitchChatActions.syncUser, {
+    userId: f.ids.ownerId,
+  })
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: original._id,
+  })
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(f.externalSubscriptions[0]!.condition.broadcaster_user_id, "444")
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.deleteFromWebhook,
+    { clerkUserId: "owner" }
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchEventConsumers").collect()))
+      .length,
+    0
+  )
+  await assert.rejects(
+    owner.action(api.twitchChatActions.retry, {}),
+    /disabled/
+  )
+})
+
+test("chat creation uses app credentials, exact bot condition, leases and idempotent migration across restarts", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "notConnected"
+  )
+  assert.equal(await owner.action(api.twitchChatActions.retry, {}), "ready")
+  const post = f.subscriptionRequests.find((r) => r.method === "POST")
+  assert.deepEqual(post?.body, {
+    type: "channel.chat.message",
+    version: "1",
+    condition: { broadcaster_user_id: "222", user_id: "111" },
+    transport: {
+      method: "webhook",
+      callback: "https://test.example/eventsub",
+      secret: process.env.TWITCH_EVENTSUB_SECRET,
+    },
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  await owner.action(api.twitchChatActions.retry, {})
+  await f.t.action(internal.twitchChatActions.migrate, {})
+  await f.t.action(api.twitchChatActions.reportReadiness, {
+    secret: "test-runtime-secret",
+    clientId: "test-client",
+    botId: "111",
+  })
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchEventConsumers").collect()))
+      .length,
+    1
+  )
+  const rows = await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").collect()
+  )
+  const row = rows[0]!
+  await f.t.mutation(internal.twitchEventSub.acquire, {
+    subscription: row._id,
+    lease: "one",
+  })
+  assert.equal(
+    await f.t.mutation(internal.twitchEventSub.acquire, {
+      subscription: row._id,
+      lease: "two",
+    }),
+    null
+  )
+  await f.t.mutation(internal.twitchEventSub.settle, {
+    subscription: row._id,
+    lease: "one",
+    revision: row.revision,
+    status: "ready",
+    subscriptionId: row.subscriptionId,
+  })
+  f.externalSubscriptions.splice(0)
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    2
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchWebhookReceipts").collect()))
+      .length,
+    0
+  )
+  assert.deepEqual(
+    await f.t.action(api.twitchEventSubActions.reserveEvent, {
+      secret: "test-runtime-secret",
+      key: "chatMessage",
+      messageId: "chat-legacy",
+      broadcasterId: "222",
+      eventJson: "private text",
+    }),
+    { kind: "ignored" }
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchWebhookReceipts").collect()))
+      .length,
+    0
+  )
+})
+
+test("chat activation fails closed without matching fresh runtime and broadcaster scopes", async (t) => {
+  const f = await fixture()
+  const owner = f.t.withIdentity({ subject: "owner" })
+  assert.equal(
+    await owner.action(api.twitchChatActions.retry, {}),
+    "activationRequired"
+  )
+  assert.equal(f.subscriptionRequests.length, 0)
+  await assert.rejects(
+    f.t.action(api.twitchChatActions.reportReadiness, {
+      secret: "wrong",
+      clientId: "test-client",
+      botId: "111",
+    }),
+    /Unauthorized/
+  )
+  await assert.rejects(
+    f.t.action(api.twitchChatActions.reportReadiness, {
+      secret: "test-runtime-secret",
+      clientId: "wrong",
+      botId: "111",
+    }),
+    /identity mismatch/
+  )
+  await activateChat(t, f.t)
+  await f.t.run(async (ctx) => {
+    const runtime = (await ctx.db.query("twitchBotRuntime").collect())[0]!
+    await ctx.db.patch(runtime._id, { updatedAt: Date.now() - 100000 })
+  })
+  assert.equal(
+    await owner.action(api.twitchChatActions.retry, {}),
+    "runtimeUnavailable"
+  )
+  assert.equal(f.subscriptionRequests.length, 0)
+  await f.t.action(api.twitchChatActions.reportReadiness, {
+    secret: "test-runtime-secret",
+    clientId: "test-client",
+    botId: "111",
+  })
+  f.setScopes([])
+  assert.equal(
+    await owner.action(api.twitchChatActions.retry, {}),
+    "missingPermission"
+  )
+  f.setScopes(["channel:bot"])
+  f.setClientId("wrong-client")
+  assert.equal(await owner.action(api.twitchChatActions.retry, {}), "stale")
+  f.setClientId("test-client")
+  f.setTokenId("111")
+  assert.equal(await owner.action(api.twitchChatActions.retry, {}), "stale")
+  assert.equal(f.subscriptionRequests.length, 0)
+  await assert.rejects(f.t.action(api.twitchChatActions.retry, {}), /signed in/)
+})
+
+test("provider failure preserves chat consumers; authorization revocation blocks automatic restoration; unlink cleans up", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  f.setUnavailable()
+  assert.equal(
+    await owner.action(api.twitchChatActions.retry, {}),
+    "unavailable"
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    1
+  )
+  f.setUnavailable(false)
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: true,
+    reason: "authorization_revoked",
+  })
+  await f.t.action(internal.twitchChatActions.migrate, {})
+  await owner.action(api.twitchChatActions.retry, {})
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: false,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+  await owner.action(api.twitchChatActions.retry, { reauthorize: true })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  f.setSubscriptionUnavailable(true)
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "providerUnavailable"
+  )
+  f.setSubscriptionUnavailable(false)
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        id: "owner",
+        email_addresses: [{ email_address: "owner@example.com" }],
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+        ],
+      },
+    }
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    0
+  )
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal(f.externalSubscriptions.length, 0)
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "notConnected"
+  )
+  assert.equal(
+    (
+      await f.t.run((ctx) =>
+        ctx.db
+          .query("linkedAccounts")
+          .withIndex("by_user_provider", (q) =>
+            q.eq("userId", f.ids.ownerId).eq("provider", "twitch")
+          )
+          .collect()
+      )
+    ).length,
+    0
+  )
+})
 const guildDiscordId = "123456789012345678"
 const ownerDiscordId = "234567890123456789"
 const managerDiscordId = "345678901234567890"
@@ -237,6 +590,11 @@ async function fixture(options: FixtureOptions = {}) {
         token_type: "bearer",
       })
     if (url.pathname.endsWith("subscriptions")) {
+      assert.equal(
+        new Headers(init?.headers).get("Authorization"),
+        "Bearer app-token"
+      )
+      assert.equal(new Headers(init?.headers).get("Client-Id"), "test-client")
       if (subscriptionUnavailable) return Response.json({}, { status: 503 })
       if (init?.method === "POST") {
         const body = JSON.parse(String(init.body))
