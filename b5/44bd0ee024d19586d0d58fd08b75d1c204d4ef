@@ -1,0 +1,85 @@
+packages/backend/convex/dbTables/twitchEventSub.ts
+  s_d20ad3c78d98f3::t_496cd347a5ab9d 22-33,39-40,50-52
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 34-38
+packages/backend/convex/twitchConsentActions.ts
+  s_d20ad3c78d98f3::t_ee7427e6df3a65 28
+  s_d20ad3c78d98f3::t_7c423f7dd2bd9a 149
+  s_d20ad3c78d98f3::t_e05ab6dfcbc632 1-11,13,30-31,34,44-48,67-69,73-74,79-80,87,97-100,103,110-111,116-117,129-131,161-162,169-170,179-185
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 14-27,29,32-33,35-43,49-66,70-72,75-77,81-86,88-96,101-102,104-109,112-115,118-128,132-148,150-160,163-168,171-173,175-178
+  s_d20ad3c78d98f3::t_c6f8b15f276a66 12,78,174
+apps/dashboard/src/features/twitch/ChatConnection.test.ts
+  s_d20ad3c78d98f3::t_0c733a51602c34 25-28,33-34,126-128
+  s_d20ad3c78d98f3::t_049c9c5215e3eb 23-24,35,124-125,129-131
+packages/backend/convex/liveNotifications.test.ts
+  s_d20ad3c78d98f3::t_1fd48bf0c73681 7-8,15-16,32-37,46-64,422,486,551,647-989,1148-1150,1180,1187,1195-1228,1325-1333
+  s_d20ad3c78d98f3::t_0f8ba6799ff3e2 555
+packages/backend/convex/_generated/api.d.ts
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 11,1139,2784-2792,2822,6503-6539,6747-6749,6968-6970
+packages/backend/convex/schema.ts
+  s_d20ad3c78d98f3::t_496cd347a5ab9d 17,57
+packages/backend/convex/actions/dashboard/account/syncLinkedAccounts.ts
+  s_d20ad3c78d98f3::t_c6f8b15f276a66 3
+  s_d20ad3c78d98f3::t_496cd347a5ab9d 11,13,32
+apps/dashboard/src/features/twitch/TwitchConsentCallback.tsx
+  s_d20ad3c78d98f3::t_57a5fedd8fbed3 14-18
+  s_d20ad3c78d98f3::t_ee7427e6df3a65 36
+  s_d20ad3c78d98f3::t_fa02479b78828f 23,31,35
+  s_d20ad3c78d98f3::t_d88f841def8b32 1-13,19-22,24-30,33-34,37-44
+  s_d20ad3c78d98f3::t_db5ff8d67a6b00 32
+packages/backend/convex/twitchEventSub.ts
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 5,241,270,282,289-292,294-301,409-410,412-418
+  s_d20ad3c78d98f3::t_57a5fedd8fbed3 397-401
+packages/backend/convex/_generated/dataModel.d.ts
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 2559-2598,2636-2638,2662-2664
+apps/dashboard/src/features/twitch/TwitchConsentCallback.test.ts
+  s_d20ad3c78d98f3::t_049c9c5215e3eb 1-8,11-12,14-20,23-31,80-81,105-111,116-118,127-128
+  s_d20ad3c78d98f3::t_0c733a51602c34 9-10,13,21-22,32-47,50-79,82-104,112-115,119-126
+  s_d20ad3c78d98f3::t_57a5fedd8fbed3 48-49
+docs/twitch/chatbot-rollout.md
+  s_d20ad3c78d98f3::t_ef266830993bf7 42-58
+packages/backend/convex/lib/twitchRevocation.ts
+  s_d20ad3c78d98f3::t_496cd347a5ab9d 1-3,14
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 4-13
+apps/dashboard/src/features/twitch/TwitchLinkCallback.tsx
+  s_d20ad3c78d98f3::t_496cd347a5ab9d 45
+packages/backend/convex/twitchChat.ts
+  s_d20ad3c78d98f3::t_0f8ba6799ff3e2 16,30-32,169
+apps/dashboard/src/app/(app)/twitch/chat-consent/page.tsx
+  s_d20ad3c78d98f3::t_d88f841def8b32 1-10,12-16
+  s_d20ad3c78d98f3::t_adec4da74eea5d 11
+packages/backend/convex/twitchConsent.ts
+  s_d20ad3c78d98f3::t_e05ab6dfcbc632 1-3,10-15,25,30-32,53-55,62-65,86,95-96,109,113-119,131-139,147-149,156,168-176,185-195
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 4-9,16-24,26-29,33-52,56-61,66-85,87-94,97-108,110-112,120-130,140-146,150-155,157-167,177-184
+packages/env/src/backend.ts
+  s_d20ad3c78d98f3::t_496cd347a5ab9d 28
+docs/twitch/architecture.md
+  s_d20ad3c78d98f3::t_0f8ba6799ff3e2 56
+apps/dashboard/src/features/twitch/ChatConnection.tsx
+  s_d20ad3c78d98f3::t_ee7427e6df3a65 73
+  s_d20ad3c78d98f3::t_d88f841def8b32 26,32,66-72,74-77,107-122
+packages/backend/convex/twitchEventSubActions.ts
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 19,71,118-122,124-129,183,214
+  s_d20ad3c78d98f3::t_fa02479b78828f 66
+packages/backend/convex/twitchChatActions.ts
+  s_d20ad3c78d98f3::t_cd0c690e70c4e3 23,64,80,105,107,109
+packages/backend/package.json
+  s_d20ad3c78d98f3::t_2151b9ea5b2a38 21-24
+bun.lock
+  s_d20ad3c78d98f3::t_fe5dbdc14ec317 120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b544bd0ee024d19586d0d58fd08b75d1c204d4ef",
+  "prompts": {},
+  "sessions": {
+    "s_d20ad3c78d98f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14fa3-5911-7843-a950-5e71700ea197",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
