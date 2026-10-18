@@ -1,0 +1,75 @@
+packages/backend/convex/lib/twitchEventSubApi.ts
+  s_d20ad3c78d98f3::t_554712b729176a 68-73,99-103
+packages/backend/convex/twitchChat.ts
+  s_d20ad3c78d98f3::t_554712b729176a 180,203-207,209-255,257-281,284-303
+  s_d20ad3c78d98f3::t_5e989007dcb474 196,199,201-202
+  s_d20ad3c78d98f3::t_27ced4d2a85081 198
+packages/backend/convex/_generated/api.d.ts
+  s_d20ad3c78d98f3::t_554712b729176a 6499-6521,6960-6962,6969-6970
+  s_d20ad3c78d98f3::t_85be0abdac8b98 6963-6968
+packages/backend/convex/dbTables/twitchEventSub.ts
+  s_d20ad3c78d98f3::t_554712b729176a 6-8
+packages/backend/convex/_generated/dataModel.d.ts
+  s_d20ad3c78d98f3::t_682c34ed30f81d 2589
+docs/twitch/chatbot-rollout.md
+  s_d20ad3c78d98f3::t_c1b3d3b4cd2cc6 38-41
+packages/backend/convex/twitchEventSubActions.ts
+  s_d20ad3c78d98f3::t_4a108c8d647274 148,159-160,167-168,178,183-185,191
+  s_d20ad3c78d98f3::t_554712b729176a 161,163-166,179-182,186-190,193
+  s_d20ad3c78d98f3::t_5e989007dcb474 162,169,171-177
+  s_d20ad3c78d98f3::t_49a1382674110a 170,192,194
+packages/backend/convex/twitchEventSub.ts
+  s_d20ad3c78d98f3::t_4a108c8d647274 277,298,300
+  s_d20ad3c78d98f3::t_554712b729176a 273-276,278-281,283-286,405-410
+  s_d20ad3c78d98f3::t_5e989007dcb474 282
+packages/backend/convex/liveNotifications.test.ts
+  s_d20ad3c78d98f3::t_0e10d33072d550 64,95,145,158,197,417,445-448,457,459,462-467,469,472-475,486,492,497,500-545,548-558,560-562,565,592-593,596-597,600,607,610-612,614-617
+  s_d20ad3c78d98f3::t_a2ab29ea3a2f5c 61-63
+  s_d20ad3c78d98f3::t_6bb3d4c6394732 65-66
+  s_d20ad3c78d98f3::t_7b79cce14aaf92 92-94
+  s_d20ad3c78d98f3::t_1cb90ed5213357 444
+  s_d20ad3c78d98f3::t_9d9cce6f3f8936 449-451,454-456
+  s_d20ad3c78d98f3::t_ee619058f17493 458
+  s_d20ad3c78d98f3::t_24913bdb50697a 460-461
+  s_d20ad3c78d98f3::t_ac381ffee8b9b2 468
+  s_d20ad3c78d98f3::t_b38288878adb71 470-471
+  s_d20ad3c78d98f3::t_cd9be4f6d97e81 476-478,483-485
+  s_d20ad3c78d98f3::t_aa5419c00d02ba 487-491
+  s_d20ad3c78d98f3::t_f36b16aada0dc7 493-496
+  s_d20ad3c78d98f3::t_6ef57df9e9e3bb 498-499
+  s_d20ad3c78d98f3::t_ed47e8d662954c 546-547
+  s_d20ad3c78d98f3::t_688db7f1ba80f6 559
+  s_d20ad3c78d98f3::t_9a62a54688c000 563-564
+  s_d20ad3c78d98f3::t_ad3ea2ff15a351 566-568,589-591
+  s_d20ad3c78d98f3::t_0418faa8be4719 594-595
+  s_d20ad3c78d98f3::t_d6769631781cbb 598-599
+  s_d20ad3c78d98f3::t_f00ee775457f2e 601-606
+  s_d20ad3c78d98f3::t_29ce92d6e29854 608-609
+  s_d20ad3c78d98f3::t_1daf68feaf15f7 613
+  s_d20ad3c78d98f3::t_46141e6fe63860 618
+  s_18e5402f62c917::t_812b9564ee100e 60,75,90-91,452-453,479-482,569-588
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86dba789e1f36c475dfd3ebc41a56193539b313b",
+  "prompts": {},
+  "sessions": {
+    "s_18e5402f62c917": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14fd9-ce8a-7262-a298-eafec7684565",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_d20ad3c78d98f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14fa3-5911-7843-a950-5e71700ea197",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
