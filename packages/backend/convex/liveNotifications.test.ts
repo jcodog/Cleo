@@ -151,6 +151,47 @@ test("disabled users lose chat consumers; trusted replacement identity gets a ne
   )
 })
 
+test("trusted Twitch account transfer removes the previous Cleo user's consumers", async (t) => {
+  const f = await fixture()
+  const twitchAccountId = f.ids.twitchAccountId
+  assert.ok(twitchAccountId)
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        id: "manager",
+        email_addresses: [{ email_address: "manager@example.com" }],
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: managerDiscordId },
+          {
+            provider: "oauth_twitch",
+            provider_user_id: "222",
+            approved_scopes: "channel:bot",
+          },
+        ],
+      },
+    }
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(twitchAccountId)))?.userId,
+    f.ids.managerId
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    0
+  )
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal(f.externalSubscriptions.length, 0)
+})
+
 test("chat creation uses app credentials, exact bot condition, leases and idempotent migration across restarts", async (t) => {
   const f = await fixture()
   await activateChat(t, f.t)

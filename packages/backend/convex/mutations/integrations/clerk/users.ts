@@ -212,6 +212,8 @@ async function syncExternalAccounts(
     }
 
     if (existing) {
+      if (provider === "twitch" && existing.userId !== userId)
+        await removeTwitchConsumers(ctx, existing.userId)
       await ctx.db.patch(existing._id, value)
       continue
     }
