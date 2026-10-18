@@ -884,6 +884,28 @@ test("unlink and provider deletion preserve the revocation barrier across truste
   )
 })
 
+test("consent completed near expiry receives a full bounded provider retry window", async (t) => {
+  const f = await revokedFixture(t)
+  const args = await startConsent(f)
+  const proof = (
+    await f.t.run((ctx) => ctx.db.query("twitchChatConsents").collect())
+  )[0]!
+  const originalExpiry = Date.now() + 5000
+  await f.t.run((ctx) => ctx.db.patch(proof._id, { expiresAt: originalExpiry }))
+  f.setSubscriptionUnavailable(true)
+  await f.owner.action(api.twitchConsentActions.finish, args)
+  const consumed = await f.t.run((ctx) => ctx.db.get(proof._id))
+  assert.equal(consumed?.state, "consumed")
+  assert.ok(consumed!.expiresAt > originalExpiry + 590000)
+  await f.t.mutation(internal.twitchConsent.expire, { consent: proof._id })
+  assert.ok(await f.t.run((ctx) => ctx.db.get(proof._id)))
+  await flushImmediate(f.t)
+  f.setSubscriptionUnavailable(false)
+  mock.timers.tick(30000)
+  await f.t.finishInProgressScheduledFunctions()
+  assert.equal((await f.owner.query(api.twitchChat.status, {})).chat, "ready")
+})
+
 test("a revocation during code verification invalidates the pending proof transaction", async (t) => {
   const f = await revokedFixture(t)
   const args = await startConsent(f)

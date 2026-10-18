@@ -153,7 +153,14 @@ export const consume = internalMutation({
       !row.consumers.includes(`chat:${proof.userId}`)
     )
       throw invalid()
-    await ctx.db.patch(proof._id, { state: "consumed" })
+    // Provider retries receive a full window even if consent completed near expiry.
+    await ctx.db.patch(proof._id, {
+      state: "consumed",
+      expiresAt: Date.now() + 600000,
+    })
+    await ctx.scheduler.runAfter(600001, internal.twitchConsent.expire, {
+      consent: proof._id,
+    })
     await ctx.db.patch(row._id, {
       authorizationRevoked: false,
       status: "connecting",
