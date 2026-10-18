@@ -145,7 +145,7 @@ export const reconcile = internalAction({
       await ctx.scheduler.runAfter(
         30000 * 2 ** (args.attempt ?? 0),
         internal.twitchEventSubActions.reconcile,
-        { subscription: args.subscription, attempt: (args.attempt ?? 0) + 1 }
+        { ...args, attempt: (args.attempt ?? 0) + 1 }
       )
     if (status === "connecting")
       await ctx.scheduler.runAfter(
@@ -153,6 +153,42 @@ export const reconcile = internalAction({
         internal.twitchEventSubActions.confirmSubscription,
         { subscription: args.subscription, attempt: 0 }
       )
+    return null
+  },
+})
+// A revocation that wins a reconciliation race must also retire its provider result.
+export const deleteRejected = internalAction({
+  args: {
+    subscription: v.id("twitchEventSubscriptions"),
+    subscriptionId: v.string(),
+    callback: v.string(),
+    attempt: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const row = await ctx.runQuery(internal.twitchEventSub.subscription, {
+      subscription: args.subscription,
+    })
+    if (
+      row?.subscriptionId === args.subscriptionId &&
+      row.status !== "revoked" &&
+      row.consumers.length
+    )
+      return null
+    try {
+      const api = new TwitchEventSubApi({
+        ...controlPlaneConfig(),
+        callback: args.callback,
+      })
+      await api.delete(await api.acquireToken(), args.subscriptionId)
+    } catch (error) {
+      if ((args.attempt ?? 0) >= 3) throw error
+      await ctx.scheduler.runAfter(
+        30000 * 2 ** (args.attempt ?? 0),
+        internal.twitchEventSubActions.deleteRejected,
+        { ...args, attempt: (args.attempt ?? 0) + 1 }
+      )
+    }
     return null
   },
 })

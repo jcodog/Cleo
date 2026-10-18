@@ -270,6 +270,20 @@ export const settle = internalMutation({
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.subscription)
     if (!row || row.lease !== args.lease) return null
+    const rejected =
+      row.status === "revoked" &&
+      row.consumers.length > 0 &&
+      args.status !== "revoked"
+    if (rejected && args.subscriptionId)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.twitchEventSubActions.deleteRejected,
+        {
+          subscription: row._id,
+          subscriptionId: args.subscriptionId,
+          callback: row.callback,
+        }
+      )
     const status =
       row.status === "revoked" && row.consumers.length
         ? "revoked"
@@ -281,9 +295,9 @@ export const settle = internalMutation({
     await ctx.db.patch(row._id, {
       lease: undefined,
       leaseExpiresAt: undefined,
-      subscriptionId: args.subscriptionId,
+      subscriptionId: rejected ? row.subscriptionId : args.subscriptionId,
       status,
-      failure: args.failure,
+      failure: rejected ? row.failure : args.failure,
       updatedAt: Date.now(),
     })
     if (row.revision !== args.revision)
@@ -388,7 +402,12 @@ export const webhookState = internalMutation({
           ? repairable
             ? "providerUnavailable"
             : "revoked"
-          : row.key === "chatMessage" && !args.confirmed
+          : row.key === "chatMessage" &&
+              !args.confirmed &&
+              !(
+                row.status === "ready" &&
+                row.subscriptionId === args.subscriptionId
+              )
             ? "connecting"
             : "ready",
         failure: args.revoked

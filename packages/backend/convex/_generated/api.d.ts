@@ -6496,6 +6496,29 @@ export declare const internal: {
     };
   };
   twitchChat: {
+    cleanup: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        userId: Id<"users">;
+        broadcasterId: string;
+        discordIds: string[];
+        cursor?: string;
+      },
+      null
+    >;
+    cleanupMembers: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        userId: Id<"users">;
+        broadcasterId: string;
+        discordIds: string[];
+        cursor?: string;
+        subscription: Id<"twitchEventSubscriptions">;
+      },
+      null
+    >;
     context: FunctionReference<
       "query",
       "internal",
@@ -6934,6 +6957,17 @@ export declare const internal: {
     >;
   };
   twitchEventSubActions: {
+    deleteRejected: FunctionReference<
+      "action",
+      "internal",
+      {
+        subscription: Id<"twitchEventSubscriptions">;
+        subscriptionId: string;
+        callback: string;
+        attempt?: number;
+      },
+      null
+    >;
     confirmSubscription: FunctionReference<
       "action",
       "internal",

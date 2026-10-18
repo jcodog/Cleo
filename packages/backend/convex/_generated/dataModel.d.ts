@@ -2586,6 +2586,7 @@ export type DataModel = {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_consumer: ["consumer", "_creationTime"];
+      by_subscription: ["subscription", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

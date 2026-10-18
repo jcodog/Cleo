@@ -65,7 +65,12 @@ export class TwitchEventSubApi {
       "Content-Type": "application/json",
     }
   }
-  async find(token: string, key: EventKey, condition: Record<string, string>, reauthorize = false) {
+  async find(
+    token: string,
+    key: EventKey,
+    condition: Record<string, string>,
+    reauthorize = false
+  ) {
     const definition = eventDefinitions[key]
     const cursors = new Set<string>()
     let cursor: string | undefined
@@ -91,7 +96,11 @@ export class TwitchEventSubApi {
           )
       )
       for (const row of matches) {
-        if (key === "chatMessage" && row.status === "authorization_revoked" && !reauthorize)
+        if (
+          key === "chatMessage" &&
+          ["authorization_revoked", "user_removed"].includes(row.status) &&
+          !reauthorize
+        )
           throw new EventSubProviderError("revoked")
         if (
           row.status === "enabled" ||

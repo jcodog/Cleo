@@ -35,6 +35,10 @@ Moderator status remains unchanged. This implementation uses `channel:bot` rathe
 
 New successful trusted account links and account syncs schedule the same Convex-owned lifecycle. Transport revocations and temporary provider failures get bounded retries. Authorization revocation remains blocked until fresh successful reauthorization. Missing permissions, unlink, identity changes and disabled accounts remove consumer membership; the last consumer's removal requests provider deletion. No stream-start handler creates chat subscriptions.
 
+Clerk unlink, transfer and deletion invalidate account authority in their original transaction. Subscription cleanup follows in scheduled batches of five subscription records and 25 memberships, so guild count cannot block the Clerk transaction. Cleanup preserves other owners' consumers and a fresh trusted link to the same broadcaster. Inspect failed scheduled `twitchChat:cleanup` or `twitchChat:cleanupMembers` mutations and retry their recorded arguments through the approved internal interface. Repeated cleanup is safe.
+
+Provider `authorization_revoked` and `user_removed` states require explicit reauthorization. Its intent survives bounded provider retries. If revocation wins a race with subscription creation, `twitchEventSubActions:deleteRejected` retires the rejected provider result with bounded retries. If those retries exhaust, retry that specific scheduled operation and verify provider deletion. Retain the compatible webhook runtime until cleanup is confirmed.
+
 ## Recover or roll back
 
 1. Keep a runtime containing the local chat privacy guard running while any chat subscription exists. Do not roll back to a runtime from before that guard.

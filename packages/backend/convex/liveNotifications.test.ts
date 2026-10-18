@@ -57,6 +57,13 @@ async function activateChat(
   })
 }
 
+async function flushImmediate(backend: ReturnType<typeof convexTest>) {
+  for (let n = 0; n < 20; n++) {
+    mock.timers.tick(0)
+    await backend.finishInProgressScheduledFunctions()
+  }
+}
+
 test("chat verification requires provider confirmation and transport failures repair without OAuth reconnect", async (t) => {
   const f = await fixture()
   await activateChat(t, f.t)
@@ -65,6 +72,7 @@ test("chat verification requires provider confirmation and transport failures re
   const row = (
     await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
   )[0]!
+  await f.t.run((ctx) => ctx.db.patch(row._id, { status: "connecting" }))
   await f.t.action(api.twitchEventSubActions.webhookState, {
     secret: "test-runtime-secret",
     subscriptionId: row.subscriptionId!,
@@ -77,6 +85,12 @@ test("chat verification requires provider confirmation and transport failures re
   await f.t.action(internal.twitchEventSubActions.confirmSubscription, {
     subscription: row._id,
     attempt: 0,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: false,
   })
   assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
   f.externalSubscriptions[0]!.status = "notification_failures_exceeded"
@@ -128,6 +142,7 @@ test("disabled users lose chat consumers; trusted replacement identity gets a ne
   )
   f.setLinkedId("444")
   f.setTokenId("444")
+  await flushImmediate(f.t)
   await f.t.action(internal.twitchChatActions.syncUser, {
     userId: f.ids.ownerId,
   })
@@ -140,6 +155,7 @@ test("disabled users lose chat consumers; trusted replacement identity gets a ne
     internal.mutations.integrations.clerk.users.deleteFromWebhook,
     { clerkUserId: "owner" }
   )
+  await flushImmediate(f.t)
   assert.equal(
     (await f.t.run((ctx) => ctx.db.query("twitchEventConsumers").collect()))
       .length,
@@ -178,6 +194,7 @@ test("trusted Twitch account transfer removes the previous Cleo user's consumers
       },
     }
   )
+  await flushImmediate(f.t)
   assert.equal(
     (await f.t.run((ctx) => ctx.db.get(twitchAccountId)))?.userId,
     f.ids.managerId
@@ -397,6 +414,7 @@ test("provider failure preserves chat consumers; authorization revocation blocks
       },
     }
   )
+  await flushImmediate(f.t)
   assert.equal(
     (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
     0
@@ -423,6 +441,181 @@ test("provider failure preserves chat consumers; authorization revocation blocks
     0
   )
 })
+test("explicit chat reauthorization survives provider retry before the revoked provider row is removed", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  f.externalSubscriptions[0]!.status = "authorization_revoked"
+  await f.t.mutation(internal.twitchEventSub.webhookState, {
+    subscriptionId: row.subscriptionId!,
+    revoked: true,
+  })
+  f.setSubscriptionUnavailable(true)
+  await owner.action(api.twitchChatActions.retry, { reauthorize: true })
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "providerUnavailable"
+  )
+  f.setSubscriptionUnavailable(false)
+  mock.timers.tick(30000)
+  await f.t.finishInProgressScheduledFunctions()
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(f.externalSubscriptions[0]!.status, "enabled")
+})
+
+test("a revocation racing provider creation retires the rejected result and retains revoked authority", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  f.externalSubscriptions.splice(0)
+  const provider = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    const response = await provider(input, init)
+    if (
+      init?.method === "POST" &&
+      String(input).includes("/eventsub/subscriptions")
+    )
+      await f.t.mutation(internal.twitchEventSub.webhookState, {
+        subscriptionId: row.subscriptionId!,
+        revoked: true,
+      })
+    return response
+  }
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.subscriptionId,
+    row.subscriptionId
+  )
+  f.setSubscriptionUnavailable(true)
+  await flushImmediate(f.t)
+  assert.equal(f.externalSubscriptions.length, 1)
+  f.setSubscriptionUnavailable(false)
+  mock.timers.tick(30000)
+  await f.t.finishInProgressScheduledFunctions()
+  assert.equal(f.externalSubscriptions.length, 0)
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+})
+
+test("provider user removal requires explicit reauthorization", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  f.externalSubscriptions[0]!.status = "user_removed"
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+  await owner.action(api.twitchChatActions.retry, { reauthorize: true })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+})
+
+test("a fresh trusted link supersedes queued cleanup for the same broadcaster", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  for (const linked of [false, true]) {
+    await f.t.mutation(
+      internal.mutations.integrations.clerk.users.upsertFromWebhook,
+      {
+        data: {
+          id: "owner",
+          email_addresses: [{ email_address: "owner@example.com" }],
+          external_accounts: [
+            { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+            ...(linked
+              ? [
+                  {
+                    provider: "oauth_twitch",
+                    provider_user_id: "222",
+                    approved_scopes: "channel:bot",
+                  },
+                ]
+              : []),
+          ],
+        },
+      }
+    )
+  }
+  await flushImmediate(f.t)
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+})
+
+test("unlink cleanup processes 25 memberships per transaction and preserves other owners", async () => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  await f.t.run(async (ctx) => {
+    const consumers = [...row.consumers]
+    for (let n = 0; n < 60; n++) {
+      const guild = await ctx.db.insert("guilds", {
+        discordGuildId: `guild-${n}`,
+        ownerDiscordId: n === 59 ? managerDiscordId : ownerDiscordId,
+        name: "Cleanup fixture",
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      const consumer = `guild:${guild}`
+      consumers.push(consumer)
+      await ctx.db.insert("twitchEventConsumers", {
+        consumer,
+        subscription: row._id,
+      })
+    }
+    await ctx.db.patch(row._id, { consumers })
+  })
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.deleteFromWebhook,
+    { clerkUserId: "owner" }
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(f.ids.ownerId)))?.status,
+    "disabled"
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    61
+  )
+  await f.t.mutation(internal.twitchChat.cleanupMembers, {
+    userId: f.ids.ownerId,
+    broadcasterId: "222",
+    discordIds: [ownerDiscordId],
+    subscription: row._id,
+  })
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    36
+  )
+  await flushImmediate(f.t)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    1
+  )
+  assert.equal(f.externalSubscriptions.length, 1)
+})
+
 const guildDiscordId = "123456789012345678"
 const ownerDiscordId = "234567890123456789"
 const managerDiscordId = "345678901234567890"

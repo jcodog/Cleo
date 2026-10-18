@@ -177,7 +177,7 @@ export const save = internalMutation({
   },
 })
 
-// Runs within the trusted Clerk sync transaction. Only Twitch records are pruned.
+// Clerk invalidates authority atomically; provider cleanup runs in bounded transactions.
 export async function removeTwitchConsumers(
   ctx: MutationCtx,
   userId: Id<"users">
@@ -191,59 +191,116 @@ export async function removeTwitchConsumers(
       authorization: "needsLink",
       checkedAt: Date.now(),
     })
-  const touched = new Set<Id<"twitchEventSubscriptions">>()
   const account = await chatAccount(ctx, userId)
-  const consumers = new Set([
-    `chat:${userId}`,
-    ...announcementKeys.map((key) => `announcement:${userId}:${key}`),
-  ])
   for (const twitch of account.twitch) {
-    const rows = await ctx.db
+    const existing = await ctx.db
       .query("twitchEventSubscriptions")
-      .withIndex("by_broadcaster_key", (q) =>
-        q
-          .eq("broadcasterId", twitch.providerAccountId)
-          .eq("key", "streamOnline")
+      .withIndex("by_broadcaster", (q) =>
+        q.eq("broadcasterId", twitch.providerAccountId)
       )
-      .collect()
-    for (const row of rows)
-      for (const consumer of row.consumers) {
-        if (!consumer.startsWith("guild:")) continue
-        const guildId = ctx.db.normalizeId("guilds", consumer.slice(6))
-        const guild = guildId ? await ctx.db.get(guildId) : null
-        if (
-          guild &&
-          account.discord.some(
-            (discord) => discord.providerAccountId === guild.ownerDiscordId
-          )
-        )
-          consumers.add(consumer)
-      }
-  }
-  for (const consumer of consumers) {
-    // Existing membership supplies the provider identity; disabled consumers need no config.
-    const memberships = await ctx.db
-      .query("twitchEventConsumers")
-      .withIndex("by_consumer", (q) => q.eq("consumer", consumer))
-      .collect()
-    for (const membership of memberships) {
-      const row = await ctx.db.get(membership.subscription)
-      if (row) {
-        await ctx.db.patch(row._id, {
-          consumers: row.consumers.filter((c) => c !== consumer),
-          revision: row.revision + 1,
-          updatedAt: Date.now(),
-        })
-        touched.add(row._id)
-      }
-      await ctx.db.delete(membership._id)
-    }
-  }
-  for (const subscription of touched)
-    await ctx.scheduler.runAfter(0, internal.twitchEventSubActions.reconcile, {
-      subscription,
+      .first()
+    if (!existing) continue
+    await ctx.scheduler.runAfter(0, internal.twitchChat.cleanup, {
+      userId,
+      broadcasterId: twitch.providerAccountId,
+      discordIds: account.discord.map((a) => a.providerAccountId),
     })
+  }
 }
+const cleanupArgs = {
+  userId: v.id("users"),
+  broadcasterId: v.string(),
+  discordIds: v.array(v.string()),
+  cursor: v.optional(v.string()),
+}
+export const cleanup = internalMutation({
+  args: cleanupArgs,
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("twitchEventSubscriptions")
+      .withIndex("by_broadcaster", (q) =>
+        q.eq("broadcasterId", args.broadcasterId)
+      )
+      .paginate({ numItems: 5, cursor: args.cursor ?? null })
+    for (const row of page.page)
+      await ctx.scheduler.runAfter(0, internal.twitchChat.cleanupMembers, {
+        userId: args.userId,
+        broadcasterId: args.broadcasterId,
+        discordIds: args.discordIds,
+        subscription: row._id,
+      })
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.twitchChat.cleanup, {
+        ...args,
+        cursor: page.continueCursor,
+      })
+    return null
+  },
+})
+export const cleanupMembers = internalMutation({
+  args: { ...cleanupArgs, subscription: v.id("twitchEventSubscriptions") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get(args.subscription)
+    if (!row) return null
+    const account = await chatAccount(ctx, args.userId)
+    // A fresh link to the same broadcaster supersedes an older cleanup request.
+    if (
+      account.user &&
+      account.user.status !== "disabled" &&
+      account.twitch.some((a) => a.providerAccountId === args.broadcasterId)
+    )
+      return null
+    const page = await ctx.db
+      .query("twitchEventConsumers")
+      .withIndex("by_subscription", (q) => q.eq("subscription", row._id))
+      .paginate({ numItems: 25, cursor: args.cursor ?? null })
+    const personal = new Set([
+      `chat:${args.userId}`,
+      ...announcementKeys.map((key) => `announcement:${args.userId}:${key}`),
+    ])
+    const removed = new Set<string>()
+    for (const membership of page.page) {
+      let remove = personal.has(membership.consumer)
+      if (
+        row.key === "streamOnline" &&
+        membership.consumer.startsWith("guild:")
+      ) {
+        const guildId = ctx.db.normalizeId(
+          "guilds",
+          membership.consumer.slice(6)
+        )
+        const guild = guildId ? await ctx.db.get(guildId) : null
+        remove =
+          !!guild?.ownerDiscordId &&
+          args.discordIds.includes(guild.ownerDiscordId)
+      }
+      if (remove) {
+        removed.add(membership.consumer)
+        await ctx.db.delete(membership._id)
+      }
+    }
+    if (removed.size) {
+      await ctx.db.patch(row._id, {
+        consumers: row.consumers.filter((c) => !removed.has(c)),
+        revision: row.revision + 1,
+        updatedAt: Date.now(),
+      })
+      await ctx.scheduler.runAfter(
+        0,
+        internal.twitchEventSubActions.reconcile,
+        { subscription: row._id }
+      )
+    }
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.twitchChat.cleanupMembers, {
+        ...args,
+        cursor: page.continueCursor,
+      })
+    return null
+  },
+})
 export const eligiblePage = internalQuery({
   args: { cursor: v.optional(v.string()) },
   returns: v.object({

@@ -3,7 +3,9 @@ import { v } from "convex/values"
 export const twitchEventConsumers = defineTable({
   consumer: v.string(),
   subscription: v.id("twitchEventSubscriptions"),
-}).index("by_consumer", ["consumer"])
+})
+  .index("by_consumer", ["consumer"])
+  .index("by_subscription", ["subscription"])
 
 export const twitchBotRuntime = defineTable({
   key: v.literal("chat-v1"),
