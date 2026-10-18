@@ -1,0 +1,28 @@
+packages/backend/convex/liveNotifications.test.ts
+  s_d20ad3c78d98f3::t_31f1378c39db6c 155,158-161,163-174,176-177,179-181,183-185,187-189,191-194
+  s_d20ad3c78d98f3::t_53cf4d00526074 156-157,182
+  s_d20ad3c78d98f3::t_63613edf0e879f 154
+  s_d20ad3c78d98f3::t_3b5274cb9cfdfc 162
+  s_d20ad3c78d98f3::t_59e7c12bec527d 175
+  s_d20ad3c78d98f3::t_4ce6cea1fb1e65 178
+  s_d20ad3c78d98f3::t_6e8cde6f4be6e0 186
+  s_d20ad3c78d98f3::t_515171e74bd743 190
+packages/backend/convex/mutations/integrations/clerk/users.ts
+  s_d20ad3c78d98f3::t_31f1378c39db6c 215-216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "62ea349fbd12e7e132630b2c38554e1850174819",
+  "prompts": {},
+  "sessions": {
+    "s_d20ad3c78d98f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14fa3-5911-7843-a950-5e71700ea197",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
