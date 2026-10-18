@@ -20,10 +20,19 @@ function text(node: ReactNode): string {
 test("chat status separates authoritative subscription and bot readiness from OAuth and handles safe Retry", async (t) => {
   const globals = globalThis as typeof globalThis & { React?: typeof React }
   const previousReact = globals.React
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+  const navigations: string[] = []
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { location: { assign: (url: string) => navigations.push(url) } },
+  })
   globals.React = React
   t.after(() => {
     if (previousReact) globals.React = previousReact
     else Reflect.deleteProperty(globals, "React")
+    if (previousWindow)
+      Object.defineProperty(globalThis, "window", previousWindow)
+    else Reflect.deleteProperty(globalThis, "window")
   })
   let status:
     | {
@@ -112,6 +121,14 @@ test("chat status separates authoritative subscription and bot readiness from OA
     true
   )
   assert.match(text(render()), /Authorization revoked/)
+  fail = false
+  outcome = "https://id.twitch.tv/oauth2/authorize?state=server-state"
+  const consent = nodes(render()).find(
+    (node) => node.props.onClick && text(node).includes("Authorize chatbot")
+  )
+  assert.equal(consent?.props.disabled, false)
+  await consent?.props.onClick?.()
+  assert.deepEqual(navigations, [outcome])
   slots = []
   status = { ...status, botValidUntil: Date.now() - 1 }
   assert.match(text(render()), /Readiness unavailable/)

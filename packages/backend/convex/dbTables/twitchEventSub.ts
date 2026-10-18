@@ -19,6 +19,25 @@ export const twitchChatConnections = defineTable({
   checkedAt: v.number(),
 }).index("by_user", ["userId"])
 
+export const twitchChatConsents = defineTable({
+  userId: v.id("users"),
+  clerkUserId: v.string(),
+  linkedAccount: v.id("linkedAccounts"),
+  broadcasterId: v.string(),
+  clientId: v.string(),
+  subscription: v.id("twitchEventSubscriptions"),
+  revocationVersion: v.number(),
+  stateHash: v.string(),
+  nonceHash: v.string(),
+  issuedAt: v.number(),
+  expiresAt: v.number(),
+  state: v.union(
+    v.literal("pending"),
+    v.literal("exchanging"),
+    v.literal("consumed")
+  ),
+}).index("by_user", ["userId"])
+
 export const subscriptionStatus = v.union(
   v.literal("disabled"),
   v.literal("connecting"),
@@ -28,6 +47,9 @@ export const subscriptionStatus = v.union(
   v.literal("revoked")
 )
 export const twitchEventSubscriptions = defineTable({
+  authorizationRevoked: v.optional(v.boolean()),
+  revocationVersion: v.optional(v.number()),
+  consent: v.optional(v.id("twitchChatConsents")),
   identity: v.string(),
   key: v.string(),
   broadcasterId: v.string(),

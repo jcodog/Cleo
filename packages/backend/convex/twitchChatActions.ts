@@ -20,8 +20,7 @@ export const reportReadiness = action({
 
 async function synchronize(
   ctx: ActionCtx,
-  userId: Id<"users">,
-  reauthorize = false
+  userId: Id<"users">
 ): Promise<string> {
   const context = await ctx.runQuery(internal.twitchChat.context, { userId })
   const config = controlPlaneConfig()
@@ -50,7 +49,6 @@ async function synchronize(
     userId,
     evidence: context.evidence,
     broadcasterId: authorized ? source.broadcasterId : undefined,
-    reauthorize,
     authorization:
       source.status === "ready" && !authorized
         ? "identityConflict"
@@ -59,12 +57,11 @@ async function synchronize(
   await boundedMap(subscriptions, 4, (subscription) =>
     ctx.runAction(internal.twitchEventSubActions.reconcile, {
       subscription,
-      reauthorize,
     })
   )
   if (!authorized)
     return source.status === "ready" ? "identityConflict" : source.status
-  if (context.chatState === "revoked" && !reauthorize) return "revoked"
+  if (context.chatState === "revoked") return "revoked"
   return backendEnv.TWITCH_CHAT_PRESENCE_ENABLED !== "true"
     ? "activationRequired"
     : !context.runtimeReady
@@ -75,13 +72,12 @@ export const syncUser = internalAction({
   args: {
     userId: v.id("users"),
     attempt: v.optional(v.number()),
-    reauthorize: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     let status: string
     try {
-      status = await synchronize(ctx, args.userId, args.reauthorize)
+      status = await synchronize(ctx, args.userId)
     } catch {
       status = "unavailable"
     }
@@ -100,18 +96,17 @@ export const syncUser = internalAction({
         {
           userId: args.userId,
           attempt: attempt + 1,
-          reauthorize: args.reauthorize,
         }
       )
     return null
   },
 })
 export const retry = action({
-  args: { reauthorize: v.optional(v.boolean()) },
+  args: {},
   returns: v.string(),
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
     const context = await ctx.runQuery(internal.twitchEventSub.account, {})
-    return synchronize(ctx, context.user._id, args.reauthorize ?? false)
+    return synchronize(ctx, context.user._id)
   },
 })
 // One bounded page per operator invocation. Never a recurring subscription scan.
@@ -157,7 +152,6 @@ export const retire = internalAction({
       const subscriptions = await ctx.runMutation(internal.twitchChat.save, {
         userId,
         evidence: context.evidence,
-        reauthorize: false,
         authorization: "paused",
       })
       await boundedMap(subscriptions, 4, (subscription) =>

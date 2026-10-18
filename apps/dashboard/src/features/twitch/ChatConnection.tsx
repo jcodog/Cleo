@@ -23,12 +23,13 @@ const chatLabels = {
   notConnected: "Not connected",
   failed: "Connection failed",
   providerUnavailable: "Provider unavailable",
-  revoked: "Authorization revoked. Reconnect Twitch to continue.",
+  revoked: "Authorization revoked. Fresh chatbot authorization is required.",
 }
 
 export function ChatConnection() {
   const status = useQuery(api.twitchChat.status, {})
   const retry = useAction(api.twitchChatActions.retry)
+  const beginConsent = useAction(api.twitchConsentActions.begin)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -62,6 +63,18 @@ export function ChatConnection() {
       setBusy(false)
     }
   }
+  async function authorizeChatbot() {
+    setBusy(true)
+    setResult(null)
+    try {
+      window.location.assign(await beginConsent({}))
+    } catch {
+      setResult(
+        "Chatbot authorization could not start. Check the broadcaster connection or try again shortly."
+      )
+      setBusy(false)
+    }
+  }
   return (
     <section
       aria-label="Chatbot connection"
@@ -91,6 +104,22 @@ export function ChatConnection() {
         >
           {busy ? "Verifying..." : "Retry chat connection"}
         </Button>
+        {status.chat === "revoked" && (
+          <div className="mt-3 flex flex-col items-start gap-2">
+            <p className="text-sm text-muted-foreground">
+              Reconnect Twitch above if needed, then approve chatbot access as
+              your linked broadcaster.
+            </p>
+            <Button
+              onClick={authorizeChatbot}
+              disabled={
+                busy || !status.activated || status.authorization !== "ready"
+              }
+            >
+              {busy ? "Opening Twitch..." : "Authorize chatbot"}
+            </Button>
+          </div>
+        )}
       </div>
       {result && (
         <p role="status" className="text-sm text-muted-foreground">

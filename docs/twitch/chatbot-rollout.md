@@ -39,6 +39,23 @@ Clerk unlink, transfer and deletion invalidate account authority in their origin
 
 Provider `authorization_revoked` and `user_removed` states require explicit reauthorization. Its intent survives bounded provider retries. If revocation wins a race with subscription creation, `twitchEventSubActions:deleteRejected` retires the rejected provider result with bounded retries. If those retries exhaust, retry that specific scheduled operation and verify provider deletion. Retain the compatible webhook runtime until cleanup is confirmed.
 
+## Recover a revoked broadcaster
+
+The public Retry and account Sync actions cannot assert renewed consent. Clerk callback navigation, unchanged account metadata and token refresh do not clear revocation. The revocation barrier survives unlink, relink, final-consumer cleanup and provider deletion. A later revocation invalidates any earlier recovery proof.
+
+Before enabling this recovery flow, a maintainer must register the dashboard's exact HTTPS `/twitch/chat-consent` URL on the existing production Twitch application and configure that same URL as Convex `TWITCH_CHAT_OAUTH_REDIRECT_URL`. This is a deployment prerequisite, not an implementation-time infrastructure change. The variable is server-only and optional; when unset, recovery fails closed while valid connections continue normally. Keep the existing activation gate and protected release coordinator.
+
+1. For a revoked broadcaster, select the workspace's existing **Reconnect Twitch** action if its Clerk grant is stale or missing permission. Complete Clerk's flow as that broadcaster and synchronize the account. This alone does not lift revocation.
+2. Select **Authorize chatbot**. Cleo starts Twitch's OIDC authorization-code flow with `force_verify=true`, `openid channel:bot`, a random state and a distinct nonce. Only revoked connections need this additional proof. No dedicated bot authorization is requested or changed.
+3. Complete Twitch authorization as the same linked broadcaster. The server exchanges the single-use code, verifies Twitch's RS256 ID-token signature against its fixed JWKS endpoint, issuer, audience, subject, nonce and time claims, and validates the returned user token's Client ID, broadcaster and `channel:bot` scope. It also rechecks the authenticated Clerk identity and current linked-account evidence.
+4. The server atomically consumes the proof against the exact linked-account record, subscription and revocation version, then schedules reconciliation. One proof cannot authorize another user, broadcaster, application or later revocation. Provider retries use the consumed server record rather than a browser flag.
+5. State and nonce hashes, identity bindings and proof status expire after ten minutes. Only one recovery record is retained per user. Codes, ID tokens, access tokens and refresh tokens are not stored in the proof or application logs; temporary returned tokens are discarded without replacing or revoking Clerk's tokens. The callback removes its query parameters from browser history and sets `no-referrer`.
+6. If code exchange or verification fails, start a new recovery flow after the brief issuance limit. The code may already have been consumed by Twitch, so it is not automatically replayed. A verified proof survives the existing bounded EventSub provider retries. Check the actual provider subscription and workspace state after recovery.
+
+Do not roll the backend back to a version with client-controlled reauthorization flags. Retain this authorization boundary when recovering an older runtime. If a backend rollback is unavoidable, disable chat activation and retire chat subscriptions first through the approved process.
+
+References: [Twitch OIDC flow and nonce validation](https://dev.twitch.tv/docs/authentication/getting-tokens-oidc/), [Clerk verification fields](https://clerk.com/docs/reference/backend/types/backend-verification).
+
 ## Recover or roll back
 
 1. Keep a runtime containing the local chat privacy guard running while any chat subscription exists. Do not roll back to a runtime from before that guard.

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type { Doc } from "./dataModel";
 import type { FunctionReference, FunctionReturnType } from "convex/server";
 import type { GenericId as Id } from "convex/values";
 
@@ -1135,7 +1136,7 @@ export declare const api: {
           sync: FunctionReference<
             "action",
             "public",
-            { reauthorizeTwitch?: boolean },
+            {},
             | {
                 linkedAccounts: Array<{
                   _creationTime: number;
@@ -2780,6 +2781,15 @@ export declare const api: {
       };
     };
   };
+  twitchConsentActions: {
+    begin: FunctionReference<"action", "public", {}, string>;
+    finish: FunctionReference<
+      "action",
+      "public",
+      { state: string; code: string },
+      null
+    >;
+  };
   twitchChat: {
     status: FunctionReference<
       "query",
@@ -2809,12 +2819,7 @@ export declare const api: {
       { botId: string; clientId: string; secret: string },
       null
     >;
-    retry: FunctionReference<
-      "action",
-      "public",
-      { reauthorize?: boolean },
-      string
-    >;
+    retry: FunctionReference<"action", "public", {}, string>;
   };
   twitchEventSub: {
     settings: FunctionReference<
@@ -6495,6 +6500,43 @@ export declare const internal: {
       };
     };
   };
+  twitchConsent: {
+    begin: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        userId: Id<"users">;
+        evidence: string;
+        stateHash: string;
+        nonceHash: string;
+      },
+      null
+    >;
+    claim: FunctionReference<
+      "mutation",
+      "internal",
+      { userId: Id<"users">; stateHash: string },
+      Doc<"twitchChatConsents">
+    >;
+    consume: FunctionReference<
+      "mutation",
+      "internal",
+      { consent: Id<"twitchChatConsents">; evidence: string },
+      null
+    >;
+    authorized: FunctionReference<
+      "query",
+      "internal",
+      { subscription: Id<"twitchEventSubscriptions"> },
+      boolean
+    >;
+    expire: FunctionReference<
+      "mutation",
+      "internal",
+      { consent: Id<"twitchChatConsents"> },
+      null
+    >;
+  };
   twitchChat: {
     cleanup: FunctionReference<
       "mutation",
@@ -6613,7 +6655,6 @@ export declare const internal: {
         authorization: string;
         broadcasterId?: string;
         evidence: string;
-        reauthorize: boolean;
         userId: Id<"users">;
       },
       Array<Id<"twitchEventSubscriptions">>
@@ -6703,6 +6744,9 @@ export declare const internal: {
       {
         _creationTime: number;
         _id: Id<"twitchEventSubscriptions">;
+        authorizationRevoked?: boolean;
+        revocationVersion?: number;
+        consent?: Id<"twitchChatConsents">;
         broadcasterId: string;
         callback: string;
         condition: Record<string, string>;
@@ -6921,6 +6965,9 @@ export declare const internal: {
       {
         _creationTime: number;
         _id: Id<"twitchEventSubscriptions">;
+        authorizationRevoked?: boolean;
+        revocationVersion?: number;
+        consent?: Id<"twitchChatConsents">;
         broadcasterId: string;
         callback: string;
         condition: Record<string, string>;
@@ -6979,7 +7026,6 @@ export declare const internal: {
       "internal",
       {
         attempt?: number;
-        reauthorize?: boolean;
         subscription: Id<"twitchEventSubscriptions">;
       },
       null

@@ -16,6 +16,7 @@ import {
   TwitchEventSubApi,
   EventSubProviderError,
 } from "./lib/twitchEventSubApi"
+import { chatRevoked } from "./lib/twitchRevocation"
 import { verifyOwnerTwitch } from "./lib/verifyOwnerTwitch"
 import { ownerEvidenceKey } from "./lib/ownerTwitch"
 import type { Id } from "./_generated/dataModel"
@@ -35,7 +36,6 @@ export const reconcile = internalAction({
   args: {
     subscription: v.id("twitchEventSubscriptions"),
     attempt: v.optional(v.number()),
-    reauthorize: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -63,12 +63,12 @@ export const reconcile = internalAction({
       if (!row.consumers.length) {
         const existing = subscriptionId
           ? { id: subscriptionId }
-          : await api.find(token, row.key, row.condition)
+          : await api.find(token, row.key, row.condition, true)
         if (existing) await api.delete(token, existing.id)
         subscriptionId = undefined
       } else {
         if (row.key === "chatMessage") {
-          if (row.status === "revoked") {
+          if (chatRevoked(row)) {
             status = "failed"
             throw new EventSubProviderError("failed")
           }
@@ -115,9 +115,18 @@ export const reconcile = internalAction({
           )
             throw new EventSubProviderError("failed")
         }
+        const allowReauthorization =
+          row.key === "chatMessage" &&
+          (await ctx.runQuery(internal.twitchConsent.authorized, {
+            subscription: row._id,
+          }))
         const subscription =
-          (await api.find(token, row.key, row.condition, args.reauthorize)) ??
-          (await api.create(token, row.key, row.condition))
+          (await api.find(
+            token,
+            row.key,
+            row.condition,
+            allowReauthorization
+          )) ?? (await api.create(token, row.key, row.condition))
         subscriptionId = subscription.id
         status = subscription.status === "enabled" ? "ready" : "connecting"
       }
@@ -171,7 +180,7 @@ export const deleteRejected = internalAction({
     })
     if (
       row?.subscriptionId === args.subscriptionId &&
-      row.status !== "revoked" &&
+      !chatRevoked(row) &&
       row.consumers.length
     )
       return null
@@ -202,6 +211,7 @@ export const confirmSubscription = internalAction({
     if (
       !row ||
       row.status !== "connecting" ||
+      chatRevoked(row) ||
       !row.consumers.length ||
       !isEventKey(row.key)
     )

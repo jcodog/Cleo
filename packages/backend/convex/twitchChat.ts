@@ -13,6 +13,7 @@ import type { Id } from "./_generated/dataModel"
 import { requireCurrentUser } from "./lib/auth"
 import { setEventConsumer } from "./lib/twitchConsumers"
 import { userDoc, linkedAccountDoc } from "./lib/validators"
+import { chatRevoked } from "./lib/twitchRevocation"
 import { subscriptionStatus } from "./dbTables/twitchEventSub"
 const accountFields = {
   user: v.union(userDoc, v.null()),
@@ -26,7 +27,9 @@ async function chatState(ctx: QueryCtx | MutationCtx, userId: Id<"users">) {
     .withIndex("by_consumer", (q) => q.eq("consumer", `chat:${userId}`))
     .first()
   const row = membership ? await ctx.db.get(membership.subscription) : null
-  return row?.status ?? ("notConnected" as const)
+  return row && chatRevoked(row)
+    ? "revoked"
+    : (row?.status ?? ("notConnected" as const))
 }
 
 export async function chatAccount(
@@ -121,7 +124,6 @@ export const save = internalMutation({
     userId: v.id("users"),
     evidence: v.string(),
     broadcasterId: v.optional(v.string()),
-    reauthorize: v.boolean(),
     authorization: v.string(),
   },
   returns: v.array(v.id("twitchEventSubscriptions")),
@@ -164,13 +166,7 @@ export const save = internalMutation({
       .collect()
     for (const membership of memberships) {
       const row = await ctx.db.get(membership.subscription)
-      if (!row || (row.status === "revoked" && !args.reauthorize)) continue
-      if (row.status === "revoked")
-        await ctx.db.patch(row._id, {
-          status: "connecting",
-          failure: undefined,
-          revision: row.revision + 1,
-        })
+      if (!row || chatRevoked(row)) continue
       touched.push(row._id)
     }
     return [...new Set(touched)]
