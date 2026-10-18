@@ -1,0 +1,113 @@
+apps/twitch-bot/src/classes/TwitchClient.test.ts
+  s_d20ad3c78d98f3::t_06e8dfe8c47c5a 48,50-73
+docs/twitch/architecture.md
+  s_d20ad3c78d98f3::t_06e8dfe8c47c5a 39,54-58,75
+apps/twitch-bot/src/services/TwitchApiService.ts
+  s_d20ad3c78d98f3::t_b9fcedbd0f3619 116,120-121,142
+apps/twitch-bot/src/services/eventsub/TwitchWebhookServer.test.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 28-82
+apps/twitch-bot/src/services/TwitchApiService.test.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 16-25
+apps/dashboard/src/features/twitch/ChatConnection.tsx
+  s_d20ad3c78d98f3::t_8ceef2a21a5b91 34
+  s_d20ad3c78d98f3::t_17642fb6d5e70b 1-16,18-33,35-36,41-49,59-65,70-72,76-80,86,92-94,100-102
+  s_d20ad3c78d98f3::t_739c1b19c8f818 17
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 37-40,50-52,58,66-69,73-75,81-85,87-91,95-99
+  s_d20ad3c78d98f3::t_83f739d5f8030f 53-57
+packages/backend/convex/schema.ts
+  s_d20ad3c78d98f3::t_8f2395c76ddf4e 15,54
+  s_d20ad3c78d98f3::t_57ee7a9c57c2d0 16,55
+packages/backend/convex/liveNotifications.test.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 29-32,36-59,154-384,593-597
+  s_d20ad3c78d98f3::t_c56d9e9e1afe1c 61-64,81-82,96-97,102-103,105-108,129-130,137-138,152-153
+  s_d20ad3c78d98f3::t_06e8dfe8c47c5a 60,65-80,83-95,98-101,104,109-128,131-136,139-151
+packages/backend/convex/twitchConnection.test.ts
+  s_d20ad3c78d98f3::t_d044c40573a172 73,97
+apps/twitch-bot/src/services/eventsub/EventSubRouter.test.ts
+  s_d20ad3c78d98f3::t_d044c40573a172 90,99,107
+apps/twitch-bot/src/services/TwitchAuthService.test.ts
+  s_d20ad3c78d98f3::t_d044c40573a172 70,118,125
+packages/backend/convex/lib/twitchEventSubApi.ts
+  s_d20ad3c78d98f3::t_640a74f4303b5b 22,68,94-95
+packages/backend/convex/actions/dashboard/account/syncLinkedAccounts.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 39-42
+  s_d20ad3c78d98f3::t_d24171dfa3f3e4 3,11,13,32,38
+apps/twitch-bot/src/scripts/scripts.test.ts
+  s_d20ad3c78d98f3::t_48dc0b6f2751b1 50,61-62
+packages/backend/convex/twitchChatActions.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 13-14,21-25,29-48,50-57,59-66,68-71,75-80,83-87,89-99,105,110-111,120-124,126-127,130-135,143-146,148-151,153-167
+  s_d20ad3c78d98f3::t_c40a17b5e0ce49 67,138-142,147,152,168-169
+  s_d20ad3c78d98f3::t_739c1b19c8f818 72
+  s_d20ad3c78d98f3::t_83f739d5f8030f 100-104
+  s_d20ad3c78d98f3::t_d8e10303df926c 1-12,15-20,26-28,49,58,73-74,81-82,88,106-109,112-119,125,128-129,136-137,170-171
+packages/backend/convex/twitchEventSub.ts
+  s_d20ad3c78d98f3::t_3486229507588e 348
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 240-245,274-280,347,377-384,387-390,394-397,400-406,454,583-586
+  s_d20ad3c78d98f3::t_83f739d5f8030f 391-393
+packages/backend/convex/mutations/integrations/clerk/users.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 10-12,61-63,65-79,104,144-173
+apps/twitch-bot/src/classes/TwitchClient.ts
+  s_d20ad3c78d98f3::t_097c6fb62458dc 70
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 17,36,67,76,88-92,104-114
+apps/dashboard/src/features/twitch/TwitchWorkspace.tsx
+  s_d20ad3c78d98f3::t_17642fb6d5e70b 23,189
+apps/twitch-bot/src/services/announcements/AnnouncementService.ts
+  s_d20ad3c78d98f3::t_b9fcedbd0f3619 10,21
+apps/dashboard/src/features/twitch/TwitchLinkCallback.tsx
+  s_d20ad3c78d98f3::t_d24171dfa3f3e4 45
+docs/twitch/chatbot-rollout.md
+  s_d20ad3c78d98f3::t_ba4a48ebc532f3 1-8,15-71
+  s_d20ad3c78d98f3::t_06e8dfe8c47c5a 9-14
+apps/dashboard/src/features/twitch/ChatConnection.test.ts
+  s_d20ad3c78d98f3::t_22063a287e90ef 1-5,11-19,37-42,59,71,76,84-86,94,100-109,114-119
+  s_d20ad3c78d98f3::t_83f739d5f8030f 7-10,20,24-25,27-36,43-47,50-58,60-70,72-75,77-83,87-93,95-99,110-113
+  s_d20ad3c78d98f3::t_06e8dfe8c47c5a 6,48-49
+  s_d20ad3c78d98f3::t_0034c6d1625666 26
+  s_d20ad3c78d98f3::t_097c6fb62458dc 21-23
+apps/twitch-bot/src/scripts/sendSmokeMessage.ts
+  s_d20ad3c78d98f3::t_b9fcedbd0f3619 16,27
+packages/backend/convex/twitchEventSubActions.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 35-39,44,50-55,70-117,119,131,140-149,332,440
+  s_d20ad3c78d98f3::t_3486229507588e 189
+apps/twitch-bot/src/services/ConvexService.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 54-59,99-100,107,110-112
+apps/twitch-bot/src/services/eventsub/TwitchWebhookServer.ts
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 14,89-98,122-128
+packages/backend/convex/dbTables/twitchEventSub.ts
+  s_d20ad3c78d98f3::t_57ee7a9c57c2d0 14-18
+  s_d20ad3c78d98f3::t_8f2395c76ddf4e 8-13,19
+packages/backend/convex/twitchChat.ts
+  s_d20ad3c78d98f3::t_57ee7a9c57c2d0 140-141
+  s_d20ad3c78d98f3::t_bf59bd145ceefd 1-3,11-16,22,36,46,50-51,65-67,74-75,82-83,100,103,108,113-119,127-130,146,153,159-160,165-167,174-180,194,224,229-231,237-241,246-248,253,259,264-267,277,294-295
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 4-10,17-21,24-27,29,32-35,37-45,47-49,52-64,68-73,76-81,86-89,94-97,101-102,104-107,109-112,120-126,131-139,142-145,147-152,154-158,161-164,168-173,181-193,198,201-221,225-228,232-236,242-245,249-252,254-258,260-263,268-276,278-293
+  s_d20ad3c78d98f3::t_df7fda84c9400a 195-196,199-200,222-223
+  s_d20ad3c78d98f3::t_c40a17b5e0ce49 23,28,30-31
+  s_d20ad3c78d98f3::t_ebaf1b3c89c62f 84-85,90-93,98-99
+  s_d20ad3c78d98f3::t_9db6d212ddb1bf 197
+packages/backend/convex/_generated/api.d.ts
+  s_d20ad3c78d98f3::t_c40a17b5e0ce49 6615
+  s_d20ad3c78d98f3::t_83f739d5f8030f 11,2789-2818,2901,6498-6522,6530-6564,6573-6605,6611,6617-6618,6927,6929,6946-6949
+  s_d20ad3c78d98f3::t_4fdc785f96e58a 6523-6529,6567,6569-6572,6606-6610,6613-6614
+  s_d20ad3c78d98f3::t_1250397c408969 1138
+  s_d20ad3c78d98f3::t_7a729239f7070a 2783-2788,6565-6566,6568,6612,6616,6950
+packages/env/src/backend.ts
+  s_d20ad3c78d98f3::t_b9fcedbd0f3619 27
+packages/backend/convex/_generated/dataModel.d.ts
+  s_d20ad3c78d98f3::t_c785ec4319e4b5 2540-2576
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "446c2db8eeca9c4c9943b870d37aadddd3ffab81",
+  "prompts": {},
+  "sessions": {
+    "s_d20ad3c78d98f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14fa3-5911-7843-a950-5e71700ea197",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
