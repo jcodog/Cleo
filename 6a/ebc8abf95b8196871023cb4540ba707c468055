@@ -1,0 +1,24 @@
+packages/backend/convex/twitchConsent.ts
+  s_d20ad3c78d98f3::t_bc43fd87810414 156
+  s_d20ad3c78d98f3::t_440204b0bde39a 157-163
+docs/twitch/chatbot-rollout.md
+  s_d20ad3c78d98f3::t_bc43fd87810414 52
+packages/backend/convex/liveNotifications.test.ts
+  s_d20ad3c78d98f3::t_440204b0bde39a 887-908
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6aebc8abf95b8196871023cb4540ba707c468055",
+  "prompts": {},
+  "sessions": {
+    "s_d20ad3c78d98f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14fa3-5911-7843-a950-5e71700ea197",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
