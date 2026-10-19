@@ -34,7 +34,7 @@ export class ConvexService {
       })
       .parse(await this.action("twitchTimerActions:page", { since, cursor }))
   }
-  async claimTimer(id: string, revision: number) {
+  async claimTimer(id: string, revision: number, streamId: string) {
     return z
       .object({
         executionId: z.string(),
@@ -42,14 +42,55 @@ export class ConvexService {
         expiresAt: z.number(),
       })
       .nullable()
-      .parse(await this.action("twitchTimerActions:claim", { id, revision }))
+      .parse(
+        await this.action("twitchTimerActions:claim", {
+          id,
+          revision,
+          streamId,
+        })
+      )
   }
   async settleTimer(
     id: string,
     executionId: string,
-    sent: boolean
+    sent: boolean,
+    definite = false
   ): Promise<void> {
-    await this.action("twitchTimerActions:settle", { id, executionId, sent })
+    await this.action("twitchTimerActions:settle", {
+      id,
+      executionId,
+      sent,
+      definite,
+    })
+  }
+  async beginTimer(
+    id: string,
+    executionId: string,
+    streamId: string
+  ): Promise<boolean> {
+    return z.boolean().parse(
+      await this.action("twitchTimerActions:begin", {
+        id,
+        executionId,
+        streamId,
+      })
+    )
+  }
+  async timerSession(
+    broadcasterId: string,
+    observedAt: number,
+    stream?: { id: string; startedAt: number },
+    eventAt?: number
+  ): Promise<boolean> {
+    return z.boolean().parse(
+      await this.action("twitchTimerActions:session", {
+        broadcasterId,
+        observedAt,
+        streamId: stream?.id,
+        startedAt: stream?.startedAt,
+        eventAt,
+      })
+    )
   }
   async diagnoseTimer(
     id: string,

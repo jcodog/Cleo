@@ -24,7 +24,12 @@ export class TwitchClient {
     private readonly logger: Logger,
     request: typeof fetch = fetch
   ) {
-    const api = new TwitchApiService(config, request, this.shutdown.signal, 30_000)
+    const api = new TwitchApiService(
+      config,
+      request,
+      this.shutdown.signal,
+      30_000
+    )
     this.auth = new TwitchAuthService(
       api,
       new GrantStore(config.TWITCH_BOT_GRANT_PATH),
@@ -54,11 +59,18 @@ export class TwitchClient {
       router,
       logger,
       activity,
-      config.TWITCH_BOT_USER_ID
+      config.TWITCH_BOT_USER_ID,
+      (id, online, eventAt) => this.timers.lifecycle(id, online, eventAt)
     )
   }
   async run(signal: AbortSignal): Promise<void> {
-    const abort = () => this.shutdown.abort()
+    let abortDeadline: ReturnType<typeof setTimeout> | undefined
+    const abort = () => {
+      this.timers.stopAccepting()
+      this.webhook.stopAccepting()
+      // Also bound startup recovery when SIGTERM arrives during its cooldown.
+      abortDeadline = setTimeout(() => this.shutdown.abort(), 15_000)
+    }
     signal.addEventListener("abort", abort, { once: true })
     if (signal.aborted) abort()
     const identity = {
@@ -89,6 +101,11 @@ export class TwitchClient {
           throw new Error("Twitch webhook listener unavailable.")
         await state("ready")
         await this.reportReadiness()
+        // Only pre-send durable receipts are recoverable. Retry them after
+        // congestion without requiring another restart or EventSub redelivery.
+        void this.webhook
+          .recoverPending()
+          .catch(() => this.logger.warn("Event recovery unavailable"))
       }
     } catch (error) {
       if (!signal.aborted) {
@@ -100,13 +117,25 @@ export class TwitchClient {
         throw error
       }
     } finally {
+      this.timers.stopAccepting()
+      let grace: ReturnType<typeof setTimeout> | undefined
+      const drain = Promise.allSettled([
+        this.timers.stop(),
+        this.webhook.stop().catch((failure) =>
+          this.logger.error("Webhook shutdown failed", {
+            error: serializeLogError(failure),
+          })
+        ),
+      ])
+      await Promise.race([
+        drain,
+        new Promise<void>((resolve) => {
+          grace = setTimeout(resolve, 15_000)
+        }),
+      ])
+      clearTimeout(grace)
       this.shutdown.abort()
-      await this.timers.stop()
-      await this.webhook.stop().catch((failure) =>
-        this.logger.error("Webhook shutdown failed", {
-          error: serializeLogError(failure),
-        })
-      )
+      clearTimeout(abortDeadline)
       if (signal.aborted) {
         await state("stopped").catch((failure) =>
           this.logger.error("Readiness update failed", {

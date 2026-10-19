@@ -1,7 +1,8 @@
 type Entry = {
   channel: string
   createdAt: number
-  run: () => Promise<void>
+  ttl: number
+  run: (attempt: () => void) => Promise<void>
   reject: (error: Error) => void
 }
 export class ChatBackpressure extends Error {
@@ -24,7 +25,11 @@ export class ChatSendQueue {
     private readonly wait = (ms: number) =>
       new Promise<void>((resolve) => setTimeout(resolve, ms))
   ) {}
-  run<T>(channel: string, send: () => Promise<T>): Promise<T> {
+  run<T>(
+    channel: string,
+    send: (attempt: () => void) => Promise<T>,
+    durable = false
+  ): Promise<T> {
     if (
       this.signal?.aborted ||
       this.entries.length >= 64 ||
@@ -34,10 +39,11 @@ export class ChatSendQueue {
     return new Promise<T>((resolve, reject) => {
       this.entries.push({
         channel,
-        createdAt: this.now(),
+        createdAt: durable ? Math.max(this.now(), this.nextAt) : this.now(),
+        ttl: durable ? 60_000 : 5_000,
         reject,
-        run: async () => {
-          resolve(await send())
+        run: async (attempt) => {
+          resolve(await send(attempt))
         },
       })
       void this.drain()
@@ -54,7 +60,7 @@ export class ChatSendQueue {
         const now = this.now()
         for (let i = this.entries.length - 1; i >= 0; i--) {
           const entry = this.entries[i]!
-          if (this.signal?.aborted || now - entry.createdAt >= 5_000) {
+          if (this.signal?.aborted || now - entry.createdAt >= entry.ttl) {
             this.entries.splice(i, 1)
             entry.reject(new ChatBackpressure())
           }
@@ -75,12 +81,20 @@ export class ChatSendQueue {
         }
         this.entries.splice(index, 1)
         this.lastChannel = entry.channel
-        this.nextAt = now + 1_700
-        this.channels.set(entry.channel, now + 2_000)
         for (const [id, until] of this.channels)
           if (until <= now) this.channels.delete(id)
         try {
-          await entry.run()
+          let attempted = false
+          const attempt = () => {
+            attempted = true
+            const at = this.now()
+            this.nextAt = Math.max(this.nextAt, at + 1_700)
+            this.channels.set(entry.channel, at + 2_000)
+          }
+          await entry.run(attempt)
+          // Generic callers without an explicit POST boundary get conservative
+          // completion-based spacing. The Helix adapter always marks its POST.
+          if (!attempted) attempt()
         } catch (error) {
           entry.reject(
             error instanceof Error ? error : new Error("Chat send failed.")

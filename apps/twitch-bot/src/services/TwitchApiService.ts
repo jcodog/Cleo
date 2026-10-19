@@ -72,22 +72,32 @@ export class TwitchApiService {
   async liveBroadcasters(
     appToken: string,
     ids: string[]
-  ): Promise<Set<string>> {
+  ): Promise<Map<string, { id: string; startedAt: number }>> {
     const params = new URLSearchParams({ first: "100" })
     if (!ids.length || ids.length > 100)
       throw new Error("Use 1-100 broadcaster IDs.")
     for (const id of ids) params.append("user_id", id)
     const result = await this.request(
       z.object({
-        data: z.array(z.object({ user_id: z.string(), type: z.string() })),
+        data: z.array(
+          z.object({
+            user_id: z.string(),
+            type: z.string(),
+            id: z.string().regex(/^[1-9]\d*$/),
+            started_at: z.iso.datetime(),
+          })
+        ),
       }),
       `https://api.twitch.tv/helix/streams?${params}`,
       this.helixHeaders(appToken)
     )
-    return new Set(
+    return new Map(
       result.data
         .filter((stream) => stream.type === "live")
-        .map((stream) => stream.user_id)
+        .map((stream) => [
+          stream.user_id,
+          { id: stream.id, startedAt: Date.parse(stream.started_at) },
+        ])
     )
   }
 
@@ -144,7 +154,8 @@ export class TwitchApiService {
     appToken: string,
     broadcasterId: string,
     message: string,
-    beforeSend?: () => Promise<boolean>
+    beforeSend?: () => Promise<boolean> | boolean,
+    durable = true
   ): Promise<string> {
     if (broadcasterId === this.config.TWITCH_BOT_USER_ID)
       throw new TwitchFailure("wrongBot")
@@ -160,30 +171,36 @@ export class TwitchApiService {
       throw new Error(
         "Message must contain 1-500 characters without control characters."
       )
-    return this.sends.run(broadcasterId, async () => {
-      if (beforeSend && !(await beforeSend())) return ""
-      const result = await this.request(
-        z.object({
-          data: z.array(
-            z.object({ message_id: z.string(), is_sent: z.boolean() })
-          ),
-        }),
-        "https://api.twitch.tv/helix/chat/messages",
-        {
-          ...this.helixHeaders(appToken),
-          method: "POST",
-          body: JSON.stringify({
-            broadcaster_id: broadcasterId,
-            sender_id: this.config.TWITCH_BOT_USER_ID,
-            message,
+    return this.sends.run(
+      broadcasterId,
+      async (attempt) => {
+        if (beforeSend && !(await beforeSend())) return ""
+        attempt()
+        const result = await this.request(
+          z.object({
+            data: z.array(
+              z.object({ message_id: z.string(), is_sent: z.boolean() })
+            ),
           }),
-        }
-      )
-      const entry = result.data[0]
-      if (!entry?.is_sent || !entry.message_id)
-        throw new TwitchFailure("messageDropped")
-      return entry.message_id
-    })
+          "https://api.twitch.tv/helix/chat/messages",
+          {
+            ...this.helixHeaders(appToken),
+            method: "POST",
+            body: JSON.stringify({
+              broadcaster_id: broadcasterId,
+              sender_id: this.config.TWITCH_BOT_USER_ID,
+              message,
+            }),
+          }
+        )
+        const entry = result.data[0]
+        if (entry && !entry.is_sent) throw new TwitchFailure("messageDropped")
+        if (!entry || !/^[a-zA-Z0-9_-]{1,512}$/u.test(entry.message_id))
+          throw new TwitchFailure("malformedResponse")
+        return entry.message_id
+      },
+      durable
+    )
   }
 
   private async validate(accessToken: string) {

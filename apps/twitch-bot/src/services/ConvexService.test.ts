@@ -5,16 +5,45 @@ import { httpFake, json } from "../../tests/fixtures"
 
 test("timer actions validate their responses and share worker authentication", async () => {
   const calls: string[] = []
-  const service = new ConvexService("https://test.convex.cloud", "secret", httpFake((_url, init) => {
-    const body = JSON.parse(String(init.body))
-    assert.equal(body.args.secret, "secret"); calls.push(body.path)
-    return json({ status: "success", value: body.path.endsWith(":page") ? { groups: [], cursor: null, startedAt: 1 } : body.path.endsWith(":claim") ? null : null })
-  }))
-  assert.deepEqual(await service.timerPage(1, "cursor"), { groups: [], cursor: null, startedAt: 1 })
-  assert.equal(await service.claimTimer("group", 1), null)
+  const service = new ConvexService(
+    "https://test.convex.cloud",
+    "secret",
+    httpFake((_url, init) => {
+      const body = JSON.parse(String(init.body))
+      assert.equal(body.args.secret, "secret")
+      calls.push(body.path)
+      return json({
+        status: "success",
+        value: body.path.endsWith(":page")
+          ? { groups: [], cursor: null, startedAt: 1 }
+          : body.path.endsWith(":claim")
+            ? null
+            : body.path.endsWith(":begin") || body.path.endsWith(":session")
+              ? true
+              : null,
+      })
+    })
+  )
+  assert.deepEqual(await service.timerPage(1, "cursor"), {
+    groups: [],
+    cursor: null,
+    startedAt: 1,
+  })
+  assert.equal(await service.claimTimer("group", 1, "100"), null)
   await service.settleTimer("group", "execution", false)
   await service.diagnoseTimer("group", 1, "waitingForActivity")
-  assert.equal(calls.length, 4)
+  assert.equal(await service.beginTimer("group", "execution", "100"), true)
+  assert.equal(await service.timerSession("222", 1000), true)
+  assert.equal(
+    await service.timerSession(
+      "222",
+      1000,
+      { id: "100", startedAt: 500 },
+      1000
+    ),
+    true
+  )
+  assert.equal(calls.length, 7)
 })
 test("focused event actions authenticate once and return durable dedupe plus template in one round trip", async () => {
   const requests: { path: string; args: Record<string, unknown> }[] = []

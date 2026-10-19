@@ -2,6 +2,7 @@ import {
   TIMER_REFRESH_MS,
   TIMER_CONFIG_TTL_MS,
   timerDeadline,
+  timerMessage,
   type TimerRuntimeGroup,
 } from "@workspace/shared/twitchTimers"
 import type { Logger } from "@workspace/logger"
@@ -9,6 +10,7 @@ import type { ConvexService } from "../ConvexService"
 import type { TwitchApiService } from "../TwitchApiService"
 import type { TwitchAuthService } from "../TwitchAuthService"
 import { ChatBackpressure } from "../ChatSendQueue"
+import { TwitchFailure } from "../TwitchApiService"
 import { ChatActivity } from "./ChatActivity"
 
 type Entry = {
@@ -18,18 +20,46 @@ type Entry = {
   diagnostic?: string
   diagnosedAt: number
 }
+type Session = {
+  id: string
+  startedAt: number
+  activatedAt: number
+  observedAt: number
+}
+type Settlement = {
+  entry: Entry
+  executionId: string
+  sent: boolean
+  definite: boolean
+}
+const RECONCILE_MS = 5 * 60_000
+const PREPARED_FRESH_MS = 2_000
+
 export class TimerScheduler {
   private readonly groups = new Map<string, Entry>()
+  private readonly activeGroups = new Map<string, Entry>()
+  private readonly broadcasters = new Map<string, Entry[]>()
+  private readonly sessions = new Map<string, Session>()
+  private readonly generations = new Map<string, number>()
+  private readonly events = new Map<string, number>()
+  private readonly settlements = new Map<string, Settlement>()
+  private readonly lifecycleWork = new Set<Promise<void>>()
   private watermark?: number
   private refreshedAt = 0
   private refreshAt = 0
+  private reconcileAt = 0
   private timer?: ReturnType<typeof setTimeout>
   private work?: Promise<void>
   private stopped = false
   constructor(
     private readonly convex: Pick<
       ConvexService,
-      "timerPage" | "claimTimer" | "settleTimer" | "diagnoseTimer"
+      | "timerPage"
+      | "claimTimer"
+      | "beginTimer"
+      | "settleTimer"
+      | "diagnoseTimer"
+      | "timerSession"
     >,
     private readonly api: Pick<
       TwitchApiService,
@@ -49,79 +79,158 @@ export class TimerScheduler {
     this.timer = setTimeout(() => {
       this.work = this.tick()
         .catch(() => this.logger.warn("Timer scheduler unavailable"))
-        .finally(() => {
-          const now = this.now()
-          const next = Math.min(
-            this.refreshAt,
-            ...[...this.groups.values()].map((g) => g.dueAt)
-          )
-          this.schedule(Math.max(100, Math.min(TIMER_REFRESH_MS, next - now)))
-        })
+        .finally(() => this.schedule(TIMER_REFRESH_MS))
     }, ms)
     this.timer.unref()
   }
+  // The listener verifies HMAC, schema and event time before calling this.
+  lifecycle(
+    broadcasterId: string,
+    online: boolean,
+    eventAt: number
+  ): Promise<void> {
+    if (
+      this.stopped ||
+      !this.hasBroadcaster(broadcasterId) ||
+      eventAt > this.now() ||
+      eventAt <= (this.events.get(broadcasterId) ?? 0) ||
+      eventAt < (this.sessions.get(broadcasterId)?.observedAt ?? 0)
+    )
+      return Promise.resolve()
+    this.events.set(broadcasterId, eventAt)
+    this.generations.set(
+      broadcasterId,
+      (this.generations.get(broadcasterId) ?? 0) + 1
+    )
+    if (!online) this.deactivate(broadcasterId)
+    const work = (
+      online
+        ? this.reconcile([broadcasterId], eventAt)
+        : this.convex
+            .timerSession(broadcasterId, this.now(), undefined, eventAt)
+            .then(() => {})
+    )
+      .catch(() => {
+        this.deactivate(broadcasterId)
+        this.logger.warn("Timer stream lifecycle unavailable")
+      })
+      .finally(() => this.lifecycleWork.delete(work))
+    this.lifecycleWork.add(work)
+    return work
+  }
+  private hasBroadcaster(id: string): boolean {
+    return this.broadcasters.has(id)
+  }
+  private watch(): void {
+    this.activity.watch(this.sessions.keys())
+  }
+  private deactivate(id: string): void {
+    this.sessions.delete(id)
+    for (const entry of this.broadcasters.get(id) ?? [])
+      this.activeGroups.delete(entry.group.id)
+    this.watch()
+  }
+  private async reconcile(ids: string[], eventAt?: number): Promise<void> {
+    if (!ids.length) return
+    const generations = new Map(ids.map((id) => [id, this.generations.get(id)]))
+    const token = await this.auth.appToken()
+    for (let offset = 0; offset < ids.length && !this.stopped; offset += 100) {
+      const batch = ids.slice(offset, offset + 100)
+      const observedAt = this.now()
+      const live = await this.api.liveBroadcasters(token, batch)
+      for (const id of batch) {
+        if (
+          this.stopped ||
+          generations.get(id) !== this.generations.get(id) ||
+          !this.hasBroadcaster(id)
+        )
+          continue
+        const stream = live.get(id)
+        if (!(await this.convex.timerSession(id, observedAt, stream, eventAt)))
+          continue
+        if (this.stopped || generations.get(id) !== this.generations.get(id))
+          continue
+        const previous = this.sessions.get(id)
+        if (!stream) {
+          this.deactivate(id)
+          continue
+        }
+        if (previous?.id === stream.id) {
+          previous.observedAt = observedAt
+          continue
+        }
+        const session = { ...stream, activatedAt: this.now(), observedAt }
+        this.sessions.set(id, session)
+        this.watch()
+        this.activity.reset(id, session.activatedAt)
+        for (const entry of this.broadcasters.get(id)!) {
+          if (entry.group.streamId !== stream.id) {
+            entry.group.cursor = 0
+            entry.group.lastSentAt = undefined
+            entry.group.lastAttemptAt = undefined
+          }
+          entry.group.streamId = stream.id
+          entry.group.sessionStartedAt = stream.startedAt
+          entry.group.sessionLive = true
+          entry.baseline = 0
+          entry.dueAt = timerDeadline(entry.group, session.activatedAt)
+          this.activeGroups.set(entry.group.id, entry)
+        }
+      }
+    }
+  }
   async tick(): Promise<void> {
     if (this.stopped || this.signal.aborted) return
-    const now = this.now()
-    if (now >= this.refreshAt) {
-      this.refreshAt = now + TIMER_REFRESH_MS
+    if (this.now() >= this.refreshAt) {
+      this.refreshAt = this.now() + TIMER_REFRESH_MS
       try {
         await this.refresh()
       } catch {
         this.logger.warn("Timer configuration refresh unavailable")
       }
     }
+    await this.retrySettlements()
     if (
       !this.refreshedAt ||
       this.now() - this.refreshedAt > TIMER_CONFIG_TTL_MS
     )
       return
-    // Map insertion order rotates after each batch so busy broadcasters cannot
-    // monopolize due work. Provider calls remain bounded to four groups.
-    const due = [...this.groups.values()]
+    if (this.now() >= this.reconcileAt) {
+      this.reconcileAt = this.now() + RECONCILE_MS
+      try {
+        await this.reconcile([...this.broadcasters.keys()])
+      } catch {
+        this.logger.warn("Timer stream reconciliation unavailable")
+      }
+    }
+    const due = [...this.activeGroups.values()]
       .filter((e) => e.dueAt <= this.now())
       .slice(0, 4)
-    const active: Entry[] = []
-    for (const entry of due) {
-      this.groups.delete(entry.group.id)
-      this.groups.set(entry.group.id, entry)
-      entry.dueAt = this.now() + TIMER_REFRESH_MS
-      if (
-        !this.activity.eligible(
-          entry.group.broadcasterId,
-          entry.baseline,
-          entry.group.minimumMessages,
-          this.now()
-        )
-      ) {
-        await this.diagnose(entry, "waitingForActivity")
-      } else active.push(entry)
-    }
-    if (!active.length) return
-    try {
-      const token = await this.auth.appToken()
-      const live = await this.api.liveBroadcasters(token, [
-        ...new Set(active.map((e) => e.group.broadcasterId)),
-      ])
-      await Promise.all(
-        active.map(async (entry) => {
-          if (!live.has(entry.group.broadcasterId)) {
-            await this.diagnose(entry, "waitingForStream")
-            return
-          }
-          await this.send(entry, token)
-        })
-      )
-    } catch {
-      await Promise.all(
-        active.map((entry) => this.diagnose(entry, "providerUnavailable"))
-      )
-    }
+    await Promise.all(
+      due.map(async (entry) => {
+        this.groups.delete(entry.group.id)
+        this.groups.set(entry.group.id, entry)
+        this.activeGroups.delete(entry.group.id)
+        this.activeGroups.set(entry.group.id, entry)
+        entry.dueAt = this.now() + TIMER_REFRESH_MS
+        if (
+          !this.activity.eligible(
+            entry.group.broadcasterId,
+            entry.baseline,
+            entry.group.minimumMessages,
+            this.now()
+          )
+        ) {
+          await this.diagnose(entry, "waitingForActivity")
+          return
+        }
+        await this.send(entry)
+      })
+    )
   }
   private async refresh(): Promise<void> {
     const changes: TimerRuntimeGroup[] = []
-    let cursor: string | undefined
-    let startedAt: number | undefined
+    let cursor: string | undefined, startedAt: number | undefined
     do {
       const page = await this.convex.timerPage(this.watermark, cursor)
       startedAt ??= page.startedAt
@@ -129,16 +238,33 @@ export class TimerScheduler {
       if (changes.length > 10_000)
         throw new Error("Timer configuration capacity exceeded.")
       cursor = page.cursor ?? undefined
-    } while (cursor && !this.signal.aborted)
-    if (this.signal.aborted) return
-    const now = this.now()
+    } while (cursor && !this.stopped && !this.signal.aborted)
+    if (this.stopped || this.signal.aborted) return
     for (const group of changes) {
       if (!group.enabled || !group.messages.length) {
         this.groups.delete(group.id)
+        this.activeGroups.delete(group.id)
         continue
       }
       const previous = this.groups.get(group.id)
-      if (previous && previous.group.revision === group.revision) {
+      if (group.sessionLive === false) this.deactivate(group.broadcasterId)
+      if (
+        previous &&
+        previous.group.streamId !== group.streamId &&
+        group.sessionLive
+      ) {
+        this.deactivate(group.broadcasterId)
+        this.generations.set(
+          group.broadcasterId,
+          (this.generations.get(group.broadcasterId) ?? 0) + 1
+        )
+        this.reconcileAt = 0
+      }
+      if (
+        previous &&
+        previous.group.revision === group.revision &&
+        previous.group.streamId === group.streamId
+      ) {
         if ((group.lastSentAt ?? 0) > (previous.group.lastSentAt ?? 0)) {
           previous.group.cursor = group.cursor
           previous.group.lastSentAt = group.lastSentAt
@@ -158,81 +284,155 @@ export class TimerScheduler {
       this.groups.set(group.id, {
         group,
         baseline: this.activity.snapshot(group.broadcasterId).count,
-        dueAt: timerDeadline(group, now),
+        dueAt: timerDeadline(group, this.now()),
         diagnosedAt: 0,
       })
+      if (this.sessions.has(group.broadcasterId))
+        this.activeGroups.set(group.id, this.groups.get(group.id)!)
+      if (!previous) this.reconcileAt = 0
     }
-    this.activity.watch(
-      [...this.groups.values()].map((e) => e.group.broadcasterId)
-    )
+    if (changes.length) {
+      this.broadcasters.clear()
+      for (const entry of this.groups.values()) {
+        const entries = this.broadcasters.get(entry.group.broadcasterId)
+        if (entries) entries.push(entry)
+        else this.broadcasters.set(entry.group.broadcasterId, [entry])
+      }
+    }
+    for (const id of this.sessions.keys())
+      if (!this.hasBroadcaster(id)) this.deactivate(id)
+    for (const id of this.generations.keys())
+      if (!this.hasBroadcaster(id)) {
+        this.generations.delete(id)
+        this.events.delete(id)
+      }
     this.watermark = startedAt
-    this.refreshedAt = now
+    this.refreshedAt = this.now()
   }
-  private async send(entry: Entry, token: string): Promise<void> {
-    const group = entry.group
+  private valid(entry: Entry, session: Session): boolean {
+    return (
+      !this.stopped &&
+      !this.signal.aborted &&
+      this.groups.get(entry.group.id) === entry &&
+      this.sessions.get(entry.group.broadcasterId) === session &&
+      this.now() - this.refreshedAt <= TIMER_CONFIG_TTL_MS &&
+      this.activity.eligible(
+        entry.group.broadcasterId,
+        entry.baseline,
+        entry.group.minimumMessages,
+        this.now()
+      )
+    )
+  }
+  private async send(entry: Entry): Promise<void> {
+    const group = entry.group,
+      session = this.sessions.get(group.broadcasterId)!
     let execution: Awaited<ReturnType<ConvexService["claimTimer"]>> = null
+    let postStarted = false,
+      confirmed = false
     try {
+      const token = await this.auth.appToken()
+      execution = await this.convex.claimTimer(
+        group.id,
+        group.revision,
+        session.id
+      )
+      if (!execution) {
+        entry.dueAt = this.now() + RECONCILE_MS
+        return
+      }
+      if (
+        !this.valid(entry, session) ||
+        !timerMessage.safeParse(execution.message).success ||
+        execution.message !==
+          group.messages[group.cursor % group.messages.length]
+      )
+        return
+      if (
+        !(await this.convex.beginTimer(
+          group.id,
+          execution.executionId,
+          session.id
+        ))
+      )
+        return
+      const live = (
+        await this.api.liveBroadcasters(token, [group.broadcasterId])
+      ).get(group.broadcasterId)
+      if (live?.id !== session.id) {
+        this.deactivate(group.broadcasterId)
+        this.reconcileAt = 0
+        await this.diagnose(entry, "waitingForStream")
+        return
+      }
+      const preparedAt = this.now()
       const sent = await this.api.sendChatMessage(
         token,
         group.broadcasterId,
-        group.messages[group.cursor % group.messages.length]!,
-        async () => {
+        execution.message,
+        () => {
           if (
-            this.stopped ||
-            this.signal.aborted ||
-            this.now() - this.refreshedAt > TIMER_CONFIG_TTL_MS ||
-            !this.activity.eligible(
-              group.broadcasterId,
-              entry.baseline,
-              group.minimumMessages,
-              this.now()
-            )
+            !this.valid(entry, session) ||
+            execution!.expiresAt <= this.now() ||
+            this.now() - preparedAt >= PREPARED_FRESH_MS
           )
             return false
-          // Repeat the live check after queueing. A failed GET never means live.
-          if (
-            !(
-              await this.api.liveBroadcasters(token, [group.broadcasterId])
-            ).has(group.broadcasterId)
-          )
-            return false
-          execution = await this.convex.claimTimer(group.id, group.revision)
-          if (!execution) return false
-          group.lastAttemptAt = this.now()
-          entry.dueAt = this.now() + group.intervalMinutes * 60_000
-          return (
-            execution.expiresAt > this.now() &&
-            execution.message ===
-              group.messages[group.cursor % group.messages.length]
-          )
-        }
+          postStarted = true
+          return true
+        },
+        false
       )
-      if (sent && execution) {
-        const confirmed = execution as { executionId: string }
-        await this.convex.settleTimer(group.id, confirmed.executionId, true)
+      if (sent) {
+        confirmed = true
         group.cursor = (group.cursor + 1) % group.messages.length
         group.lastSentAt = this.now()
-        entry.dueAt = this.now() + group.intervalMinutes * 60_000
         entry.baseline = this.activity.snapshot(group.broadcasterId).count
-        entry.diagnostic = "ready"
-      } else if (execution) {
-        const suppressed = execution as { executionId: string }
-        await this.convex.settleTimer(group.id, suppressed.executionId, false)
       }
     } catch (error) {
-      if (execution) {
-        const uncertain = execution as { executionId: string }
-        await this.convex
-          .settleTimer(group.id, uncertain.executionId, false)
-          .catch(() => {})
-      } else
+      if (
+        error instanceof TwitchFailure &&
+        (error.code === "messageDropped" ||
+          (error.status !== undefined &&
+            [400, 401, 403, 422, 429].includes(error.status)))
+      )
+        postStarted = false
+      if (!execution) {
+        entry.dueAt = this.now() + 60_000
         await this.diagnose(
           entry,
           error instanceof ChatBackpressure
             ? "rateLimited"
             : "providerUnavailable"
         )
+      }
+    } finally {
+      if (execution) {
+        const settlement = {
+          entry,
+          executionId: execution.executionId,
+          sent: confirmed,
+          definite: !postStarted,
+        }
+        this.settlements.set(execution.executionId, settlement)
+        entry.dueAt = Infinity
+        await this.persistSettlement(settlement)
+      }
     }
+  }
+  private async persistSettlement(settlement: Settlement): Promise<void> {
+    const { entry, executionId, sent, definite } = settlement
+    try {
+      await this.convex.settleTimer(entry.group.id, executionId, sent, definite)
+      this.settlements.delete(executionId)
+      if (sent || definite)
+        entry.dueAt = this.now() + entry.group.intervalMinutes * 60_000
+    } catch {
+      this.logger.warn("Timer settlement pending")
+    }
+  }
+  private async retrySettlements(): Promise<void> {
+    for (const settlement of [...this.settlements.values()].slice(0, 4))
+      await this.persistSettlement(settlement)
   }
   private async diagnose(
     entry: Entry,
@@ -248,11 +448,19 @@ export class TimerScheduler {
       })
       .catch(() => {})
   }
-  async stop(): Promise<void> {
+  stopAccepting(): void {
     this.stopped = true
     clearTimeout(this.timer)
+  }
+  async stop(): Promise<void> {
+    this.stopAccepting()
     await this.work
+    await Promise.allSettled(this.lifecycleWork)
+    await this.retrySettlements()
     this.activity.clear()
     this.groups.clear()
+    this.activeGroups.clear()
+    this.broadcasters.clear()
+    this.sessions.clear()
   }
 }

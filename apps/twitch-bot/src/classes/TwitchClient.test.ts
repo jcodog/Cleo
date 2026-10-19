@@ -34,7 +34,8 @@ test("client startup, token maintenance, local health, clean shutdown and failur
     const calls: string[] = []
     let timerCalls = 0
     const request: typeof fetch = async (input, init) => {
-      if (init?.body && String(init.body).includes("twitchTimerActions:")) timerCalls++
+      if (init?.body && String(init.body).includes("twitchTimerActions:"))
+        timerCalls++
       calls.push(String(input))
       return runtimeHttp()(input, init)
     }
@@ -47,7 +48,10 @@ test("client startup, token maintenance, local health, clean shutdown and failur
     await client.run(controller.signal)
     assert.equal(JSON.parse(await readFile(path, "utf8")).state, "stopped")
     assert.ok(calls.every((url) => !url.includes("subscriptions")))
-    assert.equal(calls.filter((url) => url.includes("convex")).length - timerCalls, 3)
+    assert.equal(
+      calls.filter((url) => url.includes("convex")).length - timerCalls,
+      4
+    )
     assert.equal(client.webhook.isListening, false)
     const warnings: string[] = []
     const reportAbort = new AbortController()
@@ -141,6 +145,6 @@ test("client startup, token maintenance, local health, clean shutdown and failur
       }
     )
     await cancel.run(aborted.signal)
-    assert.equal(observedAbort, true)
+    assert.equal(observedAbort, false) // Accepted requests retain their shutdown grace.
   })
 })
