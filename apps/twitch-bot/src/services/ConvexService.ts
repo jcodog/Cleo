@@ -1,5 +1,9 @@
 import { z } from "zod"
 import type { EventKey } from "@workspace/shared/twitchEventSub"
+import {
+  timerRuntimeGroup,
+  timerRuntimeState,
+} from "@workspace/shared/twitchTimers"
 
 export class ConvexActionError extends Error {
   constructor(
@@ -21,6 +25,39 @@ function safeBackendCode(value: unknown): string | undefined {
   return undefined
 }
 export class ConvexService {
+  async timerPage(since?: number, cursor?: string) {
+    return z
+      .object({
+        groups: z.array(timerRuntimeGroup),
+        cursor: z.string().nullable(),
+        startedAt: z.number(),
+      })
+      .parse(await this.action("twitchTimerActions:page", { since, cursor }))
+  }
+  async claimTimer(id: string, revision: number) {
+    return z
+      .object({
+        executionId: z.string(),
+        message: z.string(),
+        expiresAt: z.number(),
+      })
+      .nullable()
+      .parse(await this.action("twitchTimerActions:claim", { id, revision }))
+  }
+  async settleTimer(
+    id: string,
+    executionId: string,
+    sent: boolean
+  ): Promise<void> {
+    await this.action("twitchTimerActions:settle", { id, executionId, sent })
+  }
+  async diagnoseTimer(
+    id: string,
+    revision: number,
+    state: z.infer<typeof timerRuntimeState>
+  ): Promise<void> {
+    await this.action("twitchTimerActions:diagnose", { id, revision, state })
+  }
   constructor(
     private readonly url: string,
     private readonly secret: string,

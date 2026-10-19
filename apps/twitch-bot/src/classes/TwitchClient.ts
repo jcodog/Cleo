@@ -10,18 +10,21 @@ import { TwitchWebhookServer } from "../services/eventsub/TwitchWebhookServer"
 import { GrantStore } from "../auth/grantStore"
 import { writeReadiness } from "../runtime/readiness"
 import { serializeLogError } from "@workspace/logger"
+import { ChatActivity } from "../services/timers/ChatActivity"
+import { TimerScheduler } from "../services/timers/TimerScheduler"
 
 export class TwitchClient {
   readonly auth: TwitchAuthService
   readonly webhook: TwitchWebhookServer
   private readonly convex: ConvexService
   private readonly shutdown = new AbortController()
+  private readonly timers: TimerScheduler
   constructor(
     private readonly config: TwitchRuntimeEnv,
     private readonly logger: Logger,
     request: typeof fetch = fetch
   ) {
-    const api = new TwitchApiService(config, request, this.shutdown.signal)
+    const api = new TwitchApiService(config, request, this.shutdown.signal, 30_000)
     this.auth = new TwitchAuthService(
       api,
       new GrantStore(config.TWITCH_BOT_GRANT_PATH),
@@ -35,12 +38,23 @@ export class TwitchClient {
     )
     this.convex = convex
     const announcements = new AnnouncementService(api, this.auth, logger)
+    const activity = new ChatActivity(config.TWITCH_BOT_USER_ID)
+    this.timers = new TimerScheduler(
+      convex,
+      api,
+      this.auth,
+      activity,
+      logger,
+      this.shutdown.signal
+    )
     const router = new EventSubRouter({ convex, announcements }, logger)
     this.webhook = new TwitchWebhookServer(
       config.TWITCH_EVENTSUB_SECRET,
       convex,
       router,
-      logger
+      logger,
+      activity,
+      config.TWITCH_BOT_USER_ID
     )
   }
   async run(signal: AbortSignal): Promise<void> {
@@ -65,6 +79,7 @@ export class TwitchClient {
       await this.webhook.recoverPending()
       await state("ready")
       await this.reportReadiness()
+      this.timers.start()
       this.logger.info("Twitch runtime ready")
       while (!signal.aborted) {
         // Token maintenance and readiness reporting. No subscription lifecycle work.
@@ -85,6 +100,8 @@ export class TwitchClient {
         throw error
       }
     } finally {
+      this.shutdown.abort()
+      await this.timers.stop()
       await this.webhook.stop().catch((failure) =>
         this.logger.error("Webhook shutdown failed", {
           error: serializeLogError(failure),

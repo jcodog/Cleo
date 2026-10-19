@@ -4,6 +4,8 @@ import { z } from "zod"
 import { serializeLogError, type Logger } from "@workspace/logger"
 import { routes, type EventSubRouter } from "./EventSubRouter"
 import type { ConvexService } from "../ConvexService"
+import type { ChatActivity } from "../timers/ChatActivity"
+import { eventDefinitions } from "@workspace/shared/twitchEventSub"
 
 export const MAX_WEBHOOK_BYTES = 65536
 const envelope = z.object({
@@ -30,7 +32,9 @@ export class TwitchWebhookServer {
       "reserve" | "subscriptionState" | "begin" | "finish" | "pendingEvents"
     >,
     private readonly router: Pick<EventSubRouter, "dispatch">,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly activity?: ChatActivity,
+    private readonly botId?: string
   ) {}
   async handle(request: Request, now = Date.now()): Promise<Response> {
     if (
@@ -87,13 +91,24 @@ export class TwitchWebhookServer {
       if (!route) return new Response(null, { status: 400 })
       const type = request.headers.get("Twitch-Eventsub-Message-Type")
       if (type === "notification" && route.key === "chatMessage") {
-        // Presence only. Verify and parse locally without receipts, logs or dispatch.
+        // Count metadata only after signature, time and condition validation.
         const parsed = route.parse(value.event)
         if (
           parsed.broadcasterId !==
           value.subscription.condition.broadcaster_user_id
         )
           return new Response(null, { status: 400 })
+        const event = eventDefinitions.chatMessage.parse(value.event)
+        if (this.botId && value.subscription.condition.user_id !== this.botId)
+          return new Response(null, { status: 400 })
+        // Delayed deliveries cannot make a quiet channel look active now.
+        if (time > now - 5 * 60_000)
+          this.activity?.observe(
+            parsed.broadcasterId,
+            event.chatter_user_id,
+            event.message_id,
+            now
+          )
         return new Response(null, { status: 204 })
       }
       if (this.pending.size >= 256) return new Response(null, { status: 503 })

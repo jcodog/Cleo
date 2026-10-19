@@ -92,7 +92,8 @@ test("announcement service renders plain outbound text with a maintained app tok
   const service = new AnnouncementService(
     {
       sendChatMessage: async (...args) => {
-        sent.push(args)
+        if (args[3] && !(await args[3]())) return ""
+        sent.push(args.slice(0, 3))
         return "message"
       },
     },

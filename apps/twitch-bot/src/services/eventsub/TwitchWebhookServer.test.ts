@@ -8,6 +8,7 @@ import {
   MAX_WEBHOOK_BYTES,
 } from "./TwitchWebhookServer"
 import { silentLogger } from "../../../tests/fixtures"
+import { ChatActivity } from "../timers/ChatActivity"
 
 const secret = "test-eventsub-secret"
 const event = {
@@ -141,7 +142,7 @@ function request(
     },
   })
 }
-function fixture() {
+function fixture(activity?: ChatActivity, botId?: string) {
   const receipts = new Set<string>()
   const calls: unknown[] = []
   let fail = false
@@ -178,7 +179,9 @@ function fixture() {
         if (rejectDispatch) throw new Error("send failed")
       },
     },
-    silentLogger
+    silentLogger,
+    activity,
+    botId
   )
   return {
     server,
@@ -195,6 +198,21 @@ function fixture() {
     release: () => releases.forEach((release) => release()),
   }
 }
+
+test("validated chat counts unique viewer metadata only for the configured bot and recent deliveries", async () => {
+  const activity = new ChatActivity("111")
+  activity.watch(["222"])
+  const f = fixture(activity, "111")
+  assert.equal((await f.server.handle(request(chatBody))).status, 204)
+  assert.equal((await f.server.handle(request(chatBody))).status, 204)
+  assert.equal(activity.snapshot("222").count, 1)
+  const wrong = { ...chatBody, subscription: { ...chatBody.subscription, condition: { broadcaster_user_id: "222", user_id: "444" } } }
+  assert.equal((await f.server.handle(request(wrong))).status, 400)
+  assert.equal((await f.server.handle(request(chatBody, { timestamp: new Date(Date.now() - 360000).toISOString() }))).status, 204)
+  assert.equal(activity.snapshot("222").count, 1)
+  assert.deepEqual(f.calls, [])
+  await f.server.stop()
+})
 test("valid challenge is returned verbatim, valid events dispatch once, revocations only report to Convex", async () => {
   const f = fixture()
   const challenge = await f.server.handle(

@@ -371,6 +371,7 @@ export const claim = internalMutation({
     await ctx.db.patch(group._id, {
       execution,
       lastAttemptAt: now,
+      updatedAt: now,
       diagnostic: "uncertain",
       diagnosticAt: now,
     })
@@ -395,6 +396,7 @@ export const settle = internalMutation({
     const now = Date.now()
     await ctx.db.patch(group._id, {
       execution: undefined,
+      updatedAt: now,
       diagnostic: args.sent ? "ready" : "uncertain",
       diagnosticAt: now,
       ...(args.sent

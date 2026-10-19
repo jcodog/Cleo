@@ -13,6 +13,27 @@ import {
 const fails = (code: string) => (error: unknown) =>
   error instanceof TwitchFailure && error.code === code
 
+test("live checks batch bounded broadcasters and never assume offline or failed responses are live", async () => {
+  const api = new TwitchApiService(apiConfig, httpFake(url => {
+    assert.deepEqual(url.searchParams.getAll("user_id"), ["222", "333"])
+    assert.equal(url.searchParams.get("first"), "100")
+    return json({ data: [{ user_id: "222", type: "live" }, { user_id: "333", type: "rerun" }] })
+  }))
+  assert.deepEqual(await api.liveBroadcasters("app", ["222", "333"]), new Set(["222"]))
+  await assert.rejects(api.liveBroadcasters("app", []), /1-100/)
+  await assert.rejects(api.liveBroadcasters("app", Array(101).fill("222")), /1-100/)
+})
+test("shared sender rechecks authorization after queue admission and respects provider retry headers without POST replay", async () => {
+  let calls = 0
+  const api = new TwitchApiService(apiConfig, httpFake(() => { calls++; return json({ data: [{ message_id: "id", is_sent: true }] }) }))
+  assert.equal(await api.sendChatMessage("app", "222", "hello", async () => false), "")
+  assert.equal(calls, 0)
+  for (const [remaining, reset, retry] of [["0", "1", "1"], ["2", "invalid", "invalid"]]) {
+    const limited = new TwitchApiService(apiConfig, httpFake(() => new Response("{}", { status: 429, headers: { "Ratelimit-Remaining": remaining!, "Ratelimit-Reset": reset!, "Retry-After": retry! } })))
+    await assert.rejects(limited.sendChatMessage("app", "222", "hello"), fails("apiUnavailable"))
+  }
+})
+
 test("chat refuses the broadcaster as bot sender before making a provider request", async () => {
   const api = new TwitchApiService(apiConfig, async () =>
     assert.fail("No provider request expected")

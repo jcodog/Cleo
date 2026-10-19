@@ -1,0 +1,31 @@
+import assert from "node:assert/strict"
+import { test } from "node:test"
+import { ChatActivity } from "./ChatActivity"
+
+test("activity isolates broadcasters, excludes bot and duplicates, expires quiet activity and bounds memory", () => {
+  const activity = new ChatActivity("999")
+  activity.watch(["222", "333"])
+  activity.observe("unknown", "user", "id", 1000)
+  activity.observe("222", "999", "bot", 1000)
+  assert.equal(activity.snapshot("222").count, 0)
+  activity.observe("222", "user", "first", 1000)
+  activity.observe("222", "user", "first", 1001)
+  assert.equal(activity.snapshot("222").count, 1)
+  assert.equal(activity.snapshot("333").count, 0)
+  assert.equal(activity.eligible("222", 0, 1, 1001), true)
+  assert.equal(activity.eligible("222", 1, 1, 1001), false)
+  assert.equal(activity.eligible("222", 0, 1, 301000), false)
+  assert.equal(activity.eligible("222", 0, 1, 999), false)
+  for (let i = 0; i < 20010; i++)
+    activity.observe("222", "user", String(i), 2000)
+  assert.equal(activity.snapshot("222").count, 20000)
+  activity.observe("222", "user", "new-window", 700000)
+  assert.equal(activity.snapshot("222").count, 20001)
+  activity.watch(["333"])
+  assert.equal(activity.snapshot("222").count, 0)
+  activity.watch(Array.from({ length: 10001 }, (_, i) => String(i)))
+  activity.observe("10000", "user", "ignored", 1)
+  assert.equal(activity.snapshot("10000").count, 0)
+  activity.clear()
+  assert.deepEqual(activity.snapshot("333"), { count: 0, lastAt: 0 })
+})
