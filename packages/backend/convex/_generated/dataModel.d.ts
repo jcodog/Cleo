@@ -2799,6 +2799,101 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  twitchTimerGrants: {
+    document: {
+      broadcasterId: string;
+      expiresAt: number;
+      reason: string;
+      revokedAt?: number;
+      userId: Id<"users">;
+      _id: Id<"twitchTimerGrants">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "expiresAt"
+      | "reason"
+      | "revokedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_user: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchTimerGroups: {
+    document: {
+      broadcasterId: string;
+      cursor: number;
+      deleted: boolean;
+      diagnostic?:
+        | "ready"
+        | "waitingForStream"
+        | "waitingForActivity"
+        | "intervalPending"
+        | "rateLimited"
+        | "providerUnavailable"
+        | "failed"
+        | "uncertain";
+      diagnosticAt?: number;
+      enabled: boolean;
+      execution?: {
+        cursor: number;
+        expiresAt: number;
+        id: string;
+        revision: number;
+      };
+      intervalMinutes: number;
+      lastAttemptAt?: number;
+      lastSentAt?: number;
+      messages: Array<string>;
+      minimumMessages: number;
+      name: string;
+      order: number;
+      revision: number;
+      updatedAt: number;
+      userId: Id<"users">;
+      _id: Id<"twitchTimerGroups">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "cursor"
+      | "deleted"
+      | "diagnostic"
+      | "diagnosticAt"
+      | "enabled"
+      | "execution"
+      | "execution.cursor"
+      | "execution.expiresAt"
+      | "execution.id"
+      | "execution.revision"
+      | "intervalMinutes"
+      | "lastAttemptAt"
+      | "lastSentAt"
+      | "messages"
+      | "minimumMessages"
+      | "name"
+      | "order"
+      | "revision"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_enabled: ["enabled", "deleted", "_creationTime"];
+      by_updated: ["updatedAt", "_creationTime"];
+      by_user: ["userId", "deleted", "order", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   twitchWebhookReceipts: {
     document: {
       attempt?: string;
