@@ -1,0 +1,36 @@
+docs/twitch/consent-architecture-review.md
+  s_d20ad3c78d98f3::t_0a10e6e5117bd1 1-43
+packages/backend/convex/twitchConsentActions.ts
+  s_d20ad3c78d98f3::t_2d7df8ae550d37 67,74,92,169
+apps/twitch-bot/src/services/eventsub/TwitchWebhookServer.test.ts
+  s_d20ad3c78d98f3::t_49276584a5da5a 83-88,90-114
+  s_d20ad3c78d98f3::t_bdbc16cc0d8128 89
+packages/backend/convex/twitchEventSub.ts
+  s_d20ad3c78d98f3::t_aa8367b13b6d96 399
+packages/backend/convex/liveNotifications.test.ts
+  s_d20ad3c78d98f3::t_2d7df8ae550d37 47-50,54,772-773,785-824
+  s_d20ad3c78d98f3::t_3bb018f2636c79 502-607
+  s_d20ad3c78d98f3::t_28485148194bb6 774-784
+  s_d20ad3c78d98f3::t_f0559d55119365 825
+docs/twitch/chatbot-rollout.md
+  s_d20ad3c78d98f3::t_0a10e6e5117bd1 5-8,21-22,25,61,70,75
+  s_d20ad3c78d98f3::t_28485148194bb6 9-20,23-24
+apps/twitch-bot/src/services/eventsub/TwitchWebhookServer.ts
+  s_d20ad3c78d98f3::t_49276584a5da5a 125-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "395d55f4764187cc716b3f554dbb45fa2db6ed88",
+  "prompts": {},
+  "sessions": {
+    "s_d20ad3c78d98f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14fa3-5911-7843-a950-5e71700ea197",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
