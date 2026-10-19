@@ -1,0 +1,55 @@
+apps/dashboard/tests/twitch/workspace.spec.ts
+  s_20c2a68bb23ef7::t_327b177ed3d3e8 74-76,80-82
+  s_20c2a68bb23ef7::t_db273886c2d7c2 56,67-68,70-73,77-79
+  s_20c2a68bb23ef7::t_95649227eb28ff 69,83
+packages/backend/convex/twitchTimers.ts
+  s_20c2a68bb23ef7::t_28f05bf3dacc80 361-364
+packages/shared/src/twitchTimers.test.ts
+  s_20c2a68bb23ef7::t_28f05bf3dacc80 48-54
+apps/twitch-bot/src/services/timers/TimerScheduler.test.ts
+  s_20c2a68bb23ef7::t_00af7dbac1869e 216,301,314,319,322-325,328-340,343-344,346-349
+  s_20c2a68bb23ef7::t_a23fd996b7adbe 167-169,171-172,176-177,179-180,182-183,185-186,188,193,199-200,224,284-285,290-291,305,311,350-356,358,362-368
+  s_20c2a68bb23ef7::t_7d5d8346cc2a34 37-78,155-165,170,173-175,178,181,184,187,194-198,201-211,213-215,217-220,222-223,228-231,234-238,241-254,259-282,286-289,292-300,306-310,312-313,315-318,320-321,326-327,341-342,345,357,359-361
+apps/dashboard/tests/twitch/fixture.tsx
+  s_20c2a68bb23ef7::t_db273886c2d7c2 25,31,47,54-58,60
+  s_20c2a68bb23ef7::t_03cc0ac1ec2ec2 59
+apps/dashboard/tests/pwa.test.ts
+  s_20c2a68bb23ef7::t_fdf071bd2d7ce5 22-23
+packages/shared/src/twitchTimers.ts
+  s_20c2a68bb23ef7::t_c6a32b24399728 54
+  s_20c2a68bb23ef7::t_28f05bf3dacc80 7-16,47-50
+docs/twitch/timers.md
+  s_20c2a68bb23ef7::t_4078bc65a6e6f8 1-111
+packages/backend/convex/twitchTimers.test.ts
+  s_20c2a68bb23ef7::t_4628b3d7e709c0 6,385,411
+  s_20c2a68bb23ef7::t_28f05bf3dacc80 177-184,186-205,214-222,226-235,237,239,241-251,253-283,287,289-293,297-308,311-317,358-384,388-410,413-422,424-431,433-444,446-451,569-572
+  s_20c2a68bb23ef7::t_a23fd996b7adbe 319-326,328-331,333,335-337,339-341,343-346,348-353
+  s_20c2a68bb23ef7::t_799948e547dd58 10-14,19,176,185,206-213,223-225,236,238,240,252,284-286,288,294-296,309-310,318,354-357,386-387,412,423,432,445
+  s_20c2a68bb23ef7::t_861e9d288c2b87 327,332,334,338,342,347
+apps/dashboard/src/features/twitch/ChatTimers.tsx
+  s_20c2a68bb23ef7::t_78ee988db0519b 55-56,69,80,91,98,101,133
+  s_20c2a68bb23ef7::t_28f05bf3dacc80 57-68,77-79,81-90,108
+  s_20c2a68bb23ef7::t_4d52864f5fb28e 70
+packages/backend/package.json
+  s_20c2a68bb23ef7::t_61f3d059556950 13
+apps/twitch-bot/src/services/timers/TimerScheduler.ts
+  s_20c2a68bb23ef7::t_c6a32b24399728 215
+apps/twitch-bot/.env.example
+  s_20c2a68bb23ef7::t_2bc7264fa1eb3e 11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65824157370d0302e68a107d2989295313ad8cc5",
+  "prompts": {},
+  "sessions": {
+    "s_20c2a68bb23ef7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15611-5c6c-7302-850c-a00bf8b01861",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
