@@ -45,4 +45,11 @@ test("timer ranges, unicode message limits and unsafe content are enforced", () 
     timerDeadline({ intervalMinutes: 5, lastAttemptAt: 50 }, 100),
     300100
   )
+  assert.equal(
+    timerDeadline(
+      { intervalMinutes: 5, lastAttemptAt: 50, lastSentAt: 1000 },
+      100
+    ),
+    301000
+  )
 })

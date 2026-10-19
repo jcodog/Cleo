@@ -4,15 +4,16 @@ export const TIMER_ACTIVITY_WINDOW_MS = 5 * 60_000
 export const TIMER_REFRESH_MS = 15_000
 export const TIMER_CONFIG_TTL_MS = 60_000
 export const TIMER_LEASE_MS = 60_000
-export const timerMessage = z
-  .string()
-  .refine(
-    (message) =>
-      message.trim().length > 0 &&
-      [...message].length <= 500 &&
-      !/[\u0000-\u001f\u007f-\u009f]/u.test(message),
-    "Use 1-500 characters without control characters."
-  )
+export const timerMessage = z.string().refine(
+  (message) =>
+    message.trim().length > 0 &&
+    [...message].length <= 500 &&
+    ![...message].some((character) => {
+      const code = character.charCodeAt(0)
+      return code < 32 || (code >= 127 && code <= 159)
+    }),
+  "Use 1-500 characters without control characters."
+)
 export const timerConfiguration = z.object({
   name: z.string().trim().min(1).max(80),
   enabled: z.boolean(),
@@ -43,11 +44,14 @@ export const timerRuntimeGroup = timerConfiguration.extend({
 export type TimerRuntimeGroup = z.infer<typeof timerRuntimeGroup>
 
 export function timerDeadline(
-  group: Pick<TimerRuntimeGroup, "lastAttemptAt" | "intervalMinutes">,
+  group: Pick<
+    TimerRuntimeGroup,
+    "lastAttemptAt" | "lastSentAt" | "intervalMinutes"
+  >,
   startedAt: number
 ): number {
   return (
-    Math.max(startedAt, group.lastAttemptAt ?? 0) +
+    Math.max(startedAt, group.lastAttemptAt ?? 0, group.lastSentAt ?? 0) +
     group.intervalMinutes * 60_000
   )
 }

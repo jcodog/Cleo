@@ -34,42 +34,48 @@ function setup() {
     settled: boolean[] = []
   const activity = new ChatActivity("999")
   const abort = new AbortController()
-  const convex: Pick<ConvexService, "timerPage" | "claimTimer" | "settleTimer" | "diagnoseTimer"> = {
-      timerPage: async () => {
-        if (unavailable) throw new Error("down")
-        const groups = changes
-        changes = []
-        return { groups, cursor: null, startedAt: now }
-      },
-      claimTimer: async () =>
-        claimAllowed
-          ? {
-              executionId: "execution",
-              message: sent.length % 2 ? "second" : "first",
-              expiresAt: now + 60000,
-            }
-          : null,
-      settleTimer: async (_id, _execution, success) => {
-        if (settleFailure) throw new Error("down")
-        settled.push(success)
-      },
-      diagnoseTimer: async (_id: string, _revision: number, state: string) => {
-        states.push(state)
-      },
-    }
-  const provider: Pick<TwitchApiService, "liveBroadcasters" | "sendChatMessage"> = {
-      liveBroadcasters: async () => {
-        if (providerFailure) throw new Error("down")
-        return new Set(live ? ["222"] : [])
-      },
-      sendChatMessage: async (_token, _channel, message, beforeSend) => {
-        if (backpressure) throw new ChatBackpressure()
-        if (!(await beforeSend!())) return ""
-        if (providerFailure) throw new Error("ambiguous POST")
-        sent.push(message)
-        return "sent"
-      },
-    }
+  const convex: Pick<
+    ConvexService,
+    "timerPage" | "claimTimer" | "settleTimer" | "diagnoseTimer"
+  > = {
+    timerPage: async () => {
+      if (unavailable) throw new Error("down")
+      const groups = changes
+      changes = []
+      return { groups, cursor: null, startedAt: now }
+    },
+    claimTimer: async () =>
+      claimAllowed
+        ? {
+            executionId: "execution",
+            message: sent.length % 2 ? "second" : "first",
+            expiresAt: now + 60000,
+          }
+        : null,
+    settleTimer: async (_id, _execution, success) => {
+      if (settleFailure) throw new Error("down")
+      settled.push(success)
+    },
+    diagnoseTimer: async (_id: string, _revision: number, state: string) => {
+      states.push(state)
+    },
+  }
+  const provider: Pick<
+    TwitchApiService,
+    "liveBroadcasters" | "sendChatMessage"
+  > = {
+    liveBroadcasters: async () => {
+      if (providerFailure) throw new Error("down")
+      return new Set(live ? ["222"] : [])
+    },
+    sendChatMessage: async (_token, _channel, message, beforeSend) => {
+      if (backpressure) throw new ChatBackpressure()
+      if (!(await beforeSend!())) return ""
+      if (providerFailure) throw new Error("ambiguous POST")
+      sent.push(message)
+      return "sent"
+    },
+  }
   const scheduler = new TimerScheduler(
     convex,
     provider,
@@ -146,68 +152,220 @@ test("timers wait for interval, fresh activity and a live stream then rotate con
   assert.equal(s.activity.snapshot("222").count, 0)
 })
 
-const group: TimerRuntimeGroup = { id: "group", broadcasterId: "222", name: "Links", enabled: true, messages: ["first", "second"], intervalMinutes: 5, minimumMessages: 2, revision: 1, cursor: 0 }
+const group: TimerRuntimeGroup = {
+  id: "group",
+  broadcasterId: "222",
+  name: "Links",
+  enabled: true,
+  messages: ["first", "second"],
+  intervalMinutes: 5,
+  minimumMessages: 2,
+  revision: 1,
+  cursor: 0,
+}
 test("incremental changes restore durable cursors, reject stale evidence and remove disabled groups", async () => {
-  const s = setup(); await s.scheduler.tick()
-  s.advance(15000); s.changes([{ ...group }]); await s.scheduler.tick()
-  s.advance(15000); s.changes([{ ...group, cursor: 1, lastSentAt: 2000000, lastAttemptAt: 2000000 }]); await s.scheduler.tick()
-  s.advance(15000); s.changes([{ ...group, lastSentAt: 1, lastAttemptAt: 1 }]); await s.scheduler.tick()
-  s.advance(15000); s.changes([{ ...group, revision: 2 }]); await s.scheduler.tick()
-  s.advance(15000); s.changes([{ ...group, enabled: false }]); await s.scheduler.tick()
-  s.advance(15000); s.changes([{ ...group, messages: [] }]); await s.scheduler.tick()
+  const s = setup()
+  await s.scheduler.tick()
+  s.advance(15000)
+  s.changes([{ ...group }])
+  await s.scheduler.tick()
+  s.advance(15000)
+  s.changes([
+    { ...group, cursor: 1, lastSentAt: 2000000, lastAttemptAt: 2000000 },
+  ])
+  await s.scheduler.tick()
+  s.advance(15000)
+  s.changes([{ ...group, lastSentAt: 1, lastAttemptAt: 1 }])
+  await s.scheduler.tick()
+  s.advance(15000)
+  s.changes([{ ...group, revision: 2 }])
+  await s.scheduler.tick()
+  s.advance(15000)
+  s.changes([{ ...group, enabled: false }])
+  await s.scheduler.tick()
+  s.advance(15000)
+  s.changes([{ ...group, messages: [] }])
+  await s.scheduler.tick()
   assert.equal(s.activity.snapshot("222").count, 0)
   await s.scheduler.stop()
 })
 test("initial pages, memory capacity and interrupted refreshes are bounded", async (t) => {
-  const s = setup(); let pages = 0
-  t.mock.method(s.convex, "timerPage", async () => ({ groups: [group], cursor: ++pages === 1 ? "next" : null, startedAt: 1000000 }))
-  await s.scheduler.tick(); assert.equal(pages, 2)
-  const abort = setup(); t.mock.method(abort.convex, "timerPage", async () => { abort.abort.abort(); return { groups: [], cursor: "next", startedAt: 1000000 } })
-  await abort.scheduler.tick(); await abort.scheduler.stop()
-  const oversized = setup(); oversized.changes(Array(10001).fill(group)); await oversized.scheduler.tick()
+  const s = setup()
+  let pages = 0
+  t.mock.method(s.convex, "timerPage", async () => ({
+    groups: [group],
+    cursor: ++pages === 1 ? "next" : null,
+    startedAt: 1000000,
+  }))
+  await s.scheduler.tick()
+  assert.equal(pages, 2)
+  const abort = setup()
+  t.mock.method(abort.convex, "timerPage", async () => {
+    abort.abort.abort()
+    return { groups: [], cursor: "next", startedAt: 1000000 }
+  })
+  await abort.scheduler.tick()
+  await abort.scheduler.stop()
+  const oversized = setup()
+  oversized.changes(Array(10001).fill(group))
+  await oversized.scheduler.tick()
   assert.equal(oversized.sent.length, 0)
-  const full = setup(); full.changes(Array.from({ length: 10000 }, (_, i) => ({ ...group, id: String(i) }))); await full.scheduler.tick()
-  full.advance(15000); full.changes([group]); await full.scheduler.tick()
+  const full = setup()
+  full.changes(
+    Array.from({ length: 10000 }, (_, i) => ({ ...group, id: String(i) }))
+  )
+  await full.scheduler.tick()
+  full.advance(15000)
+  full.changes([group])
+  await full.scheduler.tick()
   assert.equal(full.sent.length, 0)
-  await full.scheduler.stop(); await oversized.scheduler.stop(); await s.scheduler.stop()
+  await full.scheduler.stop()
+  await oversized.scheduler.stop()
+  await s.scheduler.stop()
 })
 test("queued work rechecks fresh activity, shutdown, configuration and live status before claiming", async (t) => {
   for (const mode of ["abort", "stale", "quiet", "offline", "error"]) {
-    const s = setup(); await s.scheduler.tick(); s.advance(300000); s.chat()
+    const s = setup()
+    await s.scheduler.tick()
+    s.advance(300000)
+    s.chat()
     if (mode === "offline") {
       let checks = 0
-      t.mock.method(s.provider, "liveBroadcasters", async () => new Set(++checks === 1 ? ["222"] : []))
+      t.mock.method(
+        s.provider,
+        "liveBroadcasters",
+        async () => new Set(++checks === 1 ? ["222"] : [])
+      )
     }
     const send = s.provider.sendChatMessage
-    t.mock.method(s.provider, "sendChatMessage", async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => {
-      if (mode === "abort") s.abort.abort()
-      if (mode === "stale") s.advance(61000)
-      if (mode === "quiet") s.advance(300000)
-      if (mode === "error") throw new Error("provider unavailable")
-      return send(...args)
-    })
-    await s.scheduler.tick(); assert.equal(s.sent.length, 0); await s.scheduler.stop()
+    t.mock.method(
+      s.provider,
+      "sendChatMessage",
+      async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => {
+        if (mode === "abort") s.abort.abort()
+        if (mode === "stale") s.advance(61000)
+        if (mode === "quiet") s.advance(300000)
+        if (mode === "error") throw new Error("provider unavailable")
+        return send(...args)
+      }
+    )
+    await s.scheduler.tick()
+    assert.equal(s.sent.length, 0)
+    await s.scheduler.stop()
   }
 })
 test("failed or suppressed claimed POSTs settle uncertain and never replay immediately", async (t) => {
   for (const mode of ["expired", "mismatch", "postFailure"]) {
-    const s = setup(); await s.scheduler.tick(); s.advance(300000); s.chat()
-    t.mock.method(s.convex, "claimTimer", async () => ({ executionId: "claim", message: mode === "mismatch" ? "wrong" : "first", expiresAt: mode === "expired" ? 0 : 2000000 }))
-    if (mode === "postFailure") t.mock.method(s.provider, "sendChatMessage", async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => { await args[3]!(); throw new Error("ambiguous POST") })
-    await s.scheduler.tick(); assert.deepEqual(s.settled, [false]); s.advance(15000); await s.scheduler.tick(); assert.equal(s.settled.length, 1); await s.scheduler.stop()
+    const s = setup()
+    await s.scheduler.tick()
+    s.advance(300000)
+    s.chat()
+    t.mock.method(s.convex, "claimTimer", async () => ({
+      executionId: "claim",
+      message: mode === "mismatch" ? "wrong" : "first",
+      expiresAt: mode === "expired" ? 0 : 2000000,
+    }))
+    if (mode === "postFailure")
+      t.mock.method(
+        s.provider,
+        "sendChatMessage",
+        async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => {
+          await args[3]!()
+          throw new Error("ambiguous POST")
+        }
+      )
+    await s.scheduler.tick()
+    assert.deepEqual(s.settled, [false])
+    s.advance(15000)
+    await s.scheduler.tick()
+    assert.equal(s.settled.length, 1)
+    await s.scheduler.stop()
   }
-  const s = setup(); await s.scheduler.tick(); s.advance(300000)
-  t.mock.method(s.convex, "diagnoseTimer", async () => { throw new Error("unavailable") })
-  await s.scheduler.tick(); await s.scheduler.stop()
-  const repeat = setup(); await repeat.scheduler.tick(); repeat.advance(300000); await repeat.scheduler.tick(); repeat.advance(15000); await repeat.scheduler.tick()
-  assert.equal(repeat.states.filter(s => s === "waitingForActivity").length, 1)
+  const s = setup()
+  await s.scheduler.tick()
+  s.advance(300000)
+  t.mock.method(s.convex, "diagnoseTimer", async () => {
+    throw new Error("unavailable")
+  })
+  await s.scheduler.tick()
+  await s.scheduler.stop()
+  const repeat = setup()
+  await repeat.scheduler.tick()
+  repeat.advance(300000)
+  await repeat.scheduler.tick()
+  repeat.advance(15000)
+  await repeat.scheduler.tick()
+  assert.equal(
+    repeat.states.filter((s) => s === "waitingForActivity").length,
+    1
+  )
   await repeat.scheduler.stop()
 })
 test("unexpected scheduler errors are contained, including default clock startup", async (t) => {
-  const s = setup(); t.mock.method(s.scheduler, "tick", async () => { throw new Error("unexpected") })
-  s.scheduler.start(); await new Promise(resolve => setTimeout(resolve, 20)); await s.scheduler.stop()
-  const natural = new TimerScheduler(s.convex, s.provider, { appToken: async () => "app" }, new ChatActivity("bot"), silentLogger, new AbortController().signal)
-  await natural.tick(); await natural.stop()
+  const s = setup()
+  t.mock.method(s.scheduler, "tick", async () => {
+    throw new Error("unexpected")
+  })
+  s.scheduler.start()
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  await s.scheduler.stop()
+  const natural = new TimerScheduler(
+    s.convex,
+    s.provider,
+    { appToken: async () => "app" },
+    new ChatActivity("bot"),
+    silentLogger,
+    new AbortController().signal
+  )
+  await natural.tick()
+  await natural.stop()
+})
+
+test("the full next interval starts after a slow confirmed send completes", async (t) => {
+  const s = setup()
+  await s.scheduler.tick()
+  s.advance(300000)
+  s.chat()
+  const send = s.provider.sendChatMessage
+  t.mock.method(
+    s.provider,
+    "sendChatMessage",
+    async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => {
+      const result = await send(...args)
+      s.advance(30000)
+      return result
+    }
+  )
+  await s.scheduler.tick()
+  assert.equal(s.sent.length, 1)
+  s.advance(299999)
+  s.chat()
+  await s.scheduler.tick()
+  assert.equal(s.sent.length, 1)
+  s.advance(1)
+  await s.scheduler.tick()
+  assert.equal(s.sent.length, 2)
+  await s.scheduler.stop()
+})
+
+test("groups sharing a broadcaster reset only their own successful-send activity baseline", async (t) => {
+  const s = setup()
+  s.changes([group, { ...group, id: "second", minimumMessages: 3 }])
+  t.mock.method(s.convex, "claimTimer", async () => ({
+    executionId: "claim",
+    message: "first",
+    expiresAt: 2000000,
+  }))
+  await s.scheduler.tick()
+  s.advance(300000)
+  s.chat()
+  await s.scheduler.tick()
+  assert.deepEqual(s.sent, ["first"])
+  s.advance(15000)
+  s.activity.observe("222", "viewer", "third-viewer-event", 1315000)
+  await s.scheduler.tick()
+  assert.deepEqual(s.sent, ["first", "first"])
+  await s.scheduler.stop()
 })
 test("stale configuration, provider failures, revoked claims and backpressure fail closed", async () => {
   const s = setup()

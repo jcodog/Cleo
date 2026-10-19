@@ -212,6 +212,7 @@ export class TimerScheduler {
         await this.convex.settleTimer(group.id, confirmed.executionId, true)
         group.cursor = (group.cursor + 1) % group.messages.length
         group.lastSentAt = this.now()
+        entry.dueAt = this.now() + group.intervalMinutes * 60_000
         entry.baseline = this.activity.snapshot(group.broadcasterId).count
         entry.diagnostic = "ready"
       } else if (execution) {

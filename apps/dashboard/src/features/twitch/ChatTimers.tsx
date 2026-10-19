@@ -52,32 +52,60 @@ export function ChatTimers() {
   const health = useQuery(api.twitchChat.status, {})
   const [selection, setSelection] = useState<string>()
   const [dirty, setDirty] = useState(false)
+  const [capacityTime, setCapacityTime] = useState(() => Date.now())
+  useEffect(() => {
+    if (
+      !view?.entitlement.expiresAt ||
+      view.entitlement.expiresAt <= capacityTime
+    )
+      return
+    const timer = setTimeout(
+      () => setCapacityTime(Date.now()),
+      Math.min(
+        2_147_000_000,
+        Math.max(0, view.entitlement.expiresAt - Date.now())
+      )
+    )
+    return () => clearTimeout(timer)
+  }, [view?.entitlement.expiresAt, capacityTime])
   function select(id?: string) {
     if (dirty && !window.confirm("Discard unsaved timer changes?")) return
     setDirty(false)
     setSelection(id)
   }
   if (!view) return <Skeleton className="h-48 w-full" />
-  const selected = view.groups.find((g) => g.id === selection)
+  const expired =
+    view.entitlement.expiresAt !== null &&
+    view.entitlement.expiresAt <= capacityTime
+  const limit = expired ? 1 : view.entitlement.limit
+  const eligibleIds = new Set(
+    view.groups
+      .filter((group) => !group.broadcasterChanged)
+      .slice(0, limit)
+      .map((group) => group.id)
+  )
+  const groups = view.groups.map((group) => ({
+    ...group,
+    locked: group.locked || !eligibleIds.has(group.id),
+  }))
+  const selected = groups.find((g) => g.id === selection)
   const editing = selection === "new" || !!selected
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3 text-sm">
         <div className="flex flex-col gap-1">
           <p>
-            {view.groups.length} / {view.entitlement.limit} timer groups
+            {view.groups.length} / {limit} timer groups
           </p>
           <p className="text-muted-foreground">
-            {view.entitlement.source === "testGrant"
+            {view.entitlement.source === "testGrant" && !expired
               ? `Test access, expires ${new Date(view.entitlement.expiresAt!).toLocaleString()}. This is not a paid subscription.`
               : "Free access includes one group. Paid broadcaster billing is not available yet."}
           </p>
         </div>
         <Button
           onClick={() => select("new")}
-          disabled={
-            !view.connected || view.groups.length >= view.entitlement.limit
-          }
+          disabled={!view.connected || view.groups.length >= limit}
         >
           <IconPlus data-icon="inline-start" />
           New group
@@ -102,7 +130,7 @@ export function ChatTimers() {
         >
           {view.groups.length ? (
             <ol className="flex flex-col divide-y">
-              {view.groups.map((group) => (
+              {groups.map((group) => (
                 <li key={group.id}>
                   <button
                     type="button"

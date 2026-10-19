@@ -19,6 +19,8 @@ const appPaths = [
   "/dashboard",
   "/dashboard/123/logs?tab=logs",
   "/twitch?tab=chat",
+  "/twitch/alerts",
+  "/twitch/timers",
   "/kick",
   "/staff",
   "/account",

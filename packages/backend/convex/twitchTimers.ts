@@ -358,7 +358,10 @@ export const claim = internalMutation({
       !eligible.some((g) => g._id === group._id) ||
       (group.execution && group.execution.expiresAt > now) ||
       now <
-        (group.lastAttemptAt ?? group._creationTime) +
+        Math.max(
+          group.lastAttemptAt ?? group._creationTime,
+          group.lastSentAt ?? 0
+        ) +
           group.intervalMinutes * 60_000
     )
       return null

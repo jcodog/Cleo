@@ -22,12 +22,13 @@ import Link, { usePathname } from "./navigation-fixture"
 type View = FunctionReturnType<typeof api.twitchTimers.list>
 const listeners = new Set<() => void>()
 const locked = new URLSearchParams(location.search).has("locked")
+const expiry = new URLSearchParams(location.search).has("expiry")
 const staleGuild = new URLSearchParams(location.search).has("staleGuild")
 let view: View = {
   entitlement: {
     limit: locked ? 1 : 3,
     source: locked ? "free" : "testGrant",
-    expiresAt: locked ? null : Date.now() + 86400000,
+    expiresAt: locked ? null : Date.now() + (expiry ? 5000 : 86400000),
   },
   connected: true,
   groups: [
@@ -43,13 +44,20 @@ let view: View = {
       ],
       revision: 1,
       cursor: 0,
-      locked,
+      locked: false,
       broadcasterChanged: false,
       diagnostic: "waitingForActivity",
       diagnosticAt: Date.now(),
     },
   ],
 }
+if (locked || expiry)
+  view.groups.push({
+    ...view.groups[0]!,
+    id: "timer2" as View["groups"][number]["id"],
+    name: "Subscriber reminders",
+    locked,
+  })
 const health = {
   activated: true,
   botReady: true,

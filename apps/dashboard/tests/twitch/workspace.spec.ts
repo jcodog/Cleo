@@ -53,7 +53,7 @@ test("timer messages validate, reorder with keyboard controls, save and retain l
     fullPage: true,
   })
   await page.goto("/twitch/timers?locked&theme=light")
-  await page.getByRole("button", { name: /Community links/ }).click()
+  await page.getByRole("button", { name: /Subscriber reminders/ }).click()
   await expect(page.getByText(/saved enablement are preserved/)).toBeVisible()
   await expect(page.getByRole("button", { name: "New group" })).toBeDisabled()
   await expect(
@@ -63,6 +63,23 @@ test("timer messages validate, reorder with keyboard controls, save and retain l
     path: "test-results/twitch/timers-locked-light.png",
     fullPage: true,
   })
+})
+
+test("an expiring test grant locks extra groups without deleting their messages", async ({
+  page,
+}) => {
+  await page.clock.install()
+  await page.goto("/twitch/timers?expiry")
+  await page.getByRole("button", { name: /Subscriber reminders/ }).click()
+  await expect(page.getByRole("textbox", { name: /^Message 1/ })).toHaveValue(
+    "Join our community at example.com"
+  )
+  await page.clock.fastForward(6000)
+  await expect(page.getByText(/saved enablement are preserved/)).toBeVisible()
+  await expect(page.getByText("2 / 1 timer groups")).toBeVisible()
+  await expect(page.getByRole("textbox", { name: /^Message 1/ })).toHaveValue(
+    "Join our community at example.com"
+  )
 })
 test("mobile sidebar, dedicated editor and nine expandable alerts fit without horizontal overflow", async ({
   page,
