@@ -27,7 +27,7 @@
     "prettier": "catalog:",
     "prettier-plugin-tailwindcss": "catalog:",
     "tsx": "catalog:",
-    "turbo": "^2.11.8",
+    "turbo": "^2.11.9",
     "typescript": "catalog:"
   },
   "engines": {
@@ -39,14 +39,14 @@
       "packages/*"
     ],
     "catalog": {
-      "@next/eslint-plugin-next": "^16.4.1",
+      "@next/eslint-plugin-next": "^16.4.2",
       "@tailwindcss/postcss": "^4.3.3",
-      "@turbo/gen": "^2.11.8",
+      "@turbo/gen": "^2.11.9",
       "@types/node": "^26.6.5",
       "@types/react": "^19.3.0",
       "@types/react-dom": "^19.3.0",
       "eslint-plugin-react-hooks": "^7.1.1",
-      "eslint-plugin-turbo": "^2.11.8",
+      "eslint-plugin-turbo": "^2.11.9",
       "prettier": "^3.9.10",
       "prettier-plugin-tailwindcss": "^0.8.1",
       "tailwindcss": "^4.3.3",

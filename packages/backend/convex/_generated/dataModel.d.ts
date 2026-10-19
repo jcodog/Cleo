@@ -2556,46 +2556,6 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
-  twitchChatConsents: {
-    document: {
-      _id: Id<"twitchChatConsents">;
-      _creationTime: number;
-      userId: Id<"users">;
-      clerkUserId: string;
-      linkedAccount: Id<"linkedAccounts">;
-      broadcasterId: string;
-      clientId: string;
-      subscription: Id<"twitchEventSubscriptions">;
-      revocationVersion: number;
-      stateHash: string;
-      nonceHash: string;
-      issuedAt: number;
-      expiresAt: number;
-      state: "pending" | "exchanging" | "consumed";
-    };
-    fieldPaths:
-      | "_id"
-      | "_creationTime"
-      | "userId"
-      | "clerkUserId"
-      | "linkedAccount"
-      | "broadcasterId"
-      | "clientId"
-      | "subscription"
-      | "revocationVersion"
-      | "stateHash"
-      | "nonceHash"
-      | "issuedAt"
-      | "expiresAt"
-      | "state";
-    indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_user: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
   twitchChatConnections: {
     document: {
       authorization: string;
@@ -2606,6 +2566,46 @@ export type DataModel = {
     };
     fieldPaths:
       "_creationTime" | "_id" | "authorization" | "checkedAt" | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_user: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchChatConsents: {
+    document: {
+      broadcasterId: string;
+      clerkUserId: string;
+      clientId: string;
+      expiresAt: number;
+      issuedAt: number;
+      linkedAccount: Id<"linkedAccounts">;
+      nonceHash: string;
+      revocationVersion: number;
+      state: "pending" | "exchanging" | "consumed";
+      stateHash: string;
+      subscription: Id<"twitchEventSubscriptions">;
+      userId: Id<"users">;
+      _id: Id<"twitchChatConsents">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "clerkUserId"
+      | "clientId"
+      | "expiresAt"
+      | "issuedAt"
+      | "linkedAccount"
+      | "nonceHash"
+      | "revocationVersion"
+      | "state"
+      | "stateHash"
+      | "subscription"
+      | "userId";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
@@ -2634,11 +2634,10 @@ export type DataModel = {
   twitchEventSubscriptions: {
     document: {
       authorizationRevoked?: boolean;
-      revocationVersion?: number;
-      consent?: Id<"twitchChatConsents">;
       broadcasterId: string;
       callback: string;
       condition: Record<string, string>;
+      consent?: Id<"twitchChatConsents">;
       consumers: Array<string>;
       failure?: string;
       identity: string;
@@ -2646,6 +2645,7 @@ export type DataModel = {
       lease?: string;
       leaseExpiresAt?: number;
       revision: number;
+      revocationVersion?: number;
       status:
         | "disabled"
         | "connecting"
@@ -2659,15 +2659,14 @@ export type DataModel = {
       _creationTime: number;
     };
     fieldPaths:
-      | "authorizationRevoked"
-      | "revocationVersion"
-      | "consent"
       | "_creationTime"
       | "_id"
+      | "authorizationRevoked"
       | "broadcasterId"
       | "callback"
       | "condition"
       | `condition.${string}`
+      | "consent"
       | "consumers"
       | "failure"
       | "identity"
@@ -2675,6 +2674,7 @@ export type DataModel = {
       | "lease"
       | "leaseExpiresAt"
       | "revision"
+      | "revocationVersion"
       | "status"
       | "subscriptionId"
       | "updatedAt";
