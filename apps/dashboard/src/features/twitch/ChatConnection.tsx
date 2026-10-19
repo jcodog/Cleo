@@ -81,7 +81,7 @@ export function ChatConnection() {
       className="flex flex-col gap-4 border-t pt-6"
     >
       <h2 className="font-heading text-lg font-medium">Chatbot connection</h2>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
+      <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[12rem_1fr]">
         <dt className="text-muted-foreground">Broadcaster authorization</dt>
         <dd>
           {authorizationLabels[status.authorization] ?? "Verification required"}
@@ -90,6 +90,17 @@ export function ChatConnection() {
         <dd>{botReady ? "Ready" : "Readiness unavailable"}</dd>
         <dt className="text-muted-foreground">Chat subscription</dt>
         <dd>{chatLabels[status.chat]}</dd>
+        <dt className="text-muted-foreground">Twitch Chat Bots list</dt>
+        <dd>
+          Visibility has not been independently verified. An active chat
+          subscription indicates readiness only.
+        </dd>
+        <dt className="text-muted-foreground">Last authorization check</dt>
+        <dd>
+          {status.checkedAt
+            ? new Date(status.checkedAt).toLocaleString()
+            : "Not yet verified"}
+        </dd>
       </dl>
       {!status.activated && (
         <p className="text-sm text-muted-foreground">

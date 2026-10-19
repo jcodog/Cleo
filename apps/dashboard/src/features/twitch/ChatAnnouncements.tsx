@@ -146,122 +146,131 @@ export function AnnouncementRow({
     }
   }
   return (
-    <div className="flex flex-col gap-3 border-b pb-5">
-      <div className="flex items-center justify-between gap-4">
-        <label htmlFor={`${eventKey}-enabled`} className="font-medium">
-          {definition.label}
-        </label>
-        <Switch
-          id={`${eventKey}-enabled`}
-          checked={enabled}
-          disabled={busy || (!enabled && !!invalid)}
-          onCheckedChange={(checked) => void persist(checked, checked)}
-        />
-      </div>
-      <p className="text-sm text-muted-foreground" role="status">
-        {status === "revoked" || missingScopes.length
-          ? "Reconnect required"
-          : status === "providerUnavailable"
-            ? "Provider unavailable"
-            : status === "failed"
-              ? "Subscription failed"
-              : !enabled
-                ? "Disabled"
-                : status === "ready"
-                  ? "Ready"
-                  : status === "connecting"
-                    ? "Connecting"
-                    : "Subscription failed"}
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Required permissions: {resolveBroadcasterScopes([eventKey]).join(", ")}
-      </p>
-      <label htmlFor={`${eventKey}-message`} className="text-sm font-medium">
-        Message{" "}
-        <span className="font-normal text-muted-foreground">
-          {draft === definition.defaultTemplate
-            ? "Using Cleo default"
-            : "Custom message"}
+    <details className="border-b pb-4">
+      <summary className="cursor-pointer py-3 font-medium focus-visible:outline-2 focus-visible:outline-ring">
+        {definition.label}{" "}
+        <span className="ml-3 text-sm font-normal text-muted-foreground">
+          {enabled ? "Enabled" : "Disabled"}
         </span>
-      </label>
-      <Textarea
-        id={`${eventKey}-message`}
-        value={draft}
-        disabled={busy}
-        onChange={(event) => {
-          setDraft(event.target.value)
-          setError(null)
-        }}
-        aria-describedby={`${eventKey}-tags ${eventKey}-preview`}
-      />
-      <p className="text-xs text-muted-foreground">
-        {[...draft].length} / {TEMPLATE_LIMIT} characters. Final messages over
-        500 characters use the Cleo default.
-      </p>
-      <div
-        id={`${eventKey}-tags`}
-        className="flex flex-wrap items-center gap-2"
-      >
-        <span className="text-sm">Available tags:</span>
-        {Object.entries(definition.tags).map(([tag, info]) => (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            key={tag}
-            title={info.description}
-            disabled={busy}
-            onClick={() => setDraft((value) => `${value}{${tag}}`)}
-          >{`{${tag}}`}</Button>
-        ))}
-      </div>
-      <div id={`${eventKey}-preview`} className="border-l-2 pl-3 text-sm">
-        <p className="text-muted-foreground">Preview with sample data</p>
-        <p>{invalid ?? preview}</p>
-      </div>
-      {(error || invalid) && (
-        <p role="alert" className="text-sm text-destructive">
-          {error ?? invalid}
+      </summary>
+      <div className="flex flex-col gap-3 pt-2">
+        <div className="flex items-center justify-between gap-4">
+          <label htmlFor={`${eventKey}-enabled`} className="font-medium">
+            {definition.label}
+          </label>
+          <Switch
+            id={`${eventKey}-enabled`}
+            checked={enabled}
+            disabled={busy || (!enabled && !!invalid)}
+            onCheckedChange={(checked) => void persist(checked, checked)}
+          />
+        </div>
+        <p className="text-sm text-muted-foreground" role="status">
+          {status === "revoked" || missingScopes.length
+            ? "Reconnect required"
+            : status === "providerUnavailable"
+              ? "Provider unavailable"
+              : status === "failed"
+                ? "Subscription failed"
+                : !enabled
+                  ? "Disabled"
+                  : status === "ready"
+                    ? "Ready"
+                    : status === "connecting"
+                      ? "Connecting"
+                      : "Subscription failed"}
         </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          disabled={busy || !dirty || !!invalid}
-          onClick={() => void persist(enabled, true)}
+        <p className="text-xs text-muted-foreground">
+          Required permissions:{" "}
+          {resolveBroadcasterScopes([eventKey]).join(", ")}
+        </p>
+        <label htmlFor={`${eventKey}-message`} className="text-sm font-medium">
+          Message{" "}
+          <span className="font-normal text-muted-foreground">
+            {draft === definition.defaultTemplate
+              ? "Using Cleo default"
+              : "Custom message"}
+          </span>
+        </label>
+        <Textarea
+          id={`${eventKey}-message`}
+          value={draft}
+          disabled={busy}
+          onChange={(event) => {
+            setDraft(event.target.value)
+            setError(null)
+          }}
+          aria-describedby={`${eventKey}-tags ${eventKey}-preview`}
+        />
+        <p className="text-xs text-muted-foreground">
+          {[...draft].length} / {TEMPLATE_LIMIT} characters. Final messages over
+          500 characters use the Cleo default.
+        </p>
+        <div
+          id={`${eventKey}-tags`}
+          className="flex flex-wrap items-center gap-2"
         >
-          Save message
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy || draft === definition.defaultTemplate}
-          onClick={() => setDraft(definition.defaultTemplate)}
-        >
-          Reset to default
-        </Button>
-        {(status === "revoked" ||
-          missingScopes.length ||
-          error?.includes("Reconnect required")) && (
+          <span className="text-sm">Available tags:</span>
+          {Object.entries(definition.tags).map(([tag, info]) => (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              key={tag}
+              title={info.description}
+              disabled={busy}
+              onClick={() => setDraft((value) => `${value}{${tag}}`)}
+            >{`{${tag}}`}</Button>
+          ))}
+        </div>
+        <div id={`${eventKey}-preview`} className="border-l-2 pl-3 text-sm">
+          <p className="text-muted-foreground">Preview with sample data</p>
+          <p>{invalid ?? preview}</p>
+        </div>
+        {(error || invalid) && (
+          <p role="alert" className="text-sm text-destructive">
+            {error ?? invalid}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            disabled={busy || !dirty || !!invalid}
+            onClick={() => void persist(enabled, true)}
+          >
+            Save message
+          </Button>
           <Button
             type="button"
             variant="outline"
-            onClick={() => onReconnect(eventKey)}
+            disabled={busy || draft === definition.defaultTemplate}
+            onClick={() => setDraft(definition.defaultTemplate)}
           >
-            Reconnect Twitch
+            Reset to default
           </Button>
-        )}
-        {(status === "failed" || status === "providerUnavailable") && (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => void persist(enabled, false, true)}
-          >
-            Retry subscription
-          </Button>
-        )}
+          {(status === "revoked" ||
+            missingScopes.length ||
+            error?.includes("Reconnect required")) && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onReconnect(eventKey)}
+            >
+              Reconnect Twitch
+            </Button>
+          )}
+          {(status === "failed" || status === "providerUnavailable") && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void persist(enabled, false, true)}
+            >
+              Retry subscription
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
+    </details>
   )
 }

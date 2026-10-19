@@ -208,10 +208,11 @@ test("live notification form fixes owner source, handles linking, destinations, 
   )
   view = { ...view, isOwner: true }
   tree = render(true)
-  assert.ok(
+  assert.equal(
     elements(tree).find(
       (node) => node.props.href === "/twitch" && text(node) === "Manage Twitch"
-    )
+    ),
+    undefined
   )
   assert.ok(
     elements(tree).find(
@@ -244,11 +245,12 @@ test("live notification form fixes owner source, handles linking, destinations, 
       source: status === "ready" ? ready.source : { status },
     }
     tree = render(true)
-    assert.ok(
+    assert.equal(
       elements(tree).find(
         (node) =>
           node.props.href === "/twitch" && text(node) === "Manage Twitch"
       ),
+      undefined,
       status
     )
     const reconnect = elements(tree).find(
@@ -399,10 +401,11 @@ test("live notification form fixes owner source, handles linking, destinations, 
   assert.equal((saves.at(-1) as { retry?: boolean }).retry, true)
   hookError = true
   view = { ...ready, isOwner: true }
-  assert.ok(
+  assert.equal(
     elements(render()).find(
       (node) => node.props.href === "/twitch" && text(node) === "Manage Twitch"
-    )
+    ),
+    undefined
   )
   const beforeReload = reloads
   elements(render()).find((node) => text(node) === "Retry provider check")!

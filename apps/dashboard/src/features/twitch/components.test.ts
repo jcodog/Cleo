@@ -390,7 +390,7 @@ test("actual Twitch callback and workspace handle provider evidence, actions and
         avatarUrl: "https://example.test/avatar",
       }
       const panel = () =>
-        elements(render(TwitchWorkspace)).find(
+        elements(render(() => TwitchWorkspace({ view: "alerts" }))).find(
           (node) => node.props.onReconnect
         )!
       assert.ok(panel())

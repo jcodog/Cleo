@@ -54,14 +54,6 @@ export function LiveNotificationsSection({
       <div role="alert" className="flex flex-wrap items-center gap-3">
         Connection verification is temporarily unavailable. Try again later.
         <Button onClick={reload}>Retry provider check</Button>
-        {view?.isOwner && (
-          <Link
-            className={buttonVariants({ variant: "outline" })}
-            href="/twitch"
-          >
-            Manage Twitch
-          </Link>
-        )}
       </div>
     )
   if (!view) return <Skeleton className="h-48 w-full max-w-3xl" />
@@ -249,12 +241,6 @@ function LiveNotificationsForm({
       </div>
       {view.isOwner && (
         <div className="flex flex-wrap gap-3">
-          <Link
-            className={buttonVariants({ variant: "outline" })}
-            href="/twitch"
-          >
-            Manage Twitch
-          </Link>
           {(feedback.recovery === "connect" ||
             feedback.recovery === "reconnect") && (
             <Link className={buttonVariants()} href="/twitch">

@@ -34,8 +34,8 @@ test("staff routes use the staff app shell area", () => {
   assert.equal(getAppShellAreaFromPathname("/dashboard"), "discord")
 })
 
-test("release navigation only exposes the shipping Discord workspace", () => {
-  assert.deepEqual(RELEASE_PLATFORMS, ["discord"])
+test("release navigation exposes Discord and Twitch without Kick", () => {
+  assert.deepEqual(RELEASE_PLATFORMS, ["discord", "twitch"])
   assert.equal(RELEASE_PLATFORMS.includes("kick" as never), false)
-  assert.equal(RELEASE_PLATFORMS.includes("twitch" as never), false)
+  assert.equal(RELEASE_PLATFORMS.includes("twitch" as never), true)
 })

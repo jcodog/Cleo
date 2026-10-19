@@ -4,6 +4,7 @@ import { useClerk, useReverification, useUser } from "@clerk/nextjs"
 import { IconBrandTwitch } from "@tabler/icons-react"
 import { useAction, useQuery } from "convex/react"
 import { useState } from "react"
+import Link from "next/link"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
   Alert,
@@ -39,7 +40,9 @@ const labels = {
   reconnectRequired: "Reconnect required",
 }
 
-export function TwitchWorkspace() {
+export function TwitchWorkspace({
+  view = "overview",
+}: { view?: "overview" | "alerts" } = {}) {
   const clerk = useClerk()
   const { user, isLoaded } = useUser()
   const connection = useQuery(api.queries.dashboard.twitch.connection.get)
@@ -101,81 +104,123 @@ export function TwitchWorkspace() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-6">
-        <div className="flex items-center gap-4">
-          <Avatar size="lg">
-            <AvatarImage
-              src={
-                state !== "notConnected"
-                  ? matchingConnection?.avatarUrl
-                  : undefined
-              }
-              alt="Twitch avatar"
-            />
-            <AvatarFallback>
-              <IconBrandTwitch aria-hidden="true" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col gap-1">
-            <h2 className="font-heading text-lg font-medium">
-              {state !== "notConnected"
-                ? (matchingConnection?.displayName ??
-                  matchingConnection?.username ??
-                  "Twitch account")
-                : "Connect your Twitch channel"}
-            </h2>
+      {view === "overview" && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-6">
+            <div className="flex items-center gap-4">
+              <Avatar size="lg">
+                <AvatarImage
+                  src={
+                    state !== "notConnected"
+                      ? matchingConnection?.avatarUrl
+                      : undefined
+                  }
+                  alt="Twitch avatar"
+                />
+                <AvatarFallback>
+                  <IconBrandTwitch aria-hidden="true" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-1">
+                <h2 className="font-heading text-lg font-medium">
+                  {state !== "notConnected"
+                    ? (matchingConnection?.displayName ??
+                      matchingConnection?.username ??
+                      "Twitch account")
+                    : "Connect your Twitch channel"}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Link your broadcaster account to give Cleo permission to join
+                  your chat.
+                </p>
+              </div>
+            </div>
+            <Badge variant={synced ? "secondary" : "outline"}>
+              {busy
+                ? "Connecting"
+                : state === "connected" && !synced
+                  ? "Sync required"
+                  : labels[state]}
+            </Badge>
+          </div>
+          <div className="flex flex-col items-start gap-3">
+            {state === "missingPermission" && (
+              <p className="text-sm text-muted-foreground">
+                Reconnect to approve Cleo's chat bot permission.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="outline"
+                onClick={() => clerk.openUserProfile()}
+                disabled={busy}
+              >
+                Manage account
+              </Button>
+              <Button onClick={() => link()} disabled={busy}>
+                {busy ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <IconBrandTwitch data-icon="inline-start" />
+                )}
+                {state === "notConnected"
+                  ? "Connect Twitch"
+                  : "Reconnect Twitch"}
+              </Button>
+              {state !== "notConnected" && (
+                <Button variant="outline" onClick={synchronize} disabled={busy}>
+                  Sync connection
+                </Button>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">
-              Link your broadcaster account to give Cleo permission to join your
-              chat.
+              Manage account opens your Clerk profile. Use Connect or Reconnect
+              here to grant Cleo's Twitch permission, then sync the connection.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Your Discord sign-in stays the same. Cleo's dedicated bot account
+              handles chat messages.
             </p>
           </div>
-        </div>
-        <Badge variant={synced ? "secondary" : "outline"}>
-          {busy
-            ? "Connecting"
-            : state === "connected" && !synced
-              ? "Sync required"
-              : labels[state]}
-        </Badge>
-      </div>
-      <div className="flex flex-col items-start gap-3">
-        {state === "missingPermission" && (
-          <p className="text-sm text-muted-foreground">
-            Reconnect to approve Cleo's chat bot permission.
-          </p>
-        )}
-        <div className="flex flex-wrap gap-3">
-          <Button
-            variant="outline"
-            onClick={() => clerk.openUserProfile()}
-            disabled={busy}
+          <dl className="grid gap-3 text-sm sm:grid-cols-[12rem_1fr]">
+            <dt className="text-muted-foreground">Clerk synchronization</dt>
+            <dd>
+              {synced
+                ? "Linked account synchronized"
+                : "Connection needs synchronization"}
+            </dd>
+            <dt className="text-muted-foreground">Broadcaster permissions</dt>
+            <dd className="break-words">
+              {liveAccount?.approvedScopes || "No permissions granted"}
+            </dd>
+            <dt className="text-muted-foreground">Last synchronized</dt>
+            <dd>
+              {connection?.syncedAt
+                ? new Date(connection.syncedAt).toLocaleString()
+                : "Not yet synchronized"}
+            </dd>
+          </dl>
+          <ChatConnection />
+          <nav
+            aria-label="Twitch workspace"
+            className="flex flex-wrap gap-6 border-t pt-5 text-sm"
           >
-            Manage account
-          </Button>
-          <Button onClick={() => link()} disabled={busy}>
-            {busy ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <IconBrandTwitch data-icon="inline-start" />
-            )}
-            {state === "notConnected" ? "Connect Twitch" : "Reconnect Twitch"}
-          </Button>
-          {state !== "notConnected" && (
-            <Button variant="outline" onClick={synchronize} disabled={busy}>
-              Sync connection
-            </Button>
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Manage account opens your Clerk profile. Use Connect or Reconnect here
-          to grant Cleo's Twitch permission, then sync the connection.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Your Discord sign-in stays the same. Cleo's dedicated bot account
-          handles chat messages.
-        </p>
-      </div>
-      {synced && (
+            <Link
+              href="/twitch/alerts"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              Configure chat alerts
+            </Link>
+            <Link
+              href="/twitch/timers"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              Configure chatbot timers
+            </Link>
+          </nav>
+        </>
+      )}
+      {view === "alerts" && synced && (
         <ChatAnnouncements
           approvedScopes={liveAccount?.approvedScopes
             .split(/\s+/)
@@ -186,7 +231,15 @@ export function TwitchWorkspace() {
           onReconnect={(key) => void link([key])}
         />
       )}
-      <ChatConnection />
+      {view === "alerts" && !synced && (
+        <p className="text-sm text-muted-foreground">
+          Connect and sync your broadcaster in the{" "}
+          <Link href="/twitch" className="text-primary underline">
+            Twitch overview
+          </Link>{" "}
+          before configuring alerts.
+        </p>
+      )}
     </section>
   )
 }
