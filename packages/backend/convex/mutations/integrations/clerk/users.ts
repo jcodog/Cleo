@@ -7,6 +7,9 @@ import {
   type ClerkExternalAccount,
   type ClerkUserData,
 } from "../../../lib/clerkUserData"
+import { internal } from "../../../_generated/api"
+import { removeTwitchConsumers } from "../../../twitchChat"
+import { backendEnv } from "@workspace/env/backend"
 
 export const upsertFromWebhook = internalMutation({
   args: {
@@ -55,12 +58,25 @@ export const upsertFromWebhook = internalMutation({
       })
     }
 
-    await syncExternalAccounts(
-      ctx,
-      userId,
-      data.external_accounts ?? data.externalAccounts ?? [],
-      now
+    if (
+      data.external_accounts !== undefined ||
+      data.externalAccounts !== undefined
     )
+      await syncExternalAccounts(
+        ctx,
+        userId,
+        data.external_accounts ?? data.externalAccounts ?? [],
+        now
+      )
+
+    if (
+      backendEnv.TWITCH_CHAT_PRESENCE_ENABLED === "true" &&
+      (data.external_accounts !== undefined ||
+        data.externalAccounts !== undefined)
+    )
+      await ctx.scheduler.runAfter(0, internal.twitchChatActions.syncUser, {
+        userId,
+      })
 
     return userId
   },
@@ -85,6 +101,7 @@ export const deleteFromWebhook = internalMutation({
       status: "disabled",
       updatedAt: Date.now(),
     })
+    await removeTwitchConsumers(ctx, user._id)
 
     return null
   },
@@ -124,6 +141,36 @@ async function syncExternalAccounts(
   externalAccounts: ClerkExternalAccount[],
   now: number
 ) {
+  const currentTwitchIds = new Set(
+    externalAccounts
+      .filter(
+        (account) => getClerkLinkedProvider(account.provider) === "twitch"
+      )
+      .map(
+        (account) =>
+          account.provider_user_id ??
+          account.providerUserId ??
+          account.external_account_id ??
+          account.externalAccountId ??
+          account.id
+      )
+  )
+  const previousTwitch = await ctx.db
+    .query("linkedAccounts")
+    .withIndex("by_user_provider", (q) =>
+      q.eq("userId", userId).eq("provider", "twitch")
+    )
+    .collect()
+  if (
+    previousTwitch.some(
+      (account) => !currentTwitchIds.has(account.providerAccountId)
+    )
+  ) {
+    await removeTwitchConsumers(ctx, userId)
+    for (const account of previousTwitch)
+      if (!currentTwitchIds.has(account.providerAccountId))
+        await ctx.db.delete(account._id)
+  }
   for (const account of externalAccounts) {
     const provider = getClerkLinkedProvider(account.provider)
     const providerAccountId =
@@ -165,6 +212,8 @@ async function syncExternalAccounts(
     }
 
     if (existing) {
+      if (provider === "twitch" && existing.userId !== userId)
+        await removeTwitchConsumers(ctx, existing.userId)
       await ctx.db.patch(existing._id, value)
       continue
     }

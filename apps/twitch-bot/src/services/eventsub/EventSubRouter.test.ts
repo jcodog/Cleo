@@ -87,7 +87,7 @@ test("all typed handlers send locally except stream.online; gifted recipient and
   assert.equal(sent.at(-1)!.message, "Welcome Viewer to Channel!")
   assert.throws(() => follow.parse({ broadcaster_user_id: "bad" }))
 })
-test("announcement service renders plain outbound text with the dedicated bot user token", async () => {
+test("announcement service renders plain outbound text with a maintained app token", async () => {
   const sent: unknown[] = []
   const service = new AnnouncementService(
     {
@@ -96,7 +96,7 @@ test("announcement service renders plain outbound text with the dedicated bot us
         return "message"
       },
     },
-    { botToken: async () => "bot-user-token" },
+    { maintain: async () => "app-token" },
     silentLogger
   )
   await service.send(
@@ -104,7 +104,7 @@ test("announcement service renders plain outbound text with the dedicated bot us
     { defaultTemplate: "Hello {user}", allowedTemplateTags: ["user"] },
     { user: "Viewer\nName" }
   )
-  assert.deepEqual(sent, [["bot-user-token", "222", "Hello Viewer Name"]])
+  assert.deepEqual(sent, [["app-token", "222", "Hello Viewer Name"]])
   await service.send(
     "222",
     { defaultTemplate: "Hello {user}", allowedTemplateTags: ["user"] },

@@ -2,6 +2,7 @@ import { v, ConvexError } from "convex/values"
 import { query, internalQuery, internalMutation } from "./_generated/server"
 import { internal } from "./_generated/api"
 import { requireCurrentUser } from "./lib/auth"
+import { chatRevoked } from "./lib/twitchRevocation"
 import { setEventConsumer } from "./lib/twitchConsumers"
 import {
   isAnnouncementKey,
@@ -237,6 +238,7 @@ export const acquire = internalMutation({
     const row = await ctx.db.get(args.subscription)
     if (!row || (row.lease && (row.leaseExpiresAt ?? 0) > Date.now()))
       return null
+    if (chatRevoked(row) && row.consumers.length) return null
     await ctx.db.patch(row._id, {
       lease: args.lease,
       leaseExpiresAt: Date.now() + 60000,
@@ -264,18 +266,44 @@ export const settle = internalMutation({
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.subscription)
     if (!row || row.lease !== args.lease) return null
+    const rejected =
+      chatRevoked(row) && row.consumers.length > 0 && args.status !== "revoked"
+    if (rejected && args.subscriptionId)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.twitchEventSubActions.deleteRejected,
+        {
+          subscription: row._id,
+          subscriptionId: args.subscriptionId,
+          callback: row.callback,
+        }
+      )
     const status =
-      args.status === "connecting" &&
-      row.status === "ready" &&
-      row.subscriptionId === args.subscriptionId
-        ? "ready"
-        : args.status
+      chatRevoked(row) && row.consumers.length
+        ? "revoked"
+        : args.status === "connecting" &&
+            row.status === "ready" &&
+            row.subscriptionId === args.subscriptionId
+          ? "ready"
+          : args.status
+    const newlyRevoked =
+      row.key === "chatMessage" &&
+      args.status === "revoked" &&
+      !chatRevoked(row)
     await ctx.db.patch(row._id, {
+      ...(row.key === "chatMessage"
+        ? {
+            authorizationRevoked: chatRevoked(row) || newlyRevoked,
+            revocationVersion:
+              (row.revocationVersion ?? 0) + (newlyRevoked ? 1 : 0),
+            ...(newlyRevoked ? { consent: undefined } : {}),
+          }
+        : {}),
       lease: undefined,
       leaseExpiresAt: undefined,
-      subscriptionId: args.subscriptionId,
+      subscriptionId: rejected ? row.subscriptionId : args.subscriptionId,
       status,
-      failure: args.failure,
+      failure: rejected ? row.failure : args.failure,
       updatedAt: Date.now(),
     })
     if (row.revision !== args.revision)
@@ -336,6 +364,8 @@ export const webhookState = internalMutation({
     revoked: v.boolean(),
     key: v.optional(v.string()),
     broadcasterId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+    confirmed: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -364,12 +394,55 @@ export const webhookState = internalMutation({
         .withIndex("by_identity", (q) => q.eq("identity", identity))
         .unique()
     }
-    if (row?.consumers.length)
+    if (
+      row &&
+      (!row.subscriptionId || row.subscriptionId === args.subscriptionId) &&
+      (row.consumers.length || (row.key === "chatMessage" && args.revoked)) &&
+      (args.revoked || !chatRevoked(row))
+    ) {
+      const repairable =
+        args.revoked &&
+        row.key === "chatMessage" &&
+        [
+          "notification_failures_exceeded",
+          "webhook_callback_verification_failed",
+        ].includes(args.reason ?? "")
+      const authorizationRevoked =
+        row.key === "chatMessage" && args.revoked && !repairable
       await ctx.db.patch(row._id, {
+        ...(authorizationRevoked
+          ? {
+              authorizationRevoked: true,
+              revocationVersion: (row.revocationVersion ?? 0) + 1,
+              consent: undefined,
+            }
+          : {}),
         subscriptionId: args.subscriptionId,
-        status: args.revoked ? "revoked" : "ready",
+        status: args.revoked
+          ? repairable
+            ? "providerUnavailable"
+            : "revoked"
+          : row.key === "chatMessage" &&
+              !args.confirmed &&
+              !(
+                row.status === "ready" &&
+                row.subscriptionId === args.subscriptionId
+              )
+            ? "connecting"
+            : "ready",
+        failure: args.revoked
+          ? (args.reason ?? "authorizationRevoked")
+          : undefined,
+        revision: args.revoked ? row.revision + 1 : row.revision,
         updatedAt: Date.now(),
       })
+      if (repairable)
+        await ctx.scheduler.runAfter(
+          30000,
+          internal.twitchEventSubActions.reconcile,
+          { subscription: row._id }
+        )
+    }
     return null
   },
 })
@@ -417,6 +490,7 @@ export const reserveEvent = internalMutation({
   },
   returns: dispatchDecision,
   handler: async (ctx, args) => {
+    if (args.key === "chatMessage") return { kind: "ignored" as const }
     const receipt = await ctx.db
       .query("twitchWebhookReceipts")
       .withIndex("by_message", (q) => q.eq("messageId", args.messageId))
@@ -545,7 +619,10 @@ export const pendingEvents = internalQuery({
       .paginate({ numItems: 50, cursor: args.cursor ?? null })
     return {
       events: page.page.flatMap((row) =>
-        row.key && row.broadcasterId && row.eventJson
+        row.key &&
+        isAnnouncementKey(row.key) &&
+        row.broadcasterId &&
+        row.eventJson
           ? [
               {
                 messageId: row.messageId,

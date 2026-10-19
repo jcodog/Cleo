@@ -113,10 +113,12 @@ export class TwitchApiService {
   }
 
   async sendChatMessage(
-    botUserToken: string,
+    appToken: string,
     broadcasterId: string,
     message: string
   ): Promise<string> {
+    if (broadcasterId === this.config.TWITCH_BOT_USER_ID)
+      throw new TwitchFailure("wrongBot")
     if (
       !message.trim() ||
       [...message].length > 500 ||
@@ -137,7 +139,7 @@ export class TwitchApiService {
       }),
       "https://api.twitch.tv/helix/chat/messages",
       {
-        ...this.helixHeaders(botUserToken),
+        ...this.helixHeaders(appToken),
         method: "POST",
         body: JSON.stringify({
           broadcaster_id: broadcasterId,

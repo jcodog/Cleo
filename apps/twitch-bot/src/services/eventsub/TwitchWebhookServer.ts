@@ -11,6 +11,7 @@ const envelope = z.object({
     id: z.string().min(1).max(512),
     type: z.string(),
     version: z.string(),
+    status: z.string().optional(),
     condition: z.record(z.string(), z.string()),
   }),
   challenge: z.string().min(1).max(4096).optional(),
@@ -85,6 +86,16 @@ export class TwitchWebhookServer {
       )
       if (!route) return new Response(null, { status: 400 })
       const type = request.headers.get("Twitch-Eventsub-Message-Type")
+      if (type === "notification" && route.key === "chatMessage") {
+        // Presence only. Verify and parse locally without receipts, logs or dispatch.
+        const parsed = route.parse(value.event)
+        if (
+          parsed.broadcasterId !==
+          value.subscription.condition.broadcaster_user_id
+        )
+          return new Response(null, { status: 400 })
+        return new Response(null, { status: 204 })
+      }
       if (this.pending.size >= 256) return new Response(null, { status: 503 })
       if (type === "webhook_callback_verification") {
         if (!value.challenge) return new Response(null, { status: 400 })
@@ -108,7 +119,14 @@ export class TwitchWebhookServer {
         })
       }
       if (type === "revocation") {
-        const work = this.convex.subscriptionState(value.subscription.id, true)
+        const work = this.convex.subscriptionState(
+          value.subscription.id,
+          true,
+          route.key,
+          value.subscription.condition.broadcaster_user_id ??
+            value.subscription.condition.to_broadcaster_user_id,
+          value.subscription.status
+        )
         this.track(work)
         await work
         this.logger.warn("EventSub revoked", {

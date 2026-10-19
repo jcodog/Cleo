@@ -4,13 +4,16 @@ import { convexTest } from "convex-test"
 import { api, internal } from "./_generated/api"
 import schema from "./schema"
 import { randomUUID } from "node:crypto"
-import type { FunctionArgs } from "convex/server"
+import { makeFunctionReference, type FunctionArgs } from "convex/server"
+import { generateKeyPair, exportJWK, SignJWT, type JWTPayload } from "jose"
 import { boundedMap } from "./lib/boundedMap"
 import type { TestContext } from "node:test"
 
 process.env.CLERK_SECRET_KEY = "test-clerk-secret"
 process.env.DISCORD_BOT_TOKEN = "test-discord-token"
 process.env.DISCORD_BOT_CONVEX_SECRET = "test-bot-secret"
+process.env.TWITCH_CHAT_OAUTH_REDIRECT_URL =
+  "https://test.example/twitch/chat-consent"
 process.env.TWITCH_WORKER_SECRET = "test-runtime-secret"
 process.env.TWITCH_CLIENT_ID = "test-client"
 process.env.TWITCH_CLIENT_SECRET = "test-client-secret"
@@ -26,9 +29,1149 @@ const modules = {
   "./http.ts": () => import("./http"),
   "./twitchEventSub.ts": () => import("./twitchEventSub"),
   "./twitchEventSubActions.ts": () => import("./twitchEventSubActions"),
+  "./twitchConsent.ts": () => import("./twitchConsent"),
+  "./twitchConsentActions.ts": () => import("./twitchConsentActions"),
+  "./actions/dashboard/account/syncLinkedAccounts.ts": () =>
+    import("./actions/dashboard/account/syncLinkedAccounts"),
+  "./queries/dashboard/account/linkedAccounts.ts": () =>
+    import("./queries/dashboard/account/linkedAccounts"),
+  "./twitchChat.ts": () => import("./twitchChat"),
+  "./twitchChatActions.ts": () => import("./twitchChatActions"),
+  "./mutations/integrations/clerk/users.ts": () =>
+    import("./mutations/integrations/clerk/users"),
   "./queries/bot/discord/guildConfigs/runtimeConfigByDiscordId.ts": () =>
     import("./queries/bot/discord/guildConfigs/runtimeConfigByDiscordId"),
 }
+
+const signingKeys = generateKeyPair("RS256")
+async function startConsent(
+  f: Awaited<ReturnType<typeof fixture>>,
+  scopes = ["channel:bot"]
+) {
+  const owner = f.t.withIdentity({ subject: "owner" })
+  const url = new URL(await owner.action(api.twitchConsentActions.begin, {}))
+  assert.equal(url.hostname, "id.twitch.tv")
+  assert.equal(url.searchParams.get("scope"), ["openid", ...scopes].join(" "))
+  assert.equal(url.searchParams.get("force_verify"), "true")
+  const state = url.searchParams.get("state")!
+  f.setConsentNonce(url.searchParams.get("nonce")!)
+  return { state, code: "fresh-consent-code" }
+}
+async function renewConsent(f: Awaited<ReturnType<typeof fixture>>) {
+  const args = await startConsent(f)
+  await f.t
+    .withIdentity({ subject: "owner" })
+    .action(api.twitchConsentActions.finish, args)
+  await flushImmediate(f.t)
+}
+
+async function activateChat(
+  t: TestContext,
+  backend: ReturnType<typeof convexTest>
+) {
+  const { backendEnv } = await import("@workspace/env/backend")
+  const previous = Object.getOwnPropertyDescriptor(
+    backendEnv,
+    "TWITCH_CHAT_PRESENCE_ENABLED"
+  )!
+  Object.defineProperty(backendEnv, "TWITCH_CHAT_PRESENCE_ENABLED", {
+    ...previous,
+    value: "true",
+  })
+  t.after(() =>
+    Object.defineProperty(backendEnv, "TWITCH_CHAT_PRESENCE_ENABLED", previous)
+  )
+  await backend.action(api.twitchChatActions.reportReadiness, {
+    secret: "test-runtime-secret",
+    clientId: "test-client",
+    botId: "111",
+  })
+}
+
+async function flushImmediate(backend: ReturnType<typeof convexTest>) {
+  for (let n = 0; n < 20; n++) {
+    mock.timers.tick(0)
+    await backend.finishInProgressScheduledFunctions()
+  }
+}
+
+test("chat verification requires provider confirmation and transport failures repair without OAuth reconnect", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  await f.t.run((ctx) => ctx.db.patch(row._id, { status: "connecting" }))
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: false,
+  })
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "connecting"
+  )
+  await f.t.action(internal.twitchEventSubActions.confirmSubscription, {
+    subscription: row._id,
+    attempt: 0,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: false,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  f.externalSubscriptions[0]!.status = "notification_failures_exceeded"
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: true,
+    reason: "notification_failures_exceeded",
+  })
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "providerUnavailable"
+  )
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    2
+  )
+})
+
+test("disabled users lose chat consumers; trusted replacement identity gets a new subscription", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const original = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        id: "owner",
+        email_addresses: [{ email_address: "owner@example.com" }],
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+          {
+            provider: "oauth_twitch",
+            provider_user_id: "444",
+            approved_scopes: "channel:bot",
+          },
+        ],
+      },
+    }
+  )
+  f.setLinkedId("444")
+  f.setTokenId("444")
+  await flushImmediate(f.t)
+  await f.t.action(internal.twitchChatActions.syncUser, {
+    userId: f.ids.ownerId,
+  })
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: original._id,
+  })
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(f.externalSubscriptions[0]!.condition.broadcaster_user_id, "444")
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.deleteFromWebhook,
+    { clerkUserId: "owner" }
+  )
+  await flushImmediate(f.t)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchEventConsumers").collect()))
+      .length,
+    0
+  )
+  await assert.rejects(
+    owner.action(api.twitchChatActions.retry, {}),
+    /disabled/
+  )
+})
+
+test("trusted Twitch account transfer removes the previous Cleo user's consumers", async (t) => {
+  const f = await fixture()
+  const twitchAccountId = f.ids.twitchAccountId
+  assert.ok(twitchAccountId)
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        id: "manager",
+        email_addresses: [{ email_address: "manager@example.com" }],
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: managerDiscordId },
+          {
+            provider: "oauth_twitch",
+            provider_user_id: "222",
+            approved_scopes: "channel:bot",
+          },
+        ],
+      },
+    }
+  )
+  await flushImmediate(f.t)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(twitchAccountId)))?.userId,
+    f.ids.managerId
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    0
+  )
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal(f.externalSubscriptions.length, 0)
+})
+
+test("chat creation uses app credentials, exact bot condition, leases and idempotent migration across restarts", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "notConnected"
+  )
+  assert.equal(await owner.action(api.twitchChatActions.retry, {}), "ready")
+  const post = f.subscriptionRequests.find((r) => r.method === "POST")
+  assert.deepEqual(post?.body, {
+    type: "channel.chat.message",
+    version: "1",
+    condition: { broadcaster_user_id: "222", user_id: "111" },
+    transport: {
+      method: "webhook",
+      callback: "https://test.example/eventsub",
+      secret: process.env.TWITCH_EVENTSUB_SECRET,
+    },
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  await owner.action(api.twitchChatActions.retry, {})
+  await f.t.action(internal.twitchChatActions.migrate, {})
+  await f.t.action(api.twitchChatActions.reportReadiness, {
+    secret: "test-runtime-secret",
+    clientId: "test-client",
+    botId: "111",
+  })
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchEventConsumers").collect()))
+      .length,
+    1
+  )
+  const rows = await f.t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").collect()
+  )
+  const row = rows[0]!
+  await f.t.mutation(internal.twitchEventSub.acquire, {
+    subscription: row._id,
+    lease: "one",
+  })
+  assert.equal(
+    await f.t.mutation(internal.twitchEventSub.acquire, {
+      subscription: row._id,
+      lease: "two",
+    }),
+    null
+  )
+  await f.t.mutation(internal.twitchEventSub.settle, {
+    subscription: row._id,
+    lease: "one",
+    revision: row.revision,
+    status: "ready",
+    subscriptionId: row.subscriptionId,
+  })
+  f.externalSubscriptions.splice(0)
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    2
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchWebhookReceipts").collect()))
+      .length,
+    0
+  )
+  assert.deepEqual(
+    await f.t.action(api.twitchEventSubActions.reserveEvent, {
+      secret: "test-runtime-secret",
+      key: "chatMessage",
+      messageId: "chat-legacy",
+      broadcasterId: "222",
+      eventJson: "private text",
+    }),
+    { kind: "ignored" }
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchWebhookReceipts").collect()))
+      .length,
+    0
+  )
+})
+
+test("chat activation fails closed without matching fresh runtime and broadcaster scopes", async (t) => {
+  const f = await fixture()
+  const owner = f.t.withIdentity({ subject: "owner" })
+  assert.equal(
+    await owner.action(api.twitchChatActions.retry, {}),
+    "activationRequired"
+  )
+  assert.equal(f.subscriptionRequests.length, 0)
+  await assert.rejects(
+    f.t.action(api.twitchChatActions.reportReadiness, {
+      secret: "wrong",
+      clientId: "test-client",
+      botId: "111",
+    }),
+    /Unauthorized/
+  )
+  await assert.rejects(
+    f.t.action(api.twitchChatActions.reportReadiness, {
+      secret: "test-runtime-secret",
+      clientId: "wrong",
+      botId: "111",
+    }),
+    /identity mismatch/
+  )
+  await activateChat(t, f.t)
+  await f.t.run(async (ctx) => {
+    const runtime = (await ctx.db.query("twitchBotRuntime").collect())[0]!
+    await ctx.db.patch(runtime._id, { updatedAt: Date.now() - 100000 })
+  })
+  assert.equal(
+    await owner.action(api.twitchChatActions.retry, {}),
+    "runtimeUnavailable"
+  )
+  assert.equal(f.subscriptionRequests.length, 0)
+  await f.t.action(api.twitchChatActions.reportReadiness, {
+    secret: "test-runtime-secret",
+    clientId: "test-client",
+    botId: "111",
+  })
+  f.setScopes([])
+  assert.equal(
+    await owner.action(api.twitchChatActions.retry, {}),
+    "missingPermission"
+  )
+  f.setScopes(["channel:bot"])
+  f.setClientId("wrong-client")
+  assert.equal(await owner.action(api.twitchChatActions.retry, {}), "stale")
+  f.setClientId("test-client")
+  f.setTokenId("111")
+  assert.equal(await owner.action(api.twitchChatActions.retry, {}), "stale")
+  assert.equal(f.subscriptionRequests.length, 0)
+  await assert.rejects(f.t.action(api.twitchChatActions.retry, {}), /signed in/)
+})
+
+test("provider failure preserves chat consumers; authorization revocation blocks automatic restoration; unlink cleans up", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  f.setUnavailable()
+  assert.equal(
+    await owner.action(api.twitchChatActions.retry, {}),
+    "unavailable"
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    1
+  )
+  f.setUnavailable(false)
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: true,
+    reason: "authorization_revoked",
+  })
+  await f.t.action(internal.twitchChatActions.migrate, {})
+  await owner.action(api.twitchChatActions.retry, {})
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+  await f.t.action(api.twitchEventSubActions.webhookState, {
+    secret: "test-runtime-secret",
+    subscriptionId: row.subscriptionId!,
+    revoked: false,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+  await renewConsent(f)
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  f.setSubscriptionUnavailable(true)
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "providerUnavailable"
+  )
+  f.setSubscriptionUnavailable(false)
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        id: "owner",
+        email_addresses: [{ email_address: "owner@example.com" }],
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+        ],
+      },
+    }
+  )
+  await flushImmediate(f.t)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    0
+  )
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal(f.externalSubscriptions.length, 0)
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "notConnected"
+  )
+  assert.equal(
+    (
+      await f.t.run((ctx) =>
+        ctx.db
+          .query("linkedAccounts")
+          .withIndex("by_user_provider", (q) =>
+            q.eq("userId", f.ids.ownerId).eq("provider", "twitch")
+          )
+          .collect()
+      )
+    ).length,
+    0
+  )
+})
+test("explicit chat reauthorization survives provider retry before the revoked provider row is removed", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  f.externalSubscriptions[0]!.status = "authorization_revoked"
+  await f.t.mutation(internal.twitchEventSub.webhookState, {
+    subscriptionId: row.subscriptionId!,
+    revoked: true,
+  })
+  f.setSubscriptionUnavailable(true)
+  await renewConsent(f)
+  assert.equal(
+    (await owner.query(api.twitchChat.status, {})).chat,
+    "providerUnavailable"
+  )
+  f.setSubscriptionUnavailable(false)
+  mock.timers.tick(30000)
+  await f.t.finishInProgressScheduledFunctions()
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(f.externalSubscriptions[0]!.status, "enabled")
+})
+
+for (const notification of [
+  { revoked: true, reason: "authorization_revoked" },
+  { revoked: true, reason: "notification_failures_exceeded" },
+  { revoked: false, confirmed: true },
+]) {
+  test(`obsolete subscription webhook cannot replace recovered authority: ${JSON.stringify(notification)}`, async (t) => {
+    const f = await revokedFixture(t)
+    await renewConsent(f)
+    const recovered = await f.t.run((ctx) => ctx.db.get(f.row._id))
+    assert.ok(recovered?.subscriptionId)
+    assert.notEqual(recovered.subscriptionId, f.row.subscriptionId)
+    assert.equal(
+      await f.t.query(internal.twitchConsent.authorized, {
+        subscription: f.row._id,
+      }),
+      true
+    )
+    await f.t.mutation(internal.twitchEventSub.webhookState, {
+      subscriptionId: f.row.subscriptionId!,
+      key: "chatMessage",
+      broadcasterId: "222",
+      ...notification,
+    })
+    assert.deepEqual(await f.t.run((ctx) => ctx.db.get(f.row._id)), recovered)
+    await f.t.action(internal.twitchEventSubActions.reconcile, {
+      subscription: f.row._id,
+    })
+    assert.equal((await f.owner.query(api.twitchChat.status, {})).chat, "ready")
+    assert.equal(f.externalSubscriptions[0]?.id, recovered.subscriptionId)
+    f.setLinkedId(undefined)
+    await f.owner.action(
+      api.actions.dashboard.account.syncLinkedAccounts.sync,
+      {}
+    )
+    await flushImmediate(f.t)
+    assert.equal(f.externalSubscriptions.length, 0)
+    assert.equal(
+      (await f.t.run((ctx) => ctx.db.get(f.row._id)))?.subscriptionId,
+      undefined
+    )
+  })
+}
+
+test("current subscription revocation invalidates recovered consent", async (t) => {
+  const f = await revokedFixture(t)
+  await renewConsent(f)
+  const recovered = await f.t.run((ctx) => ctx.db.get(f.row._id))
+  assert.ok(recovered?.subscriptionId)
+  await f.t.mutation(internal.twitchEventSub.webhookState, {
+    subscriptionId: recovered.subscriptionId,
+    key: "chatMessage",
+    broadcasterId: "222",
+    revoked: true,
+    reason: "authorization_revoked",
+  })
+  const revoked = await f.t.run((ctx) => ctx.db.get(f.row._id))
+  assert.equal(revoked?.subscriptionId, recovered.subscriptionId)
+  assert.equal(revoked?.authorizationRevoked, true)
+  assert.equal(revoked?.revocationVersion, recovered.revocationVersion! + 1)
+  assert.equal(revoked?.consent, undefined)
+  assert.equal(
+    await f.t.query(internal.twitchConsent.authorized, {
+      subscription: f.row._id,
+    }),
+    false
+  )
+})
+
+for (const revoked of [false, true]) {
+  test(`identity fallback accepts early chat webhook before settlement: revoked=${revoked}`, async (t) => {
+    const f = await fixture()
+    await activateChat(t, f.t)
+    const provider = globalThis.fetch
+    globalThis.fetch = async (input, init) => {
+      const response = await provider(input, init)
+      if (
+        init?.method === "POST" &&
+        String(input).includes("/eventsub/subscriptions")
+      ) {
+        const row = (
+          await f.t.run((ctx) =>
+            ctx.db.query("twitchEventSubscriptions").collect()
+          )
+        )[0]!
+        assert.equal(row.subscriptionId, undefined)
+        await f.t.mutation(internal.twitchEventSub.webhookState, {
+          subscriptionId: f.externalSubscriptions[0]!.id,
+          key: "chatMessage",
+          broadcasterId: "222",
+          revoked,
+          confirmed: !revoked,
+        })
+      }
+      return response
+    }
+    const owner = f.t.withIdentity({ subject: "owner" })
+    await owner.action(api.twitchChatActions.retry, {})
+    await flushImmediate(f.t)
+    assert.equal(
+      (await owner.query(api.twitchChat.status, {})).chat,
+      revoked ? "revoked" : "ready"
+    )
+    assert.equal(f.externalSubscriptions.length, revoked ? 0 : 1)
+  })
+}
+
+test("a revocation racing provider creation retires the rejected result and retains revoked authority", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  f.externalSubscriptions.splice(0)
+  const provider = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    const response = await provider(input, init)
+    if (
+      init?.method === "POST" &&
+      String(input).includes("/eventsub/subscriptions")
+    )
+      await f.t.mutation(internal.twitchEventSub.webhookState, {
+        subscriptionId: row.subscriptionId!,
+        revoked: true,
+      })
+    return response
+  }
+  await f.t.action(internal.twitchEventSubActions.reconcile, {
+    subscription: row._id,
+  })
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.subscriptionId,
+    row.subscriptionId
+  )
+  f.setSubscriptionUnavailable(true)
+  await flushImmediate(f.t)
+  assert.equal(f.externalSubscriptions.length, 1)
+  f.setSubscriptionUnavailable(false)
+  mock.timers.tick(30000)
+  await f.t.finishInProgressScheduledFunctions()
+  assert.equal(f.externalSubscriptions.length, 0)
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+})
+
+test("provider user removal requires explicit reauthorization", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  f.externalSubscriptions[0]!.status = "user_removed"
+  await owner.action(api.twitchChatActions.retry, {})
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "revoked")
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+  await renewConsent(f)
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+})
+
+test("a fresh trusted link supersedes queued cleanup for an unrevoked broadcaster", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  for (const linked of [false, true]) {
+    await f.t.mutation(
+      internal.mutations.integrations.clerk.users.upsertFromWebhook,
+      {
+        data: {
+          id: "owner",
+          email_addresses: [{ email_address: "owner@example.com" }],
+          external_accounts: [
+            { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+            ...(linked
+              ? [
+                  {
+                    provider: "oauth_twitch",
+                    provider_user_id: "222",
+                    approved_scopes: "channel:bot",
+                  },
+                ]
+              : []),
+          ],
+        },
+      }
+    )
+  }
+  await flushImmediate(f.t)
+  assert.equal((await owner.query(api.twitchChat.status, {})).chat, "ready")
+  assert.equal(f.externalSubscriptions.length, 1)
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+})
+
+test("unlink cleanup processes 25 memberships per transaction and preserves other owners", async () => {
+  const f = await fixture()
+  await f.manager.action(api.liveNotificationActions.update, config)
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  await f.t.run(async (ctx) => {
+    const consumers = [...row.consumers]
+    for (let n = 0; n < 60; n++) {
+      const guild = await ctx.db.insert("guilds", {
+        discordGuildId: `guild-${n}`,
+        ownerDiscordId: n === 59 ? managerDiscordId : ownerDiscordId,
+        name: "Cleanup fixture",
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      const consumer = `guild:${guild}`
+      consumers.push(consumer)
+      await ctx.db.insert("twitchEventConsumers", {
+        consumer,
+        subscription: row._id,
+      })
+    }
+    await ctx.db.patch(row._id, { consumers })
+  })
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.deleteFromWebhook,
+    { clerkUserId: "owner" }
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(f.ids.ownerId)))?.status,
+    "disabled"
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    61
+  )
+  await f.t.mutation(internal.twitchChat.cleanupMembers, {
+    userId: f.ids.ownerId,
+    broadcasterId: "222",
+    discordIds: [ownerDiscordId],
+    subscription: row._id,
+  })
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    36
+  )
+  await flushImmediate(f.t)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    1
+  )
+  assert.equal(f.externalSubscriptions.length, 1)
+})
+
+async function revokedFixture(t: TestContext) {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  f.externalSubscriptions[0]!.status = "authorization_revoked"
+  await f.t.mutation(internal.twitchEventSub.webhookState, {
+    subscriptionId: row.subscriptionId!,
+    revoked: true,
+  })
+  return { ...f, owner, row }
+}
+
+test("revoked consent preserves validated feature scopes and leaves Clerk credentials under Clerk ownership", async (t) => {
+  const f = await revokedFixture(t)
+  const scopes = [
+    "user:read:email",
+    "user:read:chat",
+    "user:write:chat",
+    "channel:bot",
+    "moderator:read:followers",
+    "channel:read:subscriptions",
+    "bits:read",
+    "channel:read:hype_train",
+    "channel:read:charity",
+  ]
+  f.setScopes(scopes)
+  f.setClerkToken("clerk-owned-feature-token")
+  const account = await f.t.run((ctx) => ctx.db.get(f.ids.twitchAccountId!))
+  const provider = globalThis.fetch
+  const tokenGrants: string[] = []
+  const validatedTokens: string[] = []
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input))
+    if (url.hostname === "api.clerk.com")
+      assert.equal(init?.method ?? "GET", "GET")
+    if (url.pathname === "/oauth2/token")
+      tokenGrants.push(
+        new URLSearchParams(String(init?.body)).get("grant_type")!
+      )
+    if (url.pathname === "/oauth2/validate")
+      validatedTokens.push(new Headers(init?.headers).get("Authorization")!)
+    assert.notEqual(url.pathname, "/oauth2/revoke")
+    return provider(input, init)
+  }
+  const args = await startConsent(f, scopes)
+  await f.owner.action(api.twitchConsentActions.finish, args)
+  await flushImmediate(f.t)
+  assert.equal((await f.owner.query(api.twitchChat.status, {})).chat, "ready")
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.get(f.ids.twitchAccountId!)),
+    account
+  )
+  assert.ok(tokenGrants.includes("authorization_code"))
+  assert.ok(
+    tokenGrants.every((grant) =>
+      ["authorization_code", "client_credentials"].includes(grant)
+    )
+  )
+  assert.ok(validatedTokens.includes("OAuth fresh-consent-token"))
+  assert.ok(
+    validatedTokens.filter(
+      (token) => token === "OAuth clerk-owned-feature-token"
+    ).length >= 2
+  )
+})
+
+test("public retry, account sync and unchanged refreshed grants cannot assert renewed OAuth consent", async (t) => {
+  const f = await revokedFixture(t)
+  const legacyRetry = makeFunctionReference<"action", { reauthorize: boolean }>(
+    "twitchChatActions:retry"
+  )
+  const legacySync = makeFunctionReference<
+    "action",
+    { reauthorizeTwitch: boolean }
+  >("actions/dashboard/account/syncLinkedAccounts:sync")
+  await assert.rejects(
+    f.owner.action(legacyRetry, { reauthorize: true }),
+    /reauthorize/
+  )
+  await assert.rejects(
+    f.owner.action(legacySync, { reauthorizeTwitch: true }),
+    /reauthorizeTwitch/
+  )
+  f.setClerkToken("freshly-refreshed-clerk-token")
+  await f.owner.action(
+    api.actions.dashboard.account.syncLinkedAccounts.sync,
+    {}
+  )
+  await flushImmediate(f.t)
+  assert.equal(await f.owner.action(api.twitchChatActions.retry, {}), "revoked")
+  await f.t.action(internal.twitchChatActions.migrate, {})
+  assert.equal((await f.owner.query(api.twitchChat.status, {})).chat, "revoked")
+  assert.equal(
+    f.subscriptionRequests.filter((r) => r.method === "POST").length,
+    1
+  )
+  assert.equal(
+    await f.t.query(internal.twitchConsent.authorized, {
+      subscription: f.row._id,
+    }),
+    false
+  )
+})
+
+const now = Math.floor(Date.now() / 1000)
+for (const claims of [
+  { nonce: "old-nonce" },
+  { sub: "333" },
+  { aud: "other-application" },
+  { iss: "https://attacker.example" },
+  { exp: now - 60 },
+  { iat: now - 900 },
+  { nonce: undefined },
+]) {
+  test(`consent rejects OIDC claims ${JSON.stringify(claims)}`, async (st) => {
+    const f = await revokedFixture(st)
+    const args = await startConsent(f)
+    f.setIdClaims(claims)
+    await assert.rejects(
+      f.owner.action(api.twitchConsentActions.finish, args),
+      /could not be verified/
+    )
+    assert.equal(
+      (await f.owner.query(api.twitchChat.status, {})).chat,
+      "revoked"
+    )
+    assert.equal(
+      f.subscriptionRequests.filter((r) => r.method === "POST").length,
+      1
+    )
+  })
+}
+test("consent rejects an invalid OIDC signature", async (st) => {
+  const f = await revokedFixture(st)
+  const args = await startConsent(f)
+  const provider = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    const response = await provider(input, init)
+    if (String(input).endsWith("/keys")) {
+      const other = await generateKeyPair("RS256")
+      return Response.json({
+        keys: [
+          {
+            ...(await exportJWK(other.publicKey)),
+            kid: "test-consent-key",
+            alg: "RS256",
+            use: "sig",
+          },
+        ],
+      })
+    }
+    return response
+  }
+  await assert.rejects(
+    f.owner.action(api.twitchConsentActions.finish, args),
+    /could not be verified/
+  )
+  assert.equal((await f.owner.query(api.twitchChat.status, {})).chat, "revoked")
+})
+
+for (const scenario of [
+  "wrong-user",
+  "wrong-state",
+  "fake-code",
+  "wrong-client",
+  "missing-scope",
+  "expired",
+  "disabled",
+  "unlinked",
+  "new-revocation",
+  "wrong-application-config",
+]) {
+  test(`consent binds authority: ${scenario}`, async (st) => {
+    const f = await revokedFixture(st)
+    const args = await startConsent(f)
+    let actor = f.owner
+    if (scenario === "wrong-user")
+      actor = f.t.withIdentity({ subject: "manager" })
+    if (scenario === "wrong-state") args.state = "A".repeat(43)
+    if (scenario === "fake-code") args.code = "not-an-authorization-code"
+    if (scenario === "wrong-client") f.setClientId("other-application")
+    if (scenario === "missing-scope") f.setScopes([])
+    if (scenario === "expired")
+      await f.t.run(async (ctx) => {
+        const p = (await ctx.db.query("twitchChatConsents").collect())[0]!
+        await ctx.db.patch(p._id, { expiresAt: Date.now() - 1 })
+      })
+    if (scenario === "disabled")
+      await f.t.run((ctx) =>
+        ctx.db.patch(f.ids.ownerId, { status: "disabled" })
+      )
+    if (scenario === "unlinked")
+      await f.t.run((ctx) => ctx.db.delete(f.ids.twitchAccountId!))
+    if (scenario === "new-revocation")
+      await f.t.mutation(internal.twitchEventSub.webhookState, {
+        subscriptionId: f.row.subscriptionId!,
+        revoked: true,
+      })
+    if (scenario === "wrong-application-config")
+      await overrideTwitchClientId(st, "other-application")
+    await assert.rejects(actor.action(api.twitchConsentActions.finish, args))
+    assert.equal(
+      (await f.t.run((ctx) => ctx.db.get(f.row._id)))?.authorizationRevoked,
+      true
+    )
+    assert.equal(
+      f.subscriptionRequests.filter((r) => r.method === "POST").length,
+      1
+    )
+  })
+}
+
+test("fresh signed consent is consumed once, concurrent callbacks cannot replay and a later revocation invalidates it", async (t) => {
+  const f = await revokedFixture(t)
+  const args = await startConsent(f)
+  const results = await Promise.allSettled([
+    f.owner.action(api.twitchConsentActions.finish, args),
+    f.owner.action(api.twitchConsentActions.finish, args),
+  ])
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1)
+  await flushImmediate(f.t)
+  assert.equal((await f.owner.query(api.twitchChat.status, {})).chat, "ready")
+  assert.equal(
+    await f.t.query(internal.twitchConsent.authorized, {
+      subscription: f.row._id,
+    }),
+    true
+  )
+  assert.equal(f.externalSubscriptions.length, 1)
+  await assert.rejects(f.owner.action(api.twitchConsentActions.finish, args))
+  const current = await f.t.run((ctx) => ctx.db.get(f.row._id))
+  await f.t.mutation(internal.twitchEventSub.webhookState, {
+    subscriptionId: current!.subscriptionId!,
+    revoked: true,
+  })
+  assert.equal(
+    await f.t.query(internal.twitchConsent.authorized, {
+      subscription: f.row._id,
+    }),
+    false
+  )
+  await assert.rejects(f.owner.action(api.twitchConsentActions.finish, args))
+  assert.equal(await f.owner.action(api.twitchChatActions.retry, {}), "revoked")
+  const stored = JSON.stringify(
+    await f.t.run((ctx) => ctx.db.query("twitchChatConsents").collect())
+  )
+  for (const secret of [
+    args.state,
+    args.code,
+    "fresh-consent-token",
+    "id_token",
+  ])
+    assert.equal(stored.includes(secret), false)
+})
+
+test("unlink and provider deletion preserve the revocation barrier across trusted relinking", async (t) => {
+  const f = await revokedFixture(t)
+  for (const linked of [false, true]) {
+    f.setLinkedId(linked ? "222" : undefined)
+    await f.t.mutation(
+      internal.mutations.integrations.clerk.users.upsertFromWebhook,
+      {
+        data: {
+          id: "owner",
+          email_addresses: [{ email_address: "owner@example.com" }],
+          external_accounts: [
+            { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+            ...(linked
+              ? [
+                  {
+                    provider: "oauth_twitch",
+                    provider_user_id: "222",
+                    approved_scopes: "channel:bot",
+                  },
+                ]
+              : []),
+          ],
+        },
+      }
+    )
+    await flushImmediate(f.t)
+  }
+  assert.equal(await f.owner.action(api.twitchChatActions.retry, {}), "revoked")
+  assert.equal(f.externalSubscriptions.length, 0)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(f.row._id)))?.authorizationRevoked,
+    true
+  )
+})
+
+test("consent completed near expiry receives a full bounded provider retry window", async (t) => {
+  const f = await revokedFixture(t)
+  const args = await startConsent(f)
+  const proof = (
+    await f.t.run((ctx) => ctx.db.query("twitchChatConsents").collect())
+  )[0]!
+  const originalExpiry = Date.now() + 5000
+  await f.t.run((ctx) => ctx.db.patch(proof._id, { expiresAt: originalExpiry }))
+  f.setSubscriptionUnavailable(true)
+  await f.owner.action(api.twitchConsentActions.finish, args)
+  const consumed = await f.t.run((ctx) => ctx.db.get(proof._id))
+  assert.equal(consumed?.state, "consumed")
+  assert.ok(consumed!.expiresAt > originalExpiry + 590000)
+  await f.t.mutation(internal.twitchConsent.expire, { consent: proof._id })
+  assert.ok(await f.t.run((ctx) => ctx.db.get(proof._id)))
+  await flushImmediate(f.t)
+  f.setSubscriptionUnavailable(false)
+  mock.timers.tick(30000)
+  await f.t.finishInProgressScheduledFunctions()
+  assert.equal((await f.owner.query(api.twitchChat.status, {})).chat, "ready")
+})
+
+test("a revocation during code verification invalidates the pending proof transaction", async (t) => {
+  const f = await revokedFixture(t)
+  const args = await startConsent(f)
+  const provider = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    const response = await provider(input, init)
+    if (String(input).endsWith("/keys"))
+      await f.t.mutation(internal.twitchEventSub.webhookState, {
+        subscriptionId: f.row.subscriptionId!,
+        revoked: true,
+      })
+    return response
+  }
+  await assert.rejects(
+    f.owner.action(api.twitchConsentActions.finish, args),
+    /could not be verified/
+  )
+  assert.equal((await f.owner.query(api.twitchChat.status, {})).chat, "revoked")
+})
+
+test("the activation gate blocks consent issuance and completion without changing valid grants", async (t) => {
+  const f = await revokedFixture(t)
+  const args = await startConsent(f)
+  const { backendEnv } = await import("@workspace/env/backend")
+  const previous = Object.getOwnPropertyDescriptor(
+    backendEnv,
+    "TWITCH_CHAT_PRESENCE_ENABLED"
+  )!
+  Object.defineProperty(backendEnv, "TWITCH_CHAT_PRESENCE_ENABLED", {
+    ...previous,
+    value: "false",
+  })
+  try {
+    await assert.rejects(f.owner.action(api.twitchConsentActions.begin, {}))
+    await assert.rejects(f.owner.action(api.twitchConsentActions.finish, args))
+    assert.equal(
+      (await f.t.run((ctx) => ctx.db.get(f.row._id)))?.authorizationRevoked,
+      true
+    )
+  } finally {
+    Object.defineProperty(backendEnv, "TWITCH_CHAT_PRESENCE_ENABLED", previous)
+  }
+})
+
+test("late authorization revocation is retained even after the final consumer was removed", async (t) => {
+  const f = await fixture()
+  await activateChat(t, f.t)
+  const owner = f.t.withIdentity({ subject: "owner" })
+  await owner.action(api.twitchChatActions.retry, {})
+  const row = (
+    await f.t.run((ctx) => ctx.db.query("twitchEventSubscriptions").collect())
+  )[0]!
+  f.setLinkedId(undefined)
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        id: "owner",
+        email_addresses: [{ email_address: "owner@example.com" }],
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+        ],
+      },
+    }
+  )
+  await flushImmediate(f.t)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.consumers.length,
+    0
+  )
+  await f.t.mutation(internal.twitchEventSub.webhookState, {
+    subscriptionId: row.subscriptionId!,
+    key: "chatMessage",
+    broadcasterId: "222",
+    revoked: true,
+  })
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.authorizationRevoked,
+    true
+  )
+  f.setLinkedId("222")
+  await f.t.mutation(
+    internal.mutations.integrations.clerk.users.upsertFromWebhook,
+    {
+      data: {
+        id: "owner",
+        email_addresses: [{ email_address: "owner@example.com" }],
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: ownerDiscordId },
+          {
+            provider: "oauth_twitch",
+            provider_user_id: "222",
+            approved_scopes: "channel:bot",
+          },
+        ],
+      },
+    }
+  )
+  await flushImmediate(f.t)
+  assert.equal(await owner.action(api.twitchChatActions.retry, {}), "revoked")
+  assert.equal(f.externalSubscriptions.length, 0)
+})
+
 const guildDiscordId = "123456789012345678"
 const ownerDiscordId = "234567890123456789"
 const managerDiscordId = "345678901234567890"
@@ -187,6 +1330,9 @@ async function fixture(options: FixtureOptions = {}) {
       unrelatedConfigId,
     }
   })
+  let ownerAccessToken = "private-owner-twitch-token"
+  let consentNonce = ""
+  let idClaims: JWTPayload = {}
   let linkedId: string | undefined = "222"
   let providerUnavailable = false
   let tokenUserId = "222"
@@ -216,13 +1362,14 @@ async function fixture(options: FixtureOptions = {}) {
       return Response.json([
         {
           token: url.pathname.endsWith("oauth_twitch")
-            ? "private-owner-twitch-token"
+            ? ownerAccessToken
             : "private-manager-discord-token",
         },
       ])
     if (url.hostname === "api.clerk.com")
       return Response.json({
         id: "owner",
+        email_addresses: [{ email_address: "owner@example.com" }],
         external_accounts: [
           { provider: "oauth_discord", provider_user_id: ownerDiscordId },
           ...(linkedId
@@ -230,6 +1377,40 @@ async function fixture(options: FixtureOptions = {}) {
             : []),
         ],
       })
+    if (url.pathname.endsWith("keys")) {
+      const key = await exportJWK((await signingKeys).publicKey)
+      return Response.json({
+        keys: [{ ...key, kid: "test-consent-key", alg: "RS256", use: "sig" }],
+      })
+    }
+    if (
+      url.pathname.endsWith("token") &&
+      new URLSearchParams(String(init?.body)).get("grant_type") ===
+        "authorization_code"
+    ) {
+      const body = new URLSearchParams(String(init?.body))
+      assert.equal(body.get("client_id"), "test-client")
+      assert.equal(body.get("client_secret"), "test-client-secret")
+      assert.equal(
+        body.get("redirect_uri"),
+        "https://test.example/twitch/chat-consent"
+      )
+      if (body.get("code") !== "fresh-consent-code")
+        return Response.json({}, { status: 400 })
+      const now = Math.floor(Date.now() / 1000)
+      const id_token = await new SignJWT({
+        iss: "https://id.twitch.tv/oauth2",
+        aud: "test-client",
+        sub: tokenUserId,
+        iat: now,
+        exp: now + 300,
+        nonce: consentNonce,
+        ...idClaims,
+      })
+        .setProtectedHeader({ alg: "RS256", kid: "test-consent-key" })
+        .sign((await signingKeys).privateKey)
+      return Response.json({ access_token: "fresh-consent-token", id_token })
+    }
     if (url.pathname.endsWith("token"))
       return Response.json({
         access_token: "app-token",
@@ -237,6 +1418,11 @@ async function fixture(options: FixtureOptions = {}) {
         token_type: "bearer",
       })
     if (url.pathname.endsWith("subscriptions")) {
+      assert.equal(
+        new Headers(init?.headers).get("Authorization"),
+        "Bearer app-token"
+      )
+      assert.equal(new Headers(init?.headers).get("Client-Id"), "test-client")
       if (subscriptionUnavailable) return Response.json({}, { status: 503 })
       if (init?.method === "POST") {
         const body = JSON.parse(String(init.body))
@@ -321,6 +1507,15 @@ async function fixture(options: FixtureOptions = {}) {
     subscriptionRequests,
     externalSubscriptions,
     providerRequests,
+    setClerkToken: (value: string) => {
+      ownerAccessToken = value
+    },
+    setConsentNonce: (value: string) => {
+      consentNonce = value
+    },
+    setIdClaims: (value: JWTPayload) => {
+      idClaims = value
+    },
     setSubscriptionUnavailable: (value: boolean) => {
       subscriptionUnavailable = value
     },

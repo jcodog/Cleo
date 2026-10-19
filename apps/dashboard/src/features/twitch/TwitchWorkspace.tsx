@@ -20,6 +20,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { ChatAnnouncements } from "./ChatAnnouncements"
+import { ChatConnection } from "./ChatConnection"
 import {
   type EventKey,
   type AnnouncementKey,
@@ -185,6 +186,7 @@ export function TwitchWorkspace() {
           onReconnect={(key) => void link([key])}
         />
       )}
+      <ChatConnection />
     </section>
   )
 }

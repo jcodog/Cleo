@@ -14,6 +14,7 @@ import { serializeLogError } from "@workspace/logger"
 export class TwitchClient {
   readonly auth: TwitchAuthService
   readonly webhook: TwitchWebhookServer
+  private readonly convex: ConvexService
   private readonly shutdown = new AbortController()
   constructor(
     private readonly config: TwitchRuntimeEnv,
@@ -32,6 +33,7 @@ export class TwitchClient {
       request,
       this.shutdown.signal
     )
+    this.convex = convex
     const announcements = new AnnouncementService(api, this.auth, logger)
     const router = new EventSubRouter({ convex, announcements }, logger)
     this.webhook = new TwitchWebhookServer(
@@ -62,14 +64,16 @@ export class TwitchClient {
       await this.webhook.start(this.config.TWITCH_WEBHOOK_PORT)
       await this.webhook.recoverPending()
       await state("ready")
+      await this.reportReadiness()
       this.logger.info("Twitch runtime ready")
       while (!signal.aborted) {
-        // Token maintenance and local readiness only. No subscription lifecycle work.
+        // Token maintenance and readiness reporting. No subscription lifecycle work.
         await delay(30000, undefined, { signal })
         await this.auth.maintain()
         if (!this.webhook.isListening)
           throw new Error("Twitch webhook listener unavailable.")
         await state("ready")
+        await this.reportReadiness()
       }
     } catch (error) {
       if (!signal.aborted) {
@@ -81,13 +85,11 @@ export class TwitchClient {
         throw error
       }
     } finally {
-      await this.webhook
-        .stop()
-        .catch((failure) =>
-          this.logger.error("Webhook shutdown failed", {
-            error: serializeLogError(failure),
-          })
-        )
+      await this.webhook.stop().catch((failure) =>
+        this.logger.error("Webhook shutdown failed", {
+          error: serializeLogError(failure),
+        })
+      )
       if (signal.aborted) {
         await state("stopped").catch((failure) =>
           this.logger.error("Readiness update failed", {
@@ -98,5 +100,16 @@ export class TwitchClient {
       }
       signal.removeEventListener("abort", abort)
     }
+  }
+  private async reportReadiness(): Promise<void> {
+    // Compatible with a runtime-first rollout and temporary control-plane outages.
+    await this.convex
+      .reportReadiness(
+        this.config.TWITCH_CLIENT_ID,
+        this.config.TWITCH_BOT_USER_ID
+      )
+      .catch(() =>
+        this.logger.warn("Twitch control-plane readiness unavailable")
+      )
   }
 }

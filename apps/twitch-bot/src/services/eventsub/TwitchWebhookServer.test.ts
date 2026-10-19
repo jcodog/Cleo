@@ -25,6 +25,93 @@ const body = {
   },
   event,
 }
+const chatBody = {
+  subscription: {
+    id: "chat-sub",
+    type: "channel.chat.message",
+    version: "1",
+    condition: { broadcaster_user_id: "222", user_id: "111" },
+  },
+  event: {
+    ...event,
+    chatter_user_id: "333",
+    message_id: "chat",
+    message: { text: "private viewer text" },
+  },
+}
+
+test("high-volume signed chat is validated locally with no Convex calls, receipts, dispatch or content logs", async () => {
+  const f = fixture()
+  f.setFailure()
+  const responses = await Promise.all(
+    Array.from({ length: 1000 }, (_, i) =>
+      f.server.handle(request(chatBody, { id: `chat-${i}` }))
+    )
+  )
+  assert.ok(responses.every((response) => response.status === 204))
+  assert.deepEqual(f.calls, [])
+  assert.equal(
+    (await f.server.handle(request({ ...chatBody, event: {} }))).status,
+    400
+  )
+  assert.equal(
+    (
+      await f.server.handle(
+        request({
+          ...chatBody,
+          event: { ...chatBody.event, broadcaster_user_id: "444" },
+        })
+      )
+    ).status,
+    400
+  )
+  assert.equal(
+    (
+      await f.server.handle(
+        request(chatBody, {
+          headers: {
+            "Twitch-Eventsub-Message-Signature": `sha256=${"0".repeat(64)}`,
+          },
+        })
+      )
+    ).status,
+    403
+  )
+  assert.deepEqual(f.calls, [])
+  await f.server.stop()
+})
+test("signed revocations retain identity for late callbacks after consumer cleanup", async () => {
+  const f = fixture()
+  for (const [type, condition, key] of [
+    [
+      "channel.chat.message",
+      { broadcaster_user_id: "222", user_id: "111" },
+      "chatMessage",
+    ],
+    ["channel.raid", { to_broadcaster_user_id: "222" }, "raid"],
+  ] as const) {
+    const notification = {
+      subscription: {
+        id: "retired-provider-id",
+        type,
+        version: "1",
+        condition,
+        status: "authorization_revoked",
+      },
+    }
+    assert.equal(
+      (await f.server.handle(request(notification, { type: "revocation" })))
+        .status,
+      204
+    )
+    assert.deepEqual(f.calls.at(-1), {
+      state: ["retired-provider-id", true, key, "222", "authorization_revoked"],
+    })
+  }
+  assert.equal(f.calls.length, 2)
+  await f.server.stop()
+})
+
 function request(
   value: unknown = body,
   options: {

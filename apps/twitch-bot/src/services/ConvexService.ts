@@ -51,14 +51,12 @@ export class ConvexService {
       )
   }
   async begin(messageId: string, attempt: string): Promise<boolean> {
-    return z
-      .boolean()
-      .parse(
-        await this.action("twitchEventSubActions:beginDispatch", {
-          messageId,
-          attempt,
-        })
-      )
+    return z.boolean().parse(
+      await this.action("twitchEventSubActions:beginDispatch", {
+        messageId,
+        attempt,
+      })
+    )
   }
   async finish(
     messageId: string,
@@ -98,14 +96,19 @@ export class ConvexService {
     subscriptionId: string,
     revoked: boolean,
     key?: EventKey,
-    broadcasterId?: string
+    broadcasterId?: string,
+    reason?: string
   ): Promise<void> {
     await this.action("twitchEventSubActions:webhookState", {
       subscriptionId,
       revoked,
       key,
       broadcasterId,
+      reason,
     })
+  }
+  async reportReadiness(clientId: string, botId: string): Promise<void> {
+    await this.action("twitchChatActions:reportReadiness", { clientId, botId })
   }
   private async action(
     name: string,

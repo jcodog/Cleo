@@ -24,6 +24,8 @@ export const backendEnv = createEnv({
     TWITCH_CLIENT_SECRET: optionalString,
     TWITCH_BOT_USER_ID: optionalString,
     TWITCH_EVENTSUB_CALLBACK_URL: optionalUrl,
+    TWITCH_CHAT_PRESENCE_ENABLED: optionalString,
+    TWITCH_CHAT_OAUTH_REDIRECT_URL: optionalUrl,
   },
   runtimeEnv: process.env,
 })

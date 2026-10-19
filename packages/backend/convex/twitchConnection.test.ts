@@ -70,7 +70,7 @@ test("Twitch connection projects only public Clerk-verified metadata and bootstr
   await assert.rejects(t.query(connection, {}), /signed in/)
 })
 
-test("not-linked returns null; generic removal reconciliation remains an explicit JCN-213 boundary", async () => {
+test("Twitch unlink removes stale linked metadata", async () => {
   const t = convexTest({ schema, modules })
   const data = {
     id: "test-user",
@@ -94,6 +94,5 @@ test("not-linked returns null; generic removal reconciliation remains an explici
     },
   })
   await t.mutation(sync, { data })
-  // This documents the existing lifecycle limitation, never authorizes runtime use.
-  assert.equal((await user.query(connection, {})).providerAccountId, "222")
+  assert.equal(await user.query(connection, {}), null)
 })

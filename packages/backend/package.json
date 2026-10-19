@@ -14,13 +14,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "discord.js": "^14.27.0",
-    "zod": "^4.6.7",
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
-    "convex": "^1.46.0",
-    "svix": "^2.8.0"
+    "convex": "^1.47.0",
+    "discord.js": "^14.27.0",
+    "jose": "6.2.12",
+    "svix": "^2.8.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "catalog:",

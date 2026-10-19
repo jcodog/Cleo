@@ -35,7 +35,7 @@
     "@workspace/logger": "workspace:*",
     "@workspace/shared": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "convex": "^1.46.0",
+    "convex": "^1.47.0",
     "esbuild": "^0.28.2",
     "prettier": "catalog:",
     "tsx": "catalog:",

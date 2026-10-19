@@ -13,6 +13,16 @@ import {
 const fails = (code: string) => (error: unknown) =>
   error instanceof TwitchFailure && error.code === code
 
+test("chat refuses the broadcaster as bot sender before making a provider request", async () => {
+  const api = new TwitchApiService(apiConfig, async () =>
+    assert.fail("No provider request expected")
+  )
+  await assert.rejects(
+    api.sendChatMessage("app", apiConfig.TWITCH_BOT_USER_ID, "Hello"),
+    fails("wrongBot")
+  )
+})
+
 test("validation accepts documented arrays and observed null scopes without authorizing an unscoped bot", async () => {
   for (const scopes of [null, []]) {
     await new TwitchApiService(

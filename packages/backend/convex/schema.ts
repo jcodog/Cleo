@@ -12,6 +12,9 @@ import {
   twitchAnnouncementConfigs,
   twitchWebhookReceipts,
   twitchEventConsumers,
+  twitchBotRuntime,
+  twitchChatConnections,
+  twitchChatConsents,
 } from "./dbTables/twitchEventSub"
 import { linkedAccounts } from "./dbTables/linkedAccounts"
 import {
@@ -49,6 +52,9 @@ export default defineSchema({
   guildEntitlementGrants,
   twitchEventSubscriptions,
   twitchEventConsumers,
+  twitchBotRuntime,
+  twitchChatConnections,
+  twitchChatConsents,
   twitchAnnouncementConfigs,
   twitchWebhookReceipts,
   users,

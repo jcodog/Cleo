@@ -16,6 +16,7 @@ import {
   TwitchEventSubApi,
   EventSubProviderError,
 } from "./lib/twitchEventSubApi"
+import { chatRevoked } from "./lib/twitchRevocation"
 import { verifyOwnerTwitch } from "./lib/verifyOwnerTwitch"
 import { ownerEvidenceKey } from "./lib/ownerTwitch"
 import type { Id } from "./_generated/dataModel"
@@ -32,19 +33,26 @@ export function controlPlaneConfig() {
   return config
 }
 export const reconcile = internalAction({
-  args: { subscription: v.id("twitchEventSubscriptions") },
+  args: {
+    subscription: v.id("twitchEventSubscriptions"),
+    attempt: v.optional(v.number()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const lease = randomUUID()
     const row = await ctx.runMutation(internal.twitchEventSub.acquire, {
-      ...args,
+      subscription: args.subscription,
       lease,
     })
     if (!row) return null
     let subscriptionId = row.subscriptionId
     let status:
-      "disabled" | "ready" | "connecting" | "failed" | "providerUnavailable" =
-      "disabled"
+      | "disabled"
+      | "ready"
+      | "connecting"
+      | "failed"
+      | "providerUnavailable"
+      | "revoked" = "disabled"
     try {
       if (!isEventKey(row.key)) throw new Error("Unknown event.")
       const api = new TwitchEventSubApi({
@@ -55,13 +63,70 @@ export const reconcile = internalAction({
       if (!row.consumers.length) {
         const existing = subscriptionId
           ? { id: subscriptionId }
-          : await api.find(token, row.key, row.condition)
+          : await api.find(token, row.key, row.condition, true)
         if (existing) await api.delete(token, existing.id)
         subscriptionId = undefined
       } else {
+        if (row.key === "chatMessage") {
+          if (chatRevoked(row)) {
+            status = "failed"
+            throw new EventSubProviderError("failed")
+          }
+          const consumer = row.consumers.find((value) =>
+            value.startsWith("chat:")
+          )
+          const owner = consumer
+            ? await ctx.runQuery(internal.twitchChat.contextForConsumer, {
+                consumer,
+              })
+            : null
+          if (
+            !owner?.runtimeReady ||
+            backendEnv.TWITCH_CHAT_PRESENCE_ENABLED !== "true"
+          )
+            throw new EventSubProviderError("providerUnavailable")
+          const source =
+            owner.user &&
+            owner.user.status !== "disabled" &&
+            owner.discord.length === 1 &&
+            owner.discord[0] &&
+            owner.twitch[0]
+              ? await verifyOwnerTwitch(
+                  {
+                    status: "linked",
+                    user: owner.user,
+                    discord: owner.discord[0],
+                    twitch: owner.twitch[0],
+                    twitchAccounts: owner.twitch,
+                  },
+                  ["channel:bot"],
+                  controlPlaneConfig().clientId
+                )
+              : null
+          if (
+            source?.status === "unavailable" ||
+            source?.status === "configurationUnavailable"
+          )
+            throw new EventSubProviderError("providerUnavailable")
+          if (
+            source?.status !== "ready" ||
+            source.broadcasterId !== row.broadcasterId ||
+            source.broadcasterId === controlPlaneConfig().botId
+          )
+            throw new EventSubProviderError("failed")
+        }
+        const allowReauthorization =
+          row.key === "chatMessage" &&
+          (await ctx.runQuery(internal.twitchConsent.authorized, {
+            subscription: row._id,
+          }))
         const subscription =
-          (await api.find(token, row.key, row.condition)) ??
-          (await api.create(token, row.key, row.condition))
+          (await api.find(
+            token,
+            row.key,
+            row.condition,
+            allowReauthorization
+          )) ?? (await api.create(token, row.key, row.condition))
         subscriptionId = subscription.id
         status = subscription.status === "enabled" ? "ready" : "connecting"
       }
@@ -72,7 +137,7 @@ export const reconcile = internalAction({
           : "providerUnavailable"
     }
     await ctx.runMutation(internal.twitchEventSub.settle, {
-      ...args,
+      subscription: args.subscription,
       lease,
       revision: row.revision,
       subscriptionId,
@@ -81,12 +146,58 @@ export const reconcile = internalAction({
         ? { failure: status }
         : {}),
     })
+    if (
+      row.key === "chatMessage" &&
+      status === "providerUnavailable" &&
+      (args.attempt ?? 0) < 3
+    )
+      await ctx.scheduler.runAfter(
+        30000 * 2 ** (args.attempt ?? 0),
+        internal.twitchEventSubActions.reconcile,
+        { ...args, attempt: (args.attempt ?? 0) + 1 }
+      )
     if (status === "connecting")
       await ctx.scheduler.runAfter(
         5000,
         internal.twitchEventSubActions.confirmSubscription,
         { subscription: args.subscription, attempt: 0 }
       )
+    return null
+  },
+})
+// A revocation that wins a reconciliation race must also retire its provider result.
+export const deleteRejected = internalAction({
+  args: {
+    subscription: v.id("twitchEventSubscriptions"),
+    subscriptionId: v.string(),
+    callback: v.string(),
+    attempt: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const row = await ctx.runQuery(internal.twitchEventSub.subscription, {
+      subscription: args.subscription,
+    })
+    if (
+      row?.subscriptionId === args.subscriptionId &&
+      !chatRevoked(row) &&
+      row.consumers.length
+    )
+      return null
+    try {
+      const api = new TwitchEventSubApi({
+        ...controlPlaneConfig(),
+        callback: args.callback,
+      })
+      await api.delete(await api.acquireToken(), args.subscriptionId)
+    } catch (error) {
+      if ((args.attempt ?? 0) >= 3) throw error
+      await ctx.scheduler.runAfter(
+        30000 * 2 ** (args.attempt ?? 0),
+        internal.twitchEventSubActions.deleteRejected,
+        { ...args, attempt: (args.attempt ?? 0) + 1 }
+      )
+    }
     return null
   },
 })
@@ -100,6 +211,7 @@ export const confirmSubscription = internalAction({
     if (
       !row ||
       row.status !== "connecting" ||
+      chatRevoked(row) ||
       !row.consumers.length ||
       !isEventKey(row.key)
     )
@@ -120,6 +232,7 @@ export const confirmSubscription = internalAction({
           revoked: false,
           key: row.key,
           broadcasterId: row.broadcasterId,
+          confirmed: true,
         })
         return null
       }
@@ -262,6 +375,7 @@ export const reserveEvent = action({
       !/^[1-9]\d*$/.test(args.broadcasterId)
     )
       throw new ConvexError("Invalid event.")
+    if (args.key === "chatMessage") return { kind: "ignored" as const }
     if (args.eventJson) {
       if (args.eventJson.length > 65536) throw new ConvexError("Invalid event.")
       const event = eventDefinitions[args.key].parse(JSON.parse(args.eventJson))
@@ -369,6 +483,7 @@ export const webhookState = action({
     revoked: v.boolean(),
     key: v.optional(v.string()),
     broadcasterId: v.optional(v.string()),
+    reason: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, { secret, ...args }) => {
