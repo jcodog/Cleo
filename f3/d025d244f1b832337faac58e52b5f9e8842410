@@ -1,0 +1,127 @@
+apps/dashboard/src/features/app-shell/routes.test.ts
+  s_20c2a68bb23ef7::t_1025cf9884fc88 37-38,40
+apps/dashboard/tests/twitch/clerk-fixture.ts
+  s_20c2a68bb23ef7::t_0f746d9d13072c 1-7,11-14
+  s_20c2a68bb23ef7::t_1b15a24cb24897 8-10
+apps/dashboard/src/app/(app)/twitch/timers/page.tsx
+  s_20c2a68bb23ef7::t_783f3338bacde0 1-7,9-20
+  s_20c2a68bb23ef7::t_dc08a019ed76df 8
+apps/dashboard/src/app/(app)/twitch/alerts/page.tsx
+  s_20c2a68bb23ef7::t_783f3338bacde0 1-7,9-19
+  s_20c2a68bb23ef7::t_e1e06b8b95ba6e 8
+apps/dashboard/src/features/twitch/ChatTimers.tsx
+  s_20c2a68bb23ef7::t_ab38dddde5cd66 254-270
+  s_20c2a68bb23ef7::t_5409cfedc48dd5 1-253,272-286,292,295,297,324-559
+  s_20c2a68bb23ef7::t_693eeed4e28fb8 316
+  s_20c2a68bb23ef7::t_ebfc457e92f9e6 271
+  s_20c2a68bb23ef7::t_0f263127b6490a 287-291
+  s_20c2a68bb23ef7::t_7c670e47241ecb 293-294
+  s_20c2a68bb23ef7::t_8c2e7585fdde3f 296
+  s_20c2a68bb23ef7::t_976f812eb76077 298-300,313-315
+  s_20c2a68bb23ef7::t_9c770a7c1c5afa 317-319,321-323
+  s_20c2a68bb23ef7::t_3f5d10a1b43b89 301-312,320
+apps/dashboard/src/features/twitch/routes.test.ts
+  s_20c2a68bb23ef7::t_0f8778919e23f0 1-24
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_20c2a68bb23ef7::t_783f3338bacde0 15,230,232,235-238,240-244,246,257-259
+  s_20c2a68bb23ef7::t_a33fc01b9ab03a 239
+  s_20c2a68bb23ef7::t_f0ca3cb931e489 245
+apps/dashboard/src/features/twitch/components.test.ts
+  s_20c2a68bb23ef7::t_1e4b256b7e4628 393
+apps/dashboard/src/features/twitch/ChatConnection.tsx
+  s_20c2a68bb23ef7::t_783f3338bacde0 84,93-103
+apps/dashboard/tests/twitch/navigation-fixture.tsx
+  s_20c2a68bb23ef7::t_2bc7264fa1eb3e 24,26-28,31,33-38
+  s_20c2a68bb23ef7::t_0f746d9d13072c 1-12,14,16-23,40
+  s_20c2a68bb23ef7::t_0232e5ee73f288 13
+  s_20c2a68bb23ef7::t_992dc29b6903eb 15
+  s_20c2a68bb23ef7::t_d33b762b126464 25
+  s_20c2a68bb23ef7::t_3eee6daa8285a6 29-30
+  s_20c2a68bb23ef7::t_33bbe88703642f 32
+  s_20c2a68bb23ef7::t_e40496cb58133f 39
+apps/dashboard/src/features/discord-guild-workspace/sections/LiveNotificationsSection.test.ts
+  s_20c2a68bb23ef7::t_1e4b256b7e4628 211,214-215,404,407-408
+apps/dashboard/src/features/app-shell/routes.ts
+  s_20c2a68bb23ef7::t_783f3338bacde0 4
+apps/dashboard/src/features/twitch/TwitchWorkspace.tsx
+  s_20c2a68bb23ef7::t_783f3338bacde0 7,43-45,107-179
+  s_46c5f6ebb5fd9c::t_de5a9467d43ec0 181-182,185-206,208-223,234-242
+apps/dashboard/package.json
+  s_20c2a68bb23ef7::t_2bc7264fa1eb3e 15
+apps/dashboard/src/features/app-shell/AppPlatformSelector.tsx
+  s_20c2a68bb23ef7::t_e6d2c5569e8d40 3,5-7,12-17,19-20,25-66,68-91
+apps/dashboard/src/features/twitch/ChatAnnouncements.tsx
+  s_20c2a68bb23ef7::t_783f3338bacde0 149-193,195-203,205-207,209-211,213-235,238-239,241,246-247,249,251-272,274
+.github/workflows/regression.yml
+  s_20c2a68bb23ef7::t_0f8778919e23f0 97-99,120
+apps/dashboard/tests/twitch/serve.mjs
+  s_20c2a68bb23ef7::t_0f746d9d13072c 1-2,4-17,19-20,22,25-35,37-43,45-47,49-66,68
+  s_20c2a68bb23ef7::t_0d9115f7a33d8c 3
+  s_20c2a68bb23ef7::t_9378a3ab64aa90 18
+  s_20c2a68bb23ef7::t_d81d47a5a6b3e9 21
+  s_20c2a68bb23ef7::t_7e023c6fe8e426 23-24
+  s_20c2a68bb23ef7::t_80fa4b6d9d7c36 36
+  s_20c2a68bb23ef7::t_93e876829ed4c2 44
+  s_20c2a68bb23ef7::t_2fbfe2ad3663f3 48
+  s_20c2a68bb23ef7::t_723745c4194056 67
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_20c2a68bb23ef7::t_1e4b256b7e4628 82-83,106
+apps/dashboard/tests/twitch/workspace.spec.ts
+  s_20c2a68bb23ef7::t_0f746d9d13072c 1-3,5-25,27-32,34-52,54-63,65-67,69-93,95-108,110-111
+  s_20c2a68bb23ef7::t_d1201192855f53 4
+  s_20c2a68bb23ef7::t_fd38af886660d7 26
+  s_20c2a68bb23ef7::t_e1cdeb7b4cee05 33
+  s_20c2a68bb23ef7::t_4869aa31ddac6a 53
+  s_20c2a68bb23ef7::t_187c5f7da94f79 64
+  s_20c2a68bb23ef7::t_8e55c349278a37 68
+  s_20c2a68bb23ef7::t_5db9048c48f07c 94
+  s_20c2a68bb23ef7::t_4b6f052a005774 109
+apps/dashboard/tests/twitch/fixture.tsx
+  s_20c2a68bb23ef7::t_2bc7264fa1eb3e 76
+  s_20c2a68bb23ef7::t_0f746d9d13072c 1-10,12-29,31-41,43-48,52-58,60-66,68-72,74-75,77-111,113-115,117,119-122,125-137,139-159,161,163,165,167,169-180
+  s_20c2a68bb23ef7::t_91d55b9847c38d 11
+  s_20c2a68bb23ef7::t_1f315295a5cbdb 30
+  s_20c2a68bb23ef7::t_99ac0279836165 42
+  s_20c2a68bb23ef7::t_9fb0a50660b7db 49-51
+  s_20c2a68bb23ef7::t_e5a863b6b0c797 59
+  s_20c2a68bb23ef7::t_9ba16050d00976 67
+  s_20c2a68bb23ef7::t_9e6ba0f172f27e 73
+  s_20c2a68bb23ef7::t_452553f3d2f56e 112
+  s_20c2a68bb23ef7::t_97eb96e9ffd475 116
+  s_20c2a68bb23ef7::t_0b420710b33bd0 118
+  s_20c2a68bb23ef7::t_39cfeb28e10076 123-124
+  s_20c2a68bb23ef7::t_891de8f964f509 138
+  s_20c2a68bb23ef7::t_6775af38039ff2 160
+  s_20c2a68bb23ef7::t_dab5dccde07ef4 162
+  s_20c2a68bb23ef7::t_b81fd65634d16a 164
+  s_20c2a68bb23ef7::t_a313381f3aa381 166
+  s_20c2a68bb23ef7::t_30383575991dea 168
+apps/dashboard/tests/twitch/playwright.config.ts
+  s_20c2a68bb23ef7::t_0f746d9d13072c 1-12,14-20,22-23
+  s_20c2a68bb23ef7::t_ed58c2a6c0d70e 13
+  s_20c2a68bb23ef7::t_36c3524b739110 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f3d025d244f1b832337faac58e52b5f9e8842410",
+  "prompts": {},
+  "sessions": {
+    "s_20c2a68bb23ef7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15611-5c6c-7302-850c-a00bf8b01861",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_46c5f6ebb5fd9c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15613-15b7-74d1-b231-9b180dd390fd",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
