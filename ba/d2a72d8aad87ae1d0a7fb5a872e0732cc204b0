@@ -1,0 +1,36 @@
+packages/backend/convex/twitchTimerActions.ts
+  s_20c2a68bb23ef7::t_fcb4bb05843ffc 37,45,48,61
+  s_20c2a68bb23ef7::t_8e5325d9dca1a8 40,58
+packages/backend/convex/twitchTimers.ts
+  s_20c2a68bb23ef7::t_fcb4bb05843ffc 424-427,430,451
+  s_20c2a68bb23ef7::t_8e5325d9dca1a8 481
+  s_20c2a68bb23ef7::t_152be1c11ffd1e 438,441-442,455-457,461-469,474,476-477,482,484-486,488,496,503-505,531-532
+  s_20c2a68bb23ef7::t_fabecffaef3848 60-64,71-73,415-419,437,452-454,458
+packages/backend/convex/twitchTimers.test.ts
+  s_20c2a68bb23ef7::t_bcb3b3ab30a16b 337,525-527,529-535,537-543,545-554,556-566,568-576,578,580-583,585-591,593,595-596,600-601
+  s_20c2a68bb23ef7::t_9cfab30c9f5d19 612-613,637,658-660,908
+  s_20c2a68bb23ef7::t_5e9407189a97f8 339-342,344-357,359-361,363-368,370-375,377-378,380-389,391-395,397-398,401-407,409,411-415,417-423,425-427,429-435,437-443,445-450,452-453,457-458,460-464,466-472,474-475,477-482,484-486
+  s_20c2a68bb23ef7::t_fabecffaef3848 306-336,969-976,978-985
+  s_20c2a68bb23ef7::t_8e5325d9dca1a8 454-455
+  s_20c2a68bb23ef7::t_ca7e246a89751b 713-718,720-721
+  s_20c2a68bb23ef7::t_164b518794b011 338,343,358,362,369,376,379,390,396,400,408,416,424,428,436,444,451,456,459,465,473,476,483,528,536,544,555,567,577,579,584,592,594,597-599,712,719,907
+packages/backend/convex/_generated/api.d.ts
+  s_20c2a68bb23ef7::t_fabecffaef3848 7280,7282-7297,7299,7341
+  s_20c2a68bb23ef7::t_f0282a47cb3728 7342-7372
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bad2a72d8aad87ae1d0a7fb5a872e0732cc204b0",
+  "prompts": {},
+  "sessions": {
+    "s_20c2a68bb23ef7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15611-5c6c-7302-850c-a00bf8b01861",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
