@@ -53,7 +53,7 @@
       "turbo": "^2.11.7",
       "typescript": "^7.0.2",
       "tsx": "^4.23.15",
-      "oxlint": "1.88.0"
+      "oxlint": "1.89.0"
     }
   },
   "trustedDependencies": [
