@@ -27,6 +27,10 @@ export const timerGroupFields = {
   updatedAt: v.number(),
   deleted: v.boolean(),
   cursor: v.number(),
+  executionSequence: v.optional(v.number()),
+  streamId: v.optional(v.string()),
+  sessionStartedAt: v.optional(v.number()),
+  sessionLive: v.optional(v.boolean()),
   lastSentAt: v.optional(v.number()),
   lastAttemptAt: v.optional(v.number()),
   execution: v.optional(
@@ -35,6 +39,15 @@ export const timerGroupFields = {
       revision: v.number(),
       cursor: v.number(),
       expiresAt: v.number(),
+      streamId: v.optional(v.string()),
+      phase: v.optional(
+        v.union(
+          v.literal("prepared"),
+          v.literal("sending"),
+          v.literal("uncertain")
+        )
+      ),
+      rotation: v.optional(v.string()),
     })
   ),
   diagnostic: v.optional(timerState),
@@ -50,6 +63,7 @@ export const timerProjection = v.object({
   ...timerFields,
   revision: v.number(),
   cursor: v.number(),
+  sessionLive: v.optional(v.boolean()),
   lastSentAt: v.optional(v.number()),
   lastAttemptAt: v.optional(v.number()),
   diagnostic: v.optional(timerState),
@@ -63,12 +77,16 @@ export const runtimeGroup = v.object({
   ...timerFields,
   revision: v.number(),
   cursor: v.number(),
+  streamId: v.optional(v.string()),
+  sessionStartedAt: v.optional(v.number()),
+  sessionLive: v.optional(v.boolean()),
   lastSentAt: v.optional(v.number()),
   lastAttemptAt: v.optional(v.number()),
 })
 export const runtimePageResult = v.object({
   groups: v.array(runtimeGroup),
   cursor: v.union(v.string(), v.null()),
+  startedAt: v.number(),
 })
 export const claimResult = v.union(
   v.null(),
@@ -82,6 +100,26 @@ export const twitchTimerGroups = defineTable(timerGroupFields)
   .index("by_user", ["userId", "deleted", "order"])
   .index("by_enabled", ["enabled", "deleted"])
   .index("by_updated", ["updatedAt"])
+  .index("by_broadcaster", ["broadcasterId", "deleted"])
+
+export const timerSessionFields = {
+  broadcasterId: v.string(),
+  streamId: v.optional(v.string()),
+  startedAt: v.optional(v.number()),
+  live: v.boolean(),
+  observedAt: v.number(),
+  lastCompleted: v.optional(
+    v.object({
+      streamId: v.string(),
+      startedAt: v.number(),
+      observedAt: v.number(),
+    })
+  ),
+}
+export const twitchTimerSessions = defineTable(timerSessionFields).index(
+  "by_broadcaster",
+  ["broadcasterId"]
+)
 
 export const twitchTimerGrants = defineTable({
   userId: v.id("users"),

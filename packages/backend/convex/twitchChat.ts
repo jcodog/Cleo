@@ -253,6 +253,8 @@ export const cleanupMembers = internalMutation({
       .withIndex("by_subscription", (q) => q.eq("subscription", row._id))
       .paginate({ numItems: 25, cursor: args.cursor ?? null })
     const personal = new Set([
+      `timer:${args.userId}:streamOnline`,
+      `timer:${args.userId}:streamOffline`,
       `chat:${args.userId}`,
       ...announcementKeys.map((key) => `announcement:${args.userId}:${key}`),
     ])

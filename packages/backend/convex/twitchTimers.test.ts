@@ -1,9 +1,11 @@
 import assert from "node:assert/strict"
-import { test } from "node:test"
+import { test, beforeEach, afterEach, mock } from "node:test"
 import { convexTest } from "convex-test"
 import { api, internal } from "./_generated/api"
 import schema from "./schema"
 const originalFetch = globalThis.fetch
+beforeEach(() => mock.timers.enable({ apis: ["setTimeout"] }))
+afterEach(() => mock.timers.reset())
 process.env.TWITCH_CHAT_PRESENCE_ENABLED = "true"
 process.env.TWITCH_CLIENT_ID = "timer-test-client"
 process.env.TWITCH_BOT_USER_ID = "999"
@@ -28,12 +30,417 @@ const config = {
 test("metadata-only saves preserve durable rotation and ordered message edits reset it", async () => {
   const { t, owner } = await setup()
   const id = await owner.mutation(api.twitchTimers.save, config)
-  await t.run(ctx => ctx.db.patch(id, { cursor: 1 }))
-  await owner.mutation(api.twitchTimers.save, { ...config, id, revision: 1, name: "Renamed", intervalMinutes: 10 })
-  assert.equal((await owner.query(api.twitchTimers.list, {})).groups[0]?.cursor, 1)
-  await owner.mutation(api.twitchTimers.save, { ...config, id, revision: 2, messages: ["second", "first"] })
-  assert.equal((await owner.query(api.twitchTimers.list, {})).groups[0]?.cursor, 0)
-  await assert.rejects(owner.mutation(api.twitchTimers.save, { ...config, id, revision: 3, messages: ["  /me hello"] }), /Invalid/)
+  await t.run((ctx) => ctx.db.patch(id, { cursor: 1 }))
+  await owner.mutation(api.twitchTimers.save, {
+    ...config,
+    id,
+    revision: 1,
+    name: "Renamed",
+    intervalMinutes: 10,
+  })
+  assert.equal(
+    (await owner.query(api.twitchTimers.list, {})).groups[0]?.cursor,
+    1
+  )
+  await owner.mutation(api.twitchTimers.save, {
+    ...config,
+    id,
+    revision: 2,
+    messages: ["second", "first"],
+  })
+  assert.equal(
+    (await owner.query(api.twitchTimers.list, {})).groups[0]?.cursor,
+    0
+  )
+  await assert.rejects(
+    owner.mutation(api.twitchTimers.save, {
+      ...config,
+      id,
+      revision: 3,
+      messages: ["  /me hello"],
+    }),
+    /Invalid/
+  )
+})
+test("stream sessions reset every group only for a new stream and fence old claims", async () => {
+  const { t, owner, userId } = await setup()
+  await t.mutation(internal.twitchTimers.provisionTestGrant, {
+    userId,
+    broadcasterId: "222",
+    expiresAt: Date.now() + 60000,
+    reason: "lifecycle",
+  })
+  const ids = [
+    await owner.mutation(api.twitchTimers.save, config),
+    await owner.mutation(api.twitchTimers.save, config),
+  ]
+  const now = Date.now()
+  const session = {
+    broadcasterId: "222",
+    streamId: "100",
+    startedAt: now - 400000,
+    observedAt: now,
+  }
+  assert.equal(await t.mutation(internal.twitchTimers.session, session), true)
+  await readyRuntime(t)
+  await readyChat(t, userId)
+  const { chatAccount, chatEvidence } = await import("./twitchChat")
+  const evidence = await t.run(async (ctx) =>
+    chatEvidence(await chatAccount(ctx, userId))
+  )
+  for (const id of ids)
+    await t.run((ctx) =>
+      ctx.db.patch(id, {
+        cursor: 1,
+        lastAttemptAt: now - 400000,
+        sessionStartedAt: now - 400000,
+      })
+    )
+  const claim = await t.mutation(internal.twitchTimers.claim, {
+    id: ids[0]!,
+    revision: 1,
+    streamId: "100",
+    evidence,
+    verifiedAt: Date.now(),
+  })
+  assert.ok(claim)
+  assert.equal(
+    await t.mutation(internal.twitchTimers.begin, {
+      id: ids[0]!,
+      executionId: claim.executionId,
+      streamId: "100",
+    }),
+    true
+  )
+  assert.equal(
+    await t.mutation(internal.twitchTimers.begin, {
+      id: ids[0]!,
+      executionId: claim.executionId,
+      streamId: "100",
+    }),
+    false
+  )
+  await t.mutation(internal.twitchTimers.session, {
+    ...session,
+    observedAt: Date.now(),
+  })
+  assert.equal((await t.run((ctx) => ctx.db.get(ids[0]!)))?.cursor, 1)
+  await t.mutation(internal.twitchTimers.session, {
+    broadcasterId: "222",
+    observedAt: Date.now(),
+    eventAt: Date.now(),
+  })
+  assert.equal(
+    (await owner.query(api.twitchTimers.list, {})).groups[0]?.sessionLive,
+    false
+  )
+  assert.equal(
+    await t.mutation(internal.twitchTimers.claim, {
+      id: ids[1]!,
+      revision: 1,
+      streamId: "100",
+      evidence,
+      verifiedAt: Date.now(),
+    }),
+    null
+  )
+  await t.mutation(internal.twitchTimers.session, {
+    broadcasterId: "222",
+    streamId: "101",
+    startedAt: now,
+    observedAt: Date.now(),
+  })
+  for (const id of ids) {
+    const group = await t.run((ctx) => ctx.db.get(id))
+    assert.equal(group?.cursor, 0)
+    assert.equal(group?.lastAttemptAt, undefined)
+    assert.equal(group?.lastSentAt, undefined)
+  }
+  await t.mutation(internal.twitchTimers.settle, {
+    id: ids[0]!,
+    executionId: claim.executionId,
+    sent: true,
+  })
+  assert.equal((await t.run((ctx) => ctx.db.get(ids[0]!)))?.cursor, 0)
+  assert.equal(
+    await t.mutation(internal.twitchTimers.session, {
+      broadcasterId: "222",
+      observedAt: Date.now(),
+      eventAt: now - 1,
+    }),
+    false
+  )
+  assert.equal(
+    await t.mutation(internal.twitchTimers.session, {
+      ...session,
+      observedAt: Date.now(),
+    }),
+    false
+  )
+  assert.equal(
+    await t.mutation(internal.twitchTimers.session, {
+      broadcasterId: "333",
+      observedAt: Date.now(),
+    }),
+    false
+  )
+  const subscriptions = await t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").collect()
+  )
+  for (const key of ["streamOnline", "streamOffline"]) {
+    assert.equal(subscriptions.filter((row) => row.key === key).length, 1)
+    assert.deepEqual(subscriptions.find((row) => row.key === key)?.consumers, [
+      `timer:${userId}:${key}`,
+    ])
+  }
+})
+
+test("an expired or crashed execution is quarantined; confirmed settlement is idempotent", async () => {
+  const { t, owner, userId } = await setup()
+  const id = await owner.mutation(api.twitchTimers.save, config)
+  await readyRuntime(t)
+  await readyChat(t, userId)
+  const { chatAccount, chatEvidence } = await import("./twitchChat")
+  const evidence = await t.run(async (ctx) =>
+    chatEvidence(await chatAccount(ctx, userId))
+  )
+  const args = {
+    id,
+    revision: 1,
+    streamId: "100",
+    evidence,
+    verifiedAt: Date.now(),
+  }
+  await t.run((ctx) => ctx.db.patch(id, { lastAttemptAt: Date.now() - 400000 }))
+  const claim = await t.mutation(internal.twitchTimers.claim, args)
+  assert.ok(claim)
+  await t.run((ctx) =>
+    ctx.db.patch(id, {
+      execution: {
+        id: claim.executionId,
+        revision: 1,
+        streamId: "100",
+        cursor: 0,
+        expiresAt: 1,
+        phase: "prepared",
+      },
+    })
+  )
+  assert.equal(
+    await t.mutation(internal.twitchTimers.begin, {
+      id,
+      executionId: claim.executionId,
+      streamId: "100",
+    }),
+    false
+  )
+  await t.mutation(internal.twitchTimers.settle, {
+    id,
+    executionId: claim.executionId,
+    sent: false,
+    definite: true,
+  })
+  const replacement = await t.mutation(internal.twitchTimers.claim, {
+    ...args,
+    verifiedAt: Date.now(),
+  })
+  assert.ok(replacement)
+  await t.mutation(internal.twitchTimers.begin, {
+    id,
+    executionId: replacement.executionId,
+    streamId: "100",
+  })
+  await t.run((ctx) =>
+    ctx.db.patch(id, {
+      lastAttemptAt: 1,
+      execution: {
+        id: replacement.executionId,
+        revision: 1,
+        streamId: "100",
+        cursor: 0,
+        expiresAt: 1,
+        phase: "sending",
+      },
+    })
+  )
+  assert.equal(
+    await t.mutation(internal.twitchTimers.claim, {
+      ...args,
+      verifiedAt: Date.now(),
+    }),
+    null
+  )
+  await t.mutation(internal.twitchTimers.settle, {
+    id,
+    executionId: replacement.executionId,
+    sent: false,
+  })
+  assert.equal(
+    (await t.run((ctx) => ctx.db.get(id)))?.execution?.phase,
+    "uncertain"
+  )
+  // A confirmed outcome remains valid after its lease expires when it is still
+  // the owning execution. Repeating it models a committed-but-lost response.
+  await t.mutation(internal.twitchTimers.settle, {
+    id,
+    executionId: replacement.executionId,
+    sent: true,
+  })
+  await t.mutation(internal.twitchTimers.settle, {
+    id,
+    executionId: replacement.executionId,
+    sent: true,
+  })
+  await t.mutation(internal.twitchTimers.settle, {
+    id,
+    executionId: replacement.executionId,
+    sent: false,
+  })
+  assert.equal((await t.run((ctx) => ctx.db.get(id)))?.cursor, 1)
+  assert.equal((await t.run((ctx) => ctx.db.get(id)))?.execution, undefined)
+})
+
+test("a confirmed in-flight send advances through metadata edits without advancing a changed rotation", async () => {
+  const { t, owner, userId } = await setup()
+  const id = await owner.mutation(api.twitchTimers.save, config)
+  await readyRuntime(t); await readyChat(t, userId)
+  await t.run(ctx => ctx.db.patch(id, { lastAttemptAt: Date.now() - 400000 }))
+  const { chatAccount, chatEvidence } = await import("./twitchChat")
+  const claim = await t.mutation(internal.twitchTimers.claim, { id, revision: 1, streamId: "100", verifiedAt: Date.now(), evidence: await t.run(async ctx => chatEvidence(await chatAccount(ctx, userId))) })
+  assert.ok(claim)
+  await t.mutation(internal.twitchTimers.begin, { id, streamId: "100", executionId: claim.executionId })
+  await owner.mutation(api.twitchTimers.save, { ...config, id, revision: 1, name: "Renamed" })
+  await t.mutation(internal.twitchTimers.settle, { id, executionId: claim.executionId, sent: true })
+  assert.equal((await t.run(ctx => ctx.db.get(id)))?.cursor, 1)
+})
+
+test("overlapping Convex-clock watermarks retain edits, deletes and inserts across pages", async () => {
+  const { t, owner } = await setup()
+  const id = await owner.mutation(api.twitchTimers.save, config)
+  const snapshot = await t.query(internal.twitchTimers.runtimePage, {})
+  assert.ok(snapshot.startedAt <= Date.now() - 119000)
+  await owner.mutation(api.twitchTimers.save, {
+    ...config,
+    id,
+    revision: 1,
+    enabled: false,
+  })
+  // Model a mutation that started before the snapshot but committed afterward.
+  await t.run((ctx) => ctx.db.patch(id, { updatedAt: snapshot.startedAt + 1 }))
+  assert.equal(
+    (
+      await t.query(internal.twitchTimers.runtimePage, {
+        since: snapshot.startedAt,
+      })
+    ).groups[0]?.enabled,
+    false
+  )
+  await owner.mutation(api.twitchTimers.remove, { id })
+  const replacement = await owner.mutation(api.twitchTimers.save, config)
+  const delta = await t.query(internal.twitchTimers.runtimePage, {
+    since: snapshot.startedAt,
+  })
+  assert.equal(
+    delta.groups.find((group) => group.id === id)?.messages.length,
+    0
+  )
+  assert.equal(
+    delta.groups.find((group) => group.id === replacement)?.enabled,
+    true
+  )
+})
+
+test("delayed verification stamps fresh evidence and a concurrent authorization change rejects the claim", async (testContext) => {
+  const { t, owner, userId } = await setup()
+  const id = await owner.mutation(api.twitchTimers.save, config)
+  await readyRuntime(t)
+  const subscription = await readyChat(t, userId)
+  await t.run(async (ctx) => {
+    await ctx.db.insert("linkedAccounts", {
+      userId,
+      provider: "discord",
+      providerAccountId: "111",
+      scopes: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    await ctx.db.patch(id, { lastAttemptAt: Date.now() - 400000 })
+  })
+  let now = Date.now(),
+    revoke = false,
+    unavailable = false
+  testContext.mock.method(Date, "now", () => now)
+  testContext.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  globalThis.fetch = async (input) => {
+    const url = String(input)
+    if (unavailable) throw new Error("provider outage")
+    if (url.includes("oauth_access_tokens"))
+      return Response.json([{ token: "test-only" }])
+    if (url.includes("oauth2/validate")) {
+      now += 20000
+      if (revoke)
+        await t.run((ctx) =>
+          ctx.db.patch(subscription, {
+            authorizationRevoked: true,
+            status: "revoked",
+          })
+        )
+      return Response.json({
+        user_id: "222",
+        login: "example",
+        client_id: "timer-test-client",
+        expires_in: 1000,
+        scopes: ["channel:bot"],
+      })
+    }
+    return Response.json({
+      id: "owner",
+      external_accounts: [
+        { provider: "oauth_discord", provider_user_id: "111" },
+        { provider: "oauth_twitch", provider_user_id: "222" },
+      ],
+    })
+  }
+  const args = { secret: "timer-test-worker", id, revision: 1, streamId: "100" }
+  const claim = await t.action(api.twitchTimerActions.claim, args)
+  assert.ok(claim)
+  await t.action(api.twitchTimerActions.settle, {
+    secret: args.secret,
+    id,
+    executionId: claim.executionId,
+    sent: false,
+    definite: true,
+  })
+  unavailable = true
+  await assert.rejects(
+    t.action(api.twitchTimerActions.claim, args),
+    /provider unavailable/
+  )
+  unavailable = false
+  revoke = true
+  assert.equal(await t.action(api.twitchTimerActions.claim, args), null)
+  await t.mutation(internal.twitchTimers.refreshLifecycle, { userId })
+  assert.equal(
+    await t.action(api.twitchTimerActions.begin, {
+      secret: args.secret,
+      id,
+      executionId: "obsolete",
+      streamId: "100",
+    }),
+    false
+  )
+  assert.equal(
+    await t.action(api.twitchTimerActions.session, {
+      secret: args.secret,
+      broadcasterId: "222",
+      streamId: "100",
+      startedAt: now - 400000,
+      observedAt: now,
+    }),
+    true
+  )
 })
 async function setup() {
   const t = convexTest({ schema, modules })
@@ -184,6 +591,14 @@ test("ownership, invalid inputs, concurrent free creation, test grants and lossl
 })
 
 async function readyRuntime(t: Awaited<ReturnType<typeof setup>>["t"]) {
+  await t.run(async (ctx) => {
+    for (const group of await ctx.db.query("twitchTimerGroups").collect())
+      await ctx.db.patch(group._id, {
+        streamId: "100",
+        sessionStartedAt: Date.now(),
+        sessionLive: true,
+      })
+  })
   await t.run((ctx) =>
     ctx.db.insert("twitchBotRuntime", {
       key: "chat-v1",
@@ -223,6 +638,7 @@ test("worker authority handles broadcaster changes, missing accounts, revoked pr
   await readyRuntime(t)
   const claim = async () =>
     t.mutation(internal.twitchTimers.claim, {
+      streamId: "100",
       id,
       revision: 1,
       verifiedAt: Date.now(),
@@ -351,6 +767,7 @@ test("downgraded groups cannot claim sends and simultaneous claims have one winn
   const claims = await Promise.all(
     [first, first, second].map((id) =>
       t.mutation(internal.twitchTimers.claim, {
+        streamId: "100",
         id,
         revision: 1,
         evidence,
@@ -374,7 +791,12 @@ test("authenticated worker actions verify current Clerk/Twitch evidence and reje
     1
   )
   assert.equal(
-    await t.action(api.twitchTimerActions.claim, { secret, id, revision: 1 }),
+    await t.action(api.twitchTimerActions.claim, {
+      streamId: "100",
+      secret,
+      id,
+      revision: 1,
+    }),
     null
   )
   await t.run((ctx) =>
@@ -421,13 +843,23 @@ test("authenticated worker actions verify current Clerk/Twitch evidence and reje
   }
   providerDown = true
   assert.equal(
-    await t.action(api.twitchTimerActions.claim, { secret, id, revision: 1 }),
+    await t.action(api.twitchTimerActions.claim, {
+      streamId: "100",
+      secret,
+      id,
+      revision: 1,
+    }),
     null
   )
   providerDown = false
   currentBroadcaster = "333"
   assert.equal(
-    await t.action(api.twitchTimerActions.claim, { secret, id, revision: 1 }),
+    await t.action(api.twitchTimerActions.claim, {
+      streamId: "100",
+      secret,
+      id,
+      revision: 1,
+    }),
     null
   )
   currentBroadcaster = "222"
@@ -435,6 +867,7 @@ test("authenticated worker actions verify current Clerk/Twitch evidence and reje
   await readyChat(t, userId)
   await t.run((ctx) => ctx.db.patch(id, { lastAttemptAt: Date.now() - 360000 }))
   const claimed = await t.action(api.twitchTimerActions.claim, {
+    streamId: "100",
     secret,
     id,
     revision: 1,
@@ -454,7 +887,12 @@ test("authenticated worker actions verify current Clerk/Twitch evidence and reje
   })
   await owner.mutation(api.twitchTimers.remove, { id })
   assert.equal(
-    await t.action(api.twitchTimerActions.claim, { secret, id, revision: 1 }),
+    await t.action(api.twitchTimerActions.claim, {
+      streamId: "100",
+      secret,
+      id,
+      revision: 1,
+    }),
     null
   )
 })
@@ -468,6 +906,7 @@ test("claims fail closed, fence conflicts, keep cooldowns and advance only confi
   )
   const claim = () =>
     t.mutation(internal.twitchTimers.claim, {
+      streamId: "100",
       id,
       revision: 1,
       evidence,
@@ -493,6 +932,7 @@ test("claims fail closed, fence conflicts, keep cooldowns and advance only confi
   await t.run((ctx) => ctx.db.patch(id, { enabled: true }))
   assert.equal(
     await t.mutation(internal.twitchTimers.claim, {
+      streamId: "100",
       id,
       revision: 2,
       evidence,
@@ -502,6 +942,7 @@ test("claims fail closed, fence conflicts, keep cooldowns and advance only confi
   )
   assert.equal(
     await t.mutation(internal.twitchTimers.claim, {
+      streamId: "100",
       id,
       revision: 1,
       evidence,
@@ -577,6 +1018,9 @@ test("claims fail closed, fence conflicts, keep cooldowns and advance only confi
       subscription,
     })
     await ctx.db.patch(id, {
+      streamId: "100",
+      sessionLive: true,
+      sessionStartedAt: Date.now() - 360000,
       lastAttemptAt: Date.now() - 300001,
       lastSentAt: Date.now() - 300001,
     })

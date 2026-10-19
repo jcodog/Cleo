@@ -1,6 +1,6 @@
 "use node"
 
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 import { action } from "./_generated/server"
 import { internal } from "./_generated/api"
 import { assertWorkerSecret, controlPlaneConfig } from "./twitchEventSubActions"
@@ -21,11 +21,7 @@ export const page = action({
   }),
   handler: async (ctx, { secret, ...args }) => {
     assertWorkerSecret(secret)
-    const startedAt = Date.now()
-    return {
-      ...(await ctx.runQuery(internal.twitchTimers.runtimePage, args)),
-      startedAt,
-    }
+    return ctx.runQuery(internal.twitchTimers.runtimePage, args)
   },
 })
 export const claim = action({
@@ -33,6 +29,7 @@ export const claim = action({
     secret: v.string(),
     id: v.id("twitchTimerGroups"),
     revision: v.number(),
+    streamId: v.string(),
   },
   returns: claimResult,
   handler: async (ctx, { secret, ...args }) => {
@@ -66,6 +63,11 @@ export const claim = action({
       config.clientId
     )
     if (
+      verified.status === "unavailable" ||
+      verified.status === "configurationUnavailable"
+    )
+      throw new ConvexError("Twitch provider unavailable.")
+    if (
       verified.status !== "ready" ||
       verified.broadcasterId !== group.broadcasterId ||
       verified.broadcasterId === config.botId
@@ -84,11 +86,40 @@ export const settle = action({
     id: v.id("twitchTimerGroups"),
     executionId: v.string(),
     sent: v.boolean(),
+    definite: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, { secret, ...args }) => {
     assertWorkerSecret(secret)
     return ctx.runMutation(internal.twitchTimers.settle, args)
+  },
+})
+export const begin = action({
+  args: {
+    secret: v.string(),
+    id: v.id("twitchTimerGroups"),
+    executionId: v.string(),
+    streamId: v.string(),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, { secret, ...args }) => {
+    assertWorkerSecret(secret)
+    return ctx.runMutation(internal.twitchTimers.begin, args)
+  },
+})
+export const session = action({
+  args: {
+    secret: v.string(),
+    broadcasterId: v.string(),
+    streamId: v.optional(v.string()),
+    startedAt: v.optional(v.number()),
+    observedAt: v.number(),
+    eventAt: v.optional(v.number()),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, { secret, ...args }) => {
+    assertWorkerSecret(secret)
+    return ctx.runMutation(internal.twitchTimers.session, args)
   },
 })
 export const diagnose = action({

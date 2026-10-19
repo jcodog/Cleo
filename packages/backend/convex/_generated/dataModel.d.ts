@@ -2845,8 +2845,12 @@ export type DataModel = {
         cursor: number;
         expiresAt: number;
         id: string;
+        phase?: "prepared" | "sending" | "uncertain";
         revision: number;
+        rotation?: string;
+        streamId?: string;
       };
+      executionSequence?: number;
       intervalMinutes: number;
       lastAttemptAt?: number;
       lastSentAt?: number;
@@ -2855,6 +2859,9 @@ export type DataModel = {
       name: string;
       order: number;
       revision: number;
+      sessionLive?: boolean;
+      sessionStartedAt?: number;
+      streamId?: string;
       updatedAt: number;
       userId: Id<"users">;
       _id: Id<"twitchTimerGroups">;
@@ -2873,7 +2880,11 @@ export type DataModel = {
       | "execution.cursor"
       | "execution.expiresAt"
       | "execution.id"
+      | "execution.phase"
       | "execution.revision"
+      | "execution.rotation"
+      | "execution.streamId"
+      | "executionSequence"
       | "intervalMinutes"
       | "lastAttemptAt"
       | "lastSentAt"
@@ -2882,14 +2893,53 @@ export type DataModel = {
       | "name"
       | "order"
       | "revision"
+      | "sessionLive"
+      | "sessionStartedAt"
+      | "streamId"
       | "updatedAt"
       | "userId";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
+      by_broadcaster: ["broadcasterId", "deleted", "_creationTime"];
       by_enabled: ["enabled", "deleted", "_creationTime"];
       by_updated: ["updatedAt", "_creationTime"];
       by_user: ["userId", "deleted", "order", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchTimerSessions: {
+    document: {
+      broadcasterId: string;
+      lastCompleted?: {
+        observedAt: number;
+        startedAt: number;
+        streamId: string;
+      };
+      live: boolean;
+      observedAt: number;
+      startedAt?: number;
+      streamId?: string;
+      _id: Id<"twitchTimerSessions">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "lastCompleted"
+      | "lastCompleted.observedAt"
+      | "lastCompleted.startedAt"
+      | "lastCompleted.streamId"
+      | "live"
+      | "observedAt"
+      | "startedAt"
+      | "streamId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_broadcaster: ["broadcasterId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

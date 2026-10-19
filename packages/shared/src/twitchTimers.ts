@@ -39,6 +39,9 @@ export const timerRuntimeGroup = timerConfiguration.extend({
   broadcasterId: z.string(),
   revision: z.number(),
   cursor: z.number(),
+  streamId: z.string().optional(),
+  sessionStartedAt: z.number().optional(),
+  sessionLive: z.boolean().optional(),
   lastSentAt: z.number().optional(),
   lastAttemptAt: z.number().optional(),
 })

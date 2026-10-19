@@ -111,6 +111,12 @@ const definitions = {
       type: z.enum(["live", "playlist", "watch_party", "premiere", "rerun"]),
     }),
   }),
+  streamOffline: definition({
+    type: "stream.offline",
+    version: "1",
+    scopes: [],
+    schema: broadcaster,
+  }),
   follow: announcement({
     type: "channel.follow",
     version: "2",

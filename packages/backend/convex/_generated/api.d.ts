@@ -2911,10 +2911,26 @@ export declare const api: {
     >;
   };
   twitchTimerActions: {
+    begin: FunctionReference<
+      "action",
+      "public",
+      {
+        executionId: string;
+        id: Id<"twitchTimerGroups">;
+        secret: string;
+        streamId: string;
+      },
+      boolean
+    >;
     claim: FunctionReference<
       "action",
       "public",
-      { id: Id<"twitchTimerGroups">; revision: number; secret: string },
+      {
+        id: Id<"twitchTimerGroups">;
+        revision: number;
+        secret: string;
+        streamId: string;
+      },
       null | { executionId: string; expiresAt: number; message: string }
     >;
     diagnose: FunctionReference<
@@ -2954,14 +2970,31 @@ export declare const api: {
           minimumMessages: number;
           name: string;
           revision: number;
+          sessionLive?: boolean;
+          sessionStartedAt?: number;
+          streamId?: string;
         }>;
         startedAt: number;
       }
+    >;
+    session: FunctionReference<
+      "action",
+      "public",
+      {
+        broadcasterId: string;
+        eventAt?: number;
+        observedAt: number;
+        secret: string;
+        startedAt?: number;
+        streamId?: string;
+      },
+      boolean
     >;
     settle: FunctionReference<
       "action",
       "public",
       {
+        definite?: boolean;
         executionId: string;
         id: Id<"twitchTimerGroups">;
         secret: string;
@@ -3005,6 +3038,7 @@ export declare const api: {
           minimumMessages: number;
           name: string;
           revision: number;
+          sessionLive?: boolean;
         }>;
       }
     >;
@@ -7222,6 +7256,12 @@ export declare const internal: {
     >;
   };
   twitchTimers: {
+    begin: FunctionReference<
+      "mutation",
+      "internal",
+      { executionId: string; id: Id<"twitchTimerGroups">; streamId: string },
+      boolean
+    >;
     claim: FunctionReference<
       "mutation",
       "internal",
@@ -7229,6 +7269,7 @@ export declare const internal: {
         evidence: string;
         id: Id<"twitchTimerGroups">;
         revision: number;
+        streamId: string;
         verifiedAt: number;
       },
       null | { executionId: string; expiresAt: number; message: string }
@@ -7310,8 +7351,12 @@ export declare const internal: {
             cursor: number;
             expiresAt: number;
             id: string;
+            phase?: "prepared" | "sending" | "uncertain";
             revision: number;
+            rotation?: string;
+            streamId?: string;
           };
+          executionSequence?: number;
           intervalMinutes: number;
           lastAttemptAt?: number;
           lastSentAt?: number;
@@ -7320,6 +7365,9 @@ export declare const internal: {
           name: string;
           order: number;
           revision: number;
+          sessionLive?: boolean;
+          sessionStartedAt?: number;
+          streamId?: string;
           updatedAt: number;
           userId: Id<"users">;
         };
@@ -7354,6 +7402,12 @@ export declare const internal: {
       },
       null
     >;
+    refreshLifecycle: FunctionReference<
+      "mutation",
+      "internal",
+      { userId: Id<"users"> },
+      null
+    >;
     revokeTestGrant: FunctionReference<
       "mutation",
       "internal",
@@ -7378,13 +7432,34 @@ export declare const internal: {
           minimumMessages: number;
           name: string;
           revision: number;
+          sessionLive?: boolean;
+          sessionStartedAt?: number;
+          streamId?: string;
         }>;
+        startedAt: number;
       }
+    >;
+    session: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        broadcasterId: string;
+        eventAt?: number;
+        observedAt: number;
+        startedAt?: number;
+        streamId?: string;
+      },
+      boolean
     >;
     settle: FunctionReference<
       "mutation",
       "internal",
-      { executionId: string; id: Id<"twitchTimerGroups">; sent: boolean },
+      {
+        definite?: boolean;
+        executionId: string;
+        id: Id<"twitchTimerGroups">;
+        sent: boolean;
+      },
       null
     >;
   };
