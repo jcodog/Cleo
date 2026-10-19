@@ -1,0 +1,28 @@
+packages/backend/convex/twitchTimers.test.ts
+  s_20c2a68bb23ef7::t_d8f8ce6526745b 28-37
+packages/backend/convex/twitchTimerActions.ts
+  s_20c2a68bb23ef7::t_6f0db3b683c77b 77
+packages/shared/src/twitchTimers.ts
+  s_20c2a68bb23ef7::t_5cbaee7c30650c 10,16,47-65
+  s_20c2a68bb23ef7::t_c567accec7b097 66
+packages/shared/src/twitchTimers.test.ts
+  s_20c2a68bb23ef7::t_5cbaee7c30650c 3,36-38,42,60-74
+packages/backend/convex/twitchTimers.ts
+  s_20c2a68bb23ef7::t_6f0db3b683c77b 6-7,102,142,159,352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0082af3aded9280c79b1ba861a8f34d1482f0ac0",
+  "prompts": {},
+  "sessions": {
+    "s_20c2a68bb23ef7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15611-5c6c-7302-850c-a00bf8b01861",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
