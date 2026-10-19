@@ -80,6 +80,38 @@ test("high-volume signed chat is validated locally with no Convex calls, receipt
   assert.deepEqual(f.calls, [])
   await f.server.stop()
 })
+test("signed revocations retain identity for late callbacks after consumer cleanup", async () => {
+  const f = fixture()
+  for (const [type, condition, key] of [
+    [
+      "channel.chat.message",
+      { broadcaster_user_id: "222", user_id: "111" },
+      "chatMessage",
+    ],
+    ["channel.raid", { to_broadcaster_user_id: "222" }, "raid"],
+  ] as const) {
+    const notification = {
+      subscription: {
+        id: "retired-provider-id",
+        type,
+        version: "1",
+        condition,
+        status: "authorization_revoked",
+      },
+    }
+    assert.equal(
+      (await f.server.handle(request(notification, { type: "revocation" })))
+        .status,
+      204
+    )
+    assert.deepEqual(f.calls.at(-1), {
+      state: ["retired-provider-id", true, key, "222", "authorization_revoked"],
+    })
+  }
+  assert.equal(f.calls.length, 2)
+  await f.server.stop()
+})
+
 function request(
   value: unknown = body,
   options: {

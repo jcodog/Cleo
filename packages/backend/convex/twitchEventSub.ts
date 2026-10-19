@@ -396,6 +396,7 @@ export const webhookState = internalMutation({
     }
     if (
       row &&
+      (!row.subscriptionId || row.subscriptionId === args.subscriptionId) &&
       (row.consumers.length || (row.key === "chatMessage" && args.revoked)) &&
       (args.revoked || !chatRevoked(row))
     ) {

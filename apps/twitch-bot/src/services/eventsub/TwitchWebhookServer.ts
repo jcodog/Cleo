@@ -122,8 +122,9 @@ export class TwitchWebhookServer {
         const work = this.convex.subscriptionState(
           value.subscription.id,
           true,
-          undefined,
-          undefined,
+          route.key,
+          value.subscription.condition.broadcaster_user_id ??
+            value.subscription.condition.to_broadcaster_user_id,
           value.subscription.status
         )
         this.track(work)

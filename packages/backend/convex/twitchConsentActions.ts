@@ -64,14 +64,14 @@ async function owner(ctx: ActionCtx) {
     source.broadcasterId === controlPlaneConfig().botId
   )
     throw failed()
-  return account
+  return { account, scopes: source.scopes }
 }
 export const begin = action({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
     const settings = config()
-    const account = await owner(ctx)
+    const { account, scopes } = await owner(ctx)
     const context = await ctx.runQuery(internal.twitchChat.context, {
       userId: account.user._id,
     })
@@ -89,7 +89,7 @@ export const begin = action({
       client_id: settings.clientId,
       redirect_uri: settings.redirect,
       response_type: "code",
-      scope: "openid channel:bot",
+      scope: [...new Set(["openid", ...scopes])].join(" "),
       force_verify: "true",
       state,
       nonce,
@@ -166,7 +166,7 @@ export const finish = action({
         !grant.scopes.includes("channel:bot")
       )
         throw failed()
-      const current = await owner(ctx)
+      const { account: current } = await owner(ctx)
       if (current.user._id !== proof.userId) throw failed()
       const context = await ctx.runQuery(internal.twitchChat.context, {
         userId: proof.userId,
