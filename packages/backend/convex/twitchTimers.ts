@@ -57,15 +57,20 @@ async function sessionFor(ctx: Ctx, broadcasterId: string) {
 }
 // Timer consumers are independent of Discord guilds, and share provider rows
 // with every other consumer through the existing identity/reference contract.
-async function maintainLifecycle(ctx: MutationCtx, userId: Id<"users">, touch = true) {
+async function maintainLifecycle(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  touch = true
+) {
   const account = await chatAccount(ctx, userId)
   const broadcasterId =
     account.twitch.length === 1
       ? account.twitch[0]?.providerAccountId
       : undefined
   const groups = await groupsFor(ctx, userId)
-  if (touch) for (const group of groups)
-    await ctx.db.patch(group._id, { updatedAt: Date.now() })
+  if (touch)
+    for (const group of groups)
+      await ctx.db.patch(group._id, { updatedAt: Date.now() })
   const entitlement = broadcasterId
     ? await capacity(ctx, userId, broadcasterId)
     : { limit: 0 }
@@ -407,28 +412,34 @@ export const runtimePage = internalQuery({
   },
 })
 export const claimContext = internalQuery({
-  args: { id: v.id("twitchTimerGroups") },
+  args: {
+    id: v.id("twitchTimerGroups"),
+    revision: v.number(),
+    streamId: v.string(),
+  },
   returns: v.union(
     v.null(),
     v.object({
       group: timerGroupDoc,
-      account: v.object({
-        user: v.union(userDoc, v.null()),
-        discord: v.array(linkedAccountDoc),
-        twitch: v.array(linkedAccountDoc),
-      }),
+      user: userDoc,
+      discord: linkedAccountDoc,
+      twitch: linkedAccountDoc,
+      evidence: v.string(),
     })
   ),
-  handler: async (ctx, { id }) => {
+  handler: async (ctx, { id, revision, streamId }) => {
     const group = await ctx.db.get(id)
     if (
       !group ||
       group.deleted ||
       !group.enabled ||
       !group.sessionLive ||
-      !(await authorized(ctx, group))
+      group.revision !== revision ||
+      group.streamId !== streamId
     )
       return null
+    const account = await authorized(ctx, group)
+    if (!account) return null
     const entitlement = await capacity(ctx, group.userId, group.broadcasterId)
     const eligible = eligibleTimerGroups(
       (await groupsFor(ctx, group.userId)).map((g) => ({
@@ -437,25 +448,44 @@ export const claimContext = internalQuery({
       })),
       entitlement.limit
     )
-    return eligible.some((g) => g._id === id)
-      ? { group, account: await chatAccount(ctx, group.userId) }
-      : null
+    if (!eligible.some((g) => g._id === id)) return null
+    return {
+      group,
+      user: account.user,
+      discord: account.discord,
+      twitch: account.twitch,
+      evidence: account.evidence,
+    }
   },
 })
-async function authorized(ctx: Ctx, group: Doc<"twitchTimerGroups">) {
+async function authorized(
+  ctx: Ctx,
+  group: Doc<"twitchTimerGroups">
+): Promise<{
+  user: Doc<"users">
+  discord: Doc<"linkedAccounts">
+  twitch: Doc<"linkedAccounts">
+  evidence: string
+} | null> {
   if (
     backendEnv.TWITCH_CHAT_PRESENCE_ENABLED !== "true" ||
     !(await runtimeReady(ctx))
   )
-    return false
+    return null
   const accounts = await chatAccount(ctx, group.userId)
+  const twitch = accounts.twitch[0],
+    discord = accounts.discord[0]
   if (
     !accounts.user ||
     accounts.user.status === "disabled" ||
+    group.broadcasterId === backendEnv.TWITCH_BOT_USER_ID ||
+    !twitch ||
     accounts.twitch.length !== 1 ||
-    accounts.twitch[0]?.providerAccountId !== group.broadcasterId
+    twitch.providerAccountId !== group.broadcasterId ||
+    !discord ||
+    accounts.discord.length !== 1
   )
-    return false
+    return null
   const membership = await ctx.db
     .query("twitchEventConsumers")
     .withIndex("by_consumer", (q) => q.eq("consumer", `chat:${group.userId}`))
@@ -463,14 +493,16 @@ async function authorized(ctx: Ctx, group: Doc<"twitchTimerGroups">) {
   const subscription = membership
     ? await ctx.db.get(membership.subscription)
     : null
-  return (
+  const ready =
     !!subscription &&
     subscription.broadcasterId === group.broadcasterId &&
     subscription.key === "chatMessage" &&
     subscription.status === "ready" &&
     !chatRevoked(subscription) &&
     subscription.condition.user_id === backendEnv.TWITCH_BOT_USER_ID
-  )
+  return ready
+    ? { user: accounts.user, twitch, discord, evidence: chatEvidence(accounts) }
+    : null
 }
 export const claim = internalMutation({
   args: {
@@ -496,11 +528,8 @@ export const claim = internalMutation({
       !timerConfiguration.safeParse(group).success
     )
       return null
-    if (
-      chatEvidence(await chatAccount(ctx, group.userId)) !== args.evidence ||
-      !(await authorized(ctx, group))
-    )
-      return null
+    const account = await authorized(ctx, group)
+    if (!account || account.evidence !== args.evidence) return null
     const entitlement = await capacity(ctx, group.userId, group.broadcasterId)
     const eligible = eligibleTimerGroups(
       (await groupsFor(ctx, group.userId)).map((g) => ({

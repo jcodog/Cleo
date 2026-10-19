@@ -5,7 +5,6 @@ import { action } from "./_generated/server"
 import { internal } from "./_generated/api"
 import { assertWorkerSecret, controlPlaneConfig } from "./twitchEventSubActions"
 import { verifyOwnerTwitch } from "./lib/verifyOwnerTwitch"
-import { chatEvidence } from "./twitchChat"
 import { timerState, runtimeGroup, claimResult } from "./dbTables/twitchTimers"
 
 export const page = action({
@@ -35,29 +34,18 @@ export const claim = action({
   handler: async (ctx, { secret, ...args }) => {
     assertWorkerSecret(secret)
     const current = await ctx.runQuery(internal.twitchTimers.claimContext, {
-      id: args.id,
+      ...args,
     })
     if (!current) return null
-    const { account, group } = current
-    const discord = account.discord[0]
-    const twitch = account.twitch[0]
-    if (
-      !account.user ||
-      account.user.status === "disabled" ||
-      account.discord.length !== 1 ||
-      !discord ||
-      account.twitch.length !== 1 ||
-      !twitch
-    )
-      return null
+    const { user, discord, twitch } = current
     const config = controlPlaneConfig()
     const verified = await verifyOwnerTwitch(
       {
         status: "linked",
-        user: account.user,
+        user,
         discord,
         twitch,
-        twitchAccounts: account.twitch,
+        twitchAccounts: [twitch],
       },
       ["channel:bot"],
       config.clientId
@@ -67,15 +55,10 @@ export const claim = action({
       verified.status === "configurationUnavailable"
     )
       throw new ConvexError("Twitch provider unavailable.")
-    if (
-      verified.status !== "ready" ||
-      verified.broadcasterId !== group.broadcasterId ||
-      verified.broadcasterId === config.botId
-    )
-      return null
+    if (verified.status !== "ready") return null
     return ctx.runMutation(internal.twitchTimers.claim, {
       ...args,
-      evidence: chatEvidence(account),
+      evidence: current.evidence,
       verifiedAt: Date.now(),
     })
   },

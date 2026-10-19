@@ -7277,59 +7277,26 @@ export declare const internal: {
     claimContext: FunctionReference<
       "query",
       "internal",
-      { id: Id<"twitchTimerGroups"> },
+      { id: Id<"twitchTimerGroups">; revision: number; streamId: string },
       null | {
-        account: {
-          discord: Array<{
-            _creationTime: number;
-            _id: Id<"linkedAccounts">;
-            accessTokenSecretId?: string;
-            avatarUrl?: string;
-            createdAt: number;
-            displayName?: string;
-            expiresAt?: number;
-            externalProvider?: string;
-            provider: "discord" | "kick" | "twitch" | "github";
-            providerAccountId: string;
-            refreshTokenSecretId?: string;
-            scopes: Array<string>;
-            updatedAt: number;
-            userId: Id<"users">;
-            username?: string;
-          }>;
-          twitch: Array<{
-            _creationTime: number;
-            _id: Id<"linkedAccounts">;
-            accessTokenSecretId?: string;
-            avatarUrl?: string;
-            createdAt: number;
-            displayName?: string;
-            expiresAt?: number;
-            externalProvider?: string;
-            provider: "discord" | "kick" | "twitch" | "github";
-            providerAccountId: string;
-            refreshTokenSecretId?: string;
-            scopes: Array<string>;
-            updatedAt: number;
-            userId: Id<"users">;
-            username?: string;
-          }>;
-          user: {
-            _creationTime: number;
-            _id: Id<"users">;
-            clerkUserId: string;
-            createdAt: number;
-            displayName?: string | null;
-            email: string;
-            imageUrl?: string | null;
-            onboardingCompletedAt?: number;
-            onboardingProvenance?: "pre-rollout" | "post-rollout";
-            onboardingVersion?: number;
-            role: "user" | "staff" | "admin" | "superadmin";
-            status?: "active" | "disabled";
-            updatedAt: number;
-          } | null;
+        discord: {
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
         };
+        evidence: string;
         group: {
           _creationTime: number;
           _id: Id<"twitchTimerGroups">;
@@ -7370,6 +7337,38 @@ export declare const internal: {
           streamId?: string;
           updatedAt: number;
           userId: Id<"users">;
+        };
+        twitch: {
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        };
+        user: {
+          _creationTime: number;
+          _id: Id<"users">;
+          clerkUserId: string;
+          createdAt: number;
+          displayName?: string | null;
+          email: string;
+          imageUrl?: string | null;
+          onboardingCompletedAt?: number;
+          onboardingProvenance?: "pre-rollout" | "post-rollout";
+          onboardingVersion?: number;
+          role: "user" | "staff" | "admin" | "superadmin";
+          status?: "active" | "disabled";
+          updatedAt: number;
         };
       }
     >;
