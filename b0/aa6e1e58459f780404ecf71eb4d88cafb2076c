@@ -1,0 +1,25 @@
+apps/discord-bot/package.json
+  s_8c883a9d5071d4::t_2d0e5a37a54fe7 38
+packages/backend/convex/_generated/api.d.ts
+  s_8c883a9d5071d4::t_666dd268a20108 11,2814-2822,6509-6510,6520,6522,6531-6538,6596-6647,6684,6689-6741,6813,6821,7034,7042,7075,7080,7082,7086-7091
+packages/backend/convex/_generated/dataModel.d.ts
+  s_8c883a9d5071d4::t_c68c43cbaf01ea 2559,2561-2562,2564-2565,2568,2577,2579-2589,2591,2595-2608,2640,2648,2664,2669,2677
+packages/ui/package.json
+  s_8c883a9d5071d4::t_9097403bc0ed5e 24,41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0aa6e1e58459f780404ecf71eb4d88cafb2076c",
+  "prompts": {},
+  "sessions": {
+    "s_8c883a9d5071d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b5a-650d-7113-8a4a-a491b306002b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
