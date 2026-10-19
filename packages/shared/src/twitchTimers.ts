@@ -7,12 +7,13 @@ export const TIMER_LEASE_MS = 60_000
 export const timerMessage = z.string().refine(
   (message) =>
     message.trim().length > 0 &&
+    !/^[/.]/u.test(message.trimStart()) &&
     [...message].length <= 500 &&
     ![...message].some((character) => {
       const code = character.charCodeAt(0)
       return code < 32 || (code >= 127 && code <= 159)
     }),
-  "Use 1-500 characters without control characters."
+  "Use 1-500 characters without control characters or a leading / or . command."
 )
 export const timerConfiguration = z.object({
   name: z.string().trim().min(1).max(80),
@@ -42,6 +43,26 @@ export const timerRuntimeGroup = timerConfiguration.extend({
   lastAttemptAt: z.number().optional(),
 })
 export type TimerRuntimeGroup = z.infer<typeof timerRuntimeGroup>
+
+// Callers supply server-resolved capacity. Disabled groups retain their place.
+export function eligibleTimerGroups<T extends { broadcasterChanged: boolean }>(
+  groups: readonly T[],
+  limit: number
+): T[] {
+  return groups.filter((group) => !group.broadcasterChanged).slice(0, limit)
+}
+
+// Metadata edits retain the next message. Changing the ordered messages starts
+// the edited rotation at zero; an older execution cannot advance that revision.
+export function editedTimerCursor(
+  previous: { messages: readonly string[]; cursor: number },
+  messages: readonly string[]
+): number {
+  return previous.messages.length === messages.length &&
+    previous.messages.every((message, index) => message === messages[index])
+    ? previous.cursor
+    : 0
+}
 
 export function timerDeadline(
   group: Pick<

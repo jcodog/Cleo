@@ -25,6 +25,16 @@ const config = {
   minimumMessages: 1,
   messages: ["first", "second"],
 }
+test("metadata-only saves preserve durable rotation and ordered message edits reset it", async () => {
+  const { t, owner } = await setup()
+  const id = await owner.mutation(api.twitchTimers.save, config)
+  await t.run(ctx => ctx.db.patch(id, { cursor: 1 }))
+  await owner.mutation(api.twitchTimers.save, { ...config, id, revision: 1, name: "Renamed", intervalMinutes: 10 })
+  assert.equal((await owner.query(api.twitchTimers.list, {})).groups[0]?.cursor, 1)
+  await owner.mutation(api.twitchTimers.save, { ...config, id, revision: 2, messages: ["second", "first"] })
+  assert.equal((await owner.query(api.twitchTimers.list, {})).groups[0]?.cursor, 0)
+  await assert.rejects(owner.mutation(api.twitchTimers.save, { ...config, id, revision: 3, messages: ["  /me hello"] }), /Invalid/)
+})
 async function setup() {
   const t = convexTest({ schema, modules })
   const userId = await t.run((ctx) =>

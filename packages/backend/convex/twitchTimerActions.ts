@@ -53,7 +53,6 @@ export const claim = action({
       !twitch
     )
       return null
-    const verifiedAt = Date.now()
     const config = controlPlaneConfig()
     const verified = await verifyOwnerTwitch(
       {
@@ -75,7 +74,7 @@ export const claim = action({
     return ctx.runMutation(internal.twitchTimers.claim, {
       ...args,
       evidence: chatEvidence(account),
-      verifiedAt,
+      verifiedAt: Date.now(),
     })
   },
 })

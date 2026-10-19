@@ -3,6 +3,8 @@ import { backendEnv } from "@workspace/env/backend"
 import {
   timerConfiguration,
   TIMER_LEASE_MS,
+  eligibleTimerGroups,
+  editedTimerCursor,
 } from "@workspace/shared/twitchTimers"
 import {
   internalMutation,
@@ -97,9 +99,7 @@ export const list = query({
       ? await capacity(ctx, user._id, account.providerAccountId)
       : { limit: 1, source: "free" as const, expiresAt: null }
     const groups = await groupsFor(ctx, user._id)
-    const eligible = groups
-      .filter((g) => g.broadcasterId === account?.providerAccountId)
-      .slice(0, entitlement.limit)
+    const eligible = eligibleTimerGroups(groups.map(g => ({ ...g, broadcasterChanged: g.broadcasterId !== account?.providerAccountId })), entitlement.limit)
     return {
       entitlement,
       connected: !!account,
@@ -139,9 +139,7 @@ export const save = mutation({
       )
     const groups = await groupsFor(ctx, user._id)
     const entitlement = await capacity(ctx, user._id, account.providerAccountId)
-    const eligible = groups
-      .filter((g) => g.broadcasterId === account.providerAccountId)
-      .slice(0, entitlement.limit)
+    const eligible = eligibleTimerGroups(groups.map(g => ({ ...g, broadcasterChanged: g.broadcasterId !== account.providerAccountId })), entitlement.limit)
     if (args.id) {
       const group = await owned(ctx, args.id, user._id)
       if (group.broadcasterId !== account.providerAccountId)
@@ -158,7 +156,7 @@ export const save = mutation({
         ...parsed.data,
         revision: group.revision + 1,
         updatedAt: Date.now(),
-        cursor: 0,
+        cursor: editedTimerCursor(group, parsed.data.messages),
       })
       return group._id
     }
@@ -351,9 +349,7 @@ export const claim = internalMutation({
     )
       return null
     const entitlement = await capacity(ctx, group.userId, group.broadcasterId)
-    const eligible = (await groupsFor(ctx, group.userId))
-      .filter((g) => g.broadcasterId === group.broadcasterId)
-      .slice(0, entitlement.limit)
+    const eligible = eligibleTimerGroups((await groupsFor(ctx, group.userId)).map(g => ({ ...g, broadcasterChanged: g.broadcasterId !== group.broadcasterId })), entitlement.limit)
     if (
       !eligible.some((g) => g._id === group._id) ||
       (group.execution && group.execution.expiresAt > now) ||
