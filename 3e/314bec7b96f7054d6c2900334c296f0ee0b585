@@ -1,0 +1,19 @@
+docs/twitch/timers.md
+  s_20c2a68bb23ef7::t_a773fb6421e34e 22-38,43-48,55-73,79-92,141-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e314bec7b96f7054d6c2900334c296f0ee0b585",
+  "prompts": {},
+  "sessions": {
+    "s_20c2a68bb23ef7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15611-5c6c-7302-850c-a00bf8b01861",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
