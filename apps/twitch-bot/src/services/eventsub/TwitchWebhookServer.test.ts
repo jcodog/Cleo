@@ -8,8 +8,152 @@ import {
   MAX_WEBHOOK_BYTES,
 } from "./TwitchWebhookServer"
 import { silentLogger } from "../../../tests/fixtures"
+import { ChatActivity } from "../timers/ChatActivity"
 
 const secret = "test-eventsub-secret"
+test("verified stream lifecycle uses the existing listener without consuming Discord dispatch", async () => {
+  const events: { online: boolean; eventAt: number }[] = []
+  const f = fixture(undefined, undefined, async (_id, online, eventAt) => {
+    events.push({ online, eventAt })
+  })
+  const now = Date.now(),
+    timestamp = new Date(now).toISOString()
+  const broadcaster = {
+    broadcaster_user_id: "222",
+    broadcaster_user_login: "channel",
+    broadcaster_user_name: "Channel",
+  }
+  for (const online of [true, false]) {
+    const notification = {
+      subscription: {
+        id: "stream",
+        type: online ? "stream.online" : "stream.offline",
+        version: "1",
+        condition: { broadcaster_user_id: "222" },
+      },
+      event: online
+        ? { ...broadcaster, id: "100", type: "live", started_at: timestamp }
+        : broadcaster,
+    }
+    assert.equal(
+      (await f.server.handle(request(notification, { timestamp }), now)).status,
+      204
+    )
+  }
+  await f.server.drain()
+  assert.deepEqual(events, [
+    { online: true, eventAt: now },
+    { online: false, eventAt: now },
+  ])
+  assert.equal(
+    f.calls.filter((value) =>
+      JSON.stringify(value).includes('"dispatch":"streamOnline"')
+    ).length,
+    1
+  )
+  const withoutTimers = fixture()
+  assert.equal(
+    (
+      await withoutTimers.server.handle(
+        request({
+          subscription: {
+            id: "stream",
+            type: "stream.offline",
+            version: "1",
+            condition: { broadcaster_user_id: "222" },
+          },
+          event: broadcaster,
+        })
+      )
+    ).status,
+    204
+  )
+  await f.server.stop()
+  assert.equal(
+    (await f.server.handle(new Request("http://localhost/healthz"))).status,
+    503
+  )
+  await f.server.recoverPending()
+})
+
+test("shutdown interrupts recovery admission before an outstanding page returns", async () => {
+  const convex = {
+    reserve: async () => ({ kind: "pending" as const }),
+    begin: async () => true,
+    finish: async () => {},
+    subscriptionState: async () => {},
+    pendingEvents: async () => {
+      server.stopAccepting()
+      return { events: [], cursor: null }
+    },
+  }
+  const server = new TwitchWebhookServer(
+    secret,
+    convex,
+    { dispatch: async () => {} },
+    silentLogger
+  )
+  await server.recoverPending()
+  await server.stop()
+})
+
+test("delayed signed chat keeps its event timestamp and offline or future chat cannot count", async () => {
+  const activity = new ChatActivity("111"),
+    now = Date.now()
+  activity.watch(["222"])
+  activity.reset("222", now - 400000)
+  const f = fixture(activity, "111")
+  const eventAt = now - 299000
+  assert.equal(
+    (
+      await f.server.handle(
+        request(chatBody, { timestamp: new Date(eventAt).toISOString() }),
+        now
+      )
+    ).status,
+    204
+  )
+  assert.equal(activity.snapshot("222").lastAt, eventAt)
+  assert.equal(activity.eligible("222", 0, 1, now + 2000), false)
+  activity.watch([])
+  await f.server.handle(request(chatBody), now)
+  assert.equal(activity.snapshot("222").count, 0)
+  activity.watch(["222"])
+  await f.server.handle(
+    request(chatBody, { timestamp: new Date(now + 60001).toISOString() }),
+    now
+  )
+  assert.equal(activity.snapshot("222").count, 0)
+  assert.deepEqual(f.calls, [])
+})
+
+test("verified Twitch chat timestamps tolerate a host clock twenty to sixty seconds behind", async () => {
+  const activity = new ChatActivity("111")
+  activity.watch(["222"])
+  const f = fixture(activity, "111"),
+    now = Date.now()
+  for (const skew of [20000, 60000]) {
+    const value = {
+      ...chatBody,
+      event: { ...chatBody.event, message_id: `skew-${skew}` },
+    }
+    assert.equal(
+      (
+        await f.server.handle(
+          request(value, {
+            id: `skew-${skew}`,
+            timestamp: new Date(now + skew).toISOString(),
+          }),
+          now
+        )
+      ).status,
+      204
+    )
+  }
+  assert.deepEqual(activity.snapshot("222"), { count: 2, lastAt: now })
+  assert.equal(activity.eligible("222", 0, 2, now), true)
+  await f.server.stop()
+})
 const event = {
   broadcaster_user_id: "222",
   broadcaster_user_login: "channel",
@@ -78,7 +222,7 @@ test("high-volume signed chat is validated locally with no Convex calls, receipt
     403
   )
   assert.deepEqual(f.calls, [])
-  await f.server.stop()
+  await f.server.drain()
 })
 test("signed revocations retain identity for late callbacks after consumer cleanup", async () => {
   const f = fixture()
@@ -109,7 +253,7 @@ test("signed revocations retain identity for late callbacks after consumer clean
     })
   }
   assert.equal(f.calls.length, 2)
-  await f.server.stop()
+  await f.server.drain()
 })
 
 function request(
@@ -141,7 +285,11 @@ function request(
     },
   })
 }
-function fixture() {
+function fixture(
+  activity?: ChatActivity,
+  botId?: string,
+  lifecycle?: (id: string, online: boolean, eventAt: number) => Promise<void>
+) {
   const receipts = new Set<string>()
   const calls: unknown[] = []
   let fail = false
@@ -178,7 +326,10 @@ function fixture() {
         if (rejectDispatch) throw new Error("send failed")
       },
     },
-    silentLogger
+    silentLogger,
+    activity,
+    botId,
+    lifecycle
   )
   return {
     server,
@@ -195,6 +346,87 @@ function fixture() {
     release: () => releases.forEach((release) => release()),
   }
 }
+
+test("validated chat counts unique viewer metadata only for the configured bot and recent deliveries", async () => {
+  const activity = new ChatActivity("111")
+  activity.watch(["222"])
+  const f = fixture(activity, "111")
+  assert.equal((await f.server.handle(request(chatBody))).status, 204)
+  assert.equal((await f.server.handle(request(chatBody))).status, 204)
+  assert.equal(activity.snapshot("222").count, 1)
+  const wrong = {
+    ...chatBody,
+    subscription: {
+      ...chatBody.subscription,
+      condition: { broadcaster_user_id: "222", user_id: "444" },
+    },
+  }
+  assert.equal((await f.server.handle(request(wrong))).status, 400)
+  assert.equal(
+    (
+      await f.server.handle(
+        request(chatBody, {
+          timestamp: new Date(Date.now() - 360000).toISOString(),
+        })
+      )
+    ).status,
+    204
+  )
+  assert.equal(activity.snapshot("222").count, 1)
+  assert.deepEqual(f.calls, [])
+  await f.server.drain()
+})
+
+test("signed high-volume chat retains eligibility and rejects redelivery across unordered handlers", async () => {
+  const activity = new ChatActivity("111")
+  activity.watch(["222"])
+  const f = fixture(activity, "111")
+  const now = Date.now()
+  let baseline = 0
+  for (let batch = 0; batch < 3; batch++) {
+    for (let i = 0; i < 3000; i++) {
+      const eventAt = now + batch * 60000
+      const value = {
+        ...chatBody,
+        event: { ...chatBody.event, message_id: `${batch}:${i}` },
+      }
+      const signed = request(value, {
+        id: `${batch}:${i}`,
+        timestamp: new Date(eventAt).toISOString(),
+      })
+      assert.equal((await f.server.handle(signed, eventAt)).status, 204)
+    }
+    const counted = activity.snapshot("222").count
+    assert.equal(
+      activity.eligible("222", baseline, 5, now + batch * 60000),
+      true
+    )
+    baseline = counted
+    for (let i = 2999; i >= 0; i--) {
+      const eventAt = now + batch * 60000
+      const value = {
+        ...chatBody,
+        event: { ...chatBody.event, message_id: `${batch}:${i}` },
+      }
+      await f.server.handle(
+        request(value, {
+          id: `${batch}:${i}`,
+          timestamp: new Date(eventAt).toISOString(),
+        }),
+        eventAt
+      )
+    }
+    assert.equal(activity.snapshot("222").count, counted)
+    assert.equal(
+      activity.eligible("222", baseline, 1, now + batch * 60000),
+      false
+    )
+  }
+  assert.deepEqual(f.calls, [])
+  activity.watch([])
+  assert.equal(activity.snapshot("222").count, 0)
+  await f.server.stop()
+})
 test("valid challenge is returned verbatim, valid events dispatch once, revocations only report to Convex", async () => {
   const f = fixture()
   const challenge = await f.server.handle(
@@ -211,7 +443,7 @@ test("valid challenge is returned verbatim, valid events dispatch once, revocati
   )
   assert.equal((await f.server.handle(request())).status, 204)
   assert.equal((await f.server.handle(request())).status, 204)
-  await f.server.stop()
+  await f.server.drain()
   assert.equal(
     f.calls.filter(
       (call) => typeof call === "object" && call && "dispatch" in call
@@ -253,7 +485,7 @@ test("valid challenge is returned verbatim, valid events dispatch once, revocati
     (await f.server.handle(request(raid, { id: "raid" }))).status,
     204
   )
-  await f.server.stop()
+  await f.server.drain()
 })
 
 test("pending dispatch resumes across restart, honors send reservation and never replays an ambiguous POST", async () => {
@@ -344,7 +576,7 @@ test("pending dispatch resumes across restart, honors send reservation and never
       (await server.handle(request(body, { id: current }))).status,
       204
     )
-    await server.stop()
+    await server.drain()
   }
   assert.ok(outcomes.some((value) => value.messageId === "fail" && !value.sent))
   assert.ok(
@@ -366,7 +598,7 @@ test("pending dispatch resumes across restart, honors send reservation and never
     (await server.handle(request(body, { id: "deferred" }))).status,
     204
   )
-  await server.stop()
+  await server.drain()
 })
 
 test("stream.online observes backpressure and shutdown waits for accepted backend work", async () => {
@@ -537,11 +769,11 @@ test("backend failures retry before reservation; side effect failures after rese
     ).status,
     200
   )
-  await f.server.stop()
+  await f.server.drain()
   const rejected = fixture()
   rejected.setReject()
   assert.equal((await rejected.server.handle(request())).status, 204)
-  await rejected.server.stop()
+  await rejected.server.drain()
   assert.equal((await rejected.server.handle(request())).status, 204)
 })
 test("HTTP service binds loopback with bounded raw-body ingestion and closes cleanly", async (t) => {
@@ -597,7 +829,7 @@ test("HTTP service binds loopback with bounded raw-body ingestion and closes cle
   const taken = occupied.address()
   assert.ok(taken && typeof taken !== "string")
   await assert.rejects(f.server.start(taken.port))
-  await f.server.stop()
+  await f.server.drain()
   await new Promise<void>((resolve) => occupied.close(() => resolve()))
 })
 test("bounded in-flight handlers apply backpressure and drain before shutdown", async () => {
@@ -624,7 +856,7 @@ test("bounded in-flight handlers apply backpressure and drain before shutdown", 
     503
   )
   f.release()
-  await f.server.stop()
+  await f.server.drain()
   const raid = {
     subscription: {
       ...body.subscription,
@@ -642,5 +874,5 @@ test("bounded in-flight handlers apply backpressure and drain before shutdown", 
     ).status,
     200
   )
-  await f.server.stop()
+  await f.server.drain()
 })

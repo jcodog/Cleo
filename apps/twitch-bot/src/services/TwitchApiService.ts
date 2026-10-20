@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import type { TwitchCredentials } from "@workspace/env/twitch"
+import { ChatSendQueue } from "./ChatSendQueue"
 
 export const BOT_SCOPES = [
   "user:read:chat",
@@ -51,6 +52,7 @@ const validationSchema = z.object({
 })
 export type BotToken = z.infer<typeof botTokenSchema>
 export class TwitchApiService {
+  private readonly sends: ChatSendQueue
   constructor(
     private readonly config: Pick<
       TwitchCredentials,
@@ -60,8 +62,44 @@ export class TwitchApiService {
       | "TWITCH_HTTP_TIMEOUT_MS"
     >,
     private readonly requestFetch: typeof fetch = fetch,
-    private readonly shutdownSignal?: AbortSignal
-  ) {}
+    private readonly shutdownSignal?: AbortSignal,
+    startupDelayMs = 0
+  ) {
+    this.sends = new ChatSendQueue(shutdownSignal)
+    this.sends.defer(Date.now() + startupDelayMs)
+  }
+
+  async liveBroadcasters(
+    appToken: string,
+    ids: string[]
+  ): Promise<Map<string, { id: string; startedAt: number }>> {
+    const params = new URLSearchParams({ first: "100" })
+    if (!ids.length || ids.length > 100)
+      throw new Error("Use 1-100 broadcaster IDs.")
+    for (const id of ids) params.append("user_id", id)
+    const result = await this.request(
+      z.object({
+        data: z.array(
+          z.object({
+            user_id: z.string(),
+            type: z.string(),
+            id: z.string().regex(/^[1-9]\d*$/),
+            started_at: z.iso.datetime(),
+          })
+        ),
+      }),
+      `https://api.twitch.tv/helix/streams?${params}`,
+      this.helixHeaders(appToken)
+    )
+    return new Map(
+      result.data
+        .filter((stream) => stream.type === "live")
+        .map((stream) => [
+          stream.user_id,
+          { id: stream.id, startedAt: Date.parse(stream.started_at) },
+        ])
+    )
+  }
 
   async acquireAppToken(): Promise<string> {
     const token = await this.tokenRequest(tokenSchema, {
@@ -115,7 +153,10 @@ export class TwitchApiService {
   async sendChatMessage(
     appToken: string,
     broadcasterId: string,
-    message: string
+    message: string,
+    beforeSend?: () => Promise<boolean> | boolean,
+    durable = true,
+    aged = false
   ): Promise<string> {
     if (broadcasterId === this.config.TWITCH_BOT_USER_ID)
       throw new TwitchFailure("wrongBot")
@@ -131,27 +172,37 @@ export class TwitchApiService {
       throw new Error(
         "Message must contain 1-500 characters without control characters."
       )
-    const result = await this.request(
-      z.object({
-        data: z.array(
-          z.object({ message_id: z.string(), is_sent: z.boolean() })
-        ),
-      }),
-      "https://api.twitch.tv/helix/chat/messages",
-      {
-        ...this.helixHeaders(appToken),
-        method: "POST",
-        body: JSON.stringify({
-          broadcaster_id: broadcasterId,
-          sender_id: this.config.TWITCH_BOT_USER_ID,
-          message,
-        }),
-      }
+    return this.sends.run(
+      broadcasterId,
+      async (attempt) => {
+        if (beforeSend && !(await beforeSend())) return ""
+        attempt()
+        const result = await this.request(
+          z.object({
+            data: z.array(
+              z.object({ message_id: z.string(), is_sent: z.boolean() })
+            ),
+          }),
+          "https://api.twitch.tv/helix/chat/messages",
+          {
+            ...this.helixHeaders(appToken),
+            method: "POST",
+            body: JSON.stringify({
+              broadcaster_id: broadcasterId,
+              sender_id: this.config.TWITCH_BOT_USER_ID,
+              message,
+            }),
+          }
+        )
+        const entry = result.data[0]
+        if (entry && !entry.is_sent) throw new TwitchFailure("messageDropped")
+        if (!entry || !/^[a-zA-Z0-9_-]{1,512}$/u.test(entry.message_id))
+          throw new TwitchFailure("malformedResponse")
+        return entry.message_id
+      },
+      durable,
+      aged
     )
-    const entry = result.data[0]
-    if (!entry?.is_sent || !entry.message_id)
-      throw new TwitchFailure("messageDropped")
-    return entry.message_id
   }
 
   private async validate(accessToken: string) {
@@ -210,6 +261,21 @@ export class TwitchApiService {
     } catch {
       throw new TwitchFailure(
         timeout.aborted ? "timeout" : "networkUnavailable"
+      )
+    }
+    if (
+      url === "https://api.twitch.tv/helix/chat/messages" &&
+      (response.status === 429 ||
+        response.headers.get("Ratelimit-Remaining") === "0")
+    ) {
+      const reset = Number(response.headers.get("Ratelimit-Reset")) * 1000
+      const retry = Number(response.headers.get("Retry-After")) * 1000
+      this.sends.defer(
+        Math.max(
+          Date.now() + 30_000,
+          Number.isFinite(reset) ? reset : 0,
+          Number.isFinite(retry) ? Date.now() + retry : 0
+        )
       )
     }
     if (!response.ok)

@@ -1,97 +1,97 @@
 "use client"
 
-import type { ComponentType } from "react"
+import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-
+import { useQuery } from "convex/react"
+import { IconBrandTwitch } from "@tabler/icons-react"
+import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@workspace/ui/components/toggle-group"
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  useSidebar,
+} from "@workspace/ui/components/sidebar"
 import { Discord } from "@workspace/ui/components/ui/svgs/discord"
-
-import type { AppShellPlatform } from "@/components/stores/app-shell-store"
-import { RELEASE_PLATFORMS } from "@/features/app-shell/routes"
-
-type PlatformOption = {
-  label: string
-  value: AppShellPlatform
-  icon: ComponentType<{
-    "aria-hidden"?: boolean
-    className?: string
-  }>
-  iconClassName: string
-  enabled: boolean
-  href: string
-}
-
-const ALL_PLATFORM_OPTIONS: PlatformOption[] = [
-  {
-    label: "Discord",
-    value: "discord",
-    icon: Discord,
-    iconClassName: "size-5",
-    enabled: true,
-    href: "/dashboard",
-  },
-]
-
-const PLATFORM_OPTIONS = ALL_PLATFORM_OPTIONS.filter((option) =>
-  RELEASE_PLATFORMS.includes(option.value as (typeof RELEASE_PLATFORMS)[number])
-)
-
-function getPlatformFromPathname(pathname: string): AppShellPlatform {
-  if (pathname === "/kick" || pathname.startsWith("/kick/")) {
-    return "kick"
-  }
-
-  if (pathname === "/twitch" || pathname.startsWith("/twitch/")) {
-    return "twitch"
-  }
-
-  return "discord"
-}
+import { useAppShellStore } from "@/components/stores/app-shell-store"
+import { getDashboardGuildSelection } from "./dashboardGuildSelection"
+import { RELEASE_PLATFORMS } from "./routes"
 
 export function AppPlatformSelector() {
   const pathname = usePathname()
   const router = useRouter()
-  const currentPlatform = getPlatformFromPathname(pathname)
-
+  const { state, isMobile, setOpenMobile } = useSidebar()
+  const guilds = useQuery(api.queries.dashboard.discord.guilds.manageable.list)
+  const storedDiscordGuildId = useAppShellStore((s) => s.selectedDiscordGuildId)
+  const { safeDashboardPath } = getDashboardGuildSelection({
+    manageableGuilds: guilds,
+    routeDiscordGuildId: undefined,
+    storedDiscordGuildId,
+  })
+  const currentPlatform =
+    pathname === "/twitch" || pathname.startsWith("/twitch/")
+      ? "twitch"
+      : "discord"
+  const presentation = {
+    discord: {
+      label: "Discord",
+      Icon: Discord,
+      href: safeDashboardPath,
+    },
+    twitch: {
+      label: "Twitch",
+      Icon: IconBrandTwitch,
+      href: "/twitch",
+    },
+  }
+  const options = RELEASE_PLATFORMS.map((value) => ({
+    value,
+    ...presentation[value],
+  }))
+  if (!isMobile && state === "collapsed") {
+    const other = options.find((option) => option.value !== currentPlatform)
+    if (!other) return null
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            aria-label={`Open ${other.label} workspace`}
+            tooltip={`Open ${other.label} workspace`}
+            render={<Link href={other.href} />}
+          >
+            <other.Icon aria-hidden />
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
   return (
-    <div className="flex flex-col gap-1.5 px-1 group-data-[collapsible=icon]:hidden">
-      <p className="text-xs font-medium text-sidebar-foreground/70">Platform</p>
-      <ToggleGroup
-        aria-label="Select platform"
-        className="grid w-full grid-cols-1 rounded-md border border-sidebar-border bg-sidebar-accent/30 p-0.5"
-        size="default"
-        value={[currentPlatform]}
-        onValueChange={(value) => {
-          const nextPlatform = value[0]
-          const nextOption = PLATFORM_OPTIONS.find(
-            (option) => option.value === nextPlatform
-          )
-
-          if (nextOption?.enabled) {
-            router.push(nextOption.href)
-          }
-        }}
-      >
-        {PLATFORM_OPTIONS.map((option) => {
-          const Icon = option.icon
-
-          return (
-            <ToggleGroupItem
-              key={option.value}
-              aria-label={option.label}
-              title={option.label}
-              className="min-w-0 px-0 aria-pressed:bg-sidebar-accent aria-pressed:text-sidebar-accent-foreground [&_svg]:opacity-45 [&_svg]:brightness-75 [&_svg]:grayscale hover:[&_svg]:opacity-100 hover:[&_svg]:brightness-100 hover:[&_svg]:grayscale-0 aria-pressed:[&_svg]:opacity-100 aria-pressed:[&_svg]:brightness-100 aria-pressed:[&_svg]:grayscale-0"
-              value={option.value}
-              disabled={!option.enabled}
-            >
-              <Icon aria-hidden className={option.iconClassName} />
-            </ToggleGroupItem>
-          )
-        })}
-      </ToggleGroup>
-    </div>
+    <ToggleGroup
+      aria-label="Select platform"
+      className={`grid w-full ${options.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}
+      value={[currentPlatform]}
+      onValueChange={(value) => {
+        const option = options.find((option) => option.value === value[0])
+        if (option) {
+          router.push(option.href)
+          if (isMobile) setOpenMobile(false)
+        }
+      }}
+    >
+      {options.map(({ value, label, Icon }) => (
+        <ToggleGroupItem
+          key={value}
+          value={value}
+          aria-label={label}
+          title={label}
+        >
+          <Icon aria-hidden className="size-4" />
+          <span>{label}</span>
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   )
 }

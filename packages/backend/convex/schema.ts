@@ -1,5 +1,10 @@
 import { defineSchema } from "convex/server"
 import {
+  twitchTimerGroups,
+  twitchTimerGrants,
+  twitchTimerSessions,
+} from "./dbTables/twitchTimers"
+import {
   billingCustomers,
   guildSubscriptions,
   billingEvents,
@@ -45,6 +50,9 @@ import {
 } from "./dbTables/cleoPets"
 
 export default defineSchema({
+  twitchTimerGroups,
+  twitchTimerGrants,
+  twitchTimerSessions,
   billingCustomers,
   guildBillingPrices,
   guildSubscriptions,

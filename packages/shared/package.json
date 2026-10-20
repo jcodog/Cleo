@@ -17,6 +17,7 @@
     "zod": "^4.6.7"
   },
   "exports": {
+    "./twitchTimers": "./src/twitchTimers.ts",
     "./welcomeCard": "./src/welcomeCard.ts",
     "./drawWelcomeCard": "./src/drawWelcomeCard.ts",
     "./appRoutes": "./src/appRoutes.ts",

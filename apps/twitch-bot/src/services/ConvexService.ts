@@ -1,5 +1,9 @@
 import { z } from "zod"
 import type { EventKey } from "@workspace/shared/twitchEventSub"
+import {
+  timerRuntimeGroup,
+  timerRuntimeState,
+} from "@workspace/shared/twitchTimers"
 
 export class ConvexActionError extends Error {
   constructor(
@@ -21,6 +25,89 @@ function safeBackendCode(value: unknown): string | undefined {
   return undefined
 }
 export class ConvexService {
+  async timerPage(since?: number, cursor?: string, until?: number) {
+    return z
+      .object({
+        groups: z.array(timerRuntimeGroup),
+        cursor: z.string().nullable(),
+        startedAt: z.number(),
+      })
+      .parse(
+        await this.action("twitchTimerActions:page", { since, cursor, until })
+      )
+  }
+  async claimTimer(id: string, revision: number, streamId: string) {
+    return z
+      .object({
+        executionId: z.string(),
+        message: z.string(),
+        expiresAt: z.number(),
+      })
+      .nullable()
+      .parse(
+        await this.action("twitchTimerActions:claim", {
+          id,
+          revision,
+          streamId,
+        })
+      )
+  }
+  async settleTimer(
+    id: string,
+    executionId: string,
+    sent: boolean,
+    definite = false,
+    state?: z.infer<typeof timerRuntimeState>
+  ): Promise<number | null> {
+    return z
+      .number()
+      .nullable()
+      .parse(
+        await this.action("twitchTimerActions:settle", {
+          id,
+          executionId,
+          sent,
+          definite,
+          state,
+        })
+      )
+  }
+  async beginTimer(
+    id: string,
+    executionId: string,
+    streamId: string
+  ): Promise<boolean> {
+    return z.boolean().parse(
+      await this.action("twitchTimerActions:begin", {
+        id,
+        executionId,
+        streamId,
+      })
+    )
+  }
+  async timerSession(
+    broadcasterId: string,
+    observedAt: number,
+    stream?: { id: string; startedAt: number },
+    eventAt?: number
+  ): Promise<boolean> {
+    return z.boolean().parse(
+      await this.action("twitchTimerActions:session", {
+        broadcasterId,
+        observedAt,
+        streamId: stream?.id,
+        startedAt: stream?.startedAt,
+        eventAt,
+      })
+    )
+  }
+  async diagnoseTimer(
+    id: string,
+    revision: number,
+    state: z.infer<typeof timerRuntimeState>
+  ): Promise<void> {
+    await this.action("twitchTimerActions:diagnose", { id, revision, state })
+  }
   constructor(
     private readonly url: string,
     private readonly secret: string,

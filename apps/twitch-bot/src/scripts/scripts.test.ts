@@ -127,6 +127,12 @@ test("runtime entry handles actual SIGTERM and SIGINT without sending and remove
     await withGrant(async (store, directory) => {
       await store.write(createGrant(botToken, apiConfig))
       const env = runtimeEnv(store.path, join(directory, "state.json"))
+      const listener = createServer()
+      await new Promise<void>(resolve => listener.listen(0, "127.0.0.1", resolve))
+      const address = listener.address()
+      assert.ok(address && typeof address !== "string")
+      env.TWITCH_WEBHOOK_PORT = address.port
+      await new Promise<void>(resolve => listener.close(() => resolve()))
       const before = process.listenerCount(signal)
       const base = runtimeHttp()
       await withEnvironment(env, async () => {

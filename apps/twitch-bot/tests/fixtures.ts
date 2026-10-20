@@ -127,7 +127,7 @@ export function runtimeHttp(
         options.listStatus
       )
     if (url.pathname === "/api/action")
-      return json({ status: "success", value: { events: [], cursor: null } })
+      return json({ status: "success", value: JSON.parse(String(init.body)).path === "twitchTimerActions:page" ? { groups: [], cursor: null, startedAt: Date.now() } : { events: [], cursor: null } })
     options.onSend?.()
     throw new Error("Runtime must never send a chat message.")
   })

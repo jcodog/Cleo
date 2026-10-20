@@ -4,6 +4,8 @@ import { z } from "zod"
 import { serializeLogError, type Logger } from "@workspace/logger"
 import { routes, type EventSubRouter } from "./EventSubRouter"
 import type { ConvexService } from "../ConvexService"
+import type { ChatActivity } from "../timers/ChatActivity"
+import { eventDefinitions } from "@workspace/shared/twitchEventSub"
 
 export const MAX_WEBHOOK_BYTES = 65536
 const envelope = z.object({
@@ -20,6 +22,8 @@ const envelope = z.object({
 export class TwitchWebhookServer {
   private server?: Server
   private readonly pending = new Set<Promise<unknown>>()
+  private stopping = false
+  private recovering = false
   get isListening(): boolean {
     return this.server?.listening === true
   }
@@ -30,9 +34,17 @@ export class TwitchWebhookServer {
       "reserve" | "subscriptionState" | "begin" | "finish" | "pendingEvents"
     >,
     private readonly router: Pick<EventSubRouter, "dispatch">,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly activity?: ChatActivity,
+    private readonly botId?: string,
+    private readonly lifecycle?: (
+      broadcasterId: string,
+      online: boolean,
+      eventAt: number
+    ) => Promise<void>
   ) {}
   async handle(request: Request, now = Date.now()): Promise<Response> {
+    if (this.stopping) return new Response(null, { status: 503 })
     if (
       request.method === "GET" &&
       new URL(request.url).pathname === "/healthz"
@@ -87,13 +99,25 @@ export class TwitchWebhookServer {
       if (!route) return new Response(null, { status: 400 })
       const type = request.headers.get("Twitch-Eventsub-Message-Type")
       if (type === "notification" && route.key === "chatMessage") {
-        // Presence only. Verify and parse locally without receipts, logs or dispatch.
+        // Count metadata only after signature, time and condition validation.
         const parsed = route.parse(value.event)
         if (
           parsed.broadcasterId !==
           value.subscription.condition.broadcaster_user_id
         )
           return new Response(null, { status: 400 })
+        const event = eventDefinitions.chatMessage.parse(value.event)
+        if (this.botId && value.subscription.condition.user_id !== this.botId)
+          return new Response(null, { status: 400 })
+        // Delayed deliveries cannot make a quiet channel look active now.
+        if (time > now - 5 * 60_000)
+          this.activity?.observe(
+            parsed.broadcasterId,
+            event.chatter_user_id,
+            event.message_id,
+            time,
+            now
+          )
         return new Response(null, { status: 204 })
       }
       if (this.pending.size >= 256) return new Response(null, { status: 503 })
@@ -142,6 +166,16 @@ export class TwitchWebhookServer {
         value.subscription.condition.to_broadcaster_user_id
       if (conditionId !== parsed.broadcasterId)
         return new Response(null, { status: 400 })
+      if (route.key === "streamOnline" || route.key === "streamOffline") {
+        const lifecycle = this.lifecycle?.(
+          parsed.broadcasterId,
+          route.key === "streamOnline",
+          time
+        )
+        if (lifecycle) this.track(lifecycle)
+        if (route.key === "streamOffline")
+          return new Response(null, { status: 204 })
+      }
       this.logger.info("EventSub received", {
         type: route.type,
       })
@@ -202,6 +236,7 @@ export class TwitchWebhookServer {
     const attempt = randomUUID()
     let started = false
     let considered = false
+    let completed = false
     try {
       await this.router.dispatch(parsed, key, messageId, template, async () => {
         considered = true
@@ -210,10 +245,11 @@ export class TwitchWebhookServer {
       })
       // Handlers that deliberately suppress output still settle their receipt.
       if (!considered) started = await this.convex.begin(messageId, attempt)
+      completed = true
       if (started) await this.convex.finish(messageId, attempt, true)
     } catch (error) {
       if (started)
-        await this.convex.finish(messageId, attempt, false).catch(() => {})
+        await this.convex.finish(messageId, attempt, completed).catch(() => {})
       this.logger.error("Event dispatch failed", {
         messageId,
         type: key,
@@ -246,34 +282,41 @@ export class TwitchWebhookServer {
     }
   }
   async recoverPending(): Promise<void> {
-    let cursor: string | undefined
-    do {
-      const page = await this.convex.pendingEvents(cursor)
-      await Promise.all(
-        page.events.map(async (event) => {
-          const route = routes.find((route) => route.key === event.key)
-          if (!route) return
-          const parsed = route.parse(JSON.parse(event.eventJson))
-          const receipt = await this.convex.reserve(
-            event.messageId,
-            route.key,
-            parsed.broadcasterId,
-            event.eventJson
-          )
-          if (receipt.kind === "pending") {
-            const task = this.dispatchPending(
-              parsed,
-              route.key,
+    if (this.stopping || this.recovering) return
+    this.recovering = true
+    try {
+      let cursor: string | undefined
+      do {
+        const page = await this.convex.pendingEvents(cursor)
+        if (this.stopping) return
+        await Promise.all(
+          page.events.map(async (event) => {
+            const route = routes.find((route) => route.key === event.key)
+            if (!route) return
+            const parsed = route.parse(JSON.parse(event.eventJson))
+            const receipt = await this.convex.reserve(
               event.messageId,
-              receipt.template
+              route.key,
+              parsed.broadcasterId,
+              event.eventJson
             )
-            this.track(task)
-            await task
-          }
-        })
-      )
-      cursor = page.cursor ?? undefined
-    } while (cursor)
+            if (receipt.kind === "pending") {
+              const task = this.dispatchPending(
+                parsed,
+                route.key,
+                event.messageId,
+                receipt.template
+              )
+              this.track(task)
+              await task
+            }
+          })
+        )
+        cursor = page.cursor ?? undefined
+      } while (cursor && !this.stopping)
+    } finally {
+      this.recovering = false
+    }
   }
   async start(port: number, host = "127.0.0.1"): Promise<void> {
     this.server = createServer(async (incoming, outgoing) => {
@@ -323,12 +366,19 @@ export class TwitchWebhookServer {
     this.logger.info("Twitch webhook listener ready", { host, port })
   }
   async stop(): Promise<void> {
+    this.stopAccepting()
     this.server?.closeAllConnections()
     if (this.server?.listening)
       await new Promise<void>((resolve, reject) =>
         this.server!.close((error) => (error ? reject(error) : resolve()))
       )
+    await this.drain()
+  }
+  async drain(): Promise<void> {
     await Promise.all(this.pending)
+  }
+  stopAccepting(): void {
+    this.stopping = true
   }
 }
 export async function boundedBody(request: Request): Promise<Uint8Array> {

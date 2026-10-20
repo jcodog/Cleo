@@ -94,6 +94,9 @@ jobs:
       - name: Verify guild welcome controls in Chromium and Firefox
         run: bun run --filter @workspace/dashboard test:welcome:browser
 
+      - name: Verify Twitch workspace and platform navigation in Chromium
+        run: bun run --filter @workspace/dashboard test:twitch:browser
+
       - name: Test served dashboard PWA
         # Signed-out fixtures do not authenticate users or call Clerk/Convex APIs.
         env:
@@ -114,6 +117,7 @@ jobs:
           retention-days: 7
           path: |
             apps/dashboard/test-results/welcome
+            apps/dashboard/test-results/twitch
             ${{ runner.temp }}/dashboard-pwa.log
 
   tests-coverage:

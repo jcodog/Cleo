@@ -12,6 +12,7 @@ import {
   IconShieldLock,
   IconSparkles,
   IconBroadcast,
+  IconClock,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { type Preloaded, useConvexAuth, usePreloadedQuery } from "convex/react"
@@ -226,10 +227,22 @@ export function DashboardShellClient({
         title: "Twitch account",
         items: [
           {
-            title: "Twitch settings",
+            title: "Overview",
             href: "/twitch",
-            icon: IconSettings,
+            icon: IconHome,
             isActive: pathname === "/twitch",
+          },
+          {
+            title: "Chat alerts",
+            href: "/twitch/alerts",
+            icon: IconBroadcast,
+            isActive: pathname === "/twitch/alerts",
+          },
+          {
+            title: "Chatbot timers",
+            href: "/twitch/timers",
+            icon: IconClock,
+            isActive: pathname === "/twitch/timers",
           },
         ],
       },
@@ -241,7 +254,9 @@ export function DashboardShellClient({
       footerNavSections={[]}
       navSections={platformNavSections[currentArea]}
       showDiscordGuildSelect={currentArea === "discord"}
-      showPlatformSelector={currentArea === "kick" || currentArea === "twitch"}
+      showPlatformSelector={
+        currentArea === "discord" || currentArea === "twitch"
+      }
       staffEntry={staffEntry}
     >
       {children}

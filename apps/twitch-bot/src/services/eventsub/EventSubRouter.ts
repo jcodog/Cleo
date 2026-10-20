@@ -49,6 +49,7 @@ function route<K extends EventKey>(
 export const routes = [
   route("chatMessage", chatMessage),
   route("streamOnline", streamOnline),
+  route("streamOffline", async () => {}),
   route("follow", follow),
   route("subscribe", subscribe),
   route("resubscribe", resubscribe),

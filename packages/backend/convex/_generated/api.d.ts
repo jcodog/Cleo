@@ -2910,6 +2910,178 @@ export declare const api: {
       null
     >;
   };
+  twitchTimerActions: {
+    begin: FunctionReference<
+      "action",
+      "public",
+      {
+        executionId: string;
+        id: Id<"twitchTimerGroups">;
+        secret: string;
+        streamId: string;
+      },
+      boolean
+    >;
+    claim: FunctionReference<
+      "action",
+      "public",
+      {
+        id: Id<"twitchTimerGroups">;
+        revision: number;
+        secret: string;
+        streamId: string;
+      },
+      null | { executionId: string; expiresAt: number; message: string }
+    >;
+    diagnose: FunctionReference<
+      "action",
+      "public",
+      {
+        id: Id<"twitchTimerGroups">;
+        revision: number;
+        secret: string;
+        state:
+          | "ready"
+          | "waitingForStream"
+          | "waitingForActivity"
+          | "intervalPending"
+          | "rateLimited"
+          | "queueBusy"
+          | "queueExpired"
+          | "providerUnavailable"
+          | "authorizationRevoked"
+          | "failed"
+          | "uncertain";
+      },
+      null
+    >;
+    page: FunctionReference<
+      "action",
+      "public",
+      { cursor?: string; secret: string; since?: number; until?: number },
+      {
+        cursor: string | null;
+        groups: Array<{
+          broadcasterId: string;
+          cursor: number;
+          enabled: boolean;
+          id: Id<"twitchTimerGroups">;
+          intervalMinutes: number;
+          lastAttemptAt?: number;
+          lastSentAt?: number;
+          messages: Array<string>;
+          minimumMessages: number;
+          name: string;
+          revision: number;
+          sessionLive?: boolean;
+          sessionStartedAt?: number;
+          streamId?: string;
+        }>;
+        startedAt: number;
+      }
+    >;
+    session: FunctionReference<
+      "action",
+      "public",
+      {
+        broadcasterId: string;
+        eventAt?: number;
+        observedAt: number;
+        secret: string;
+        startedAt?: number;
+        streamId?: string;
+      },
+      boolean
+    >;
+    settle: FunctionReference<
+      "action",
+      "public",
+      {
+        definite?: boolean;
+        executionId: string;
+        id: Id<"twitchTimerGroups">;
+        secret: string;
+        sent: boolean;
+        state?:
+          | "ready"
+          | "waitingForStream"
+          | "waitingForActivity"
+          | "intervalPending"
+          | "rateLimited"
+          | "queueBusy"
+          | "queueExpired"
+          | "providerUnavailable"
+          | "authorizationRevoked"
+          | "failed"
+          | "uncertain";
+      },
+      number | null
+    >;
+  };
+  twitchTimers: {
+    list: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        connected: boolean;
+        draftScope: null | { userId: Id<"users">; broadcasterId: string };
+        entitlement: {
+          expiresAt: number | null;
+          limit: number;
+          source: "free" | "testGrant";
+        };
+        groups: Array<{
+          broadcasterChanged: boolean;
+          cursor: number;
+          diagnostic?:
+            | "ready"
+            | "waitingForStream"
+            | "waitingForActivity"
+            | "intervalPending"
+            | "rateLimited"
+            | "queueBusy"
+            | "queueExpired"
+            | "providerUnavailable"
+            | "authorizationRevoked"
+            | "failed"
+            | "uncertain";
+          diagnosticAt?: number;
+          enabled: boolean;
+          id: Id<"twitchTimerGroups">;
+          intervalMinutes: number;
+          lastAttemptAt?: number;
+          lastSentAt?: number;
+          locked: boolean;
+          messages: Array<string>;
+          minimumMessages: number;
+          name: string;
+          revision: number;
+          sessionLive?: boolean;
+        }>;
+      }
+    >;
+    remove: FunctionReference<
+      "mutation",
+      "public",
+      { id: Id<"twitchTimerGroups"> },
+      null
+    >;
+    save: FunctionReference<
+      "mutation",
+      "public",
+      {
+        enabled: boolean;
+        id?: Id<"twitchTimerGroups">;
+        intervalMinutes: number;
+        messages: Array<string>;
+        minimumMessages: number;
+        name: string;
+        revision?: number;
+      },
+      Id<"twitchTimerGroups">
+    >;
+  };
 };
 
 /**
@@ -7100,6 +7272,232 @@ export declare const internal: {
       "internal",
       { cursor: string; key: string; userId: Id<"users"> },
       null
+    >;
+  };
+  twitchTimers: {
+    begin: FunctionReference<
+      "mutation",
+      "internal",
+      { executionId: string; id: Id<"twitchTimerGroups">; streamId: string },
+      boolean
+    >;
+    claim: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        evidence: string;
+        id: Id<"twitchTimerGroups">;
+        revision: number;
+        streamId: string;
+        verifiedAt: number;
+      },
+      null | { executionId: string; expiresAt: number; message: string }
+    >;
+    claimContext: FunctionReference<
+      "query",
+      "internal",
+      { id: Id<"twitchTimerGroups">; revision: number; streamId: string },
+      null | {
+        discord: {
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        };
+        evidence: string;
+        group: {
+          _creationTime: number;
+          _id: Id<"twitchTimerGroups">;
+          broadcasterId: string;
+          cursor: number;
+          deleted: boolean;
+          diagnostic?:
+            | "ready"
+            | "waitingForStream"
+            | "waitingForActivity"
+            | "intervalPending"
+            | "rateLimited"
+            | "queueBusy"
+            | "queueExpired"
+            | "providerUnavailable"
+            | "authorizationRevoked"
+            | "failed"
+            | "uncertain";
+          diagnosticAt?: number;
+          enabled: boolean;
+          execution?: {
+            cursor: number;
+            expiresAt: number;
+            id: string;
+            phase?: "prepared" | "sending" | "uncertain";
+            revision: number;
+            rotation?: string;
+            priorAttemptAt?: number;
+            streamId?: string;
+          };
+          executionSequence?: number;
+          intervalMinutes: number;
+          lastAttemptAt?: number;
+          lastSentAt?: number;
+          messages: Array<string>;
+          minimumMessages: number;
+          name: string;
+          order: number;
+          revision: number;
+          sessionLive?: boolean;
+          sessionStartedAt?: number;
+          streamId?: string;
+          updatedAt: number;
+          userId: Id<"users">;
+        };
+        twitch: {
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        };
+        user: {
+          _creationTime: number;
+          _id: Id<"users">;
+          clerkUserId: string;
+          createdAt: number;
+          displayName?: string | null;
+          email: string;
+          imageUrl?: string | null;
+          onboardingCompletedAt?: number;
+          onboardingProvenance?: "pre-rollout" | "post-rollout";
+          onboardingVersion?: number;
+          role: "user" | "staff" | "admin" | "superadmin";
+          status?: "active" | "disabled";
+          updatedAt: number;
+        };
+      }
+    >;
+    diagnose: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        id: Id<"twitchTimerGroups">;
+        revision: number;
+        state:
+          | "ready"
+          | "waitingForStream"
+          | "waitingForActivity"
+          | "intervalPending"
+          | "rateLimited"
+          | "queueBusy"
+          | "queueExpired"
+          | "providerUnavailable"
+          | "authorizationRevoked"
+          | "failed"
+          | "uncertain";
+      },
+      null
+    >;
+    provisionTestGrant: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        broadcasterId: string;
+        expiresAt: number;
+        reason: string;
+        userId: Id<"users">;
+      },
+      null
+    >;
+    refreshLifecycle: FunctionReference<
+      "mutation",
+      "internal",
+      { userId: Id<"users"> },
+      null
+    >;
+    revokeTestGrant: FunctionReference<
+      "mutation",
+      "internal",
+      { userId: Id<"users"> },
+      null
+    >;
+    runtimePage: FunctionReference<
+      "query",
+      "internal",
+      { cursor?: string; since?: number; until?: number },
+      {
+        cursor: string | null;
+        groups: Array<{
+          broadcasterId: string;
+          cursor: number;
+          enabled: boolean;
+          id: Id<"twitchTimerGroups">;
+          intervalMinutes: number;
+          lastAttemptAt?: number;
+          lastSentAt?: number;
+          messages: Array<string>;
+          minimumMessages: number;
+          name: string;
+          revision: number;
+          sessionLive?: boolean;
+          sessionStartedAt?: number;
+          streamId?: string;
+        }>;
+        startedAt: number;
+      }
+    >;
+    session: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        broadcasterId: string;
+        eventAt?: number;
+        observedAt: number;
+        startedAt?: number;
+        streamId?: string;
+      },
+      boolean
+    >;
+    settle: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        definite?: boolean;
+        executionId: string;
+        id: Id<"twitchTimerGroups">;
+        sent: boolean;
+        state?:
+          | "ready"
+          | "waitingForStream"
+          | "waitingForActivity"
+          | "intervalPending"
+          | "rateLimited"
+          | "queueBusy"
+          | "queueExpired"
+          | "providerUnavailable"
+          | "authorizationRevoked"
+          | "failed"
+          | "uncertain";
+      },
+      number | null
     >;
   };
 };

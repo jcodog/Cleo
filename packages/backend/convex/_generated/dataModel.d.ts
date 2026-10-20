@@ -2799,6 +2799,155 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  twitchTimerGrants: {
+    document: {
+      broadcasterId: string;
+      expiresAt: number;
+      reason: string;
+      revokedAt?: number;
+      userId: Id<"users">;
+      _id: Id<"twitchTimerGrants">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "expiresAt"
+      | "reason"
+      | "revokedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_user: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchTimerGroups: {
+    document: {
+      broadcasterId: string;
+      cursor: number;
+      deleted: boolean;
+      diagnostic?:
+        | "ready"
+        | "waitingForStream"
+        | "waitingForActivity"
+        | "intervalPending"
+        | "rateLimited"
+        | "queueBusy"
+        | "queueExpired"
+        | "providerUnavailable"
+        | "authorizationRevoked"
+        | "failed"
+        | "uncertain";
+      diagnosticAt?: number;
+      enabled: boolean;
+      execution?: {
+        cursor: number;
+        expiresAt: number;
+        id: string;
+        phase?: "prepared" | "sending" | "uncertain";
+        revision: number;
+        rotation?: string;
+        priorAttemptAt?: number;
+        streamId?: string;
+      };
+      executionSequence?: number;
+      intervalMinutes: number;
+      lastAttemptAt?: number;
+      lastSentAt?: number;
+      messages: Array<string>;
+      minimumMessages: number;
+      name: string;
+      order: number;
+      revision: number;
+      sessionLive?: boolean;
+      sessionStartedAt?: number;
+      streamId?: string;
+      updatedAt: number;
+      userId: Id<"users">;
+      _id: Id<"twitchTimerGroups">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "cursor"
+      | "deleted"
+      | "diagnostic"
+      | "diagnosticAt"
+      | "enabled"
+      | "execution"
+      | "execution.cursor"
+      | "execution.expiresAt"
+      | "execution.id"
+      | "execution.phase"
+      | "execution.revision"
+      | "execution.rotation"
+      | "execution.streamId"
+      | "executionSequence"
+      | "intervalMinutes"
+      | "lastAttemptAt"
+      | "lastSentAt"
+      | "messages"
+      | "minimumMessages"
+      | "name"
+      | "order"
+      | "revision"
+      | "sessionLive"
+      | "sessionStartedAt"
+      | "streamId"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_broadcaster: ["broadcasterId", "deleted", "_creationTime"];
+      by_enabled: ["enabled", "deleted", "_creationTime"];
+      by_updated: ["updatedAt", "_creationTime"];
+      by_user: ["userId", "deleted", "order", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  twitchTimerSessions: {
+    document: {
+      broadcasterId: string;
+      lastCompleted?: {
+        observedAt: number;
+        startedAt: number;
+        streamId: string;
+      };
+      live: boolean;
+      observedAt: number;
+      startedAt?: number;
+      streamId?: string;
+      _id: Id<"twitchTimerSessions">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "broadcasterId"
+      | "lastCompleted"
+      | "lastCompleted.observedAt"
+      | "lastCompleted.startedAt"
+      | "lastCompleted.streamId"
+      | "live"
+      | "observedAt"
+      | "startedAt"
+      | "streamId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_broadcaster: ["broadcasterId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   twitchWebhookReceipts: {
     document: {
       attempt?: string;

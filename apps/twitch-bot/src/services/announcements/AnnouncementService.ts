@@ -19,8 +19,8 @@ export class AnnouncementService {
   ): Promise<void> {
     const message = renderTemplate(definition, values, template)
     const token = await this.auth.maintain()
-    if (beforeSend && !(await beforeSend())) return
-    await this.api.sendChatMessage(token, broadcasterId, message)
+    const sent = await this.api.sendChatMessage(token, broadcasterId, message, beforeSend)
+    if (!sent) return
     this.logger.info("Twitch chat message sent")
   }
 }
