@@ -19,41 +19,77 @@ deadline loop refreshes indexed configuration changes every 15 seconds and
 handles at most four due groups together. Initial loading reads only enabled,
 undeleted groups. Incremental loading includes changes and tombstones. Pages
 contain at most 100 groups, with a process limit of 10,000 groups. Configuration
-older than 60 seconds cannot authorize a send.
+older than 60 seconds cannot authorize a send. Incremental watermarks come from
+the Convex query clock and overlap by two minutes to include mutation commits
+that race a refresh snapshot.
+
+Timer-specific `streamOnline` and `streamOffline` consumers use the existing
+EventSub subscription identities and reference counting. They work without a
+Discord guild. Offline broadcasters have no active scheduler entries or chat
+activity records. Configuration remains editable. Startup reconciliation batches
+up to 100 broadcaster IDs per Get Streams request. A five-minute control-plane
+reconciliation repairs missed events and failed lifecycle subscriptions.
+
+`twitchTimerSessions` retains the provider stream ID, validated start time, live
+state, observation time, and the last completed session. A genuinely new stream
+atomically resets every group's cursor to zero and clears the previous stream's
+interval cooldown. Same-stream reconnects and restarts preserve rotation. All
+activations reset ephemeral activity and start a fresh scheduling interval.
+Delayed or duplicate events cannot replace a newer authoritative observation.
 
 The signed EventSub chat webhook updates `ChatActivity` after validating its
 timestamp, broadcaster condition and bot identity. It acknowledges locally.
 No ordinary chat content reaches Convex or logs. The tracker retains only
-aggregate counts, activity timestamps and up to 20,000 deduplication IDs across
-10,000 configured broadcasters. IDs expire after 11 minutes. At the ID limit,
-activity is dropped rather than risking duplicate counts. Removing all of a
-broadcaster's groups releases its activity record.
+aggregate counts, validated event timestamps, and up to 512 deduplication IDs
+per live broadcaster, across at most 10,000 broadcasters. IDs expire after six
+minutes. Saturation suppresses additional activity for that broadcaster until
+IDs expire, without evicting duplicate evidence or blocking other broadcasters.
+Offline transitions release the activity record. Pre-session, future, and
+five-minute-old chat events cannot satisfy the activity gate.
 
 Each group has its own activity baseline. A confirmed send resets that baseline
 and advances the durable cursor. Recent activity must be less than five minutes
 old. The minimum count is accumulated since that group's previous confirmed
 send. Cleo's own messages and duplicate message IDs do not count.
 
-Before a send, Get Streams confirms the broadcaster is live. Due broadcasters
-share a bounded batch request, with another check after queue admission. The
-worker obtains an atomic Convex claim only after current Clerk and Twitch OAuth
-verification. The mutation rechecks account evidence, enabled revision, current
-capacity, chat subscription identity and revocation, runtime readiness, elapsed
-interval and conflicting leases. Provider failures fail closed.
+Before a send, a cheap Convex preflight rejects disabled, stale, offline, or
+ineligible configurations. Current Clerk and Twitch OAuth verification precedes
+an atomic prepared claim. A second mutation fences the execution against its
+stream, revision, current capacity, chat subscription, and runtime readiness.
+Get Streams then confirms the same stream ID immediately before queue admission.
+All this preparation occurs outside the shared HTTP send queue. Its final local
+gate rejects stopped sessions, stale configuration, expired leases, insufficient
+activity, and live checks older than two seconds. Twitch can change state between
+that GET and the POST; the integration cannot make those requests atomic.
 
-Claims last 60 seconds. The attempt cooldown is stored before the POST. Only a
-confirmed send advances the cursor and successful-send timestamp. Failed or
-ambiguous POSTs settle uncertain and do not retry immediately. A crashed worker
-cannot replay a claimed execution on restart. This does not promise exactly-once
-delivery from Twitch, which provides no send idempotency key.
+Prepared claims expire after 60 seconds and have non-reused execution identities.
+Once the begin mutation succeeds, a crash or ambiguous POST quarantines the
+execution for the current stream. A definite non-send releases it. A confirmed
+POST advances local rotation immediately and retries only its idempotent success
+settlement if persistence fails. A lost settlement acknowledgement cannot undo
+success. Metadata edits preserve rotation, including in-flight confirmations;
+changing the ordered messages resets that edited rotation to zero. This does
+not promise exactly-once delivery from Twitch, which provides no send idempotency
+key.
 
 Restarts reset ephemeral activity and wait a full interval before new work.
 Missed intervals do not produce a backlog. Alerts and timers share one bounded,
 fair send queue through `sendChatMessage`. Attempts are spaced at least 1.7
 seconds globally and two seconds per channel. The queue holds at most 64 pending
-messages, four per broadcaster, and discards work after five seconds. It honors
-429/reset headers without replaying ambiguous POSTs. Runtime startup imposes a
-30-second send cooldown to protect the previous process's rate budget.
+messages, four per broadcaster. Best-effort timer work expires after five seconds.
+Durable announcements get 60 seconds after the shared startup cooldown, and
+pre-send receipts receive another bounded recovery opportunity during runtime
+maintenance. It honors 429/reset headers without replaying ambiguous POSTs.
+Runtime startup imposes a 30-second send cooldown to protect the previous
+process's rate budget. Shutdown stops admissions immediately, drains accepted
+work for up to 15 seconds, and then aborts resources within systemd's 20-second
+stop limit.
+
+Timer text rejects leading `/` or `.` after whitespace. It is never rewritten.
+The [Helix chat documentation](https://dev.twitch.tv/docs/chat/send-receive-messages/)
+requires `is_sent` and a message ID to confirm delivery; it does not guarantee
+literal round-tripping of command-like input. The stricter v1 timer policy avoids
+relying on that behavior. No live command probe is part of local verification.
 
 ## Broadcaster capacity
 
@@ -102,8 +138,10 @@ deploy production services.
 `bun run --filter @workspace/dashboard test:twitch:browser` exercises actual
 components through an isolated test transport. It covers desktop and mobile
 platform switching, stale guild rejection, keyboard message ordering, invalid
-intervals, saves, locked groups, all nine alerts, reduced motion and light/dark
-layouts. It writes screenshots under `apps/dashboard/test-results/twitch`.
+intervals, rejected create/edit/delete operations, revision conflicts, entitlement
+expiry and restoration, heartbeat expiry, stream transitions, first-save feedback,
+locked groups, all nine alerts, reduced motion, and light/dark layouts. It writes
+screenshots under `apps/dashboard/test-results/twitch`.
 It does not substitute for a separately authorized live Twitch send smoke test.
 
 The Twitch bot and new backend timer files are included in the existing 100%
