@@ -16,7 +16,10 @@ revision checks. Deleted groups retain a content-free tombstone for workers.
 
 `TimerScheduler` runs inside the existing Oracle `cleo-twitch` process. One
 deadline loop refreshes indexed configuration changes every 15 seconds and
-handles at most four due groups together. Initial loading reads only enabled,
+handles at most four broadcasters together, one due group per broadcaster per
+tick. Moving selected groups to the end gives shared-channel groups independent
+turns without aligning all their live checks against the same queue slot.
+Initial loading reads only enabled,
 undeleted groups. Incremental loading includes changes and tombstones. Pages
 contain at most 100 groups, with a process limit of 10,000 groups. Configuration
 older than 60 seconds cannot authorize a send. Incremental watermarks come from
@@ -40,10 +43,17 @@ Delayed or duplicate events cannot replace a newer authoritative observation.
 The signed EventSub chat webhook updates `ChatActivity` after validating its
 timestamp, broadcaster condition and bot identity. It acknowledges locally.
 No ordinary chat content reaches Convex or logs. The tracker retains only
-aggregate counts, validated event timestamps, and up to 512 deduplication IDs
-per live broadcaster, across at most 10,000 broadcasters. IDs expire after six
-minutes. Saturation suppresses additional activity for that broadcaster until
-IDs expire, without evicting duplicate evidence or blocking other broadcasters.
+aggregate counts, validated event timestamps and 64-bit SHA-256 message-ID hashes.
+Each live broadcaster has at most six minute buckets of 128 hashes, across at
+most 10,000 watched broadcasters. Buckets expire by timestamp regardless of
+insertion order and retain accepted IDs for the full five-minute activity window.
+When a bucket fills, its deterministic hash mask tightens. Removed hashes remain
+excluded by that mask until expiry, so their redeliveries cannot count again.
+All active masks apply to new arrivals. This permits continued sampled counting
+without a fixed cumulative-count ceiling. Hash collisions and sampling only
+undercount; they never turn known duplicates into additional activity. Thresholds
+therefore require at least the configured number of real messages, and can require
+more under heavy load. A burst's stricter sampling expires within six minutes.
 Offline transitions release the activity record. Pre-session, future, and
 five-minute-old chat events cannot satisfy the activity gate.
 
@@ -54,23 +64,34 @@ send. Cleo's own messages and duplicate message IDs do not count.
 
 Before a send, a cheap Convex preflight rejects disabled, stale, offline, or
 ineligible configurations. Current Clerk and Twitch OAuth verification precedes
-an atomic prepared claim. A second mutation fences the execution against its
-stream, revision, current capacity, chat subscription, and runtime readiness.
-Get Streams then confirms the same stream ID immediately before queue admission.
-All this preparation occurs outside the shared HTTP send queue. Its final local
-gate rejects stopped sessions, stale configuration, expired leases, insufficient
-activity, and live checks older than two seconds. Twitch can change state between
+an atomic prepared claim. Get Streams confirms the same stream ID before queue
+admission. OAuth, claims and provider checks remain outside the shared queue.
+At dequeue, the local gate rejects stopped sessions, stale configuration, expired
+leases, insufficient activity and live checks older than two seconds. Only then
+does a final database mutation recheck current ownership, entitlement, stream and
+chat authorization and mark the durable attempt. This last fence has a strict
+500 ms queue budget. Timeout suppresses the POST and sends a matching definite
+settlement; deleting that execution also fences a late begin mutation. The gate
+rechecks local validity and live-evidence freshness after the fence. Twitch can change state between
 that GET and the POST; the integration cannot make those requests atomic.
 
 Prepared claims expire after 60 seconds and have non-reused execution identities.
-Once the begin mutation succeeds, a crash or ambiguous POST quarantines the
+Provider checks and queue waiting leave the execution prepared and recoverable
+after expiry on restart. Once the final begin mutation succeeds, a crash or ambiguous POST quarantines the
 execution for the current stream. A definite non-send releases it. A confirmed
 POST advances local rotation immediately and retries only its idempotent success
 settlement if persistence fails. A lost settlement acknowledgement cannot undo
 success. Metadata edits preserve rotation, including in-flight confirmations;
 changing the ordered messages resets that edited rotation to zero. This does
 not promise exactly-once delivery from Twitch, which provides no send idempotency
-key.
+key. A crash after begin commits but before the POST remains indistinguishable
+from a crashed POST, including loss of the begin acknowledgement. This small
+boundary is conservatively quarantined for the stream, never blindly replayed.
+Known pre-POST cancellation clears the execution, restores the prior attempt
+timestamp and gets a fresh opportunity after one 15-second tick. This is a bounded
+retry with fresh live verification, not a backlog of missed messages. Offline
+settlement persists `waitingForStream`; other definite outcomes retain their
+specific provider, authorization, rate-limit or failure diagnostic.
 
 Restarts reset ephemeral activity and wait a full interval before new work.
 Missed intervals do not produce a backlog. Alerts and timers share one bounded,
@@ -109,7 +130,10 @@ endpoint. Use a dev deployment for testing.
 Capacity is checked during every creation, activation and send claim. On expiry
 or revocation, the first group belonging to the current broadcaster retains
 eligibility; later groups lock. Configurations and saved enablement survive.
-Deleting an earlier group can free capacity. Reconnecting a different broadcaster
+Locked groups belonging to the current broadcaster remain editable with their
+saved enabled preference. A disabled locked group cannot be activated until its
+entitlement is restored. Edits do not alter group ordering or bypass claim-time
+eligibility. Deleting an earlier group can free capacity. Reconnecting a different broadcaster
 does not transfer the old broadcaster's groups or grants.
 
 ## Development and rollout
