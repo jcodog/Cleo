@@ -1,5 +1,148 @@
 import { test, expect } from "@playwright/test"
 
+for (const operation of ["create", "edit", "delete"] as const) {
+  test(`rejected ${operation} preserves configuration and permits a retry`, async ({
+    page,
+  }) => {
+    page.on("dialog", (dialog) => dialog.accept())
+    await page.goto(`/twitch/timers?fail=${operation}`)
+    if (operation === "create") {
+      await page.getByRole("button", { name: "New group", exact: true }).click()
+      await page.getByLabel("Group name").fill("New rotation")
+      await page.getByLabel("Message 1", { exact: true }).fill("Hello 世界")
+    } else {
+      await page.getByRole("button", { name: /Community links/ }).click()
+      if (operation === "edit")
+        await page.getByLabel("Group name").fill("Edited rotation")
+    }
+    const button = page.getByRole("button", {
+      name: operation === "delete" ? "Delete group" : "Save group",
+      exact: true,
+    })
+    await button.click()
+    await expect(
+      page.getByText(
+        operation === "delete"
+          ? "Could not delete this group."
+          : /Could not save this group/
+      )
+    ).toBeVisible()
+    await expect(page.getByLabel("Group name")).toHaveValue(
+      operation === "create"
+        ? "New rotation"
+        : operation === "edit"
+          ? "Edited rotation"
+          : "Community links"
+    )
+    await expect(button).toBeEnabled()
+    await button.click()
+    if (operation === "delete")
+      await expect(
+        page.getByRole("button", { name: /Community links/ })
+      ).toHaveCount(0)
+    else
+      await expect(
+        page.getByText("Group saved.", { exact: true })
+      ).toBeVisible()
+    if (operation === "create") {
+      await expect(page.getByText("2 / 3 timer groups")).toBeVisible()
+      await page.getByRole("button", { name: /Community links/ }).click()
+      await expect(page.getByText("Group saved.", { exact: true })).toHaveCount(
+        0
+      )
+    }
+  })
+}
+
+test("revision conflicts preserve the draft until an explicit reload and retry", async ({
+  page,
+}) => {
+  await page.goto("/twitch/timers?fail=conflict")
+  await page.getByRole("button", { name: /Community links/ }).click()
+  await page.getByLabel("Group name").fill("My draft")
+  await page.getByRole("button", { name: "Save group", exact: true }).click()
+  await expect(page.getByLabel("Group name")).toHaveValue("My draft")
+  await expect(page.getByText(/This group changed elsewhere/)).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Save group", exact: true })
+  ).toBeDisabled()
+  await page.getByRole("button", { name: "Reload configuration" }).click()
+  await page.getByLabel("Group name").fill("Reviewed edit")
+  await page.getByRole("button", { name: "Save group", exact: true }).click()
+  await expect(page.getByText("Group saved.", { exact: true })).toBeVisible()
+})
+
+test("lost entitlement rejects edits without erasing the draft and restoration allows retry", async ({
+  page,
+}) => {
+  await page.goto("/twitch/timers?fail=entitlement")
+  await page.getByRole("button", { name: /Subscriber reminders/ }).click()
+  await page.getByLabel("Group name").fill("Preserved draft")
+  await page.getByRole("button", { name: "Save group", exact: true }).click()
+  await expect(page.getByText(/Could not save this group/)).toBeVisible()
+  await expect(page.getByLabel("Group name")).toHaveValue("Preserved draft")
+  await expect(
+    page.getByRole("button", { name: "Save group", exact: true })
+  ).toBeDisabled()
+  await page.evaluate(() =>
+    dispatchEvent(
+      new CustomEvent("timer-fixture", { detail: { restore: true } })
+    )
+  )
+  await page.getByRole("button", { name: "Save group", exact: true }).click()
+  await expect(page.getByText("Group saved.", { exact: true })).toBeVisible()
+})
+
+test("health expires without another query and live lifecycle labels preserve message-zero rotation", async ({
+  page,
+}) => {
+  await page.clock.install()
+  await page.goto("/twitch/timers?staleHealth")
+  await page.getByRole("button", { name: /Community links/ }).click()
+  await page.clock.fastForward(6000)
+  await expect(
+    page.getByText("Runtime details: Worker unavailable", { exact: true })
+  ).toBeVisible()
+  await page.goto("/twitch/timers?offline")
+  await page.getByRole("button", { name: /Community links/ }).click()
+  await expect(
+    page.getByText("Runtime details: Waiting for stream", { exact: true })
+  ).toBeVisible()
+  await page.evaluate(() =>
+    dispatchEvent(
+      new CustomEvent("timer-fixture", { detail: { live: true, cursor: 1 } })
+    )
+  )
+  await expect(
+    page.getByText("Runtime details: Live, waiting for activity", {
+      exact: true,
+    })
+  ).toBeVisible()
+  await expect(page.getByText(/Message 2 · Next in rotation/)).toBeVisible()
+  await page.evaluate(() =>
+    dispatchEvent(new CustomEvent("timer-fixture", { detail: { live: false } }))
+  )
+  await expect(
+    page.getByText("Runtime details: Waiting for stream", { exact: true })
+  ).toBeVisible()
+  await page.evaluate(() =>
+    dispatchEvent(
+      new CustomEvent("timer-fixture", { detail: { newStream: true } })
+    )
+  )
+  await expect(page.getByText(/Message 1 · Next in rotation/)).toBeVisible()
+  await page.evaluate(() =>
+    dispatchEvent(
+      new CustomEvent("timer-fixture", {
+        detail: { providerUnavailable: true },
+      })
+    )
+  )
+  await expect(
+    page.getByText("Runtime details: Provider unavailable", { exact: true })
+  ).toBeVisible()
+})
+
 test("platform selection preserves a valid guild, collapses to the opposite platform and rejects stale guilds", async ({
   page,
 }) => {

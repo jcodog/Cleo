@@ -17,6 +17,7 @@ import { useAppShellStore } from "../../src/components/stores/app-shell-store"
 import { ChatTimers } from "../../src/features/twitch/ChatTimers"
 import { TwitchWorkspace } from "../../src/features/twitch/TwitchWorkspace"
 import Link, { usePathname } from "./navigation-fixture"
+import { editedTimerCursor } from "@workspace/shared/twitchTimers"
 
 // Test-only transport outside Next routes. No provider or backend calls.
 type View = FunctionReturnType<typeof api.twitchTimers.list>
@@ -24,6 +25,9 @@ const listeners = new Set<() => void>()
 const locked = new URLSearchParams(location.search).has("locked")
 const expiry = new URLSearchParams(location.search).has("expiry")
 const staleGuild = new URLSearchParams(location.search).has("staleGuild")
+const failure = new URLSearchParams(location.search).get("fail")
+const staleHealth = new URLSearchParams(location.search).has("staleHealth")
+let failed = false
 let view: View = {
   entitlement: {
     limit: locked ? 1 : 3,
@@ -44,24 +48,25 @@ let view: View = {
       ],
       revision: 1,
       cursor: 0,
+      sessionLive: !new URLSearchParams(location.search).has("offline"),
       locked: false,
       broadcasterChanged: false,
       diagnostic: "waitingForActivity",
-      diagnosticAt: Date.now(),
+      diagnosticAt: staleHealth ? Date.now() - 100000 : Date.now(),
     },
   ],
 }
-if (locked || expiry)
+if (locked || expiry || failure === "entitlement")
   view.groups.push({
     ...view.groups[0]!,
     id: "timer2" as View["groups"][number]["id"],
     name: "Subscriber reminders",
     locked,
   })
-const health = {
+let health = {
   activated: true,
   botReady: true,
-  botValidUntil: Date.now() + 90000,
+  botValidUntil: Date.now() + (staleHealth ? 5000 : 90000),
   authorization: "ready",
   chat: "ready",
   checkedAt: Date.now(),
@@ -110,12 +115,43 @@ client.watchQuery = (...[reference]) => ({
 client.mutation = async (reference, args) => {
   if (getFunctionName(reference) === "twitchTimers:save") {
     const value = args as View["groups"][number]
+    if (
+      !failed &&
+      (failure === (value.id ? "edit" : "create") ||
+        failure === "conflict" ||
+        failure === "entitlement")
+    ) {
+      failed = true
+      if (failure === "conflict")
+        view = {
+          ...view,
+          groups: view.groups.map((group) => ({
+            ...group,
+            revision: group.revision + 1,
+          })),
+        }
+      if (failure === "entitlement")
+        view = {
+          ...view,
+          entitlement: { limit: 1, source: "free", expiresAt: null },
+          groups: view.groups.map((group, index) => ({
+            ...group,
+            locked: index > 0,
+          })),
+        }
+      listeners.forEach((callback) => callback())
+      throw new Error("Fixture rejected save")
+    }
+    const previous = view.groups.find((group) => group.id === value.id)
+    if (previous && previous.revision !== value.revision)
+      throw new Error("Revision conflict")
     const id = value.id ?? "timer2"
     const group = {
       ...value,
       id,
       revision: (value.revision ?? 0) + 1,
-      cursor: 0,
+      cursor: previous ? editedTimerCursor(previous, value.messages) : 0,
+      sessionLive: previous?.sessionLive ?? false,
       locked: false,
       broadcasterChanged: false,
     }
@@ -127,6 +163,10 @@ client.mutation = async (reference, args) => {
     return id
   }
   if (getFunctionName(reference) === "twitchTimers:remove") {
+    if (!failed && failure === "delete") {
+      failed = true
+      throw new Error("Fixture rejected delete")
+    }
     const { id } = args as { id: string }
     view = { ...view, groups: view.groups.filter((g) => g.id !== id) }
     listeners.forEach((callback) => callback())
@@ -134,6 +174,63 @@ client.mutation = async (reference, args) => {
   }
   throw new Error("Unexpected fixture mutation")
 }
+window.addEventListener("timer-fixture", (event) => {
+  if (!(event instanceof CustomEvent)) return
+  const detail: unknown = event.detail
+  if (!detail || typeof detail !== "object") return
+  if ("live" in detail && typeof detail.live === "boolean") {
+    const live = detail.live
+    view = {
+      ...view,
+      groups: view.groups.map((group) => ({
+        ...group,
+        sessionLive: live,
+        diagnostic: live ? "waitingForActivity" : "waitingForStream",
+        diagnosticAt: Date.now(),
+      })),
+    }
+  }
+  if ("newStream" in detail && detail.newStream === true)
+    view = {
+      ...view,
+      groups: view.groups.map((group) => ({
+        ...group,
+        cursor: 0,
+        sessionLive: true,
+        diagnostic: "waitingForActivity",
+        diagnosticAt: Date.now(),
+      })),
+    }
+  if ("cursor" in detail && typeof detail.cursor === "number") {
+    const cursor = detail.cursor
+    view = {
+      ...view,
+      groups: view.groups.map((group) => ({ ...group, cursor })),
+    }
+  }
+  if ("providerUnavailable" in detail && detail.providerUnavailable === true)
+    view = {
+      ...view,
+      groups: view.groups.map((group) => ({
+        ...group,
+        diagnostic: "providerUnavailable",
+        diagnosticAt: Date.now(),
+      })),
+    }
+  if ("revoked" in detail && detail.revoked === true)
+    health = { ...health, authorization: "stale" }
+  if ("restore" in detail && detail.restore === true)
+    view = {
+      ...view,
+      entitlement: {
+        limit: 3,
+        source: "testGrant",
+        expiresAt: Date.now() + 60000,
+      },
+      groups: view.groups.map((group) => ({ ...group, locked: false })),
+    }
+  listeners.forEach((callback) => callback())
+})
 function Fixture() {
   const path = usePathname()
   const page = path.endsWith("/timers")

@@ -7,6 +7,7 @@ import type { FunctionReturnType } from "convex/server"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
   timerConfiguration,
+  eligibleTimerGroups,
   type TimerConfiguration,
 } from "@workspace/shared/twitchTimers"
 import { Button } from "@workspace/ui/components/button"
@@ -40,7 +41,7 @@ const defaults: TimerConfiguration = {
 const states: Record<NonNullable<Group["diagnostic"]>, string> = {
   ready: "Last send confirmed",
   waitingForStream: "Waiting for stream",
-  waitingForActivity: "Waiting for activity",
+  waitingForActivity: "Live, waiting for activity",
   intervalPending: "Interval pending",
   rateLimited: "Rate limited",
   providerUnavailable: "Provider unavailable",
@@ -52,6 +53,7 @@ export function ChatTimers() {
   const health = useQuery(api.twitchChat.status, {})
   const [selection, setSelection] = useState<string>()
   const [dirty, setDirty] = useState(false)
+  const [savedNotice, setSavedNotice] = useState<string>()
   const [capacityTime, setCapacityTime] = useState(() => Date.now())
   useEffect(() => {
     if (
@@ -71,6 +73,7 @@ export function ChatTimers() {
   function select(id?: string) {
     if (dirty && !window.confirm("Discard unsaved timer changes?")) return
     setDirty(false)
+    setSavedNotice(undefined)
     setSelection(id)
   }
   if (!view) return <Skeleton className="h-48 w-full" />
@@ -79,10 +82,7 @@ export function ChatTimers() {
     view.entitlement.expiresAt <= capacityTime
   const limit = expired ? 1 : view.entitlement.limit
   const eligibleIds = new Set(
-    view.groups
-      .filter((group) => !group.broadcasterChanged)
-      .slice(0, limit)
-      .map((group) => group.id)
+    eligibleTimerGroups(view.groups, limit).map((group) => group.id)
   )
   const groups = view.groups.map((group) => ({
     ...group,
@@ -176,9 +176,11 @@ export function ChatTimers() {
               key={selection}
               group={selected}
               health={health}
+              initialFeedback={savedNotice}
               onDirty={setDirty}
               onSaved={(id) => {
                 setDirty(false)
+                setSavedNotice("Group saved.")
                 setSelection(id)
               }}
               onDeleted={() => {
@@ -203,12 +205,14 @@ export function TimerEditor({
   onDirty,
   onSaved,
   onDeleted,
+  initialFeedback,
 }: {
   group?: Group
   health?: FunctionReturnType<typeof api.twitchChat.status>
   onDirty: (dirty: boolean) => void
   onSaved: (id: string) => void
   onDeleted: () => void
+  initialFeedback?: string
 }) {
   const prefix = useId()
   const initial = group ? timerConfiguration.parse(group) : defaults
@@ -216,7 +220,7 @@ export function TimerEditor({
   const [baseline, setBaseline] = useState(JSON.stringify(initial))
   const [revision, setRevision] = useState(group?.revision)
   const [busy, setBusy] = useState(false)
-  const [feedback, setFeedback] = useState<string>()
+  const [feedback, setFeedback] = useState<string | undefined>(initialFeedback)
   const [now, setNow] = useState(() => Date.now())
   const save = useMutation(api.twitchTimers.save)
   const remove = useMutation(api.twitchTimers.remove)
@@ -236,17 +240,22 @@ export function TimerEditor({
     return () => window.removeEventListener("beforeunload", warn)
   }, [dirty])
   useEffect(() => {
-    const expires = Math.min(
-      health?.botValidUntil ?? Infinity,
-      (group?.diagnosticAt ?? 0) + 90_000
+    const deadlines = [
+      health?.botValidUntil,
+      group?.diagnosticAt === undefined
+        ? undefined
+        : group.diagnosticAt + 90_000,
+    ].filter(
+      (deadline): deadline is number => deadline !== undefined && deadline > now
     )
-    if (!Number.isFinite(expires)) return
+    if (!deadlines.length) return
+    const expires = Math.min(...deadlines)
     const timer = setTimeout(
       () => setNow(Date.now()),
-      Math.max(0, expires - Date.now())
+      Math.min(2_147_000_000, Math.max(0, expires - Date.now()))
     )
     return () => clearTimeout(timer)
-  }, [health?.botValidUntil, group?.diagnosticAt])
+  }, [health?.botValidUntil, group?.diagnosticAt, now])
   function patch(value: Partial<TimerConfiguration>) {
     setDraft((current) => ({ ...current, ...value }))
     setFeedback(undefined)
@@ -279,6 +288,11 @@ export function TimerEditor({
       setBusy(false)
     }
   }
+  const diagnostic =
+    group?.diagnostic === "uncertain" ||
+    (group?.diagnosticAt !== undefined && group.diagnosticAt + 90_000 > now)
+      ? group?.diagnostic
+      : undefined
   const runtime = !group?.enabled
     ? "Disabled"
     : locked
@@ -291,11 +305,12 @@ export function TimerEditor({
             ? "Chat subscription revoked"
             : health.chat !== "ready"
               ? "Chat not connected"
-              : group.diagnosticAt &&
-                  group.diagnosticAt + 90_000 > now &&
-                  group.diagnostic
-                ? states[group.diagnostic]
-                : "Waiting for worker verification"
+              : group.sessionLive !== true &&
+                  diagnostic !== "providerUnavailable"
+                ? "Waiting for stream"
+                : diagnostic
+                  ? states[diagnostic]
+                  : "Live, waiting for worker verification"
   return (
     <form
       className="flex min-w-0 flex-col gap-6"
@@ -492,7 +507,7 @@ export function TimerEditor({
         <p role="alert" className="text-sm text-destructive">
           Use a group name, an interval of 5-120 minutes, a chat threshold of
           1-100, and 1-20 nonempty messages of up to 500 characters without line
-          breaks or control characters.
+          breaks or control characters. Messages cannot start with / or .
         </p>
       )}
       <div className="flex flex-wrap gap-3 border-t pt-5">
