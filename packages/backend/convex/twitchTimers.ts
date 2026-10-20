@@ -197,7 +197,10 @@ export const list = query({
         sessionLive: g.sessionLive,
         lastSentAt: g.lastSentAt,
         lastAttemptAt: g.lastAttemptAt,
-        diagnostic: g.execution ? ("uncertain" as const) : g.diagnostic,
+        diagnostic:
+          g.execution && g.execution.phase !== "prepared"
+            ? ("uncertain" as const)
+            : g.diagnostic,
         diagnosticAt: g.diagnosticAt,
         locked: !eligible.some((e) => e._id === g._id),
         broadcasterChanged: g.broadcasterId !== account?.providerAccountId,
@@ -237,7 +240,11 @@ export const save = mutation({
         )
       if (group.revision !== args.revision)
         throw new ConvexError("This group changed. Reload before saving.")
-      if (args.enabled && !eligible.some((g) => g._id === group._id))
+      if (
+        args.enabled &&
+        !group.enabled &&
+        !eligible.some((g) => g._id === group._id)
+      )
         throw new ConvexError(
           "Premium access is required to enable this group."
         )
@@ -559,12 +566,13 @@ export const claim = internalMutation({
       streamId: args.streamId,
       phase: "prepared" as const,
       rotation: JSON.stringify(group.messages),
+      priorAttemptAt: group.lastAttemptAt,
     }
     await ctx.db.patch(group._id, {
       execution,
       executionSequence: (group.executionSequence ?? 0) + 1,
       updatedAt: now,
-      diagnostic: "uncertain",
+      diagnostic: "intervalPending",
       diagnosticAt: now,
     })
     return {
@@ -580,6 +588,7 @@ export const settle = internalMutation({
     executionId: v.string(),
     sent: v.boolean(),
     definite: v.optional(v.boolean()),
+    state: v.optional(timerState),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -596,9 +605,15 @@ export const settle = internalMutation({
       diagnostic: args.sent
         ? "ready"
         : args.definite
-          ? "providerUnavailable"
+          ? !group.sessionLive
+            ? "waitingForStream"
+            : (args.state ?? "failed")
           : "uncertain",
       diagnosticAt: now,
+      ...(args.definite &&
+      (args.state === "intervalPending" || args.state === "waitingForStream")
+        ? { lastAttemptAt: group.execution.priorAttemptAt }
+        : {}),
       ...(args.sent
         ? {
             lastSentAt: now,
@@ -650,6 +665,7 @@ export const begin = internalMutation({
       return false
     await ctx.db.patch(group._id, {
       execution: { ...group.execution, phase: "sending" },
+      diagnostic: "uncertain",
       lastAttemptAt: Date.now(),
       updatedAt: Date.now(),
     })

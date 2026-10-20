@@ -2947,6 +2947,7 @@ export declare const api: {
           | "intervalPending"
           | "rateLimited"
           | "providerUnavailable"
+          | "authorizationRevoked"
           | "failed"
           | "uncertain";
       },
@@ -2999,6 +3000,16 @@ export declare const api: {
         id: Id<"twitchTimerGroups">;
         secret: string;
         sent: boolean;
+        state?:
+          | "ready"
+          | "waitingForStream"
+          | "waitingForActivity"
+          | "intervalPending"
+          | "rateLimited"
+          | "providerUnavailable"
+          | "authorizationRevoked"
+          | "failed"
+          | "uncertain";
       },
       null
     >;
@@ -3025,6 +3036,7 @@ export declare const api: {
             | "intervalPending"
             | "rateLimited"
             | "providerUnavailable"
+            | "authorizationRevoked"
             | "failed"
             | "uncertain";
           diagnosticAt?: number;
@@ -7310,6 +7322,7 @@ export declare const internal: {
             | "intervalPending"
             | "rateLimited"
             | "providerUnavailable"
+            | "authorizationRevoked"
             | "failed"
             | "uncertain";
           diagnosticAt?: number;
@@ -7321,6 +7334,7 @@ export declare const internal: {
             phase?: "prepared" | "sending" | "uncertain";
             revision: number;
             rotation?: string;
+            priorAttemptAt?: number;
             streamId?: string;
           };
           executionSequence?: number;
@@ -7385,6 +7399,7 @@ export declare const internal: {
           | "intervalPending"
           | "rateLimited"
           | "providerUnavailable"
+          | "authorizationRevoked"
           | "failed"
           | "uncertain";
       },
@@ -7458,6 +7473,16 @@ export declare const internal: {
         executionId: string;
         id: Id<"twitchTimerGroups">;
         sent: boolean;
+        state?:
+          | "ready"
+          | "waitingForStream"
+          | "waitingForActivity"
+          | "intervalPending"
+          | "rateLimited"
+          | "providerUnavailable"
+          | "authorizationRevoked"
+          | "failed"
+          | "uncertain";
       },
       null
     >;

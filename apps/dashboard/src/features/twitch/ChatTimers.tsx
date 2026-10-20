@@ -45,6 +45,7 @@ const states: Record<NonNullable<Group["diagnostic"]>, string> = {
   intervalPending: "Interval pending",
   rateLimited: "Rate limited",
   providerUnavailable: "Provider unavailable",
+  authorizationRevoked: "Authorization revoked",
   failed: "Last send failed",
   uncertain: "Last attempt uncertain",
 }
@@ -356,7 +357,7 @@ export function TimerEditor({
           <Switch
             id={`${prefix}-enabled`}
             checked={draft.enabled}
-            disabled={busy || (locked && !draft.enabled)}
+            disabled={busy || (locked && !group?.enabled)}
             onCheckedChange={(enabled) => patch({ enabled })}
           />
         </Field>
@@ -507,7 +508,7 @@ export function TimerEditor({
         <p role="alert" className="text-sm text-destructive">
           Use a group name, an interval of 5-120 minutes, a chat threshold of
           1-100, and 1-20 nonempty messages of up to 500 characters without line
-          breaks or control characters. Messages cannot start with / or .
+          breaks or control characters. Messages cannot start with "/" or ".".
         </p>
       )}
       <div className="flex flex-wrap gap-3 border-t pt-5">
@@ -518,7 +519,7 @@ export function TimerEditor({
             !dirty ||
             !validation.success ||
             !!changed ||
-            (locked && draft.enabled) ||
+            (locked && draft.enabled && !group?.enabled) ||
             !!group?.broadcasterChanged
           }
         >

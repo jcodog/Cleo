@@ -54,13 +54,15 @@ export class ConvexService {
     id: string,
     executionId: string,
     sent: boolean,
-    definite = false
+    definite = false,
+    state?: z.infer<typeof timerRuntimeState>
   ): Promise<void> {
     await this.action("twitchTimerActions:settle", {
       id,
       executionId,
       sent,
       definite,
+      state,
     })
   }
   async beginTimer(

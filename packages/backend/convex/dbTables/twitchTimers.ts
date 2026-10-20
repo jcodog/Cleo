@@ -15,6 +15,7 @@ export const timerState = v.union(
   v.literal("intervalPending"),
   v.literal("rateLimited"),
   v.literal("providerUnavailable"),
+  v.literal("authorizationRevoked"),
   v.literal("failed"),
   v.literal("uncertain")
 )
@@ -48,6 +49,7 @@ export const timerGroupFields = {
         )
       ),
       rotation: v.optional(v.string()),
+      priorAttemptAt: v.optional(v.number()),
     })
   ),
   diagnostic: v.optional(timerState),

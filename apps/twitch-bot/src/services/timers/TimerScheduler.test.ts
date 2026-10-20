@@ -4,6 +4,7 @@ import type { TimerRuntimeGroup } from "@workspace/shared/twitchTimers"
 import { TimerScheduler } from "./TimerScheduler"
 import { ChatActivity } from "./ChatActivity"
 import { ChatBackpressure } from "../ChatSendQueue"
+import { ChatSendQueue } from "../ChatSendQueue"
 import { silentLogger } from "../../../tests/fixtures"
 import type { ConvexService } from "../ConvexService"
 import { TwitchApiService, TwitchFailure } from "../TwitchApiService"
@@ -63,9 +64,10 @@ function setup() {
             expiresAt: now + 60000,
           }
         : null,
-    settleTimer: async (_id, _execution, success) => {
+    settleTimer: async (_id, _execution, success, _definite, state) => {
       if (settleFailure) throw new Error("down")
       settled.push(success)
+      if (state) states.push(state)
     },
     diagnoseTimer: async (_id: string, _revision: number, state: string) => {
       states.push(state)
@@ -358,6 +360,9 @@ test("same-stream restart preserves rotation, a new stream resets enabled groups
   fresh.advance(300000)
   fresh.chat()
   await fresh.scheduler.tick()
+  fresh.advance(15000)
+  fresh.chat()
+  await fresh.scheduler.tick()
   assert.deepEqual(fresh.sent, ["first", "first"])
   const calls = t.mock.method(fresh.provider, "liveBroadcasters")
   await fresh.scheduler.lifecycle("222", false, fresh.now() - 400000)
@@ -380,9 +385,20 @@ test("definite provider rejection releases a claim while ambiguous POSTs remain 
         _id: string,
         _execution: string,
         _sent: boolean,
-        definite?: boolean
+        definite?: boolean,
+        state?: string
       ) => {
         results.push(!!definite)
+        assert.equal(
+          state,
+          status === 429
+            ? "rateLimited"
+            : status === 401 || status === 403
+              ? "authorizationRevoked"
+              : status === 400 || status === 422
+                ? "failed"
+                : "providerUnavailable"
+        )
       }
     )
     t.mock.method(
@@ -659,7 +675,7 @@ test("queued work rechecks fresh activity, shutdown, configuration and live stat
     await s.scheduler.stop()
   }
 })
-test("failed or suppressed claimed POSTs settle uncertain and never replay immediately", async (t) => {
+test("ambiguous POSTs quarantine while definite suppressions get a bounded retry", async (t) => {
   for (const mode of ["expired", "mismatch", "postFailure"]) {
     const s = setup()
     await s.scheduler.tick()
@@ -683,7 +699,7 @@ test("failed or suppressed claimed POSTs settle uncertain and never replay immed
     assert.deepEqual(s.settled, [false])
     s.advance(15000)
     await s.scheduler.tick()
-    assert.equal(s.settled.length, 1)
+    assert.equal(s.settled.length, mode === "postFailure" ? 1 : 2)
     await s.scheduler.stop()
   }
   const s = setup()
@@ -750,6 +766,140 @@ test("the full next interval starts after a slow confirmed send completes", asyn
   s.advance(1)
   await s.scheduler.tick()
   assert.equal(s.sent.length, 2)
+  await s.scheduler.stop()
+})
+
+test("three same-channel groups rotate fairly across intervals under sustained chat and a rejected POST", async (t) => {
+  const s = setup()
+  t.mock.method(Date, "now", s.now)
+  const groups = ["a", "b", "c", "other"].map((id) => ({
+    ...group,
+    id,
+    broadcasterId: id === "other" ? "444" : "222",
+    intervalMinutes: id === "c" ? 10 : 5,
+    minimumMessages: id === "b" ? 5 : 100,
+    messages: [`${id}:0`, `${id}:1`],
+  }))
+  s.changes(groups)
+  const cursors = new Map(groups.map((g) => [g.id, 0]))
+  const posts: { message: string; channel: string; at: number }[] = []
+  let rejected = false
+  const api = new TwitchApiService(apiConfig, async (_url, init) => {
+    const value = JSON.parse(String(init?.body))
+    posts.push({
+      message: value.message,
+      channel: value.broadcaster_id,
+      at: s.now(),
+    })
+    if (!rejected && value.message === "a:0") {
+      rejected = true
+      return Response.json(
+        {},
+        {
+          status: 429,
+          headers: { "Ratelimit-Reset": String((Date.now() + 1000) / 1000) },
+        }
+      )
+    }
+    return Response.json({ data: [{ message_id: "confirmed", is_sent: true }] })
+  })
+  const queue = new ChatSendQueue(undefined, s.now, async (ms) => s.advance(ms))
+  Object.defineProperty(api, "sends", { value: queue })
+  t.mock.method(s.provider, "sendChatMessage", api.sendChatMessage.bind(api))
+  t.mock.method(
+    s.provider,
+    "liveBroadcasters",
+    async () =>
+      new Map([
+        ["222", { id: "100", startedAt: 900000 }],
+        ["444", { id: "100", startedAt: 900000 }],
+      ])
+  )
+  t.mock.method(s.convex, "claimTimer", async (id: string) => ({
+    executionId: id,
+    message: `${id}:${cursors.get(id)}`,
+    expiresAt: s.now() + 60000,
+  }))
+  t.mock.method(
+    s.convex,
+    "settleTimer",
+    async (id: string, _execution: string, sent: boolean) => {
+      if (sent) cursors.set(id, 1 - cursors.get(id)!)
+    }
+  )
+  await s.scheduler.tick()
+  for (let tick = 0; tick < 100; tick++) {
+    s.advance(15000)
+    for (let message = 0; message < 1500; message++)
+      for (const channel of ["222", "444"])
+        s.activity.observe(channel, "viewer", `${tick}:${message}`, s.now())
+    await s.scheduler.tick()
+  }
+  for (const id of cursors.keys()) {
+    const messages = posts.filter((p) => p.message.startsWith(`${id}:`))
+    assert.ok(messages.length >= 2, `${id} must send across multiple intervals`)
+    assert.ok(messages.some((p) => p.message === `${id}:1`))
+  }
+  for (let i = 1; i < posts.length; i++)
+    assert.ok(posts[i]!.at - posts[i - 1]!.at >= 1700)
+  for (const channel of ["222", "444"]) {
+    const sameChannel = posts.filter((p) => p.channel === channel)
+    for (let i = 1; i < sameChannel.length; i++)
+      assert.ok(sameChannel[i]!.at - sameChannel[i - 1]!.at >= 2000)
+  }
+  await s.scheduler.stop()
+})
+
+test("queue waiting and final provider checks remain prepared; the bounded begin gate cannot stall an alert", async (t) => {
+  const s = setup()
+  await s.scheduler.tick()
+  let entered: () => void = () => {}
+  const waiting = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  const begins = t.mock.method(s.convex, "beginTimer", async () => {
+    entered()
+    return new Promise<boolean>(() => {})
+  })
+  const api = new TwitchApiService(apiConfig, async () =>
+    Response.json({ data: [{ message_id: "alert", is_sent: true }] })
+  )
+  t.mock.method(s.provider, "sendChatMessage", api.sendChatMessage.bind(api))
+  s.advance(300000)
+  s.chat()
+  const tick = s.scheduler.tick()
+  // Before dequeue, preparation has not crossed the durable attempt boundary.
+  assert.equal(begins.mock.callCount(), 0)
+  await waiting
+  const began = performance.now()
+  const alert = api.sendChatMessage("app", "444", "alert")
+  await tick
+  assert.equal(begins.mock.callCount(), 1)
+  assert.equal(await alert, "alert")
+  assert.ok(
+    performance.now() - began < 1500,
+    "a stalled fence cannot hold an alert for the normal five-second timeout"
+  )
+  assert.deepEqual(s.settled, [false])
+  await s.scheduler.stop()
+})
+
+test("definite dropped messages keep failed diagnostics and never advance rotation", async (t) => {
+  const s = setup()
+  await s.scheduler.tick()
+  s.advance(300000)
+  s.chat()
+  t.mock.method(
+    s.provider,
+    "sendChatMessage",
+    async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => {
+      await args[3]!()
+      throw new TwitchFailure("messageDropped")
+    }
+  )
+  await s.scheduler.tick()
+  assert.deepEqual(s.sent, [])
+  assert.ok(s.states.includes("failed"))
   await s.scheduler.stop()
 })
 

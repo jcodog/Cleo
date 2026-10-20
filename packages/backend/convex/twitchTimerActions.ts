@@ -70,6 +70,7 @@ export const settle = action({
     executionId: v.string(),
     sent: v.boolean(),
     definite: v.optional(v.boolean()),
+    state: v.optional(timerState),
   },
   returns: v.null(),
   handler: async (ctx, { secret, ...args }) => {

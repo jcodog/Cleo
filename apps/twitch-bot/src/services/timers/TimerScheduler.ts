@@ -31,6 +31,8 @@ type Settlement = {
   executionId: string
   sent: boolean
   definite: boolean
+  state: Parameters<ConvexService["diagnoseTimer"]>[2]
+  retryAt: number
 }
 const RECONCILE_MS = 5 * 60_000
 const PREPARED_FRESH_MS = 2_000
@@ -203,8 +205,14 @@ export class TimerScheduler {
         this.logger.warn("Timer stream reconciliation unavailable")
       }
     }
+    const selected = new Set<string>()
     const due = [...this.activeGroups.values()]
-      .filter((e) => e.dueAt <= this.now())
+      .filter((e) => {
+        if (e.dueAt > this.now() || selected.has(e.group.broadcasterId))
+          return false
+        selected.add(e.group.broadcasterId)
+        return true
+      })
       .slice(0, 4)
     await Promise.all(
       due.map(async (entry) => {
@@ -330,6 +338,7 @@ export class TimerScheduler {
     let execution: Awaited<ReturnType<ConvexService["claimTimer"]>> = null
     let postStarted = false,
       confirmed = false
+    let state: Settlement["state"] = "intervalPending"
     try {
       const token = await this.auth.appToken()
       execution = await this.convex.claimTimer(
@@ -348,21 +357,14 @@ export class TimerScheduler {
           group.messages[group.cursor % group.messages.length]
       )
         return
-      if (
-        !(await this.convex.beginTimer(
-          group.id,
-          execution.executionId,
-          session.id
-        ))
-      )
-        return
       const live = (
         await this.api.liveBroadcasters(token, [group.broadcasterId])
       ).get(group.broadcasterId)
       if (live?.id !== session.id) {
         this.deactivate(group.broadcasterId)
         this.reconcileAt = 0
-        await this.diagnose(entry, "waitingForStream")
+        state = "waitingForStream"
+        await this.convex.timerSession(group.broadcasterId, this.now(), live)
         return
       }
       const preparedAt = this.now()
@@ -370,8 +372,29 @@ export class TimerScheduler {
         token,
         group.broadcasterId,
         execution.message,
-        () => {
+        async () => {
           if (
+            !this.valid(entry, session) ||
+            execution!.expiresAt <= this.now() ||
+            this.now() - preparedAt >= PREPARED_FRESH_MS
+          )
+            return false
+          // Only this final database fence runs at the queue slot. OAuth and
+          // provider preparation stay outside. A slow fence releases the slot
+          // within 500 ms and its matching definite settlement cancels late commits.
+          let deadline: ReturnType<typeof setTimeout> | undefined
+          const begun = await Promise.race([
+            this.convex.beginTimer(
+              group.id,
+              execution!.executionId,
+              session.id
+            ),
+            new Promise<false>((resolve) => {
+              deadline = setTimeout(() => resolve(false), 500)
+            }),
+          ]).finally(() => clearTimeout(deadline))
+          if (
+            !begun ||
             !this.valid(entry, session) ||
             execution!.expiresAt <= this.now() ||
             this.now() - preparedAt >= PREPARED_FRESH_MS
@@ -389,6 +412,20 @@ export class TimerScheduler {
         entry.baseline = this.activity.snapshot(group.broadcasterId).count
       }
     } catch (error) {
+      state =
+        error instanceof ChatBackpressure
+          ? "rateLimited"
+          : error instanceof TwitchFailure && error.status === 429
+            ? "rateLimited"
+            : error instanceof TwitchFailure &&
+                (error.status === 401 || error.status === 403)
+              ? "authorizationRevoked"
+              : error instanceof TwitchFailure &&
+                  (error.code === "messageDropped" ||
+                    error.status === 400 ||
+                    error.status === 422)
+                ? "failed"
+                : "providerUnavailable"
       if (
         error instanceof TwitchFailure &&
         (error.code === "messageDropped" ||
@@ -412,6 +449,8 @@ export class TimerScheduler {
           executionId: execution.executionId,
           sent: confirmed,
           definite: !postStarted,
+          state,
+          retryAt: this.now() + TIMER_REFRESH_MS,
         }
         this.settlements.set(execution.executionId, settlement)
         entry.dueAt = Infinity
@@ -422,10 +461,18 @@ export class TimerScheduler {
   private async persistSettlement(settlement: Settlement): Promise<void> {
     const { entry, executionId, sent, definite } = settlement
     try {
-      await this.convex.settleTimer(entry.group.id, executionId, sent, definite)
+      await this.convex.settleTimer(
+        entry.group.id,
+        executionId,
+        sent,
+        definite,
+        settlement.state
+      )
       this.settlements.delete(executionId)
       if (sent || definite)
-        entry.dueAt = this.now() + entry.group.intervalMinutes * 60_000
+        entry.dueAt = sent
+          ? this.now() + entry.group.intervalMinutes * 60_000
+          : Math.max(this.now(), settlement.retryAt)
     } catch {
       this.logger.warn("Timer settlement pending")
     }

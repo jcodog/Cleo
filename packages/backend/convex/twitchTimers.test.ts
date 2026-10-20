@@ -336,6 +336,142 @@ test("a confirmed in-flight send advances through metadata edits without advanci
   assert.equal((await t.run((ctx) => ctx.db.get(id)))?.cursor, 1)
 })
 
+test("restart recovers pre-POST preparation but fences the durable attempt boundary", async () => {
+  for (const stage of [
+    "beforeClaim",
+    "prepared",
+    "liveCheck",
+    "queued",
+    "attempt",
+    "confirmed",
+    "settled",
+  ]) {
+    const { t, owner, userId } = await setup()
+    const id = await owner.mutation(api.twitchTimers.save, config)
+    await readyRuntime(t)
+    await readyChat(t, userId)
+    await t.run((ctx) =>
+      ctx.db.patch(id, { lastAttemptAt: Date.now() - 400000 })
+    )
+    const { chatAccount, chatEvidence } = await import("./twitchChat")
+    const args = {
+      id,
+      revision: 1,
+      streamId: "100",
+      verifiedAt: Date.now(),
+      evidence: await t.run(async (ctx) =>
+        chatEvidence(await chatAccount(ctx, userId))
+      ),
+    }
+    if (stage !== "beforeClaim") {
+      const execution = await t.mutation(internal.twitchTimers.claim, args)
+      assert.ok(execution)
+      if (["attempt", "confirmed", "settled"].includes(stage)) {
+        assert.equal(
+          await t.mutation(internal.twitchTimers.begin, {
+            id,
+            executionId: execution.executionId,
+            streamId: "100",
+          }),
+          true
+        )
+      }
+      if (stage === "settled") {
+        await t.mutation(internal.twitchTimers.settle, {
+          id,
+          executionId: execution.executionId,
+          sent: true,
+        })
+        // The committed acknowledgement was lost; idempotent success is safe.
+        await t.mutation(internal.twitchTimers.settle, {
+          id,
+          executionId: execution.executionId,
+          sent: true,
+        })
+        assert.equal((await t.run((ctx) => ctx.db.get(id)))?.cursor, 1)
+      } else {
+        await t.run(async (ctx) => {
+          const row = await ctx.db.get(id)
+          assert.ok(row?.execution)
+          await ctx.db.patch(id, {
+            execution: { ...row.execution, expiresAt: 1 },
+            lastAttemptAt: 1,
+          })
+        })
+      }
+    }
+    // Read durable state as a restarted worker, without any original execution object.
+    const row = await t.run((ctx) => ctx.db.get(id))
+    const fresh = await t.mutation(internal.twitchTimers.claim, {
+      ...args,
+      verifiedAt: Date.now(),
+    })
+    if (stage === "attempt" || stage === "confirmed" || stage === "settled") {
+      assert.equal(fresh, null, `${stage} cannot blindly replay`)
+    } else {
+      assert.ok(fresh, `${stage} is recoverable`)
+      assert.notEqual(fresh.executionId, row?.execution?.id)
+      // Definite cancellation fences even a late begin response.
+      await t.mutation(internal.twitchTimers.settle, {
+        id,
+        executionId: fresh.executionId,
+        sent: false,
+        definite: true,
+        state: "intervalPending",
+      })
+      assert.equal(
+        await t.mutation(internal.twitchTimers.begin, {
+          id,
+          executionId: fresh.executionId,
+          streamId: "100",
+        }),
+        false
+      )
+    }
+  }
+})
+
+test("settlement preserves offline, specific definite failure and ambiguous diagnostics", async () => {
+  const { t, owner, userId } = await setup()
+  const id = await owner.mutation(api.twitchTimers.save, config)
+  await readyRuntime(t)
+  await readyChat(t, userId)
+  await t.run((ctx) => ctx.db.patch(id, { lastAttemptAt: Date.now() - 400000 }))
+  const { chatAccount, chatEvidence } = await import("./twitchChat")
+  const args = {
+    id,
+    revision: 1,
+    streamId: "100",
+    verifiedAt: Date.now(),
+    evidence: await t.run(async (ctx) =>
+      chatEvidence(await chatAccount(ctx, userId))
+    ),
+  }
+  for (const state of [
+    "waitingForStream",
+    "waitingForActivity",
+    "intervalPending",
+    "providerUnavailable",
+    "authorizationRevoked",
+    "rateLimited",
+    "failed",
+  ] as const) {
+    await t.run((ctx) => ctx.db.patch(id, { sessionLive: true }))
+    const execution = await t.mutation(internal.twitchTimers.claim, args)
+    assert.ok(execution)
+    if (state === "waitingForStream")
+      await t.run((ctx) => ctx.db.patch(id, { sessionLive: false }))
+    await t.mutation(internal.twitchTimers.settle, {
+      id,
+      executionId: execution.executionId,
+      sent: false,
+      definite: true,
+      state,
+    })
+    assert.equal((await t.run((ctx) => ctx.db.get(id)))?.diagnostic, state)
+  }
+})
+
 test("timer lifecycle consumers share Discord subscriptions and repair failed lifecycle subscriptions", async () => {
   const { t, owner, userId } = await setup()
   const { subscriptionIdentity } =
@@ -798,20 +934,30 @@ test("ownership, invalid inputs, concurrent free creation, test grants and lossl
     [false, true, true]
   )
   assert.equal(view.groups.length, 3)
-  await assert.rejects(
-    owner.mutation(api.twitchTimers.save, {
-      ...config,
-      id: secondId,
-      revision: 1,
-    }),
-    /Premium/
+  await owner.mutation(api.twitchTimers.save, {
+    ...config,
+    id: secondId,
+    revision: 1,
+    name: "Saved while locked",
+  })
+  assert.equal(
+    (await owner.query(api.twitchTimers.list, {})).groups[1]?.enabled,
+    true
   )
   await owner.mutation(api.twitchTimers.save, {
     ...config,
     enabled: false,
     id: secondId,
-    revision: 1,
+    revision: 2,
   })
+  await assert.rejects(
+    owner.mutation(api.twitchTimers.save, {
+      ...config,
+      id: secondId,
+      revision: 3,
+    }),
+    /Premium/
+  )
   await t.mutation(internal.twitchTimers.provisionTestGrant, grant)
   view = await owner.query(api.twitchTimers.list, {})
   assert.equal(view.groups[1]?.enabled, false)

@@ -145,6 +145,8 @@ client.mutation = async (reference, args) => {
     const previous = view.groups.find((group) => group.id === value.id)
     if (previous && previous.revision !== value.revision)
       throw new Error("Revision conflict")
+    if (previous?.locked && value.enabled && !previous.enabled)
+      throw new Error("Premium access is required to enable this group.")
     const id = value.id ?? "timer2"
     const group = {
       ...value,
@@ -152,7 +154,7 @@ client.mutation = async (reference, args) => {
       revision: (value.revision ?? 0) + 1,
       cursor: previous ? editedTimerCursor(previous, value.messages) : 0,
       sessionLive: previous?.sessionLive ?? false,
-      locked: false,
+      locked: previous?.locked ?? false,
       broadcasterChanged: false,
     }
     view = {

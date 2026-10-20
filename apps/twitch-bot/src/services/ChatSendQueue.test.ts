@@ -4,7 +4,10 @@ import { ChatBackpressure, ChatSendQueue } from "./ChatSendQueue"
 
 test("default queue clock and deadline wait execute an ordinary second send", async () => {
   const queue = new ChatSendQueue()
-  await queue.run("a", async () => "first")
+  await queue.run("a", async (mark) => {
+    mark()
+    return "first"
+  })
   assert.equal(await queue.run("b", async () => "second"), "second")
 })
 
@@ -19,7 +22,8 @@ test("shared queue spaces channels and global attempts, fairly rotates and propa
   )
   const sent: [string, number][] = []
   const send = (channel: string) =>
-    queue.run(channel, async () => {
+    queue.run(channel, async (mark) => {
+      mark()
       sent.push([channel, now])
       return channel
     })
@@ -48,6 +52,26 @@ test("shared queue spaces channels and global attempts, fairly rotates and propa
   )
   queue.defer(now + 10000)
   await assert.rejects(send("a"), ChatBackpressure)
+})
+
+test("suppressed gates consume no global or channel HTTP pacing", async () => {
+  let now = 1000
+  const queue = new ChatSendQueue(
+    undefined,
+    () => now,
+    async (ms) => {
+      now += ms
+    }
+  )
+  await queue.run("a", async () => "")
+  await queue.run("a", async (mark) => {
+    assert.equal(now, 1000)
+    mark()
+  })
+  await queue.run("b", async (mark) => {
+    assert.equal(now, 2700)
+    mark()
+  })
 })
 test("queue bounds global and per-channel pending work and cancels on shutdown", async () => {
   const controller = new AbortController()

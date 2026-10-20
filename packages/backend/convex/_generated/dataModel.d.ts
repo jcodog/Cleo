@@ -2837,6 +2837,7 @@ export type DataModel = {
         | "intervalPending"
         | "rateLimited"
         | "providerUnavailable"
+        | "authorizationRevoked"
         | "failed"
         | "uncertain";
       diagnosticAt?: number;
@@ -2848,6 +2849,7 @@ export type DataModel = {
         phase?: "prepared" | "sending" | "uncertain";
         revision: number;
         rotation?: string;
+        priorAttemptAt?: number;
         streamId?: string;
       };
       executionSequence?: number;

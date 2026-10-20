@@ -30,6 +30,7 @@ export const timerRuntimeState = z.enum([
   "intervalPending",
   "rateLimited",
   "providerUnavailable",
+  "authorizationRevoked",
   "failed",
   "uncertain",
 ])

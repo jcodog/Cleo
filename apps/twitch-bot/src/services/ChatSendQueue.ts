@@ -84,17 +84,12 @@ export class ChatSendQueue {
         for (const [id, until] of this.channels)
           if (until <= now) this.channels.delete(id)
         try {
-          let attempted = false
           const attempt = () => {
-            attempted = true
             const at = this.now()
             this.nextAt = Math.max(this.nextAt, at + 1_700)
             this.channels.set(entry.channel, at + 2_000)
           }
           await entry.run(attempt)
-          // Generic callers without an explicit POST boundary get conservative
-          // completion-based spacing. The Helix adapter always marks its POST.
-          if (!attempted) attempt()
         } catch (error) {
           entry.reject(
             error instanceof Error ? error : new Error("Chat send failed.")

@@ -72,7 +72,7 @@ test("revision conflicts preserve the draft until an explicit reload and retry",
   await expect(page.getByText("Group saved.", { exact: true })).toBeVisible()
 })
 
-test("lost entitlement rejects edits without erasing the draft and restoration allows retry", async ({
+test("lost entitlement preserves the draft, allows saved edits and restores eligibility", async ({
   page,
 }) => {
   await page.goto("/twitch/timers?fail=entitlement")
@@ -83,14 +83,16 @@ test("lost entitlement rejects edits without erasing the draft and restoration a
   await expect(page.getByLabel("Group name")).toHaveValue("Preserved draft")
   await expect(
     page.getByRole("button", { name: "Save group", exact: true })
-  ).toBeDisabled()
+  ).toBeEnabled()
+  await page.getByRole("button", { name: "Save group", exact: true }).click()
+  await expect(page.getByText("Group saved.", { exact: true })).toBeVisible()
+  await expect(page.getByText(/saved enablement are preserved/)).toBeVisible()
   await page.evaluate(() =>
     dispatchEvent(
       new CustomEvent("timer-fixture", { detail: { restore: true } })
     )
   )
-  await page.getByRole("button", { name: "Save group", exact: true }).click()
-  await expect(page.getByText("Group saved.", { exact: true })).toBeVisible()
+  await expect(page.getByText(/saved enablement are preserved/)).not.toBeVisible()
 })
 
 test("health expires without another query and live lifecycle labels preserve message-zero rotation", async ({
@@ -202,6 +204,10 @@ test("timer messages validate, reorder with keyboard controls, save and retain l
   await expect(
     page.getByRole("button", { name: "Save group", exact: true })
   ).toBeDisabled()
+  await page.getByLabel("Group name").fill("Locked saved preference")
+  await page.getByRole("button", { name: "Save group", exact: true }).click()
+  await expect(page.getByText("Group saved.")).toBeVisible()
+  await expect(page.getByText(/saved enablement are preserved/)).toBeVisible()
   await page.screenshot({
     path: "test-results/twitch/timers-locked-light.png",
     fullPage: true,
