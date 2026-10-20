@@ -31,6 +31,15 @@ import { internal } from "./_generated/api"
 import { setEventConsumer } from "./lib/twitchConsumers"
 
 type Ctx = QueryCtx | MutationCtx
+function claimDeadline(group: Doc<"twitchTimerGroups">): number {
+  return (
+    Math.max(
+      group.lastAttemptAt ?? group.sessionStartedAt ?? group._creationTime,
+      group.lastSentAt ?? 0
+    ) +
+    group.intervalMinutes * 60_000
+  )
+}
 async function broadcaster(ctx: Ctx, userId: Id<"users">) {
   const accounts = await ctx.db
     .query("linkedAccounts")
@@ -160,6 +169,10 @@ export const list = query({
       expiresAt: v.union(v.number(), v.null()),
     }),
     connected: v.boolean(),
+    draftScope: v.union(
+      v.object({ userId: v.id("users"), broadcasterId: v.string() }),
+      v.null()
+    ),
     groups: v.array(timerProjection),
   }),
   handler: async (ctx) => {
@@ -185,6 +198,9 @@ export const list = query({
     return {
       entitlement,
       connected: !!account,
+      draftScope: account
+        ? { userId: user._id, broadcasterId: account.providerAccountId }
+        : null,
       groups: groups.map((g) => ({
         id: g._id,
         name: g.name,
@@ -289,6 +305,7 @@ export const remove = mutation({
       enabled: false,
       messages: [],
       name: "Deleted group",
+      execution: undefined,
       revision: group.revision + 1,
       updatedAt: Date.now(),
     })
@@ -346,6 +363,7 @@ export const revokeTestGrant = internalMutation({
 const pageArgs = {
   since: v.optional(v.number()),
   cursor: v.optional(v.string()),
+  until: v.optional(v.number()),
 }
 export const refreshLifecycle = internalMutation({
   args: { userId: v.id("users") },
@@ -361,6 +379,7 @@ export const runtimePage = internalQuery({
   args: pageArgs,
   returns: runtimePageResult,
   handler: async (ctx, args) => {
+    const until = Math.min(args.until ?? Date.now(), Date.now())
     const rows =
       args.since === undefined
         ? ctx.db
@@ -370,37 +389,69 @@ export const runtimePage = internalQuery({
             )
         : ctx.db
             .query("twitchTimerGroups")
-            .withIndex("by_updated", (q) => q.gte("updatedAt", args.since!))
+            .withIndex("by_updated", (q) =>
+              q.gte("updatedAt", args.since!).lte("updatedAt", until)
+            )
     const page = await rows.paginate({
       numItems: 100,
       cursor: args.cursor ?? null,
     })
+    const owners = new Map<
+      Id<"users">,
+      Promise<{
+        account: Awaited<ReturnType<typeof chatAccount>>
+        groups: Doc<"twitchTimerGroups">[]
+      }>
+    >()
+    const eligibility = new Map<string, Promise<Set<Id<"twitchTimerGroups">>>>()
+    const eligibleFor = (group: Doc<"twitchTimerGroups">) => {
+      const key = `${group.userId}:${group.broadcasterId}`
+      let result = eligibility.get(key)
+      if (!result) {
+        let owner = owners.get(group.userId)
+        if (!owner) {
+          owner = Promise.all([
+            chatAccount(ctx, group.userId),
+            groupsFor(ctx, group.userId),
+          ]).then(([account, groups]) => ({ account, groups }))
+          owners.set(group.userId, owner)
+        }
+        result = Promise.all([
+          owner,
+          capacity(ctx, group.userId, group.broadcasterId),
+        ]).then(
+          ([{ account, groups }, entitlement]) =>
+            new Set(
+              eligibleTimerGroups(
+                groups.map((row) => ({
+                  ...row,
+                  broadcasterChanged:
+                    account.twitch.length !== 1 ||
+                    row.broadcasterId !==
+                      account.twitch[0]?.providerAccountId ||
+                    account.user?.status === "disabled",
+                })),
+                entitlement.limit
+              ).map((row) => row._id)
+            )
+        )
+        eligibility.set(key, result)
+      }
+      return result
+    }
     return {
       // Query and mutations use the same Convex clock. Overlap exceeds the
       // bounded mutation transaction lifetime, including commits after a page.
-      startedAt: Date.now() - 120_000,
+      startedAt: until - 120_000,
       groups: await Promise.all(
         page.page.map(async (g) => {
-          const account = await chatAccount(ctx, g.userId)
-          const entitlement = await capacity(ctx, g.userId, g.broadcasterId)
-          const eligible = eligibleTimerGroups(
-            (await groupsFor(ctx, g.userId)).map((row) => ({
-              ...row,
-              broadcasterChanged:
-                account.twitch.length !== 1 ||
-                row.broadcasterId !== account.twitch[0]?.providerAccountId ||
-                account.user?.status === "disabled",
-            })),
-            entitlement.limit
-          )
+          const enabled =
+            g.enabled && !g.deleted && (await eligibleFor(g)).has(g._id)
           return {
             id: g._id,
             broadcasterId: g.broadcasterId,
             name: g.name,
-            enabled:
-              g.enabled &&
-              !g.deleted &&
-              eligible.some((row) => row._id === g._id),
+            enabled,
             messages: g.messages,
             intervalMinutes: g.intervalMinutes,
             minimumMessages: g.minimumMessages,
@@ -442,7 +493,8 @@ export const claimContext = internalQuery({
       !group.enabled ||
       !group.sessionLive ||
       group.revision !== revision ||
-      group.streamId !== streamId
+      group.streamId !== streamId ||
+      Date.now() < claimDeadline(group)
     )
       return null
     const account = await authorized(ctx, group)
@@ -550,12 +602,7 @@ export const claim = internalMutation({
       (group.execution &&
         (group.execution.phase !== "prepared" ||
           group.execution.expiresAt > now)) ||
-      now <
-        Math.max(
-          group.lastAttemptAt ?? group.sessionStartedAt ?? group._creationTime,
-          group.lastSentAt ?? 0
-        ) +
-          group.intervalMinutes * 60_000
+      now < claimDeadline(group)
     )
       return null
     const execution = {
@@ -590,7 +637,7 @@ export const settle = internalMutation({
     definite: v.optional(v.boolean()),
     state: v.optional(timerState),
   },
-  returns: v.null(),
+  returns: v.union(v.number(), v.null()),
   handler: async (ctx, args) => {
     const group = await ctx.db.get(args.id)
     if (!group?.execution || group.execution.id !== args.executionId)
@@ -627,7 +674,14 @@ export const settle = internalMutation({
           }
         : {}),
     })
-    return null
+    return args.sent
+      ? now + group.intervalMinutes * 60_000
+      : args.definite &&
+          group.execution.phase !== "prepared" &&
+          args.state !== "intervalPending" &&
+          args.state !== "waitingForStream"
+        ? (group.lastAttemptAt ?? now) + group.intervalMinutes * 60_000
+        : null
   },
 })
 export const begin = internalMutation({

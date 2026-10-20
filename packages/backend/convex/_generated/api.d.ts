@@ -2956,7 +2956,7 @@ export declare const api: {
     page: FunctionReference<
       "action",
       "public",
-      { cursor?: string; secret: string; since?: number },
+      { cursor?: string; secret: string; since?: number; until?: number },
       {
         cursor: string | null;
         groups: Array<{
@@ -3011,7 +3011,7 @@ export declare const api: {
           | "failed"
           | "uncertain";
       },
-      null
+      number | null
     >;
   };
   twitchTimers: {
@@ -3021,6 +3021,7 @@ export declare const api: {
       {},
       {
         connected: boolean;
+        draftScope: null | { userId: Id<"users">; broadcasterId: string };
         entitlement: {
           expiresAt: number | null;
           limit: number;
@@ -7431,7 +7432,7 @@ export declare const internal: {
     runtimePage: FunctionReference<
       "query",
       "internal",
-      { cursor?: string; since?: number },
+      { cursor?: string; since?: number; until?: number },
       {
         cursor: string | null;
         groups: Array<{
@@ -7484,7 +7485,7 @@ export declare const internal: {
           | "failed"
           | "uncertain";
       },
-      null
+      number | null
     >;
   };
 };

@@ -12,6 +12,7 @@ export const page = action({
     secret: v.string(),
     since: v.optional(v.number()),
     cursor: v.optional(v.string()),
+    until: v.optional(v.number()),
   },
   returns: v.object({
     groups: v.array(runtimeGroup),
@@ -72,7 +73,7 @@ export const settle = action({
     definite: v.optional(v.boolean()),
     state: v.optional(timerState),
   },
-  returns: v.null(),
+  returns: v.union(v.number(), v.null()),
   handler: async (ctx, { secret, ...args }) => {
     assertWorkerSecret(secret)
     return ctx.runMutation(internal.twitchTimers.settle, args)

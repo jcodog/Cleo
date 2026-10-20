@@ -68,6 +68,7 @@ function setup() {
       if (settleFailure) throw new Error("down")
       settled.push(success)
       if (state) states.push(state)
+      return null
     },
     diagnoseTimer: async (_id: string, _revision: number, state: string) => {
       states.push(state)
@@ -945,4 +946,560 @@ test("deadline loop cancels cleanly and does not replay missed sends after resta
   await restart.scheduler.tick()
   assert.equal(restart.sent.length, 0)
   await restart.scheduler.stop()
+})
+
+test("oversized incremental feeds resume bounded pages, remove tombstones and keep unrelated timers running", async (t) => {
+  const s = setup()
+  const healthy = { ...group, id: "healthy", broadcasterId: "444" }
+  s.changes([
+    group,
+    healthy,
+    { ...group, id: "deleted" },
+    { ...group, id: "disabled" },
+  ])
+  t.mock.method(
+    s.provider,
+    "liveBroadcasters",
+    async () =>
+      new Map([
+        ["222", { id: "100", startedAt: 900000 }],
+        ["444", { id: "100", startedAt: 900000 }],
+      ])
+  )
+  const cursors = new Map<string, number>()
+  const claims: string[] = []
+  t.mock.method(s.convex, "claimTimer", async (id: string) => {
+    claims.push(id)
+    return {
+      executionId: id,
+      message: ["first", "second"][cursors.get(id) ?? 0]!,
+      expiresAt: s.now() + 60000,
+    }
+  })
+  t.mock.method(
+    s.convex,
+    "settleTimer",
+    async (id: string, _execution: string, sent: boolean) => {
+      if (sent) cursors.set(id, 1 - (cursors.get(id) ?? 0))
+      return null
+    }
+  )
+  await s.scheduler.tick()
+  const feed = [
+    { ...group, id: "deleted", enabled: false, messages: [] },
+    { ...group, id: "disabled", enabled: false },
+    ...Array.from({ length: 11023 }, (_, i) => ({
+      ...group,
+      id: `history-${i}`,
+      enabled: false,
+      messages: [],
+    })),
+  ]
+  let pageCalls = 0,
+    completed = false
+  const positions: number[] = []
+  const snapshot = s.now() - 120000
+  t.mock.method(
+    s.convex,
+    "timerPage",
+    async (since?: number, cursor?: string, until?: number) => {
+      pageCalls++
+      if (completed)
+        return {
+          groups: [
+            { ...group, cursor: cursors.get("group") ?? 0, revision: 2 },
+            { ...healthy, cursor: cursors.get("healthy") ?? 0 },
+          ],
+          cursor: null,
+          startedAt: s.now() - 120000,
+        }
+      const offset = Number(cursor ?? "0")
+      positions.push(offset)
+      if (cursor) assert.equal(until, snapshot + 120000)
+      const next = offset + 100
+      completed = next >= feed.length
+      return {
+        groups: feed.slice(offset, next),
+        cursor: completed ? null : String(next),
+        startedAt: snapshot,
+      }
+    }
+  )
+  for (let tick = 0; !completed; tick++) {
+    s.advance(15000)
+    s.chat()
+    s.activity.observe("444", "viewer", `${tick}:a`, s.now())
+    s.activity.observe("444", "viewer", `${tick}:b`, s.now())
+    const before = pageCalls
+    await s.scheduler.tick()
+    assert.ok(pageCalls - before <= 4)
+  }
+  assert.ok(positions.length > 100)
+  assert.equal(new Set(positions).size, positions.length)
+  assert.ok(
+    claims.includes("healthy"),
+    "a tombstone backlog cannot expire unrelated scheduling"
+  )
+  assert.ok(!claims.includes("deleted") && !claims.includes("disabled"))
+  s.advance(15000)
+  await s.scheduler.tick()
+  const groups: Map<string, { group: TimerRuntimeGroup }> = Reflect.get(
+    s.scheduler,
+    "groups"
+  )
+  assert.equal(
+    groups.get("group")?.group.revision,
+    2,
+    "a concurrent edit is recovered by the next overlap"
+  )
+  assert.ok(groups.size <= 10000)
+  await s.scheduler.stop()
+  const activity = new ChatActivity("999")
+  const restart = new TimerScheduler(
+    s.convex,
+    s.provider,
+    { appToken: async () => "app" },
+    activity,
+    silentLogger,
+    s.abort.signal,
+    s.now
+  )
+  await restart.tick()
+  assert.equal(activity.snapshot("222").count, 0)
+  assert.equal((Reflect.get(restart, "groups") as Map<string, unknown>).size, 2)
+  await restart.stop()
+})
+
+test("an old POST completion cannot change a new stream cursor, baseline or interval", async (t) => {
+  const s = setup()
+  await s.scheduler.tick()
+  let release: () => void = () => {},
+    entered: () => void = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const waiting = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  let calls = 0
+  t.mock.method(
+    s.provider,
+    "sendChatMessage",
+    async (
+      _token: string,
+      _id: string,
+      message: string,
+      gate?: () => boolean | Promise<boolean>
+    ) => {
+      assert.equal(await gate!(), true)
+      if (++calls === 1) {
+        entered()
+        await held
+      }
+      s.sent.push(message)
+      return "confirmed"
+    }
+  )
+  s.advance(300000)
+  s.chat()
+  const old = s.scheduler.tick()
+  await waiting
+  s.advance(1)
+  await s.scheduler.lifecycle("222", false, s.now())
+  s.advance(1)
+  t.mock.method(
+    s.provider,
+    "liveBroadcasters",
+    async () => new Map([["222", { id: "101", startedAt: s.now() }]])
+  )
+  await s.scheduler.lifecycle("222", true, s.now())
+  s.chat()
+  release()
+  await old
+  const groups: Map<
+    string,
+    { group: TimerRuntimeGroup; baseline: number; dueAt: number }
+  > = Reflect.get(s.scheduler, "groups")
+  assert.equal(groups.get("group")!.group.cursor, 0)
+  assert.equal(groups.get("group")!.baseline, 0)
+  assert.notEqual(groups.get("group")!.dueAt, Infinity)
+  t.mock.method(s.convex, "claimTimer", async () => ({
+    executionId: `new-${calls}`,
+    message: calls === 1 ? "first" : "second",
+    expiresAt: s.now() + 60000,
+  }))
+  for (let i = 0; i < 2; i++) {
+    s.advance(300000)
+    s.chat()
+    await s.scheduler.tick()
+  }
+  assert.deepEqual(s.sent, ["first", "first", "second"])
+  await s.scheduler.stop()
+})
+
+test("confirmed in-flight responses respect metadata replacement, deletion and shutdown", async (t) => {
+  for (const mode of ["metadata", "delete", "stop"] as const) {
+    const s = setup()
+    await s.scheduler.tick()
+    s.advance(300000)
+    s.chat()
+    const original = s.provider.sendChatMessage
+    t.mock.method(
+      s.provider,
+      "sendChatMessage",
+      async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => {
+        const sent = await original(...args)
+        if (mode === "stop") s.scheduler.stopAccepting()
+        else {
+          s.changes([
+            { ...group, revision: 2, enabled: mode !== "delete", cursor: 0 },
+          ])
+          s.advance(15000)
+          await Reflect.get(s.scheduler, "refresh").call(s.scheduler)
+        }
+        return sent
+      }
+    )
+    await s.scheduler.tick()
+    const entries: Map<string, { group: TimerRuntimeGroup }> = Reflect.get(
+      s.scheduler,
+      "groups"
+    )
+    assert.equal(
+      entries.get("group")?.group.cursor,
+      mode === "delete" ? undefined : 0
+    )
+    assert.deepEqual(s.settled, [true])
+    await s.scheduler.stop()
+  }
+})
+
+test("a six-minute definitive attempt uses the authoritative cooldown without premature claims or drift", async (t) => {
+  for (const status of [429, 400, 401, 403, 422] as const) {
+    const s = setup()
+    s.changes([{ ...group, intervalMinutes: 6 }])
+    await s.scheduler.tick()
+    s.advance(360000)
+    s.chat()
+    const claims = t.mock.method(s.convex, "claimTimer")
+    const attemptedAt = s.now()
+    let failed = false
+    const send = s.provider.sendChatMessage
+    t.mock.method(
+      s.provider,
+      "sendChatMessage",
+      async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => {
+        if (!failed) {
+          failed = true
+          assert.equal(await args[3]!(), true)
+          throw new TwitchFailure("apiUnavailable", status)
+        }
+        return send(...args)
+      }
+    )
+    t.mock.method(s.convex, "settleTimer", async () => {
+      s.advance(2000)
+      return attemptedAt + 360000
+    })
+    await s.scheduler.tick()
+    for (const elapsed of [15000, 315000, 359999]) {
+      s.advance(attemptedAt + elapsed - s.now())
+      s.chat()
+      await s.scheduler.tick()
+      assert.equal(claims.mock.callCount(), 1)
+    }
+    s.advance(1)
+    s.chat()
+    await s.scheduler.tick()
+    assert.equal(claims.mock.callCount(), 2)
+    assert.deepEqual(s.sent, ["first"])
+    await s.scheduler.stop()
+  }
+})
+
+test("100 broadcaster reconciliation isolates failures, rejects stale observations and yields to sends", async (t) => {
+  const s = setup()
+  await s.scheduler.tick()
+  s.changes(
+    Array.from({ length: 100 }, (_, i) => ({
+      ...group,
+      id: i ? `group-${i}` : "group",
+      broadcasterId: i ? String(300 + i) : "222",
+    }))
+  )
+  let release: () => void = () => {},
+    entered: () => void = () => {}
+  const held = new Promise<void>((r) => {
+      release = r
+    }),
+    waiting = new Promise<void>((r) => {
+      entered = r
+    })
+  let slow = true,
+    bad = true
+  const seen = new Set<string>()
+  t.mock.method(s.convex, "timerSession", async (id: string) => {
+    seen.add(id)
+    if (id === "301" && slow) {
+      entered()
+      await held
+    }
+    if (id === "302" && bad) throw new Error("one backend failed")
+    return true
+  })
+  const get = t.mock.method(
+    s.provider,
+    "liveBroadcasters",
+    async (_token: string, ids: string[]) =>
+      new Map(ids.map((id) => [id, { id: "100", startedAt: 900000 }]))
+  )
+  s.advance(300000)
+  s.chat()
+  const tick = s.scheduler.tick()
+  await waiting
+  await tick
+  assert.equal(seen.size, 100)
+  assert.deepEqual(
+    s.sent,
+    ["first"],
+    "a slow session write does not hold normal sends"
+  )
+  s.advance(60001)
+  slow = false
+  bad = false
+  release()
+  await new Promise((r) => setImmediate(r))
+  assert.equal(
+    s.activity.snapshot("301").count,
+    0,
+    "stale live evidence cannot activate a channel"
+  )
+  s.advance(30000)
+  await s.scheduler.tick()
+  assert.ok(get.mock.callCount() >= 2)
+  s.activity.observe("301", "viewer", "fresh", s.now())
+  assert.equal(s.activity.snapshot("301").count, 1)
+  await s.scheduler.stop()
+})
+
+test("provider reconciliation failures retry after bounded backoff and shutdown drains pending work", async (t) => {
+  const s = setup()
+  s.providerFailure(true)
+  const get = t.mock.method(s.provider, "liveBroadcasters")
+  await s.scheduler.tick()
+  s.advance(29999)
+  await s.scheduler.tick()
+  assert.equal(get.mock.callCount(), 1)
+  s.providerFailure(false)
+  s.advance(1)
+  await s.scheduler.tick()
+  assert.equal(get.mock.callCount(), 2)
+  s.chat()
+  assert.equal(s.activity.snapshot("222").count, 2)
+  await s.scheduler.stop()
+  const failed = setup()
+  const scheduler = new TimerScheduler(
+    failed.convex,
+    failed.provider,
+    {
+      appToken: async () => {
+        throw new Error("token outage")
+      },
+    },
+    failed.activity,
+    silentLogger,
+    failed.abort.signal,
+    failed.now
+  )
+  await scheduler.tick()
+  assert.equal(failed.activity.snapshot("222").count, 0)
+  await scheduler.stop()
+})
+
+test("the active-group cap defers overflow without blocking feed progress and rescans after deletion", async (t) => {
+  const s = setup()
+  let rows = Array.from({ length: 10001 }, (_, i) => ({
+    ...group,
+    id: `active-${i}`,
+  }))
+  let finished = false
+  t.mock.method(
+    s.convex,
+    "timerPage",
+    async (_since?: number, cursor?: string) => {
+      const offset = Number(cursor ?? 0),
+        next = offset + 100
+      finished = next >= rows.length
+      return {
+        groups: rows.slice(offset, next),
+        cursor: finished ? null : String(next),
+        startedAt: s.now() - 120000,
+      }
+    }
+  )
+  do {
+    await s.scheduler.tick()
+    s.advance(15000)
+  } while (!finished)
+  const groups: Map<string, unknown> = Reflect.get(s.scheduler, "groups")
+  assert.equal(groups.size, 10000)
+  assert.equal(groups.has("active-10000"), false)
+  rows = [{ ...group, id: "active-0", enabled: false, messages: [] }]
+  finished = false
+  await s.scheduler.tick()
+  s.advance(15000)
+  rows = Array.from({ length: 10000 }, (_, i) => ({
+    ...group,
+    id: `active-${i + 1}`,
+  }))
+  finished = false
+  do {
+    await s.scheduler.tick()
+    s.advance(15000)
+  } while (!finished)
+  assert.equal(groups.size, 10000)
+  assert.equal(groups.has("active-10000"), true)
+  assert.equal(groups.has("active-0"), false)
+  await s.scheduler.stop()
+})
+
+test("confirmed pending settlements protect optimistic progress and a later feed repairs older timestamps", async () => {
+  const s = setup()
+  await s.scheduler.tick()
+  s.advance(300000)
+  s.chat()
+  s.settleFailure(true)
+  await s.scheduler.tick()
+  s.changes([{ ...group, cursor: 0, lastSentAt: 1 }])
+  s.advance(15000)
+  await s.scheduler.tick()
+  const entries: Map<string, { group: TimerRuntimeGroup }> = Reflect.get(
+    s.scheduler,
+    "groups"
+  )
+  assert.equal(
+    entries.get("group")!.group.cursor,
+    1,
+    "uncommitted confirmation cannot be undone by the feed"
+  )
+  s.settleFailure(false)
+  s.advance(15000)
+  await s.scheduler.tick()
+  s.changes([{ ...group, cursor: 0, lastSentAt: 1 }])
+  s.advance(15000)
+  await s.scheduler.tick()
+  assert.equal(
+    entries.get("group")!.group.cursor,
+    0,
+    "the backend repairs divergence even without an increasing timestamp"
+  )
+  await s.scheduler.stop()
+})
+
+test("a settlement from an old stream does not suppress a new stream feed, and stale batches obtain fresh evidence", async (t) => {
+  const s = setup()
+  await s.scheduler.tick()
+  s.advance(300000)
+  s.chat()
+  s.settleFailure(true)
+  await s.scheduler.tick()
+  s.advance(1)
+  await s.scheduler.lifecycle("222", false, s.now())
+  s.advance(1)
+  t.mock.method(
+    s.provider,
+    "liveBroadcasters",
+    async () => new Map([["222", { id: "101", startedAt: s.now() }]])
+  )
+  await s.scheduler.lifecycle("222", true, s.now())
+  s.changes([{ ...group, streamId: "101", cursor: 0, lastSentAt: 1 }])
+  s.advance(15000)
+  await s.scheduler.tick()
+  assert.equal(
+    (
+      Reflect.get(s.scheduler, "groups") as Map<
+        string,
+        { group: TimerRuntimeGroup }
+      >
+    ).get("group")!.group.cursor,
+    0
+  )
+  await s.scheduler.stop()
+  const stale = setup()
+  let checks = 0
+  t.mock.method(stale.provider, "liveBroadcasters", async () => {
+    if (++checks === 1) stale.advance(55000)
+    return new Map([["222", { id: "100", startedAt: 900000 }]])
+  })
+  await stale.scheduler.tick()
+  assert.equal(stale.activity.snapshot("222").count, 0)
+  stale.advance(30000)
+  await stale.scheduler.tick()
+  stale.chat()
+  assert.equal(stale.activity.snapshot("222").count, 2)
+  await stale.scheduler.stop()
+})
+
+test("failed lifecycle persistence retries safely and retired broadcasters release retry memory", async (t) => {
+  const s = setup()
+  await s.scheduler.tick()
+  t.mock.method(s.convex, "timerSession", async () => {
+    throw new Error("offline persistence outage")
+  })
+  s.advance(1)
+  await s.scheduler.lifecycle("222", false, s.now())
+  s.chat()
+  assert.equal(s.activity.snapshot("222").count, 0)
+  await s.scheduler.stop()
+  const removed = setup()
+  removed.providerFailure(true)
+  await removed.scheduler.tick()
+  removed.changes([{ ...group, enabled: false }])
+  removed.advance(15000)
+  await removed.scheduler.tick()
+  assert.equal(
+    (Reflect.get(removed.scheduler, "reconcileRetry") as Map<string, number>)
+      .size,
+    0
+  )
+  await removed.scheduler.stop()
+})
+
+test("late offline persistence failures cannot deactivate newer event or reconciliation evidence", async (t) => {
+  for (const via of ["event", "reconciliation"] as const) {
+    const s = setup()
+    await s.scheduler.tick()
+    let rejectOld: (reason: Error) => void = () => {}
+    const held = new Promise<boolean>((_resolve, reject) => {
+      rejectOld = reject
+    })
+    t.mock.method(
+      s.convex,
+      "timerSession",
+      async (
+        _id: string,
+        _at: number,
+        stream?: { id: string; startedAt: number }
+      ) => (stream ? true : held)
+    )
+    s.advance(1)
+    const old = s.scheduler.lifecycle("222", false, s.now())
+    t.mock.method(
+      s.provider,
+      "liveBroadcasters",
+      async () => new Map([["222", { id: "101", startedAt: s.now() }]])
+    )
+    if (via === "event") {
+      s.advance(1)
+      await s.scheduler.lifecycle("222", true, s.now())
+    } else {
+      s.advance(300000)
+      await s.scheduler.tick()
+    }
+    s.chat()
+    rejectOld(new Error("late failure"))
+    await old
+    assert.equal(s.activity.snapshot("222").count, 2)
+    await s.scheduler.stop()
+  }
 })

@@ -23,6 +23,18 @@ export const timerConfiguration = z.object({
   messages: z.array(timerMessage).min(1).max(20),
 })
 export type TimerConfiguration = z.infer<typeof timerConfiguration>
+// Drafts may contain incomplete values that cannot be saved as configuration.
+export const timerDraft = z.object({
+  version: z.literal(1),
+  revision: z.number().int().positive().optional(),
+  configuration: timerConfiguration.extend({
+    name: z.string().max(80),
+    intervalMinutes: z.number().finite(),
+    minimumMessages: z.number().finite(),
+    messages: z.array(z.string().max(500)).max(20),
+  }),
+})
+export type TimerDraft = z.infer<typeof timerDraft>
 export const timerRuntimeState = z.enum([
   "ready",
   "waitingForStream",

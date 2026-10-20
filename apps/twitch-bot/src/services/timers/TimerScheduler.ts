@@ -19,6 +19,7 @@ type Entry = {
   dueAt: number
   diagnostic?: string
   diagnosedAt: number
+  executionId?: string
 }
 type Session = {
   id: string
@@ -33,6 +34,7 @@ type Settlement = {
   definite: boolean
   state: Parameters<ConvexService["diagnoseTimer"]>[2]
   retryAt: number
+  context: { group: TimerRuntimeGroup; session: Session }
 }
 const RECONCILE_MS = 5 * 60_000
 const PREPARED_FRESH_MS = 2_000
@@ -47,9 +49,14 @@ export class TimerScheduler {
   private readonly settlements = new Map<string, Settlement>()
   private readonly lifecycleWork = new Set<Promise<void>>()
   private watermark?: number
+  private scan?: { since?: number; cursor?: string; startedAt?: number }
+  private overflowed = false
+  private rescan = false
   private refreshedAt = 0
   private refreshAt = 0
   private reconcileAt = 0
+  private reconciliation?: Promise<void>
+  private readonly reconcileRetry = new Map<string, number>()
   private timer?: ReturnType<typeof setTimeout>
   private work?: Promise<void>
   private stopped = false
@@ -105,15 +112,24 @@ export class TimerScheduler {
       (this.generations.get(broadcasterId) ?? 0) + 1
     )
     if (!online) this.deactivate(broadcasterId)
+    const current = () =>
+      !this.stopped &&
+      this.events.get(broadcasterId) === eventAt &&
+      eventAt >= (this.sessions.get(broadcasterId)?.observedAt ?? 0)
     const work = (
       online
-        ? this.reconcile([broadcasterId], eventAt)
+        ? this.reconcile([broadcasterId], eventAt).then(() => {
+            if (this.reconcileRetry.has(broadcasterId) && current())
+              this.deactivate(broadcasterId)
+          })
         : this.convex
             .timerSession(broadcasterId, this.now(), undefined, eventAt)
             .then(() => {})
     )
       .catch(() => {
+        if (!current()) return
         this.deactivate(broadcasterId)
+        this.reconcileRetry.set(broadcasterId, this.now() + 30_000)
         this.logger.warn("Timer stream lifecycle unavailable")
       })
       .finally(() => this.lifecycleWork.delete(work))
@@ -133,53 +149,128 @@ export class TimerScheduler {
     this.watch()
   }
   private async reconcile(ids: string[], eventAt?: number): Promise<void> {
-    if (!ids.length) return
     const generations = new Map(ids.map((id) => [id, this.generations.get(id)]))
-    const token = await this.auth.appToken()
+    const failed = (id: string) => {
+      if (
+        this.hasBroadcaster(id) &&
+        generations.get(id) === this.generations.get(id)
+      )
+        this.reconcileRetry.set(id, this.now() + 30_000)
+    }
+    let token: string
+    try {
+      token = await this.auth.appToken()
+    } catch {
+      ids.forEach(failed)
+      this.logger.warn("Timer stream reconciliation unavailable")
+      return
+    }
     for (let offset = 0; offset < ids.length && !this.stopped; offset += 100) {
       const batch = ids.slice(offset, offset + 100)
       const observedAt = this.now()
-      const live = await this.api.liveBroadcasters(token, batch)
-      for (const id of batch) {
-        if (
-          this.stopped ||
-          generations.get(id) !== this.generations.get(id) ||
-          !this.hasBroadcaster(id)
-        )
-          continue
-        const stream = live.get(id)
-        if (!(await this.convex.timerSession(id, observedAt, stream, eventAt)))
-          continue
-        if (this.stopped || generations.get(id) !== this.generations.get(id))
-          continue
-        const previous = this.sessions.get(id)
-        if (!stream) {
-          this.deactivate(id)
-          continue
-        }
-        if (previous?.id === stream.id) {
-          previous.observedAt = observedAt
-          continue
-        }
-        const session = { ...stream, activatedAt: this.now(), observedAt }
-        this.sessions.set(id, session)
-        this.watch()
-        this.activity.reset(id, session.activatedAt)
-        for (const entry of this.broadcasters.get(id)!) {
-          if (entry.group.streamId !== stream.id) {
-            entry.group.cursor = 0
-            entry.group.lastSentAt = undefined
-            entry.group.lastAttemptAt = undefined
-          }
-          entry.group.streamId = stream.id
-          entry.group.sessionStartedAt = stream.startedAt
-          entry.group.sessionLive = true
-          entry.baseline = 0
-          entry.dueAt = timerDeadline(entry.group, session.activatedAt)
-          this.activeGroups.set(entry.group.id, entry)
-        }
+      let live: Awaited<ReturnType<TwitchApiService["liveBroadcasters"]>>
+      try {
+        live = await this.api.liveBroadcasters(token, batch)
+      } catch {
+        batch.forEach(failed)
+        this.logger.warn("Timer stream reconciliation unavailable")
+        continue
       }
+      let next = 0
+      await Promise.all(
+        Array.from({ length: Math.min(10, batch.length) }, async () => {
+          while (next < batch.length && !this.stopped) {
+            const id = batch[next++]!
+            try {
+              if (
+                generations.get(id) !== this.generations.get(id) ||
+                !this.hasBroadcaster(id)
+              )
+                continue
+              if (this.now() - observedAt >= 55_000) {
+                failed(id)
+                continue
+              }
+              const stream = live.get(id)
+              if (
+                !(await this.convex.timerSession(
+                  id,
+                  observedAt,
+                  stream,
+                  eventAt
+                )) ||
+                this.now() - observedAt >= 60_000
+              ) {
+                failed(id)
+                continue
+              }
+              if (
+                this.stopped ||
+                generations.get(id) !== this.generations.get(id)
+              )
+                continue
+              this.reconcileRetry.delete(id)
+              const previous = this.sessions.get(id)
+              if (!stream) {
+                this.deactivate(id)
+                continue
+              }
+              if (previous?.id === stream.id) {
+                previous.observedAt = observedAt
+                continue
+              }
+              const session = { ...stream, activatedAt: this.now(), observedAt }
+              this.sessions.set(id, session)
+              this.watch()
+              this.activity.reset(id, session.activatedAt)
+              for (const entry of this.broadcasters.get(id)!) {
+                if (entry.group.streamId !== stream.id) {
+                  entry.group.cursor = 0
+                  entry.group.lastSentAt = undefined
+                  entry.group.lastAttemptAt = undefined
+                }
+                entry.group.streamId = stream.id
+                entry.group.sessionStartedAt = stream.startedAt
+                entry.group.sessionLive = true
+                entry.baseline = 0
+                entry.dueAt = timerDeadline(entry.group, session.activatedAt)
+                this.activeGroups.set(entry.group.id, entry)
+              }
+            } catch {
+              failed(id)
+              this.logger.warn("Timer broadcaster reconciliation unavailable")
+            }
+          }
+        })
+      )
     }
+  }
+  private async reconcileDue(): Promise<void> {
+    if (!this.reconciliation) {
+      const full = this.now() >= this.reconcileAt
+      const ids = full
+        ? [...this.broadcasters.keys()]
+        : [...this.reconcileRetry]
+            .filter(([id, at]) => at <= this.now() && this.hasBroadcaster(id))
+            .map(([id]) => id)
+      if (!ids.length) return
+      const work = this.reconcile(ids)
+        .then(() => {
+          if (full) this.reconcileAt = this.now() + RECONCILE_MS
+        })
+        .finally(() => {
+          this.reconciliation = undefined
+        })
+      this.reconciliation = work
+    }
+    // Yield to timer work while bounded-concurrency control-plane work continues.
+    let budget: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([
+      this.reconciliation,
+      new Promise<void>((resolve) => {
+        budget = setTimeout(resolve, 50)
+      }),
+    ]).finally(() => clearTimeout(budget))
   }
   async tick(): Promise<void> {
     if (this.stopped || this.signal.aborted) return
@@ -197,14 +288,7 @@ export class TimerScheduler {
       this.now() - this.refreshedAt > TIMER_CONFIG_TTL_MS
     )
       return
-    if (this.now() >= this.reconcileAt) {
-      this.reconcileAt = this.now() + RECONCILE_MS
-      try {
-        await this.reconcile([...this.broadcasters.keys()])
-      } catch {
-        this.logger.warn("Timer stream reconciliation unavailable")
-      }
-    }
+    await this.reconcileDue()
     const selected = new Set<string>()
     const due = [...this.activeGroups.values()]
       .filter((e) => {
@@ -237,21 +321,43 @@ export class TimerScheduler {
     )
   }
   private async refresh(): Promise<void> {
-    const changes: TimerRuntimeGroup[] = []
-    let cursor: string | undefined, startedAt: number | undefined
-    do {
-      const page = await this.convex.timerPage(this.watermark, cursor)
-      startedAt ??= page.startedAt
-      changes.push(...page.groups)
-      if (changes.length > 10_000)
-        throw new Error("Timer configuration capacity exceeded.")
-      cursor = page.cursor ?? undefined
-    } while (cursor && !this.stopped && !this.signal.aborted)
-    if (this.stopped || this.signal.aborted) return
+    const scan = (this.scan ??= { since: this.watermark })
+    for (
+      let pages = 0;
+      pages < 4 && !this.stopped && !this.signal.aborted;
+      pages++
+    ) {
+      const page = await this.convex.timerPage(
+        scan.since,
+        scan.cursor,
+        scan.startedAt === undefined ? undefined : scan.startedAt + 120_000
+      )
+      if (this.stopped || this.signal.aborted) return
+      if (page.groups.length > 100)
+        throw new Error("Timer page capacity exceeded.")
+      this.applyChanges(page.groups)
+      // A page is acknowledged only after its changes and indexes are applied.
+      // Each send still requires a current server claim and begin fence.
+      scan.startedAt ??= page.startedAt
+      scan.cursor = page.cursor ?? undefined
+      this.refreshedAt = this.now()
+      if (!scan.cursor) {
+        this.watermark = this.rescan ? undefined : scan.startedAt
+        this.scan = undefined
+        if (this.rescan) {
+          this.rescan = false
+          this.overflowed = false
+        }
+        break
+      }
+    }
+  }
+  private applyChanges(changes: TimerRuntimeGroup[]): void {
     for (const group of changes) {
       if (!group.enabled || !group.messages.length) {
         this.groups.delete(group.id)
         this.activeGroups.delete(group.id)
+        if (this.overflowed && this.groups.size < 10_000) this.rescan = true
         continue
       }
       const previous = this.groups.get(group.id)
@@ -266,17 +372,29 @@ export class TimerScheduler {
           group.broadcasterId,
           (this.generations.get(group.broadcasterId) ?? 0) + 1
         )
-        this.reconcileAt = 0
+        this.reconcileRetry.set(group.broadcasterId, 0)
       }
       if (
         previous &&
         previous.group.revision === group.revision &&
         previous.group.streamId === group.streamId
       ) {
-        if ((group.lastSentAt ?? 0) > (previous.group.lastSentAt ?? 0)) {
+        const pending = previous.executionId
+          ? this.settlements.get(previous.executionId)
+          : undefined
+        if (
+          !pending?.sent ||
+          pending.context.group.streamId !== group.streamId
+        ) {
+          if (
+            previous.group.cursor !== group.cursor ||
+            previous.group.lastSentAt !== group.lastSentAt
+          )
+            previous.baseline = this.activity.snapshot(
+              group.broadcasterId
+            ).count
           previous.group.cursor = group.cursor
           previous.group.lastSentAt = group.lastSentAt
-          previous.baseline = this.activity.snapshot(group.broadcasterId).count
         }
         if ((group.lastAttemptAt ?? 0) > (previous.group.lastAttemptAt ?? 0)) {
           previous.group.lastAttemptAt = group.lastAttemptAt
@@ -287,17 +405,22 @@ export class TimerScheduler {
         }
         continue
       }
-      if (!previous && this.groups.size >= 10_000)
-        throw new Error("Timer configuration capacity exceeded.")
+      if (!previous && this.groups.size >= 10_000) {
+        if (!this.overflowed)
+          this.logger.warn("Timer active configuration capacity exceeded")
+        this.overflowed = true
+        continue
+      }
       this.groups.set(group.id, {
-        group,
+        group: { ...group, messages: [...group.messages] },
         baseline: this.activity.snapshot(group.broadcasterId).count,
         dueAt: timerDeadline(group, this.now()),
         diagnosedAt: 0,
       })
       if (this.sessions.has(group.broadcasterId))
         this.activeGroups.set(group.id, this.groups.get(group.id)!)
-      if (!previous) this.reconcileAt = 0
+      if (!previous && !this.sessions.has(group.broadcasterId))
+        this.reconcileRetry.set(group.broadcasterId, 0)
     }
     if (changes.length) {
       this.broadcasters.clear()
@@ -313,9 +436,25 @@ export class TimerScheduler {
       if (!this.hasBroadcaster(id)) {
         this.generations.delete(id)
         this.events.delete(id)
+        this.reconcileRetry.delete(id)
       }
-    this.watermark = startedAt
-    this.refreshedAt = this.now()
+    for (const id of this.reconcileRetry.keys())
+      if (!this.hasBroadcaster(id)) this.reconcileRetry.delete(id)
+  }
+  private owns(
+    entry: Entry,
+    context: Settlement["context"],
+    executionId: string
+  ): boolean {
+    return (
+      !this.stopped &&
+      !this.signal.aborted &&
+      this.groups.get(context.group.id) === entry &&
+      this.sessions.get(context.group.broadcasterId) === context.session &&
+      entry.group.revision === context.group.revision &&
+      entry.group.streamId === context.group.streamId &&
+      entry.executionId === executionId
+    )
   }
   private valid(entry: Entry, session: Session): boolean {
     return (
@@ -333,11 +472,14 @@ export class TimerScheduler {
     )
   }
   private async send(entry: Entry): Promise<void> {
-    const group = entry.group,
+    const group = { ...entry.group, messages: [...entry.group.messages] },
       session = this.sessions.get(group.broadcasterId)!
+    const context = { group, session }
     let execution: Awaited<ReturnType<ConvexService["claimTimer"]>> = null
-    let postStarted = false,
-      confirmed = false
+    let outcome: "notAttempted" | "ambiguous" | "confirmed" | "rejected" =
+      "notAttempted"
+    let beganAt: number | undefined
+    let attempted = false
     let state: Settlement["state"] = "intervalPending"
     try {
       const token = await this.auth.appToken()
@@ -350,6 +492,7 @@ export class TimerScheduler {
         entry.dueAt = this.now() + RECONCILE_MS
         return
       }
+      entry.executionId = execution.executionId
       if (
         !this.valid(entry, session) ||
         !timerMessage.safeParse(execution.message).success ||
@@ -362,7 +505,7 @@ export class TimerScheduler {
       ).get(group.broadcasterId)
       if (live?.id !== session.id) {
         this.deactivate(group.broadcasterId)
-        this.reconcileAt = 0
+        this.reconcileRetry.set(group.broadcasterId, 0)
         state = "waitingForStream"
         await this.convex.timerSession(group.broadcasterId, this.now(), live)
         return
@@ -379,6 +522,7 @@ export class TimerScheduler {
             this.now() - preparedAt >= PREPARED_FRESH_MS
           )
             return false
+          beganAt = this.now()
           // Only this final database fence runs at the queue slot. OAuth and
           // provider preparation stay outside. A slow fence releases the slot
           // within 500 ms and its matching definite settlement cancels late commits.
@@ -400,16 +544,19 @@ export class TimerScheduler {
             this.now() - preparedAt >= PREPARED_FRESH_MS
           )
             return false
-          postStarted = true
+          outcome = "ambiguous"
+          attempted = true
           return true
         },
         false
       )
       if (sent) {
-        confirmed = true
-        group.cursor = (group.cursor + 1) % group.messages.length
-        group.lastSentAt = this.now()
-        entry.baseline = this.activity.snapshot(group.broadcasterId).count
+        outcome = "confirmed"
+        if (this.owns(entry, context, execution.executionId)) {
+          entry.group.cursor = (group.cursor + 1) % group.messages.length
+          entry.group.lastSentAt = this.now()
+          entry.baseline = this.activity.snapshot(group.broadcasterId).count
+        }
       }
     } catch (error) {
       state =
@@ -427,12 +574,13 @@ export class TimerScheduler {
                 ? "failed"
                 : "providerUnavailable"
       if (
+        attempted &&
         error instanceof TwitchFailure &&
         (error.code === "messageDropped" ||
           (error.status !== undefined &&
             [400, 401, 403, 422, 429].includes(error.status)))
       )
-        postStarted = false
+        outcome = "rejected"
       if (!execution) {
         entry.dueAt = this.now() + 60_000
         await this.diagnose(
@@ -447,13 +595,18 @@ export class TimerScheduler {
         const settlement = {
           entry,
           executionId: execution.executionId,
-          sent: confirmed,
-          definite: !postStarted,
+          sent: outcome === "confirmed",
+          definite: outcome === "notAttempted" || outcome === "rejected",
           state,
-          retryAt: this.now() + TIMER_REFRESH_MS,
+          retryAt:
+            outcome === "rejected" && beganAt !== undefined
+              ? beganAt + group.intervalMinutes * 60_000
+              : this.now() + TIMER_REFRESH_MS,
+          context,
         }
         this.settlements.set(execution.executionId, settlement)
-        entry.dueAt = Infinity
+        if (this.owns(entry, context, execution.executionId))
+          entry.dueAt = Infinity
         await this.persistSettlement(settlement)
       }
     }
@@ -461,7 +614,7 @@ export class TimerScheduler {
   private async persistSettlement(settlement: Settlement): Promise<void> {
     const { entry, executionId, sent, definite } = settlement
     try {
-      await this.convex.settleTimer(
+      const nextAt = await this.convex.settleTimer(
         entry.group.id,
         executionId,
         sent,
@@ -469,10 +622,15 @@ export class TimerScheduler {
         settlement.state
       )
       this.settlements.delete(executionId)
-      if (sent || definite)
+      if (
+        this.owns(entry, settlement.context, executionId) &&
+        (sent || definite)
+      ) {
+        entry.executionId = undefined
         entry.dueAt = sent
-          ? this.now() + entry.group.intervalMinutes * 60_000
-          : Math.max(this.now(), settlement.retryAt)
+          ? (nextAt ?? this.now() + entry.group.intervalMinutes * 60_000)
+          : Math.max(this.now(), nextAt ?? settlement.retryAt)
+      }
     } catch {
       this.logger.warn("Timer settlement pending")
     }
@@ -502,6 +660,7 @@ export class TimerScheduler {
   async stop(): Promise<void> {
     this.stopAccepting()
     await this.work
+    await this.reconciliation
     await Promise.allSettled(this.lifecycleWork)
     await this.retrySettlements()
     this.activity.clear()

@@ -25,14 +25,16 @@ function safeBackendCode(value: unknown): string | undefined {
   return undefined
 }
 export class ConvexService {
-  async timerPage(since?: number, cursor?: string) {
+  async timerPage(since?: number, cursor?: string, until?: number) {
     return z
       .object({
         groups: z.array(timerRuntimeGroup),
         cursor: z.string().nullable(),
         startedAt: z.number(),
       })
-      .parse(await this.action("twitchTimerActions:page", { since, cursor }))
+      .parse(
+        await this.action("twitchTimerActions:page", { since, cursor, until })
+      )
   }
   async claimTimer(id: string, revision: number, streamId: string) {
     return z
@@ -56,14 +58,19 @@ export class ConvexService {
     sent: boolean,
     definite = false,
     state?: z.infer<typeof timerRuntimeState>
-  ): Promise<void> {
-    await this.action("twitchTimerActions:settle", {
-      id,
-      executionId,
-      sent,
-      definite,
-      state,
-    })
+  ): Promise<number | null> {
+    return z
+      .number()
+      .nullable()
+      .parse(
+        await this.action("twitchTimerActions:settle", {
+          id,
+          executionId,
+          sent,
+          definite,
+          state,
+        })
+      )
   }
   async beginTimer(
     id: string,
