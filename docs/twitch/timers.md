@@ -121,6 +121,9 @@ offers explicit Restore draft and Discard draft actions. Saved revisions accompa
 drafts so restoration cannot silently overwrite a newer server revision. Confirmed
 save, deletion and explicit discard remove the corresponding draft. Message text
 never enters navigation URLs or analytics. Browser-unload protection remains enabled.
+Draft storage validates its own permissive schema and 32,000-unit serialized limit
+before reporting success, including incomplete and Unicode message text. If storage
+fails, the editor warns immediately and group switching explicitly warns of loss.
 
 Restarts reset ephemeral activity and wait a full interval before new work.
 Missed intervals do not produce a backlog. Alerts and timers share one bounded,

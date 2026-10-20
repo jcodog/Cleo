@@ -50,6 +50,30 @@ test("session draft storage scopes users, broadcasters and groups and tolerates 
   try {
     assert.equal(writeTimerDraft(key, config, 1), true)
     assert.deepEqual(readTimerDraft(key)?.configuration, config)
+    for (const message of [
+      "a".repeat(501),
+      "😀".repeat(251),
+      "😀".repeat(501),
+    ]) {
+      const draft = { ...config, messages: [message] }
+      assert.equal(writeTimerDraft(key, draft, 2), true)
+      assert.deepEqual(readTimerDraft(key), {
+        version: 1,
+        revision: 2,
+        configuration: draft,
+      })
+    }
+    const retained = readTimerDraft(key)
+    assert.equal(
+      writeTimerDraft(key, { ...config, messages: ["a".repeat(32001)] }),
+      false
+    )
+    assert.equal(
+      writeTimerDraft(key, { ...config, intervalMinutes: NaN }),
+      false
+    )
+    assert.equal(writeTimerDraft(key, config, 0), false)
+    assert.deepEqual(readTimerDraft(key), retained)
     assert.equal(
       readTimerDraft(timerDraftKey({ ...scope, userId: "user-b" }, "one")),
       undefined

@@ -1,5 +1,96 @@
 import { test, expect } from "@playwright/test"
 
+test("group switching warns accurately when draft storage fails and recovers after a successful write", async ({
+  page,
+}) => {
+  await page.goto("/twitch/timers?locked")
+  await page.getByRole("button", { name: /Community links/ }).click()
+  await page.evaluate(() => {
+    Reflect.set(
+      window,
+      "timerStorageDescriptor",
+      Object.getOwnPropertyDescriptor(Storage.prototype, "setItem")
+    )
+    Object.defineProperty(Storage.prototype, "setItem", {
+      configurable: true,
+      value: () => {
+        throw new DOMException("Storage blocked", "QuotaExceededError")
+      },
+    })
+  })
+  await page.getByLabel("Group name").fill("Unsaved private draft")
+  await expect(
+    page.getByText(/This browser could not preserve the draft/)
+  ).toBeVisible()
+  const warning = page.waitForEvent("dialog")
+  const switching = page
+    .getByRole("button", { name: /Subscriber reminders/ })
+    .click()
+  const dialog = await warning
+  expect(dialog.message()).toBe(
+    "Leave this group? Your unsaved changes will be lost."
+  )
+  await dialog.dismiss()
+  await switching
+  await expect(page.getByLabel("Group name")).toHaveValue(
+    "Unsaved private draft"
+  )
+  await page.evaluate(() =>
+    Object.defineProperty(
+      Storage.prototype,
+      "setItem",
+      Reflect.get(window, "timerStorageDescriptor")
+    )
+  )
+  await page.getByLabel("Group name").fill("Preserved private draft")
+  await expect(
+    page.getByText(/This browser could not preserve the draft/)
+  ).toHaveCount(0)
+  const recovered = page.waitForEvent("dialog")
+  const leaving = page
+    .getByRole("button", { name: /Subscriber reminders/ })
+    .click()
+  const confirmation = await recovered
+  expect(confirmation.message()).toContain("Your draft will remain available")
+  await confirmation.accept()
+  await leaving
+  await page.getByRole("button", { name: /Community links/ }).click()
+  await page.getByRole("button", { name: "Restore draft", exact: true }).click()
+  await expect(page.getByLabel("Group name")).toHaveValue(
+    "Preserved private draft"
+  )
+})
+
+test("long invalid and valid Unicode messages remain recoverable drafts", async ({
+  page,
+}) => {
+  await page.goto("/twitch/timers")
+  await page.getByRole("button", { name: /Community links/ }).click()
+  for (const message of ["a".repeat(501), "😀".repeat(251)]) {
+    await page
+      .getByRole("textbox", { name: /^Message 1(?: ·|$)/ })
+      .fill(message)
+    await expect(
+      page.getByText(/This browser could not preserve the draft/)
+    ).toHaveCount(0)
+    await page.getByRole("link", { name: "Overview", exact: true }).click()
+    await page
+      .getByRole("link", { name: "Chatbot timers", exact: true })
+      .click()
+    await page
+      .getByRole("button", { name: "Open draft: Community links", exact: true })
+      .click()
+    await page
+      .getByRole("button", { name: "Restore draft", exact: true })
+      .click()
+    await expect(
+      page.getByRole("textbox", { name: /^Message 1(?: ·|$)/ })
+    ).toHaveValue(message)
+  }
+  await page.getByRole("button", { name: "Save group", exact: true }).click()
+  await expect(page.getByText("Group saved.", { exact: true })).toBeVisible()
+})
+
 for (const destination of ["Overview", "Chat alerts", "Discord"] as const) {
   test(`session drafts survive navigation to ${destination} and explicit restore/save`, async ({
     page,

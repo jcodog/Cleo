@@ -33,10 +33,11 @@ export function writeTimerDraft(
 ): boolean {
   if (!key || typeof window === "undefined") return false
   try {
-    window.sessionStorage.setItem(
-      key,
-      JSON.stringify({ version: 1, configuration, revision })
-    )
+    const result = timerDraft.safeParse({ version: 1, configuration, revision })
+    if (!result.success) return false
+    const raw = JSON.stringify(result.data)
+    if (raw.length > 32_000) return false
+    window.sessionStorage.setItem(key, raw)
     return true
   } catch {
     return false

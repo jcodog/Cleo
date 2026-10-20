@@ -31,7 +31,7 @@ export const timerDraft = z.object({
     name: z.string().max(80),
     intervalMinutes: z.number().finite(),
     minimumMessages: z.number().finite(),
-    messages: z.array(z.string().max(500)).max(20),
+    messages: z.array(z.string()).max(20),
   }),
 })
 export type TimerDraft = z.infer<typeof timerDraft>

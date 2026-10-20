@@ -61,6 +61,7 @@ export function ChatTimers() {
   const health = useQuery(api.twitchChat.status, {})
   const [selection, setSelection] = useState<string>()
   const [dirty, setDirty] = useState(false)
+  const [draftPreserved, setDraftPreserved] = useState(true)
   const [savedNotice, setSavedNotice] = useState<string>()
   const [capacityTime, setCapacityTime] = useState(() => Date.now())
   useEffect(() => {
@@ -82,11 +83,14 @@ export function ChatTimers() {
     if (
       dirty &&
       !window.confirm(
-        "Leave this group? Your draft will remain available in this browser session."
+        draftPreserved
+          ? "Leave this group? Your draft will remain available in this browser session."
+          : "Leave this group? Your unsaved changes will be lost."
       )
     )
       return
     setDirty(false)
+    setDraftPreserved(true)
     setSavedNotice(undefined)
     setSelection(id)
   }
@@ -218,6 +222,7 @@ export function ChatTimers() {
               health={health}
               initialFeedback={savedNotice}
               onDirty={setDirty}
+              onDraftPreserved={setDraftPreserved}
               onSaved={(id) => {
                 setDirty(false)
                 setSavedNotice("Group saved.")
@@ -243,6 +248,7 @@ export function TimerEditor({
   group,
   health,
   onDirty,
+  onDraftPreserved,
   onSaved,
   onDeleted,
   initialFeedback,
@@ -251,6 +257,7 @@ export function TimerEditor({
   group?: Group
   health?: FunctionReturnType<typeof api.twitchChat.status>
   onDirty: (dirty: boolean) => void
+  onDraftPreserved: (preserved: boolean) => void
   onSaved: (id: string) => void
   onDeleted: () => void
   initialFeedback?: string
@@ -305,13 +312,17 @@ export function TimerEditor({
     setDraft(next)
     if (JSON.stringify(next) === baseline) {
       clearTimerDraft(draftKey)
+      onDraftPreserved(true)
       setFeedback(undefined)
-    } else
+    } else {
+      const preserved = writeTimerDraft(draftKey, next, revision)
+      onDraftPreserved(preserved)
       setFeedback(
-        writeTimerDraft(draftKey, next, revision)
+        preserved
           ? undefined
           : "This browser could not preserve the draft. Keep this page open until saved."
       )
+    }
   }
   function move(index: number, offset: number) {
     const messages = [...draft.messages]
@@ -333,6 +344,7 @@ export function TimerEditor({
       setRevision((revision ?? 0) + 1)
       setFeedback("Group saved.")
       clearTimerDraft(draftKey)
+      onDraftPreserved(true)
       setRecoverable(undefined)
       onSaved(id)
     } catch {
@@ -394,6 +406,7 @@ export function TimerEditor({
             onClick={() => {
               setDraft(recoverable.configuration)
               setRevision(recoverable.revision)
+              onDraftPreserved(true)
               setRecoverable(undefined)
             }}
           >
@@ -404,6 +417,7 @@ export function TimerEditor({
             variant="ghost"
             onClick={() => {
               clearTimerDraft(draftKey)
+              onDraftPreserved(true)
               setRecoverable(undefined)
             }}
           >
@@ -621,6 +635,7 @@ export function TimerEditor({
               setRevision(group?.revision)
               setFeedback(undefined)
               clearTimerDraft(draftKey)
+              onDraftPreserved(true)
               setRecoverable(undefined)
             }}
           >
@@ -640,6 +655,7 @@ export function TimerEditor({
                 try {
                   await remove({ id: group.id })
                   clearTimerDraft(draftKey)
+                  onDraftPreserved(true)
                   onDeleted()
                 } catch {
                   setFeedback("Could not delete this group.")
