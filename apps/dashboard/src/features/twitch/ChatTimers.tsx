@@ -51,6 +51,8 @@ const states: Record<NonNullable<Group["diagnostic"]>, string> = {
   waitingForActivity: "Live, waiting for activity",
   intervalPending: "Interval pending",
   rateLimited: "Rate limited",
+  queueBusy: "Waiting for local send capacity",
+  queueExpired: "Local send deadline expired",
   providerUnavailable: "Provider unavailable",
   authorizationRevoked: "Authorization revoked",
   failed: "Last send failed",
@@ -501,7 +503,8 @@ export function TimerEditor({
                 )}
               />
               <FieldDescription>
-                1 to 100 messages, with activity in the last 5 minutes.
+                Messages are counted since this group's last send or stream
+                start. Chat must have been active within the last five minutes.
               </FieldDescription>
             </Field>
           </div>

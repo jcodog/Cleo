@@ -98,12 +98,16 @@ export class TimerScheduler {
     online: boolean,
     eventAt: number
   ): Promise<void> {
+    const receivedAt = this.now()
+    const observedAt = Math.min(eventAt, receivedAt)
+    const session = this.sessions.get(broadcasterId)
     if (
       this.stopped ||
       !this.hasBroadcaster(broadcasterId) ||
-      eventAt > this.now() ||
+      eventAt > receivedAt + 60_000 ||
       eventAt <= (this.events.get(broadcasterId) ?? 0) ||
-      eventAt < (this.sessions.get(broadcasterId)?.observedAt ?? 0)
+      observedAt < (session?.observedAt ?? 0) ||
+      eventAt < (session?.startedAt ?? 0)
     )
       return Promise.resolve()
     this.events.set(broadcasterId, eventAt)
@@ -115,24 +119,27 @@ export class TimerScheduler {
     const current = () =>
       !this.stopped &&
       this.events.get(broadcasterId) === eventAt &&
-      eventAt >= (this.sessions.get(broadcasterId)?.observedAt ?? 0)
-    const work = (
-      online
-        ? this.reconcile([broadcasterId], eventAt).then(() => {
-            if (this.reconcileRetry.has(broadcasterId) && current())
-              this.deactivate(broadcasterId)
-          })
-        : this.convex
-            .timerSession(broadcasterId, this.now(), undefined, eventAt)
-            .then(() => {})
-    )
-      .catch(() => {
-        if (!current()) return
-        this.deactivate(broadcasterId)
-        this.reconcileRetry.set(broadcasterId, this.now() + 30_000)
-        this.logger.warn("Timer stream lifecycle unavailable")
-      })
-      .finally(() => this.lifecycleWork.delete(work))
+      observedAt >= (this.sessions.get(broadcasterId)?.observedAt ?? 0)
+    const work =
+      // Future signed time is not future provider evidence. Verify a skewed
+      // offline event against Get Streams before persisting its session state.
+      (
+        online || eventAt > receivedAt
+          ? this.reconcile([broadcasterId], eventAt).then(() => {
+              if (this.reconcileRetry.has(broadcasterId) && current())
+                this.deactivate(broadcasterId)
+            })
+          : this.convex
+              .timerSession(broadcasterId, this.now(), undefined, eventAt)
+              .then(() => {})
+      )
+        .catch(() => {
+          if (!current()) return
+          this.deactivate(broadcasterId)
+          this.reconcileRetry.set(broadcasterId, this.now() + 30_000)
+          this.logger.warn("Timer stream lifecycle unavailable")
+        })
+        .finally(() => this.lifecycleWork.delete(work))
     this.lifecycleWork.add(work)
     return work
   }
@@ -298,27 +305,39 @@ export class TimerScheduler {
         return true
       })
       .slice(0, 4)
-    await Promise.all(
-      due.map(async (entry) => {
-        this.groups.delete(entry.group.id)
-        this.groups.set(entry.group.id, entry)
-        this.activeGroups.delete(entry.group.id)
-        this.activeGroups.set(entry.group.id, entry)
-        entry.dueAt = this.now() + TIMER_REFRESH_MS
-        if (
-          !this.activity.eligible(
-            entry.group.broadcasterId,
-            entry.baseline,
-            entry.group.minimumMessages,
-            this.now()
-          )
-        ) {
-          await this.diagnose(entry, "waitingForActivity")
-          return
-        }
-        await this.send(entry)
-      })
-    )
+    // Admit one timer at a time. Prepare each claim/live check after the prior
+    // send completes, so four broadcasters do not share one expiring queue budget.
+    // Announcements still use the shared queue while preparation is in flight.
+    for (const entry of due) {
+      if (
+        this.stopped ||
+        this.signal.aborted ||
+        this.now() - this.refreshedAt > TIMER_CONFIG_TTL_MS
+      )
+        break
+      if (
+        this.activeGroups.get(entry.group.id) !== entry ||
+        entry.dueAt > this.now()
+      )
+        continue
+      this.groups.delete(entry.group.id)
+      this.groups.set(entry.group.id, entry)
+      this.activeGroups.delete(entry.group.id)
+      this.activeGroups.set(entry.group.id, entry)
+      entry.dueAt = this.now() + TIMER_REFRESH_MS
+      if (
+        !this.activity.eligible(
+          entry.group.broadcasterId,
+          entry.baseline,
+          entry.group.minimumMessages,
+          this.now()
+        )
+      ) {
+        await this.diagnose(entry, "waitingForActivity")
+        continue
+      }
+      await this.send(entry)
+    }
   }
   private async refresh(): Promise<void> {
     const scan = (this.scan ??= { since: this.watermark })
@@ -489,7 +508,7 @@ export class TimerScheduler {
         session.id
       )
       if (!execution) {
-        entry.dueAt = this.now() + RECONCILE_MS
+        if (this.valid(entry, session)) entry.dueAt = this.now() + RECONCILE_MS
         return
       }
       entry.executionId = execution.executionId
@@ -500,56 +519,82 @@ export class TimerScheduler {
           group.messages[group.cursor % group.messages.length]
       )
         return
-      const live = (
-        await this.api.liveBroadcasters(token, [group.broadcasterId])
-      ).get(group.broadcasterId)
-      if (live?.id !== session.id) {
-        this.deactivate(group.broadcasterId)
-        this.reconcileRetry.set(group.broadcasterId, 0)
-        state = "waitingForStream"
-        await this.convex.timerSession(group.broadcasterId, this.now(), live)
-        return
+      let sent = ""
+      // Keep the same prepared lease for one aged readmission. Provider evidence
+      // is refreshed outside the queue; attempted or fenced work is never replayed.
+      for (let admission = 0; admission < 2; admission++) {
+        if (!this.valid(entry, session) || execution.expiresAt <= this.now())
+          return
+        const live = (
+          await this.api.liveBroadcasters(token, [group.broadcasterId])
+        ).get(group.broadcasterId)
+        if (live?.id !== session.id) {
+          this.deactivate(group.broadcasterId)
+          this.reconcileRetry.set(group.broadcasterId, 0)
+          state = "waitingForStream"
+          await this.convex.timerSession(group.broadcasterId, this.now(), live)
+          return
+        }
+        state = "intervalPending"
+        const preparedAt = this.now()
+        let stale = false
+        try {
+          sent = await this.api.sendChatMessage(
+            token,
+            group.broadcasterId,
+            execution.message,
+            async () => {
+              if (
+                !this.valid(entry, session) ||
+                execution!.expiresAt <= this.now()
+              )
+                return false
+              if (this.now() - preparedAt >= PREPARED_FRESH_MS) {
+                stale = true
+                state = "queueExpired"
+                return false
+              }
+              beganAt = this.now()
+              // Only this final database fence runs at the queue slot. OAuth and
+              // provider preparation stay outside. A slow fence releases the slot
+              // within 500 ms and its matching definite settlement cancels late commits.
+              let deadline: ReturnType<typeof setTimeout> | undefined
+              const begun = await Promise.race([
+                this.convex.beginTimer(
+                  group.id,
+                  execution!.executionId,
+                  session.id
+                ),
+                new Promise<false>((resolve) => {
+                  deadline = setTimeout(() => resolve(false), 500)
+                }),
+              ]).finally(() => clearTimeout(deadline))
+              if (
+                !begun ||
+                !this.valid(entry, session) ||
+                execution!.expiresAt <= this.now() ||
+                this.now() - preparedAt >= PREPARED_FRESH_MS
+              )
+                return false
+              outcome = "ambiguous"
+              attempted = true
+              return true
+            },
+            false,
+            admission === 1
+          )
+        } catch (error) {
+          if (
+            admission === 0 &&
+            beganAt === undefined &&
+            error instanceof ChatBackpressure &&
+            error.reason === "deadline"
+          )
+            continue
+          throw error
+        }
+        if (sent || !stale || admission === 1) break
       }
-      const preparedAt = this.now()
-      const sent = await this.api.sendChatMessage(
-        token,
-        group.broadcasterId,
-        execution.message,
-        async () => {
-          if (
-            !this.valid(entry, session) ||
-            execution!.expiresAt <= this.now() ||
-            this.now() - preparedAt >= PREPARED_FRESH_MS
-          )
-            return false
-          beganAt = this.now()
-          // Only this final database fence runs at the queue slot. OAuth and
-          // provider preparation stay outside. A slow fence releases the slot
-          // within 500 ms and its matching definite settlement cancels late commits.
-          let deadline: ReturnType<typeof setTimeout> | undefined
-          const begun = await Promise.race([
-            this.convex.beginTimer(
-              group.id,
-              execution!.executionId,
-              session.id
-            ),
-            new Promise<false>((resolve) => {
-              deadline = setTimeout(() => resolve(false), 500)
-            }),
-          ]).finally(() => clearTimeout(deadline))
-          if (
-            !begun ||
-            !this.valid(entry, session) ||
-            execution!.expiresAt <= this.now() ||
-            this.now() - preparedAt >= PREPARED_FRESH_MS
-          )
-            return false
-          outcome = "ambiguous"
-          attempted = true
-          return true
-        },
-        false
-      )
       if (sent) {
         outcome = "confirmed"
         if (this.owns(entry, context, execution.executionId)) {
@@ -561,7 +606,11 @@ export class TimerScheduler {
     } catch (error) {
       state =
         error instanceof ChatBackpressure
-          ? "rateLimited"
+          ? error.reason === "shutdown"
+            ? "intervalPending"
+            : error.reason === "deadline"
+              ? "queueExpired"
+              : "queueBusy"
           : error instanceof TwitchFailure && error.status === 429
             ? "rateLimited"
             : error instanceof TwitchFailure &&
@@ -581,14 +630,9 @@ export class TimerScheduler {
             [400, 401, 403, 422, 429].includes(error.status)))
       )
         outcome = "rejected"
-      if (!execution) {
+      if (!execution && this.valid(entry, session)) {
         entry.dueAt = this.now() + 60_000
-        await this.diagnose(
-          entry,
-          error instanceof ChatBackpressure
-            ? "rateLimited"
-            : "providerUnavailable"
-        )
+        await this.diagnose(entry, state)
       }
     } finally {
       if (execution) {

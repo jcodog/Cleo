@@ -155,7 +155,8 @@ export class TwitchApiService {
     broadcasterId: string,
     message: string,
     beforeSend?: () => Promise<boolean> | boolean,
-    durable = true
+    durable = true,
+    aged = false
   ): Promise<string> {
     if (broadcasterId === this.config.TWITCH_BOT_USER_ID)
       throw new TwitchFailure("wrongBot")
@@ -199,7 +200,8 @@ export class TwitchApiService {
           throw new TwitchFailure("malformedResponse")
         return entry.message_id
       },
-      durable
+      durable,
+      aged
     )
   }
 

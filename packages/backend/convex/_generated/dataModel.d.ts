@@ -2836,6 +2836,8 @@ export type DataModel = {
         | "waitingForActivity"
         | "intervalPending"
         | "rateLimited"
+        | "queueBusy"
+        | "queueExpired"
         | "providerUnavailable"
         | "authorizationRevoked"
         | "failed"

@@ -2,6 +2,54 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { ChatBackpressure, ChatSendQueue } from "./ChatSendQueue"
 
+test("a cooling channel cannot block an eligible queued channel", async () => {
+  let now = 1000
+  const queue = new ChatSendQueue(
+    undefined,
+    () => now,
+    async (ms) => {
+      now += ms
+    }
+  )
+  const attempts: [string, number][] = []
+  const send = (channel: string) =>
+    queue.run(
+      channel,
+      async (mark) => {
+        mark()
+        attempts.push([channel, now])
+      },
+      true
+    )
+  await send("a")
+  let release: () => void = () => {},
+    entered: () => void = () => {}
+  const preparing = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  const held = queue.run(
+    "b",
+    async () => {
+      entered()
+      await new Promise<void>((resolve) => {
+        release = resolve
+      })
+    },
+    true
+  )
+  await preparing
+  // B is suppressed at 2.7s; A is cooling until 3s while C is ready now.
+  const a = send("a"),
+    c = send("c")
+  release()
+  await Promise.all([held, a, c])
+  assert.deepEqual(attempts, [
+    ["a", 1000],
+    ["c", 2700],
+    ["a", 4400],
+  ])
+})
+
 test("default queue clock and deadline wait execute an ordinary second send", async () => {
   const queue = new ChatSendQueue()
   await queue.run("a", async (mark) => {

@@ -14,6 +14,8 @@ export const timerState = v.union(
   v.literal("waitingForActivity"),
   v.literal("intervalPending"),
   v.literal("rateLimited"),
+  v.literal("queueBusy"),
+  v.literal("queueExpired"),
   v.literal("providerUnavailable"),
   v.literal("authorizationRevoked"),
   v.literal("failed"),

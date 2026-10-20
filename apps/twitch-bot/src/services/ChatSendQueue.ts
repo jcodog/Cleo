@@ -6,8 +6,12 @@ type Entry = {
   reject: (error: Error) => void
 }
 export class ChatBackpressure extends Error {
-  constructor() {
-    super("Chat send capacity unavailable.")
+  constructor(
+    readonly reason: "capacity" | "deadline" | "shutdown" = "capacity"
+  ) {
+    super(
+      `Local chat send ${reason === "deadline" ? "deadline expired" : reason === "shutdown" ? "queue stopped" : "capacity unavailable"}.`
+    )
   }
 }
 
@@ -17,7 +21,6 @@ export class ChatSendQueue {
   private readonly entries: Entry[] = []
   private readonly channels = new Map<string, number>()
   private nextAt = 0
-  private lastChannel = ""
   private draining = false
   constructor(
     private readonly signal?: AbortSignal,
@@ -28,24 +31,31 @@ export class ChatSendQueue {
   run<T>(
     channel: string,
     send: (attempt: () => void) => Promise<T>,
-    durable = false
+    durable = false,
+    aged = false
   ): Promise<T> {
     if (
       this.signal?.aborted ||
       this.entries.length >= 64 ||
       this.entries.filter((e) => e.channel === channel).length >= 4
     )
-      return Promise.reject(new ChatBackpressure())
+      return Promise.reject(
+        new ChatBackpressure(this.signal?.aborted ? "shutdown" : "capacity")
+      )
     return new Promise<T>((resolve, reject) => {
-      this.entries.push({
+      const entry = {
         channel,
         createdAt: durable ? Math.max(this.now(), this.nextAt) : this.now(),
         ttl: durable ? 60_000 : 5_000,
         reject,
-        run: async (attempt) => {
+        run: async (attempt: () => void) => {
           resolve(await send(attempt))
         },
-      })
+      }
+      // One timer may retain an already-waited turn after refreshing expired
+      // pre-POST evidence. Its caller permits this once, never after a POST.
+      if (aged && !durable) this.entries.unshift(entry)
+      else this.entries.push(entry)
       void this.drain()
     })
   }
@@ -62,25 +72,29 @@ export class ChatSendQueue {
           const entry = this.entries[i]!
           if (this.signal?.aborted || now - entry.createdAt >= entry.ttl) {
             this.entries.splice(i, 1)
-            entry.reject(new ChatBackpressure())
+            entry.reject(
+              new ChatBackpressure(
+                this.signal?.aborted ? "shutdown" : "deadline"
+              )
+            )
           }
         }
         if (!this.entries.length) break
-        const different = this.entries.findIndex(
-          (e) => e.channel !== this.lastChannel
+        // FIFO among eligible channels: a cooling head cannot reserve a free slot.
+        const index = this.entries.findIndex(
+          (e) => Math.max(this.nextAt, this.channels.get(e.channel) ?? 0) <= now
         )
-        const index = different < 0 ? 0 : different
-        const entry = this.entries[index]!
-        const deadline = Math.max(
-          this.nextAt,
-          this.channels.get(entry.channel) ?? 0
-        )
-        if (deadline > now) {
+        if (index < 0) {
+          const deadline = Math.min(
+            ...this.entries.map((e) =>
+              Math.max(this.nextAt, this.channels.get(e.channel) ?? 0)
+            )
+          )
           await this.wait(Math.min(deadline - now, 250))
           continue
         }
+        const entry = this.entries[index]!
         this.entries.splice(index, 1)
-        this.lastChannel = entry.channel
         for (const [id, until] of this.channels)
           if (until <= now) this.channels.delete(id)
         try {

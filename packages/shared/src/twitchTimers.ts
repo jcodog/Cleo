@@ -41,6 +41,8 @@ export const timerRuntimeState = z.enum([
   "waitingForActivity",
   "intervalPending",
   "rateLimited",
+  "queueBusy",
+  "queueExpired",
   "providerUnavailable",
   "authorizationRevoked",
   "failed",

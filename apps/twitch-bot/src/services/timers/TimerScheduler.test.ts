@@ -9,6 +9,8 @@ import { silentLogger } from "../../../tests/fixtures"
 import type { ConvexService } from "../ConvexService"
 import { TwitchApiService, TwitchFailure } from "../TwitchApiService"
 import { apiConfig } from "../../../tests/fixtures"
+import { createHmac } from "node:crypto"
+import { TwitchWebhookServer } from "../eventsub/TwitchWebhookServer"
 
 function setup() {
   let now = 1_000_000
@@ -139,6 +141,448 @@ function setup() {
     },
   }
 }
+
+test("simultaneous broadcasters receive fresh fair admissions across the fourth global slot and repeated intervals", async (t) => {
+  for (const count of [1, 2, 3, 4, 7]) {
+    const s = setup()
+    const clock = t.mock.method(Date, "now", s.now)
+    const groups = Array.from({ length: count }, (_, i) => ({
+      ...group,
+      id: `group-${i}`,
+      broadcasterId: String(300 + i),
+      minimumMessages: 1,
+    }))
+    s.changes(groups)
+    const live = new Map(
+      groups.map((g) => [g.broadcasterId, { id: "100", startedAt: 900000 }])
+    )
+    t.mock.method(s.provider, "liveBroadcasters", async () => live)
+    const cursors = new Map(groups.map((g) => [g.id, 0]))
+    const posts: { channel: string; message: string; at: number }[] = []
+    const api = new TwitchApiService(apiConfig, async (_url, init) => {
+      const body = JSON.parse(String(init?.body))
+      posts.push({
+        channel: body.broadcaster_id,
+        message: body.message,
+        at: s.now(),
+      })
+      return Response.json({
+        data: [{ message_id: "confirmed", is_sent: true }],
+      })
+    })
+    Object.defineProperty(api, "sends", {
+      value: new ChatSendQueue(s.abort.signal, s.now, async (ms) =>
+        s.advance(ms)
+      ),
+    })
+    t.mock.method(s.provider, "sendChatMessage", api.sendChatMessage.bind(api))
+    t.mock.method(s.convex, "claimTimer", async (id: string) => ({
+      executionId: id,
+      message: cursors.get(id) ? "second" : "first",
+      expiresAt: s.now() + 60000,
+    }))
+    const begins = t.mock.method(s.convex, "beginTimer", async () => true)
+    t.mock.method(
+      s.convex,
+      "settleTimer",
+      async (id: string, _execution: string, sent: boolean) => {
+        assert.equal(
+          sent,
+          true,
+          "healthy admitted work must not lose its queue slot"
+        )
+        cursors.set(id, 1 - cursors.get(id)!)
+        return s.now() + 300000
+      }
+    )
+    await s.scheduler.tick()
+    for (let cycle = 0; cycle < 4; cycle++) {
+      s.advance(300000)
+      for (let tick = 0; tick < 2; tick++) {
+        for (const g of groups)
+          s.activity.observe(
+            g.broadcasterId,
+            "viewer",
+            `${cycle}:${tick}`,
+            s.now()
+          )
+        await s.scheduler.tick()
+        s.advance(15000)
+      }
+    }
+    assert.equal(posts.length, count * 4)
+    assert.equal(begins.mock.callCount(), posts.length)
+    for (const g of groups)
+      assert.deepEqual(
+        posts
+          .filter((p) => p.channel === g.broadcasterId)
+          .map((p) => p.message),
+        ["first", "second", "first", "second"]
+      )
+    for (let i = 1; i < posts.length; i++)
+      assert.ok(posts[i]!.at - posts[i - 1]!.at >= 1700)
+    if (count >= 4) assert.equal(posts[3]!.at - posts[0]!.at, 5100)
+    await s.scheduler.stop()
+    clock.mock.restore()
+  }
+})
+
+test("a timer ages fairly through durable alert pressure and refreshes evidence without reclaiming or replaying a POST", async (tc) => {
+  for (const alertCount of [1, 4]) {
+    const s = setup()
+    const clock = tc.mock.method(Date, "now", s.now)
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const posts: { message: string; at: number }[] = []
+    const api = new TwitchApiService(apiConfig, async (_url, init) => {
+      const body = JSON.parse(String(init?.body))
+      posts.push({ message: body.message, at: s.now() })
+      if (body.message === "alert-0") await held
+      return Response.json({ data: [{ message_id: "sent", is_sent: true }] })
+    })
+    Object.defineProperty(api, "sends", {
+      value: new ChatSendQueue(s.abort.signal, s.now, async (ms) =>
+        s.advance(ms)
+      ),
+    })
+    let armed = false
+    const alerts: Promise<string>[] = []
+    tc.mock.method(s.provider, "liveBroadcasters", async () => {
+      if (armed) {
+        armed = false
+        for (let i = 0; i < alertCount; i++)
+          alerts.push(
+            api.sendChatMessage(
+              "app",
+              alertCount === 1 ? "222" : String(500 + i),
+              `alert-${i}`
+            )
+          )
+      }
+      return new Map([["222", { id: "100", startedAt: 900000 }]])
+    })
+    tc.mock.method(
+      s.provider,
+      "sendChatMessage",
+      async (...args: Parameters<TwitchApiService["sendChatMessage"]>) => {
+        const work = api.sendChatMessage(...args)
+        release()
+        return work
+      }
+    )
+    const claims = tc.mock.method(s.convex, "claimTimer")
+    const begins = tc.mock.method(s.convex, "beginTimer")
+    await s.scheduler.tick()
+    s.advance(300000)
+    s.chat()
+    armed = true
+    await s.scheduler.tick()
+    await Promise.all(alerts)
+    assert.equal(claims.mock.callCount(), 1)
+    assert.equal(begins.mock.callCount(), 1)
+    assert.equal(posts.filter((p) => p.message === "first").length, 1)
+    assert.equal(
+      posts.filter((p) => p.message.startsWith("alert-")).length,
+      alertCount
+    )
+    for (let i = 1; i < posts.length; i++)
+      assert.ok(posts[i]!.at - posts[i - 1]!.at >= 1700)
+    assert.deepEqual(s.settled, [true])
+    await s.scheduler.stop()
+    clock.mock.restore()
+  }
+})
+
+test("serial admission stops further claims after shutdown or stale control-plane evidence", async (tc) => {
+  for (const mode of ["stop", "abort", "stale"] as const) {
+    const s = setup()
+    s.changes([group, { ...group, id: "another", broadcasterId: "333" }])
+    tc.mock.method(
+      s.provider,
+      "liveBroadcasters",
+      async () =>
+        new Map(
+          ["222", "333"].map((id) => [id, { id: "100", startedAt: 900000 }])
+        )
+    )
+    const claims = tc.mock.method(s.convex, "claimTimer")
+    tc.mock.method(
+      s.provider,
+      "sendChatMessage",
+      async (
+        _token: string,
+        _channel: string,
+        _message: string,
+        gate?: () => boolean | Promise<boolean>
+      ) => {
+        assert.equal(await gate!(), true)
+        if (mode === "stop") s.scheduler.stopAccepting()
+        else if (mode === "abort") s.abort.abort()
+        else s.advance(60001)
+        return "confirmed"
+      }
+    )
+    await s.scheduler.tick()
+    s.advance(300000)
+    for (const id of ["222", "333"])
+      for (let i = 0; i < 2; i++)
+        s.activity.observe(id, "viewer", `${i}`, s.now())
+    await s.scheduler.tick()
+    assert.equal(claims.mock.callCount(), 1)
+    assert.deepEqual(s.settled, [true])
+    await s.scheduler.stop()
+  }
+})
+
+test("a later admission respects an offline or new-stream transition during the preceding POST", async (tc) => {
+  for (const online of [false, true]) {
+    const s = setup()
+    let changed = false
+    s.changes([group, { ...group, id: "another", broadcasterId: "333" }])
+    tc.mock.method(
+      s.provider,
+      "liveBroadcasters",
+      async () =>
+        new Map(
+          ["222", "333"].map((id) => [
+            id,
+            {
+              id: id === "333" && changed ? "101" : "100",
+              startedAt: id === "333" && changed ? s.now() : 900000,
+            },
+          ])
+        )
+    )
+    const claims = tc.mock.method(s.convex, "claimTimer")
+    const eligible = tc.mock.method(s.activity, "eligible")
+    const diagnostics = tc.mock.method(s.convex, "diagnoseTimer")
+    tc.mock.method(
+      s.provider,
+      "sendChatMessage",
+      async (
+        _token: string,
+        _channel: string,
+        _message: string,
+        gate?: () => boolean | Promise<boolean>
+      ) => {
+        assert.equal(await gate!(), true)
+        s.advance(1)
+        changed = true
+        await s.scheduler.lifecycle("333", online, s.now())
+        for (let i = 0; i < 2; i++)
+          s.activity.observe("333", "viewer", `new-${i}`, s.now())
+        return "confirmed"
+      }
+    )
+    await s.scheduler.tick()
+    s.advance(300000)
+    for (const id of ["222", "333"])
+      for (let i = 0; i < 2; i++)
+        s.activity.observe(id, "viewer", `${i}`, s.now())
+    await s.scheduler.tick()
+    assert.equal(claims.mock.callCount(), 1)
+    assert.equal(
+      eligible.mock.calls.some((call) => call.arguments[0] === "333"),
+      false
+    )
+    assert.equal(
+      diagnostics.mock.calls.some((call) => call.arguments[0] === "another"),
+      false
+    )
+    await s.scheduler.stop()
+  }
+})
+
+test("local queue outcomes remain distinct from Twitch rate limits and stale readmission stays bounded", async (tc) => {
+  for (const reason of ["capacity", "deadline", "shutdown", "stale"] as const) {
+    const s = setup()
+    const claims = tc.mock.method(s.convex, "claimTimer")
+    const begins = tc.mock.method(s.convex, "beginTimer")
+    let admissions = 0
+    tc.mock.method(
+      s.provider,
+      "sendChatMessage",
+      async (
+        _token: string,
+        _channel: string,
+        _message: string,
+        gate?: () => boolean | Promise<boolean>
+      ) => {
+        admissions++
+        if (reason === "stale") {
+          s.advance(2000)
+          assert.equal(await gate!(), false)
+          return ""
+        }
+        throw new ChatBackpressure(reason)
+      }
+    )
+    await s.scheduler.tick()
+    s.advance(300000)
+    s.chat()
+    await s.scheduler.tick()
+    assert.equal(claims.mock.callCount(), 1)
+    assert.equal(begins.mock.callCount(), 0)
+    assert.equal(
+      admissions,
+      reason === "deadline" || reason === "stale" ? 2 : 1
+    )
+    assert.equal(
+      s.states.at(-1),
+      reason === "capacity"
+        ? "queueBusy"
+        : reason === "shutdown"
+          ? "intervalPending"
+          : "queueExpired"
+    )
+    assert.deepEqual(s.settled, [false])
+    await s.scheduler.stop()
+  }
+})
+
+test("a late rejected claim cannot replace a newer stream's deadline or diagnostics", async (tc) => {
+  for (const rejected of [false, true]) {
+    const s = setup()
+    await s.scheduler.tick()
+    let expected = 0
+    const diagnose = tc.mock.method(s.convex, "diagnoseTimer")
+    tc.mock.method(s.convex, "claimTimer", async () => {
+      s.advance(1)
+      tc.mock.method(
+        s.provider,
+        "liveBroadcasters",
+        async () => new Map([["222", { id: "101", startedAt: s.now() }]])
+      )
+      await s.scheduler.lifecycle("222", true, s.now())
+      expected = s.now() + 300000
+      s.advance(30000)
+      if (rejected) throw new Error("old action unavailable")
+      return null
+    })
+    s.advance(300000)
+    s.chat()
+    await s.scheduler.tick()
+    const entries: Map<string, { dueAt: number }> = Reflect.get(
+      s.scheduler,
+      "groups"
+    )
+    assert.equal(entries.get("group")?.dueAt, expected)
+    assert.equal(diagnose.mock.callCount(), 0)
+    await s.scheduler.stop()
+  }
+})
+
+test("signed lifecycle notifications tolerate bounded skew without extending observations or resurrecting old sessions", async (tc) => {
+  for (const skew of [0, 20000, 60000]) {
+    const s = setup()
+    s.live(false)
+    await s.scheduler.tick()
+    let live = true
+    const startedAt = s.now() + skew
+    let providerStart = startedAt,
+      streamId = "101"
+    tc.mock.method(
+      s.provider,
+      "liveBroadcasters",
+      async () =>
+        new Map(
+          live ? [["222", { id: streamId, startedAt: providerStart }]] : []
+        )
+    )
+    const server = new TwitchWebhookServer(
+      "clock-test",
+      {
+        reserve: async () => ({ kind: "terminal" }),
+        begin: async () => false,
+        finish: async () => {},
+        subscriptionState: async () => {},
+        pendingEvents: async () => ({ events: [], cursor: null }),
+      },
+      { dispatch: async () => {} },
+      silentLogger,
+      s.activity,
+      "999",
+      s.scheduler.lifecycle.bind(s.scheduler)
+    )
+    const deliver = async (online: boolean, eventAt: number, id: string) => {
+      const broadcaster = {
+        broadcaster_user_id: "222",
+        broadcaster_user_login: "channel",
+        broadcaster_user_name: "Channel",
+      }
+      const body = JSON.stringify({
+        subscription: {
+          id: "lifecycle",
+          type: online ? "stream.online" : "stream.offline",
+          version: "1",
+          condition: { broadcaster_user_id: "222" },
+        },
+        event: online
+          ? {
+              ...broadcaster,
+              id: "101",
+              type: "live",
+              started_at: new Date(startedAt).toISOString(),
+            }
+          : broadcaster,
+      })
+      const timestamp = new Date(eventAt).toISOString()
+      const signature = createHmac("sha256", "clock-test")
+        .update(id + timestamp + body)
+        .digest("hex")
+      const response = await server.handle(
+        new Request("http://localhost/eventsub", {
+          method: "POST",
+          body,
+          headers: {
+            "Twitch-Eventsub-Message-Id": id,
+            "Twitch-Eventsub-Message-Timestamp": timestamp,
+            "Twitch-Eventsub-Message-Signature": `sha256=${signature}`,
+            "Twitch-Eventsub-Message-Type": "notification",
+          },
+        }),
+        s.now()
+      )
+      await server.drain()
+      return response.status
+    }
+    assert.equal(await deliver(true, startedAt, "online"), 204)
+    const sessions: Map<string, { id: string; observedAt: number }> =
+      Reflect.get(s.scheduler, "sessions")
+    assert.equal(sessions.get("222")?.id, "101")
+    assert.equal(sessions.get("222")?.observedAt, s.now())
+    const entries: Map<string, { group: TimerRuntimeGroup }> = Reflect.get(
+      s.scheduler,
+      "groups"
+    )
+    assert.equal(entries.get("group")?.group.cursor, 0)
+    // A later provider observation can establish B before A's delayed signed
+    // offline event arrives. Compare provider start time in Twitch's clock domain.
+    s.advance(10)
+    providerStart = startedAt + 10
+    streamId = "102"
+    await Reflect.get(s.scheduler, "reconcile").call(s.scheduler, ["222"])
+    s.chat()
+    assert.equal(s.activity.snapshot("222").count, 2)
+    assert.equal(await deliver(false, startedAt + 5, "old-offline"), 204)
+    assert.equal(sessions.get("222")?.id, "102")
+    assert.equal(s.activity.snapshot("222").count, 2)
+    s.advance(1)
+    live = false
+    assert.equal(await deliver(false, providerStart + 1, "offline"), 204)
+    assert.equal(sessions.has("222"), false)
+    assert.equal(s.activity.snapshot("222").count, 0)
+    live = true
+    assert.equal(await deliver(true, startedAt, "redelivery"), 204)
+    assert.equal(sessions.has("222"), false)
+    assert.equal(await deliver(true, s.now() + 60001, "excessive"), 403)
+    assert.equal(sessions.has("222"), false)
+    await server.stop()
+    await s.scheduler.stop()
+  }
+})
 
 test("offline channels accumulate no activity, claims or repeated eligibility/live checks", async (t) => {
   const s = setup()
@@ -368,7 +812,7 @@ test("same-stream restart preserves rotation, a new stream resets enabled groups
   const calls = t.mock.method(fresh.provider, "liveBroadcasters")
   await fresh.scheduler.lifecycle("222", false, fresh.now() - 400000)
   assert.equal(calls.mock.callCount(), 0)
-  await fresh.scheduler.lifecycle("222", true, fresh.now() + 1)
+  await fresh.scheduler.lifecycle("222", true, fresh.now() + 60001)
   assert.equal(calls.mock.callCount(), 0)
   await fresh.scheduler.lifecycle("missing", true, fresh.now())
   await fresh.scheduler.stop()
@@ -493,9 +937,7 @@ test("unavailable session authority and transient preparation failures recover w
     await s.scheduler.tick()
     assert.ok(
       s.states.includes(
-        error instanceof ChatBackpressure
-          ? "rateLimited"
-          : "providerUnavailable"
+        error instanceof ChatBackpressure ? "queueBusy" : "providerUnavailable"
       )
     )
     s.advance(15000)
