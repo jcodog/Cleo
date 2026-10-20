@@ -21,8 +21,13 @@ tick. Moving selected groups to the end gives shared-channel groups independent
 turns without aligning all their live checks against the same queue slot.
 Initial loading reads only enabled,
 undeleted groups. Incremental loading includes changes and tombstones. Pages
-contain at most 100 groups, with a process limit of 10,000 groups. Configuration
-older than 60 seconds cannot authorize a send. Incremental watermarks come from
+contain at most 100 groups. Each cycle applies at most four pages before retaining
+its continuation cursor and fixed snapshot bound. Progress is acknowledged after
+each page is applied, so historical tombstones cannot permanently block the feed.
+The process retains at most 10,000 active groups; deletions free capacity for a
+bounded rescan. Configuration reads older than 60 seconds cannot authorize a send.
+Claims and the final begin fence independently recheck current server authority.
+Incremental watermarks come from
 the Convex query clock and overlap by two minutes to include mutation commits
 that race a refresh snapshot.
 
@@ -31,7 +36,11 @@ EventSub subscription identities and reference counting. They work without a
 Discord guild. Offline broadcasters have no active scheduler entries or chat
 activity records. Configuration remains editable. Startup reconciliation batches
 up to 100 broadcaster IDs per Get Streams request. A five-minute control-plane
-reconciliation repairs missed events and failed lifecycle subscriptions.
+reconciliation repairs missed events and failed lifecycle subscriptions. Up to ten
+independent session updates run concurrently. Scheduling yields after 50 ms while
+reconciliation continues. Failed broadcasters retry after 30 seconds without
+blocking successful peers. Provider observations are never relabelled as fresh;
+expired observations require another Get Streams request.
 
 `twitchTimerSessions` retains the provider stream ID, validated start time, live
 state, observation time, and the last completed session. A genuinely new stream
@@ -54,8 +63,9 @@ without a fixed cumulative-count ceiling. Hash collisions and sampling only
 undercount; they never turn known duplicates into additional activity. Thresholds
 therefore require at least the configured number of real messages, and can require
 more under heavy load. A burst's stricter sampling expires within six minutes.
-Offline transitions release the activity record. Pre-session, future, and
-five-minute-old chat events cannot satisfy the activity gate.
+Offline transitions release the activity record. Pre-session and five-minute-old
+chat events cannot satisfy the activity gate. Signed timestamps up to 60 seconds
+ahead are accepted and clamped to local receipt time; greater future skew is rejected.
 
 Each group has its own activity baseline. A confirmed send resets that baseline
 and advances the durable cursor. Recent activity must be less than five minutes
@@ -81,7 +91,11 @@ after expiry on restart. Once the final begin mutation succeeds, a crash or ambi
 execution for the current stream. A definite non-send releases it. A confirmed
 POST advances local rotation immediately and retries only its idempotent success
 settlement if persistence fails. A lost settlement acknowledgement cannot undo
-success. Metadata edits preserve rotation, including in-flight confirmations;
+success. Completion updates use an immutable send context and must still own the
+same entry, revision, execution and stream before changing local rotation or
+activity. Older streams cannot advance a newer stream's cursor. Backend refresh
+repairs cursor divergence even when the confirmed-send timestamp does not increase.
+Metadata edits preserve rotation, including in-flight confirmations;
 changing the ordered messages resets that edited rotation to zero. This does
 not promise exactly-once delivery from Twitch, which provides no send idempotency
 key. A crash after begin commits but before the POST remains indistinguishable
@@ -91,7 +105,22 @@ Known pre-POST cancellation clears the execution, restores the prior attempt
 timestamp and gets a fresh opportunity after one 15-second tick. This is a bounded
 retry with fresh live verification, not a backlog of missed messages. Offline
 settlement persists `waitingForStream`; other definite outcomes retain their
-specific provider, authorization, rate-limit or failure diagnostic.
+specific provider, authorization, rate-limit or failure diagnostic. A definitive
+HTTP rejection after begin respects the persisted attempt's full interval, or a
+longer provider rate limit. Known cooldowns reject before external authorization.
+Deleting a group removes its execution as well as its public messages, so the
+tombstone retains no serialized rotation text and delayed operations cannot restore it.
+
+Runtime projections reuse linked-account, sibling-group and entitlement reads
+within each query invocation. Deleted and disabled rows need no owner expansion.
+No process-global authorization cache is used.
+
+The editor saves incomplete drafts to browser session storage, scoped by signed-in
+user, linked broadcaster and group. Returning through routes, history or refresh
+offers explicit Restore draft and Discard draft actions. Saved revisions accompany
+drafts so restoration cannot silently overwrite a newer server revision. Confirmed
+save, deletion and explicit discard remove the corresponding draft. Message text
+never enters navigation URLs or analytics. Browser-unload protection remains enabled.
 
 Restarts reset ephemeral activity and wait a full interval before new work.
 Missed intervals do not produce a backlog. Alerts and timers share one bounded,
@@ -164,7 +193,9 @@ components through an isolated test transport. It covers desktop and mobile
 platform switching, stale guild rejection, keyboard message ordering, invalid
 intervals, rejected create/edit/delete operations, revision conflicts, entitlement
 expiry and restoration, heartbeat expiry, stream transitions, first-save feedback,
-locked groups, all nine alerts, reduced motion, and light/dark layouts. It writes
+locked groups, all nine alerts, reduced motion, light/dark layouts, draft recovery
+through Twitch and Discord navigation, history, refresh, account isolation and
+revision conflicts. It writes
 screenshots under `apps/dashboard/test-results/twitch`.
 It does not substitute for a separately authorized live Twitch send smoke test.
 
