@@ -348,6 +348,57 @@ test("validated chat counts unique viewer metadata only for the configured bot a
   assert.deepEqual(f.calls, [])
   await f.server.drain()
 })
+
+test("signed high-volume chat retains eligibility and rejects redelivery across unordered handlers", async () => {
+  const activity = new ChatActivity("111")
+  activity.watch(["222"])
+  const f = fixture(activity, "111")
+  const now = Date.now()
+  let baseline = 0
+  for (let batch = 0; batch < 3; batch++) {
+    for (let i = 0; i < 3000; i++) {
+      const eventAt = now + batch * 60000
+      const value = {
+        ...chatBody,
+        event: { ...chatBody.event, message_id: `${batch}:${i}` },
+      }
+      const signed = request(value, {
+        id: `${batch}:${i}`,
+        timestamp: new Date(eventAt).toISOString(),
+      })
+      assert.equal((await f.server.handle(signed, eventAt)).status, 204)
+    }
+    const counted = activity.snapshot("222").count
+    assert.equal(
+      activity.eligible("222", baseline, 5, now + batch * 60000),
+      true
+    )
+    baseline = counted
+    for (let i = 2999; i >= 0; i--) {
+      const eventAt = now + batch * 60000
+      const value = {
+        ...chatBody,
+        event: { ...chatBody.event, message_id: `${batch}:${i}` },
+      }
+      await f.server.handle(
+        request(value, {
+          id: `${batch}:${i}`,
+          timestamp: new Date(eventAt).toISOString(),
+        }),
+        eventAt
+      )
+    }
+    assert.equal(activity.snapshot("222").count, counted)
+    assert.equal(
+      activity.eligible("222", baseline, 1, now + batch * 60000),
+      false
+    )
+  }
+  assert.deepEqual(f.calls, [])
+  activity.watch([])
+  assert.equal(activity.snapshot("222").count, 0)
+  await f.server.stop()
+})
 test("valid challenge is returned verbatim, valid events dispatch once, revocations only report to Convex", async () => {
   const f = fixture()
   const challenge = await f.server.handle(

@@ -18,12 +18,13 @@ test("activity isolates broadcasters, excludes bot and duplicates, expires quiet
   assert.equal(activity.eligible("222", 0, 1, 999), false)
   for (let i = 0; i < 20010; i++)
     activity.observe("222", "user", String(i), 2000)
-  assert.equal(activity.snapshot("222").count, 512)
+  const counted = activity.snapshot("222").count
+  assert.ok(counted > 512)
   activity.observe("333", "user", "first", 2000)
   activity.observe("333", "user", "first", 2001)
   assert.equal(activity.snapshot("333").count, 1)
   activity.observe("222", "user", "new-window", 700000)
-  assert.equal(activity.snapshot("222").count, 513)
+  assert.equal(activity.snapshot("222").count, counted + 1)
   activity.watch(["333"])
   assert.equal(activity.snapshot("222").count, 0)
   activity.watch(Array.from({ length: 10001 }, (_, i) => String(i)))
@@ -49,4 +50,51 @@ test("validated event times cannot renew delayed, future or pre-session activity
   activity.observe("a", "viewer", "offline", 4000)
   assert.equal(activity.snapshot("a").count, 0)
   activity.reset("absent", 1)
+})
+
+test("sustained sampled activity supports repeated baselines, replay suppression and unordered expiry", () => {
+  const activity = new ChatActivity("bot")
+  activity.watch(["a", "b"])
+  let baseline = 0
+  for (let minute = 0; minute < 18; minute++) {
+    const now = 1_000_000 + minute * 60_000
+    const before = activity.snapshot("a").count
+    for (let i = 0; i < 6000; i++) {
+      const id = `${minute}:${i}`
+      activity.observe("a", "viewer", id, now)
+    }
+    const accepted = activity.snapshot("a").count
+    assert.ok(accepted > before, "busy chat never freezes at the hash budget")
+    for (let i = 5999; i >= 0; i--)
+      activity.observe("a", "viewer", `${minute}:${i}`, now, now + 1)
+    assert.equal(activity.snapshot("a").count, accepted)
+    if (minute % 5 === 4) {
+      assert.equal(activity.eligible("a", baseline, 100, now), true)
+      baseline = accepted
+      assert.equal(activity.eligible("a", baseline, 5, now), false)
+    }
+    activity.observe("b", "viewer", String(minute), now)
+    assert.equal(activity.eligible("b", 0, 1, now), true)
+    // An earlier handler finishes after the newest insertion.
+    activity.observe("a", "viewer", `late:${minute}`, now - 1000, now - 500)
+    const channels: Map<
+      string,
+      { buckets: Map<number, { ids: Set<bigint> }> }
+    > = Reflect.get(activity, "channels")
+    const buckets = [...channels.get("a")!.buckets.values()]
+    assert.ok(buckets.length <= 6)
+    assert.ok(
+      buckets.reduce((total, bucket) => total + bucket.ids.size, 0) <= 768
+    )
+  }
+  const last = activity.snapshot("a").lastAt
+  assert.equal(activity.eligible("a", 0, 1, last + 300000), false)
+  activity.observe("a", "viewer", "genuinely-new", last + 700000)
+  assert.equal(activity.snapshot("a").lastAt, last + 700000)
+  activity.watch([])
+  assert.equal(activity.snapshot("a").count, 0)
+  activity.watch(["a"])
+  activity.reset("a", last + 800000)
+  activity.observe("a", "viewer", "old-session", last, last + 800000)
+  assert.equal(activity.snapshot("a").count, 0)
 })

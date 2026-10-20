@@ -1,10 +1,14 @@
 import { TIMER_ACTIVITY_WINDOW_MS } from "@workspace/shared/twitchTimers"
+import { createHash } from "node:crypto"
+
+type Bucket = { ids: Set<bigint>; mask: bigint }
 
 type Activity = {
   count: number
   lastAt: number
   since: number
-  ids: Map<string, number>
+  observedAt: number
+  buckets: Map<number, Bucket>
 }
 export class ChatActivity {
   private readonly channels = new Map<string, Activity>()
@@ -15,7 +19,13 @@ export class ChatActivity {
       if (!wanted.has(id)) this.channels.delete(id)
     for (const id of wanted)
       if (!this.channels.has(id) && this.channels.size < 10_000)
-        this.channels.set(id, { count: 0, lastAt: 0, since: 0, ids: new Map() })
+        this.channels.set(id, {
+          count: 0,
+          lastAt: 0,
+          since: 0,
+          observedAt: 0,
+          buckets: new Map(),
+        })
   }
   reset(broadcasterId: string, since: number): void {
     if (this.channels.has(broadcasterId))
@@ -23,7 +33,8 @@ export class ChatActivity {
         count: 0,
         lastAt: 0,
         since,
-        ids: new Map(),
+        observedAt: since,
+        buckets: new Map(),
       })
   }
   observe(
@@ -34,22 +45,42 @@ export class ChatActivity {
     now = eventAt
   ): void {
     const activity = this.channels.get(broadcasterId)
+    const currentAt = Math.max(now, activity?.observedAt ?? 0)
     if (
       !activity ||
       chatterId === this.botId ||
       eventAt > now ||
-      eventAt <= now - TIMER_ACTIVITY_WINDOW_MS ||
+      eventAt <= currentAt - TIMER_ACTIVITY_WINDOW_MS ||
       eventAt < activity.since
     )
       return
-    // Keep IDs for Twitch's entire accepted delivery age. At capacity, drop
-    // activity rather than evicting IDs and counting redeliveries twice.
-    for (const [id, seenAt] of activity.ids) {
-      if (seenAt > now - 6 * 60_000) break
-      activity.ids.delete(id)
+    activity.observedAt = currentAt
+    const epoch = Math.floor(currentAt / 60_000)
+    // Six receipt-time buckets retain hashes for at least the entire five-minute
+    // replay window. Scan bucket timestamps, never insertion order.
+    for (const time of activity.buckets.keys())
+      if (time <= epoch - 6) activity.buckets.delete(time)
+    const hash = createHash("sha256")
+      .update(messageId)
+      .digest()
+      .readBigUInt64BE()
+    for (const bucket of activity.buckets.values())
+      if (bucket.ids.has(hash) || (hash & bucket.mask) !== 0n) return
+    let bucket = activity.buckets.get(epoch)
+    if (!bucket) {
+      bucket = { ids: new Set(), mask: 0n }
+      activity.buckets.set(epoch, bucket)
     }
-    if (activity.ids.has(messageId) || activity.ids.size >= 512) return
-    activity.ids.set(messageId, now)
+    // At 128 hashes per bucket, tighten deterministic sampling. A removed hash
+    // stays excluded by that bucket's mask until expiry, so retries cannot count
+    // it again. Counts are conservative samples, with no frozen capacity limit.
+    while (bucket.ids.size >= 128) {
+      bucket.mask = (bucket.mask << 1n) | 1n
+      for (const id of bucket.ids)
+        if ((id & bucket.mask) !== 0n) bucket.ids.delete(id)
+    }
+    if ((hash & bucket.mask) !== 0n) return
+    bucket.ids.add(hash)
     activity.count++
     activity.lastAt = Math.max(activity.lastAt, eventAt)
   }
