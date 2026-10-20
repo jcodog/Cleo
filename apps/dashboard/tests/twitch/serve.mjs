@@ -14,6 +14,10 @@ const bundle = await build({
     {
       name: "isolated-twitch-providers",
       setup(build) {
+        build.onResolve({ filter: /^\.\/routes$/ }, (args) => {
+          if (args.importer.endsWith("AppPlatformSelector.tsx"))
+            return { path: path.join(root, "tests/twitch/routes-release-fixture.ts") }
+        })
         build.onResolve({ filter: /^next\/(?:link|navigation)$/ }, () => ({
           path: path.join(root, "tests/twitch/navigation-fixture.tsx"),
         }))

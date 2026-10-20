@@ -1,5 +1,51 @@
 import { test, expect } from "@playwright/test"
 
+for (const platform of ["discord", "twitch"] as const) {
+  test(`${platform}-only releases control the rendered selector on desktop and mobile`, async ({
+    page,
+  }) => {
+    const own = platform === "discord" ? "Discord" : "Twitch",
+      other = platform === "discord" ? "Twitch" : "Discord"
+    const route =
+      platform === "discord" ? "/dashboard/123456789012345678" : "/twitch"
+    await page.goto(`${route}?release=${platform}`)
+    await expect(
+      page
+        .getByRole("group", { name: "Select platform" })
+        .getByRole("button", { name: own, exact: true })
+    ).toBeVisible()
+    await expect(
+      page
+        .getByRole("group", { name: "Select platform" })
+        .getByRole("button", { name: other, exact: true })
+    ).toHaveCount(0)
+    await page.getByRole("button", { name: "Toggle Sidebar" }).click()
+    await expect(
+      page.getByRole("link", { name: /Open (Discord|Twitch) workspace/ })
+    ).toHaveCount(0)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole("button", { name: "Toggle Sidebar" }).click()
+    await expect(
+      page
+        .getByRole("group", { name: "Select platform" })
+        .getByRole("button", { name: own, exact: true })
+    ).toBeVisible()
+    await expect(
+      page
+        .getByRole("group", { name: "Select platform" })
+        .getByRole("button", { name: other, exact: true })
+    ).toHaveCount(0)
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto(
+      `${platform === "discord" ? "/twitch" : "/dashboard/123456789012345678"}?release=${platform}`
+    )
+    await page.getByRole("button", { name: "Toggle Sidebar" }).click()
+    await expect(
+      page.getByRole("link", { name: `Open ${own} workspace` })
+    ).toHaveAttribute("href", route)
+  })
+}
+
 test("group switching warns accurately when draft storage fails and recovers after a successful write", async ({
   page,
 }) => {
@@ -401,6 +447,11 @@ test("timer messages validate, reorder with keyboard controls, save and retain l
   await page.goto("/twitch/timers")
   await page.getByRole("button", { name: /Community links/ }).click()
   await expect(page.getByLabel("Group name")).toHaveValue("Community links")
+  await expect(
+    page.getByText(
+      "Messages are counted since this group's last send or stream start. Chat must have been active within the last five minutes."
+    )
+  ).toBeVisible()
   await page.getByRole("button", { name: "Move message 1 down" }).focus()
   await page.keyboard.press("Enter")
   await expect(page.getByLabel("Message 1", { exact: true })).toHaveValue(

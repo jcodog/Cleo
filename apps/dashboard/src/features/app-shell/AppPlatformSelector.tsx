@@ -18,6 +18,7 @@ import {
 import { Discord } from "@workspace/ui/components/ui/svgs/discord"
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { getDashboardGuildSelection } from "./dashboardGuildSelection"
+import { RELEASE_PLATFORMS } from "./routes"
 
 export function AppPlatformSelector() {
   const pathname = usePathname()
@@ -34,22 +35,25 @@ export function AppPlatformSelector() {
     pathname === "/twitch" || pathname.startsWith("/twitch/")
       ? "twitch"
       : "discord"
-  const options = [
-    {
-      value: "discord",
+  const presentation = {
+    discord: {
       label: "Discord",
       Icon: Discord,
       href: safeDashboardPath,
     },
-    {
-      value: "twitch",
+    twitch: {
       label: "Twitch",
       Icon: IconBrandTwitch,
       href: "/twitch",
     },
-  ]
+  }
+  const options = RELEASE_PLATFORMS.map((value) => ({
+    value,
+    ...presentation[value],
+  }))
   if (!isMobile && state === "collapsed") {
-    const other = options.find((option) => option.value !== currentPlatform)!
+    const other = options.find((option) => option.value !== currentPlatform)
+    if (!other) return null
     return (
       <SidebarMenu>
         <SidebarMenuItem>
@@ -67,7 +71,7 @@ export function AppPlatformSelector() {
   return (
     <ToggleGroup
       aria-label="Select platform"
-      className="grid w-full grid-cols-2"
+      className={`grid w-full ${options.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}
       value={[currentPlatform]}
       onValueChange={(value) => {
         const option = options.find((option) => option.value === value[0])
