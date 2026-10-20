@@ -1,0 +1,31 @@
+apps/dashboard/tests/twitch/fixture.tsx
+  s_20c2a68bb23ef7::t_25f348660d815d 20,28-30,51,55,66,69,124,143-144,153-154,178-182,192,204-205,210,233
+  s_20c2a68bb23ef7::t_d854d07c81a522 59,222-231
+  s_20c2a68bb23ef7::t_f8f888f56bf96b 118-123,125-142,145-147,166-169,177,183-191,193-203,206-209,211-221,232
+apps/dashboard/tests/twitch/workspace.spec.ts
+  s_20c2a68bb23ef7::t_d854d07c81a522 75-95
+  s_20c2a68bb23ef7::t_58b7d66fe652e8 121,133
+  s_20c2a68bb23ef7::t_485d31676291a2 3,8-14,17,22,37-38,47-49,53-56,60-65,69-74,99-102,106-107,144-145
+  s_20c2a68bb23ef7::t_f8f888f56bf96b 4-7,15-16,18-21,23-36,39-46,50-52,57-59,66-68,96-98,103-105,108-120,122-132,134-143
+apps/dashboard/src/features/twitch/ChatTimers.tsx
+  s_20c2a68bb23ef7::t_ea76edc5827d13 510
+  s_20c2a68bb23ef7::t_f8f888f56bf96b 85,243-249,308
+  s_20c2a68bb23ef7::t_d854d07c81a522 291-295,309,311-313
+  s_20c2a68bb23ef7::t_7fb636ae6c2c9c 10,44,56,76,179,183,208,215,223,251-252,255,258,310
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f6a0cd3a1a1a3d3ec371f11fe338803115edca81",
+  "prompts": {},
+  "sessions": {
+    "s_20c2a68bb23ef7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15611-5c6c-7302-850c-a00bf8b01861",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
