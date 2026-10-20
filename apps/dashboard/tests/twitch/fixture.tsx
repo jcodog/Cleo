@@ -35,6 +35,10 @@ let view: View = {
     expiresAt: locked ? null : Date.now() + (expiry ? 5000 : 86400000),
   },
   connected: true,
+  draftScope: {
+    userId: "fixture-user-a" as NonNullable<View["draftScope"]>["userId"],
+    broadcasterId: "222",
+  },
   groups: [
     {
       id: "timer1" as View["groups"][number]["id"],
@@ -180,6 +184,29 @@ window.addEventListener("timer-fixture", (event) => {
   if (!(event instanceof CustomEvent)) return
   const detail: unknown = event.detail
   if (!detail || typeof detail !== "object") return
+  if ("account" in detail && typeof detail.account === "string")
+    view = {
+      ...view,
+      draftScope: {
+        userId: detail.account as NonNullable<View["draftScope"]>["userId"],
+        broadcasterId: view.draftScope!.broadcasterId,
+      },
+    }
+  if ("broadcaster" in detail && typeof detail.broadcaster === "string")
+    view = {
+      ...view,
+      draftScope: {
+        userId: view.draftScope!.userId,
+        broadcasterId: detail.broadcaster,
+      },
+    }
+  if ("revision" in detail && typeof detail.revision === "number") {
+    const revision = detail.revision
+    view = {
+      ...view,
+      groups: view.groups.map((group) => ({ ...group, revision })),
+    }
+  }
   if ("live" in detail && typeof detail.live === "boolean") {
     const live = detail.live
     view = {

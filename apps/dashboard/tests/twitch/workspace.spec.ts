@@ -1,5 +1,133 @@
 import { test, expect } from "@playwright/test"
 
+for (const destination of ["Overview", "Chat alerts", "Discord"] as const) {
+  test(`session drafts survive navigation to ${destination} and explicit restore/save`, async ({
+    page,
+  }) => {
+    page.on("dialog", (dialog) => dialog.accept())
+    await page.goto("/twitch/timers")
+    await page.getByRole("button", { name: /Community links/ }).click()
+    await page.getByLabel("Group name").fill(`Draft via ${destination}`)
+    if (destination === "Discord")
+      await page.getByRole("button", { name: "Discord", exact: true }).click()
+    else
+      await page.getByRole("link", { name: destination, exact: true }).click()
+    await page
+      .getByRole("link", { name: "Chatbot timers", exact: true })
+      .click()
+    await page
+      .getByRole("button", { name: "Open draft: Community links", exact: true })
+      .click()
+    await expect(page.getByLabel("Group name")).toHaveValue("Community links")
+    await page
+      .getByRole("button", { name: "Restore draft", exact: true })
+      .click()
+    await expect(page.getByLabel("Group name")).toHaveValue(
+      `Draft via ${destination}`
+    )
+    await page.getByRole("button", { name: "Save group", exact: true }).click()
+    await expect(page.getByText("Group saved.", { exact: true })).toBeVisible()
+    await page.getByRole("link", { name: "Overview", exact: true }).click()
+    await page
+      .getByRole("link", { name: "Chatbot timers", exact: true })
+      .click()
+    await expect(
+      page.getByText("Unsaved drafts in this browser session:")
+    ).toHaveCount(0)
+  })
+}
+
+test("new drafts survive history and refresh, preserve invalid edits, and clear on explicit discard", async ({
+  page,
+}) => {
+  page.on("dialog", (dialog) => dialog.accept())
+  await page.goto("/twitch/timers")
+  await page.getByRole("button", { name: "New group", exact: true }).click()
+  await page.getByLabel("Group name").fill("Private session draft")
+  await page
+    .getByLabel("Message 1", { exact: true })
+    .fill("Private rotation text")
+  await page.getByLabel("Interval in minutes").fill("4")
+  await page.getByRole("link", { name: "Overview", exact: true }).click()
+  await page.goBack()
+  await page
+    .getByRole("button", { name: "Open draft: New timer group", exact: true })
+    .click()
+  await page.getByRole("button", { name: "Restore draft", exact: true }).click()
+  await expect(page.getByLabel("Interval in minutes")).toHaveValue("4")
+  await page.goForward()
+  await page.goBack()
+  await page.reload()
+  await page
+    .getByRole("button", { name: "Open draft: New timer group", exact: true })
+    .click()
+  await page.getByRole("button", { name: "Discard draft", exact: true }).click()
+  await page.getByRole("link", { name: "Overview", exact: true }).click()
+  await page.getByRole("link", { name: "Chatbot timers", exact: true }).click()
+  await expect(
+    page.getByText("Unsaved drafts in this browser session:")
+  ).toHaveCount(0)
+  expect(page.url()).not.toContain("Private")
+})
+
+test("drafts stay isolated by user and broadcaster and stale revisions cannot overwrite server changes", async ({
+  page,
+}) => {
+  page.on("dialog", (dialog) => dialog.accept())
+  await page.goto("/twitch/timers?locked")
+  await page.getByRole("button", { name: /Community links/ }).click()
+  await page.getByLabel("Group name").fill("Account A draft")
+  await page.evaluate(() =>
+    dispatchEvent(
+      new CustomEvent("timer-fixture", {
+        detail: { account: "fixture-user-b" },
+      })
+    )
+  )
+  await expect(page.getByLabel("Group name")).toHaveValue("Community links")
+  await expect(
+    page.getByRole("button", { name: "Restore draft", exact: true })
+  ).toHaveCount(0)
+  await page.evaluate(() =>
+    dispatchEvent(
+      new CustomEvent("timer-fixture", {
+        detail: { account: "fixture-user-a", broadcaster: "333" },
+      })
+    )
+  )
+  await expect(
+    page.getByRole("button", { name: "Restore draft", exact: true })
+  ).toHaveCount(0)
+  await page.evaluate(() =>
+    dispatchEvent(
+      new CustomEvent("timer-fixture", {
+        detail: { broadcaster: "222", revision: 2 },
+      })
+    )
+  )
+  await page.getByRole("button", { name: "Restore draft", exact: true }).click()
+  await expect(page.getByLabel("Group name")).toHaveValue("Account A draft")
+  await expect(
+    page.getByRole("button", { name: "Save group", exact: true })
+  ).toBeDisabled()
+  await expect(page.getByText(/This group changed elsewhere/)).toBeVisible()
+  await page
+    .getByRole("button", { name: "Reload configuration", exact: true })
+    .click()
+  await expect(page.getByLabel("Group name")).toHaveValue("Community links")
+  await page.getByLabel("Group name").fill("Group-one draft")
+  await page.getByRole("button", { name: /Subscriber reminders/ }).click()
+  await expect(
+    page.getByRole("button", { name: "Restore draft", exact: true })
+  ).toHaveCount(0)
+  await page.getByRole("button", { name: /Community links/ }).click()
+  await page.getByRole("button", { name: "Restore draft", exact: true }).click()
+  await expect(page.getByLabel("Group name")).toHaveValue("Group-one draft")
+  await page
+    .getByRole("button", { name: "Discard changes", exact: true })
+    .click()
+})
+
 for (const operation of ["create", "edit", "delete"] as const) {
   test(`rejected ${operation} preserves configuration and permits a retry`, async ({
     page,
@@ -92,7 +220,9 @@ test("lost entitlement preserves the draft, allows saved edits and restores elig
       new CustomEvent("timer-fixture", { detail: { restore: true } })
     )
   )
-  await expect(page.getByText(/saved enablement are preserved/)).not.toBeVisible()
+  await expect(
+    page.getByText(/saved enablement are preserved/)
+  ).not.toBeVisible()
 })
 
 test("health expires without another query and live lifecycle labels preserve message-zero rotation", async ({
