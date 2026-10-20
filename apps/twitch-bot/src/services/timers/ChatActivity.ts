@@ -49,7 +49,7 @@ export class ChatActivity {
     if (
       !activity ||
       chatterId === this.botId ||
-      eventAt > now ||
+      eventAt > now + 60_000 ||
       eventAt <= currentAt - TIMER_ACTIVITY_WINDOW_MS ||
       eventAt < activity.since
     )
@@ -82,7 +82,7 @@ export class ChatActivity {
     if ((hash & bucket.mask) !== 0n) return
     bucket.ids.add(hash)
     activity.count++
-    activity.lastAt = Math.max(activity.lastAt, eventAt)
+    activity.lastAt = Math.max(activity.lastAt, Math.min(eventAt, now))
   }
   snapshot(broadcasterId: string) {
     const state = this.channels.get(broadcasterId)

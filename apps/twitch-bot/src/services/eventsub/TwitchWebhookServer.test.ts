@@ -120,11 +120,39 @@ test("delayed signed chat keeps its event timestamp and offline or future chat c
   assert.equal(activity.snapshot("222").count, 0)
   activity.watch(["222"])
   await f.server.handle(
-    request(chatBody, { timestamp: new Date(now + 1000).toISOString() }),
+    request(chatBody, { timestamp: new Date(now + 60001).toISOString() }),
     now
   )
   assert.equal(activity.snapshot("222").count, 0)
   assert.deepEqual(f.calls, [])
+})
+
+test("verified Twitch chat timestamps tolerate a host clock twenty to sixty seconds behind", async () => {
+  const activity = new ChatActivity("111")
+  activity.watch(["222"])
+  const f = fixture(activity, "111"),
+    now = Date.now()
+  for (const skew of [20000, 60000]) {
+    const value = {
+      ...chatBody,
+      event: { ...chatBody.event, message_id: `skew-${skew}` },
+    }
+    assert.equal(
+      (
+        await f.server.handle(
+          request(value, {
+            id: `skew-${skew}`,
+            timestamp: new Date(now + skew).toISOString(),
+          }),
+          now
+        )
+      ).status,
+      204
+    )
+  }
+  assert.deepEqual(activity.snapshot("222"), { count: 2, lastAt: now })
+  assert.equal(activity.eligible("222", 0, 2, now), true)
+  await f.server.stop()
 })
 const event = {
   broadcaster_user_id: "222",
