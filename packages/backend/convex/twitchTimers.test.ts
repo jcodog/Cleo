@@ -28,6 +28,296 @@ const config = {
   messages: ["first", "second"],
 }
 
+test("runtime query workload stays bounded for 100 distinct, grouped and inactive owners", async (tc) => {
+  const { runtimePage } = await import("./twitchTimers")
+  const handler: (
+    ctx: import("./_generated/server").QueryCtx,
+    args: { since: number }
+  ) => Promise<
+    import("convex/server").FunctionReturnType<
+      typeof internal.twitchTimers.runtimePage
+    >
+  > = Reflect.get(runtimePage, "_handler")
+  const costs: number[] = []
+  for (const mode of ["distinct", "grouped", "inactive"] as const) {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 100;) {
+        const userId = await ctx.db.insert("users", {
+          clerkUserId: `cost-${i}`,
+          role: "user",
+          email: `cost-${i}@example.com`,
+          createdAt: 1,
+          updatedAt: 1,
+        })
+        const broadcasterId = String(1000 + i)
+        for (const provider of ["discord", "twitch"] as const)
+          await ctx.db.insert("linkedAccounts", {
+            userId,
+            provider,
+            providerAccountId:
+              provider === "twitch" ? broadcasterId : `discord-${i}`,
+            scopes: [],
+            createdAt: 1,
+            updatedAt: 1,
+          })
+        if (mode === "grouped")
+          await ctx.db.insert("twitchTimerGrants", {
+            userId,
+            broadcasterId,
+            expiresAt: Date.now() + 600000,
+            reason: "workload",
+          })
+        const size = mode === "grouped" ? 3 : 1
+        for (let order = 0; order < size && i < 100; order++, i++)
+          await ctx.db.insert("twitchTimerGroups", {
+            ...config,
+            messages: ["x".repeat(500)],
+            userId,
+            broadcasterId,
+            order,
+            revision: 1,
+            cursor: 0,
+            updatedAt: Date.now(),
+            deleted: mode === "inactive" && i % 2 === 0,
+            enabled: mode !== "inactive",
+          })
+      }
+    })
+    const counts = { get: 0, queries: new Map<string, number>() }
+    const result = await t.run(async (ctx) => {
+      const query = ctx.db.query.bind(ctx.db),
+        get = ctx.db.get.bind(ctx.db)
+      tc.mock.method(
+        ctx.db,
+        "query",
+        (...args: Parameters<typeof ctx.db.query>) => {
+          counts.queries.set(args[0], (counts.queries.get(args[0]) ?? 0) + 1)
+          return query(...args)
+        }
+      )
+      tc.mock.method(
+        ctx.db,
+        "get",
+        (...args: Parameters<typeof ctx.db.get>) => {
+          counts.get++
+          return get(...args)
+        }
+      )
+      return handler(ctx, { since: 0 })
+    })
+    const work =
+      counts.get + [...counts.queries.values()].reduce((a, b) => a + b, 0)
+    tc.diagnostic(
+      `${mode}: ${work} database entry calls; ${counts.queries.get("twitchTimerGrants") ?? 0} grant queries; ${counts.queries.get("twitchTimerGroups")} group queries`
+    )
+    assert.equal(result.groups.length, 100)
+    assert.equal(
+      result.groups.filter((g) => g.enabled).length,
+      mode === "inactive" ? 0 : 100
+    )
+    costs.push(work)
+  }
+  assert.deepEqual(costs, [301, 103, 1])
+})
+
+test("unchanged observations skip lifecycle fan-out and repair subscriptions at a bounded observation boundary", async (tc) => {
+  const { t, owner, userId } = await setup()
+  let now = 1_800_000_000_000
+  tc.mock.method(Date, "now", () => now)
+  const id = await owner.mutation(api.twitchTimers.save, config)
+  const { session } = await import("./twitchTimers")
+  const handler: (
+    ctx: import("./_generated/server").MutationCtx,
+    args: {
+      broadcasterId: string
+      streamId?: string
+      startedAt?: number
+      observedAt: number
+    }
+  ) => Promise<boolean> = Reflect.get(session, "_handler")
+  const observe = async (online = true, includeStart = true) => {
+    let reads = 0
+    const result = await t.run(async (ctx) => {
+      const query = ctx.db.query.bind(ctx.db),
+        get = ctx.db.get.bind(ctx.db)
+      tc.mock.method(
+        ctx.db,
+        "query",
+        (...args: Parameters<typeof ctx.db.query>) => {
+          reads++
+          return query(...args)
+        }
+      )
+      tc.mock.method(
+        ctx.db,
+        "get",
+        (...args: Parameters<typeof ctx.db.get>) => {
+          reads++
+          return get(...args)
+        }
+      )
+      return handler(ctx, {
+        broadcasterId: "222",
+        ...(online
+          ? { streamId: "100", ...(includeStart ? { startedAt } : {}) }
+          : {}),
+        observedAt: now,
+      })
+    })
+    return { result, reads }
+  }
+  // Hold the provider's immutable stream start timestamp fixed across observations.
+  const startedAt = now - 1000000
+  await t.mutation(internal.twitchTimers.session, {
+    broadcasterId: "222",
+    streamId: "100",
+    startedAt,
+    observedAt: now,
+  })
+  await t.run((ctx) => ctx.db.patch(id, { cursor: 1 }))
+  now += 1000
+  const stable = await observe()
+  assert.equal(stable.result, true)
+  assert.equal(stable.reads, 1)
+  now++
+  assert.equal((await observe(true, false)).reads, 1)
+  assert.equal((await t.run((ctx) => ctx.db.get(id)))?.cursor, 1)
+  const subscriptions = await t.run((ctx) =>
+    ctx.db.query("twitchEventSubscriptions").collect()
+  )
+  const online = subscriptions.find((row) => row.key === "streamOnline")!
+  await t.run(async (ctx) => {
+    for (const membership of await ctx.db
+      .query("twitchEventConsumers")
+      .collect())
+      if (membership.consumer === `timer:${userId}:streamOnline`)
+        await ctx.db.delete(membership._id)
+    await ctx.db.patch(online._id, {
+      status: "failed",
+      consumers: [...online.consumers, "guild:discord"],
+    })
+  })
+  now += 900000
+  const repaired = await observe()
+  assert.equal(repaired.result, true)
+  assert.ok(repaired.reads > stable.reads)
+  const member = await t.run((ctx) =>
+    ctx.db
+      .query("twitchEventConsumers")
+      .withIndex("by_consumer", (q) =>
+        q.eq("consumer", `timer:${userId}:streamOnline`)
+      )
+      .first()
+  )
+  assert.ok(member)
+  await t.run((ctx) =>
+    ctx.db.patch(online._id, { consumers: ["guild:discord"], status: "failed" })
+  )
+  now += 900000
+  await observe()
+  const memberships = await t.run((ctx) =>
+    ctx.db
+      .query("twitchEventConsumers")
+      .withIndex("by_consumer", (q) =>
+        q.eq("consumer", `timer:${userId}:streamOnline`)
+      )
+      .collect()
+  )
+  assert.equal(memberships.length, 1)
+  assert.ok(
+    (await t.run((ctx) => ctx.db.get(online._id)))?.consumers.includes(
+      `timer:${userId}:streamOnline`
+    )
+  )
+  assert.ok(
+    (await t.run((ctx) => ctx.db.get(online._id)))?.consumers.includes(
+      "guild:discord"
+    )
+  )
+  const jobs = async () =>
+    (
+      await t.run((ctx) =>
+        ctx.db.system.query("_scheduled_functions").collect()
+      )
+    ).length
+  for (const status of ["failed", "connecting"] as const) {
+    for (const leaseExpiresAt of [now - 1, undefined]) {
+      await t.run((ctx) =>
+        ctx.db.patch(online._id, {
+          status,
+          lease: "abandoned",
+          leaseExpiresAt,
+        })
+      )
+      const before = await jobs()
+      now += 900000
+      await observe()
+      assert.ok(
+        (await jobs()) > before,
+        "an expired reconciliation lease must not prevent repair"
+      )
+    }
+  }
+  now++
+  await t.mutation(internal.twitchTimers.session, {
+    broadcasterId: "222",
+    observedAt: now,
+  })
+  now++
+  assert.equal((await observe(false, false)).reads, 1)
+  assert.equal((await t.run((ctx) => ctx.db.get(id)))?.sessionLive, false)
+  assert.equal((await t.run((ctx) => ctx.db.get(id)))?.cursor, 1)
+})
+
+test("grant expiry and restoration still maintain lifecycle consumers independently of heartbeat fast paths", async (tc) => {
+  const { t, owner, userId } = await setup()
+  let now = Date.now()
+  tc.mock.method(Date, "now", () => now)
+  await t.mutation(internal.twitchTimers.provisionTestGrant, {
+    userId,
+    broadcasterId: "222",
+    expiresAt: now + 60000,
+    reason: "expiry repair",
+  })
+  await owner.mutation(api.twitchTimers.save, { ...config, enabled: false })
+  const id = await owner.mutation(api.twitchTimers.save, config)
+  const members = () =>
+    t.run((ctx) => ctx.db.query("twitchEventConsumers").collect())
+  assert.equal(
+    (await members()).filter((m) => m.consumer.startsWith("timer:")).length,
+    2
+  )
+  now += 60001
+  // Invoke the same handler already scheduled by grant issuance at expiresAt.
+  await t.mutation(internal.twitchTimers.refreshLifecycle, { userId })
+  assert.equal(
+    (await members()).filter((m) => m.consumer.startsWith("timer:")).length,
+    0
+  )
+  assert.equal(
+    (await t.query(internal.twitchTimers.runtimePage, {})).groups.find(
+      (g) => g.id === id
+    )?.enabled,
+    false
+  )
+  await t.mutation(internal.twitchTimers.provisionTestGrant, {
+    userId,
+    broadcasterId: "222",
+    expiresAt: now + 60000,
+    reason: "restore",
+  })
+  assert.equal(
+    (await members()).filter((m) => m.consumer.startsWith("timer:")).length,
+    2
+  )
+  await t.mutation(internal.twitchTimers.revokeTestGrant, { userId })
+  assert.equal(
+    (await members()).filter((m) => m.consumer.startsWith("timer:")).length,
+    0
+  )
+})
+
 test("deleting every execution phase scrubs private rotation text and fences late operations", async () => {
   for (const phase of [
     "prepared",
@@ -168,8 +458,8 @@ test("runtime pages share owner reads per invocation and skip tombstone expansio
     return handler(ctx, { since: 0 })
   })
   assert.equal(reads.get("linkedAccounts"), 2)
-  assert.equal(reads.get("twitchTimerGrants"), 3)
-  assert.equal(reads.get("twitchTimerGroups"), 3)
+  assert.equal(reads.get("twitchTimerGrants"), 1)
+  assert.equal(reads.get("twitchTimerGroups"), 1)
   assert.deepEqual(
     [...ids, ...extra].map(
       (id) => page.groups.find((group) => group.id === id)?.enabled

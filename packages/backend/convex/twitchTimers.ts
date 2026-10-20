@@ -121,8 +121,9 @@ async function maintainLifecycle(
       if (
         subscription &&
         !touched.includes(subscription._id) &&
-        !subscription.lease &&
-        !["ready", "connecting"].includes(subscription.status)
+        (!subscription.lease ||
+          (subscription.leaseExpiresAt ?? 0) <= Date.now()) &&
+        subscription.status !== "ready"
       )
         await ctx.scheduler.runAfter(
           0,
@@ -399,45 +400,69 @@ export const runtimePage = internalQuery({
     const owners = new Map<
       Id<"users">,
       Promise<{
-        account: Awaited<ReturnType<typeof chatAccount>>
+        user: Doc<"users"> | null
+        twitch: Doc<"linkedAccounts">[]
         groups: Doc<"twitchTimerGroups">[]
       }>
     >()
-    const eligibility = new Map<string, Promise<Set<Id<"twitchTimerGroups">>>>()
-    const eligibleFor = (group: Doc<"twitchTimerGroups">) => {
-      const key = `${group.userId}:${group.broadcasterId}`
-      let result = eligibility.get(key)
-      if (!result) {
-        let owner = owners.get(group.userId)
-        if (!owner) {
-          owner = Promise.all([
-            chatAccount(ctx, group.userId),
-            groupsFor(ctx, group.userId),
-          ]).then(([account, groups]) => ({ account, groups }))
-          owners.set(group.userId, owner)
-        }
-        result = Promise.all([
-          owner,
-          capacity(ctx, group.userId, group.broadcasterId),
-        ]).then(
-          ([{ account, groups }, entitlement]) =>
-            new Set(
-              eligibleTimerGroups(
-                groups.map((row) => ({
-                  ...row,
-                  broadcasterChanged:
-                    account.twitch.length !== 1 ||
-                    row.broadcasterId !==
-                      account.twitch[0]?.providerAccountId ||
-                    account.user?.status === "disabled",
-                })),
-                entitlement.limit
-              ).map((row) => row._id)
-            )
-        )
-        eligibility.set(key, result)
+    const grants = new Map<string, ReturnType<typeof capacity>>()
+    const siblings = new Map<Id<"users">, Doc<"twitchTimerGroups">[]>()
+    for (const row of page.page)
+      if (!row.deleted) {
+        const known = siblings.get(row.userId) ?? []
+        known.push(row)
+        siblings.set(row.userId, known)
       }
-      return result
+    const eligibleFor = async (
+      group: Doc<"twitchTimerGroups">
+    ): Promise<boolean> => {
+      let owner = owners.get(group.userId)
+      if (!owner) {
+        const known = [...siblings.get(group.userId)!].sort(
+          (a, b) => a.order - b.order
+        )
+        // Saves assign unique nonnegative integer order. Seeing 0,1,2 proves
+        // these are the first three rows groupsFor would read, without rereading text.
+        const complete =
+          known.length === 3 && known.every((g, i) => g.order === i)
+        owner = Promise.all([
+          ctx.db.get(group.userId),
+          ctx.db
+            .query("linkedAccounts")
+            .withIndex("by_user_provider", (q) =>
+              q.eq("userId", group.userId).eq("provider", "twitch")
+            )
+            .take(2),
+          complete ? Promise.resolve(known) : groupsFor(ctx, group.userId),
+        ]).then(([user, twitch, groups]) => ({ user, twitch, groups }))
+        owners.set(group.userId, owner)
+      }
+      const { user, twitch, groups } = await owner
+      if (
+        !user ||
+        user.status === "disabled" ||
+        twitch.length !== 1 ||
+        twitch[0]!.providerAccountId !== group.broadcasterId
+      )
+        return false
+      const ordered = eligibleTimerGroups(
+        groups.map((row) => ({
+          ...row,
+          broadcasterChanged: row.broadcasterId !== group.broadcasterId,
+        })),
+        3
+      )
+      if (ordered[0]?._id === group._id) return true
+      if (!ordered.some((row) => row._id === group._id)) return false
+      const key = `${group.userId}:${group.broadcasterId}`
+      let entitlement = grants.get(key)
+      if (!entitlement) {
+        entitlement = capacity(ctx, group.userId, group.broadcasterId)
+        grants.set(key, entitlement)
+      }
+      return eligibleTimerGroups(ordered, (await entitlement).limit).some(
+        (row) => row._id === group._id
+      )
     }
     return {
       // Query and mutations use the same Convex clock. Overlap exceeds the
@@ -445,8 +470,7 @@ export const runtimePage = internalQuery({
       startedAt: until - 120_000,
       groups: await Promise.all(
         page.page.map(async (g) => {
-          const enabled =
-            g.enabled && !g.deleted && (await eligibleFor(g)).has(g._id)
+          const enabled = g.enabled && !g.deleted && (await eligibleFor(g))
           return {
             id: g._id,
             broadcasterId: g.broadcasterId,
@@ -764,6 +788,19 @@ export const session = internalMutation({
         args.startedAt! <= previous.startedAt)
     )
       return false
+    // Normal five-minute observations only renew evidence. Crossing a 15-minute
+    // bucket retains bounded repair even if configuration never changes.
+    if (
+      previous &&
+      previous.live === !!args.streamId &&
+      (args.streamId ?? previous.streamId) === previous.streamId &&
+      (args.startedAt ?? previous.startedAt) === previous.startedAt &&
+      Math.floor(previous.observedAt / 900_000) ===
+        Math.floor(args.observedAt / 900_000)
+    ) {
+      await ctx.db.patch(previous._id, { observedAt: args.observedAt })
+      return true
+    }
     const groups = await ctx.db
       .query("twitchTimerGroups")
       .withIndex("by_broadcaster", (q) =>

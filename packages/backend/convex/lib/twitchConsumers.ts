@@ -79,16 +79,22 @@ export async function setEventConsumer(
     } else if (!row.consumers.includes(input.consumer)) {
       if (row.consumers.length >= 1000)
         throw new Error("Subscription consumer capacity reached.")
-      await ctx.db.insert("twitchEventConsumers", {
-        consumer: input.consumer,
-        subscription: row._id,
-      })
+      if (!memberships.some((member) => member.subscription === row._id))
+        await ctx.db.insert("twitchEventConsumers", {
+          consumer: input.consumer,
+          subscription: row._id,
+        })
       await ctx.db.patch(row._id, {
         consumers: [...row.consumers, input.consumer],
         revision: row.revision + 1,
         updatedAt: Date.now(),
       })
       touched.push(row._id)
+    } else if (!memberships.some((member) => member.subscription === row._id)) {
+      await ctx.db.insert("twitchEventConsumers", {
+        consumer: input.consumer,
+        subscription: row._id,
+      })
     }
   }
   return touched
