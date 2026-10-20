@@ -16,8 +16,8 @@ revision checks. Deleted groups retain a content-free tombstone for workers.
 
 `TimerScheduler` runs inside the existing Oracle `cleo-twitch` process. One
 deadline loop refreshes indexed configuration changes every 15 seconds and
-handles at most four broadcasters together, one due group per broadcaster per
-tick. Moving selected groups to the end gives shared-channel groups independent
+handles at most four broadcasters per tick, admitting one timer at a time with
+fresh preparation. One due group is selected per broadcaster. Moving selected groups to the end gives shared-channel groups independent
 turns without aligning all their live checks against the same queue slot.
 Initial loading reads only enabled,
 undeleted groups. Incremental loading includes changes and tombstones. Pages
@@ -36,11 +36,20 @@ EventSub subscription identities and reference counting. They work without a
 Discord guild. Offline broadcasters have no active scheduler entries or chat
 activity records. Configuration remains editable. Startup reconciliation batches
 up to 100 broadcaster IDs per Get Streams request. A five-minute control-plane
-reconciliation repairs missed events and failed lifecycle subscriptions. Up to ten
+reconciliation repairs missed stream events. Up to ten
 independent session updates run concurrently. Scheduling yields after 50 ms while
 reconciliation continues. Failed broadcasters retry after 30 seconds without
 blocking successful peers. Provider observations are never relabelled as fresh;
 expired observations require another Get Streams request.
+
+An unchanged stream observation updates only its observation timestamp within
+the same 15-minute bucket. Transitions and configuration/grant mutations still
+maintain lifecycle subscriptions. Crossing a bucket repairs missing memberships,
+revoked/failed subscriptions and abandoned leases through the existing reconciler.
+With regular five-minute observations, repair occurs by the next bucket observation,
+within 20 minutes of the last maintenance pass. Failed transactions do not advance
+the observation checkpoint. Grant expiry already schedules its own lifecycle refresh.
+Shared Discord consumers remain attached.
 
 `twitchTimerSessions` retains the provider stream ID, validated start time, live
 state, observation time, and the last completed session. A genuinely new stream
@@ -48,6 +57,11 @@ atomically resets every group's cursor to zero and clears the previous stream's
 interval cooldown. Same-stream reconnects and restarts preserve rotation. All
 activations reset ephemeral activity and start a fresh scheduling interval.
 Delayed or duplicate events cannot replace a newer authoritative observation.
+Lifecycle timestamps accept the listener's bounded 60-second future skew. Raw
+signed time retains event ordering, while local receipt time bounds comparisons
+with provider observations. A skewed offline event deactivates local work promptly
+and verifies Get Streams before persisting its state. Older events cannot end a
+stream whose provider start timestamp is newer.
 
 The signed EventSub chat webhook updates `ChatActivity` after validating its
 timestamp, broadcaster condition and bot identity. It acknowledges locally.
@@ -111,9 +125,15 @@ longer provider rate limit. Known cooldowns reject before external authorization
 Deleting a group removes its execution as well as its public messages, so the
 tombstone retains no serialized rotation text and delayed operations cannot restore it.
 
-Runtime projections reuse linked-account, sibling-group and entitlement reads
-within each query invocation. Deleted and disabled rows need no owner expansion.
-No process-global authorization cache is used.
+Runtime projections read only the indexed Twitch account context and resolve
+grants only for groups beyond the free slot. A page containing an owner's canonical
+first three groups reuses those rows instead of rereading their messages. Partial
+or noncanonical sets still use the bounded sibling query. Deleted and disabled rows
+need no owner expansion. Instrumented 100-row query entry calls fell from 401 to
+301 for distinct owners, and from 137 to 103 for grouped owners; inactive pages
+remain one query. These are database entry-call counts, not billing measurements.
+Ownership reads and some sibling document reads remain necessary. No process-global
+authorization cache or denormalized entitlement state is used.
 
 The editor saves incomplete drafts to browser session storage, scoped by signed-in
 user, linked broadcaster and group. Returning through routes, history or refresh
@@ -130,6 +150,13 @@ Missed intervals do not produce a backlog. Alerts and timers share one bounded,
 fair send queue through `sendChatMessage`. Attempts are spaced at least 1.7
 seconds globally and two seconds per channel. The queue holds at most 64 pending
 messages, four per broadcaster. Best-effort timer work expires after five seconds.
+FIFO selection considers only eligible channels; a cooling channel cannot block
+another ready channel. A timer whose pre-POST evidence or local deadline expires
+may refresh Get Streams outside the queue and retain one aged turn using the same
+unattempted lease. That readmission has a fresh five-second local budget and the
+original lease expiry, current stream/activity checks and final begin fence. It is
+bounded to one readmission and never applies after begin or an HTTP attempt.
+Local capacity/deadline diagnostics are distinct from Twitch HTTP rate limits.
 Durable announcements get 60 seconds after the shared startup cooldown, and
 pre-send receipts receive another bounded recovery opportunity during runtime
 maintenance. It honors 429/reset headers without replaying ambiguous POSTs.
