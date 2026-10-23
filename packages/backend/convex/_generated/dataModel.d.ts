@@ -2688,6 +2688,7 @@ export type DataModel = {
       announce: boolean;
       closedAt?: number;
       createdAt: number;
+      creationStartedAt?: number;
       discordUserId: string;
       displayRole: boolean;
       expiresAt: number;
@@ -2706,6 +2707,7 @@ export type DataModel = {
       | "announce"
       | "closedAt"
       | "createdAt"
+      | "creationStartedAt"
       | "discordUserId"
       | "displayRole"
       | "expiresAt"

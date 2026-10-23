@@ -83,6 +83,7 @@ export const premiumCheckouts = defineTable({
   sessionId: v.optional(v.string()),
   url: v.optional(v.string()),
   closedAt: v.optional(v.number()),
+  creationStartedAt: v.optional(v.number()),
   expiresAt: v.number(),
   createdAt: v.number(),
 })

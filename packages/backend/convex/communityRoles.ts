@@ -1,4 +1,5 @@
 import { v } from "convex/values"
+import { backendEnv } from "@workspace/env/backend"
 import { query, internalQuery, internalMutation } from "./_generated/server"
 import { requireCurrentUser } from "./lib/auth"
 import { roleEligibility, queueRoleSync } from "./lib/cleoRoleEligibility"
@@ -153,6 +154,7 @@ export const bootstrap = internalMutation({
   args: { cursor: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, args) => {
+    if (backendEnv.CLEO_COMMUNITY_ROLES_ENABLED !== "true") return null
     const page = await ctx.db
       .query("linkedAccounts")
       .withIndex("by_provider_and_provider_account_id", (q) =>
@@ -160,7 +162,7 @@ export const bootstrap = internalMutation({
       )
       .paginate({ cursor: args.cursor ?? null, numItems: 100 })
     for (const account of page.page)
-      await queueRoleSync(ctx, account.providerAccountId)
+      await queueRoleSync(ctx, account.providerAccountId, true)
     if (!page.isDone)
       await ctx.scheduler.runAfter(0, internal.communityRoles.bootstrap, {
         cursor: page.continueCursor,

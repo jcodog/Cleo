@@ -41,6 +41,8 @@ export function PolicyEditor({
   const [reload, setReload] = useState(0)
   const view = useQuery(api.moderationPolicies.get, { platform, scopeId })
   if (!view) return <p>Loading moderation policy…</p>
+  if (view.status === "unavailable")
+    return <p role="status">Message protection unavailable. {view.message}</p>
   return (
     <PolicyForm
       key={`${platform}:${scopeId}:${reload}`}

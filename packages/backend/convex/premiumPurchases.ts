@@ -170,19 +170,27 @@ export const reserve = internalMutation({
       .order("desc")
       .first()
     if (existing && existing.closedAt === undefined) {
-      if (existing.expiresAt <= Date.now())
-        throw new ConvexError(
-          "The previous checkout is awaiting Stripe reconciliation. Try again shortly."
-        )
       if (
-        existing.userId !== args.userId ||
-        existing.announce !== args.announce ||
-        existing.displayRole !== args.displayRole
-      )
-        throw new ConvexError(
-          "A checkout is already in progress for this community."
+        existing.sessionId === undefined &&
+        existing.creationStartedAt === undefined &&
+        existing.userId === args.userId
+      ) {
+        await ctx.db.patch(existing._id, { closedAt: Date.now() })
+      } else {
+        if (existing.expiresAt <= Date.now())
+          throw new ConvexError(
+            "The previous checkout is awaiting Stripe reconciliation. Try again shortly."
+          )
+        if (
+          existing.userId !== args.userId ||
+          existing.announce !== args.announce ||
+          existing.displayRole !== args.displayRole
         )
-      return existing
+          throw new ConvexError(
+            "A checkout is already in progress for this community."
+          )
+        return existing
+      }
     }
     const value = {
       guildId: guild._id,
@@ -210,6 +218,26 @@ export const reserve = internalMutation({
     }
   },
 })
+/** Fence superseded reservations before their first Stripe request. */
+export const beginCheckout = internalMutation({
+  args: { key: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("premiumCheckouts")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .unique()
+    if (!row || row.closedAt !== undefined || row.sessionId !== undefined)
+      throw new Error("Checkout changed. Retry your purchase.")
+    if (row.expiresAt < Date.now() + 1805000)
+      throw new Error(
+        "Checkout is awaiting reconciliation. Retry after verification."
+      )
+    if (row.creationStartedAt === undefined)
+      await ctx.db.patch(row._id, { creationStartedAt: Date.now() })
+    return null
+  },
+})
 export const checkoutCreated = internalMutation({
   args: {
     key: v.string(),
@@ -223,7 +251,12 @@ export const checkoutCreated = internalMutation({
       .query("premiumCheckouts")
       .withIndex("by_key", (q) => q.eq("key", args.key))
       .unique()
-    if (!row) throw new Error("Checkout reservation expired.")
+    if (
+      !row ||
+      row.closedAt !== undefined ||
+      (row.sessionId !== undefined && row.sessionId !== args.sessionId)
+    )
+      throw new Error("Checkout reservation expired or changed.")
     await ctx.db.patch(row._id, {
       sessionId: args.sessionId,
       url: args.url,
@@ -345,6 +378,21 @@ export const acquire = internalMutation({
         leaseUntil: Date.now() + 60000,
       })
     return true
+  },
+})
+export const release = internalMutation({
+  args: { subscriptionId: v.string(), worker: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("stripeReconciliationLocks")
+      .withIndex("by_subscription", (q) =>
+        q.eq("subscriptionId", args.subscriptionId)
+      )
+      .unique()
+    if (row?.worker === args.worker)
+      await ctx.db.patch(row._id, { leaseUntil: 0 })
+    return null
   },
 })
 export const paymentSubscription = internalQuery({

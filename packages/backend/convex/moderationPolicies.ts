@@ -52,26 +52,43 @@ async function authority(
 }
 export const get = query({
   args: { platform: moderationPlatform, scopeId: v.string() },
-  returns: v.object({
-    policyJSON: v.string(),
-    revision: v.number(),
-    enforcement: v.boolean(),
-    health: v.string(),
-  }),
+  returns: v.union(
+    v.object({
+      status: v.literal("ready"),
+      policyJSON: v.string(),
+      revision: v.number(),
+      enforcement: v.boolean(),
+      health: v.string(),
+    }),
+    v.object({ status: v.literal("unavailable"), message: v.string() })
+  ),
   handler: async (ctx, args) => {
-    await authority(ctx, args.platform, args.scopeId)
+    try {
+      await authority(ctx, args.platform, args.scopeId)
+    } catch (error) {
+      if (!(error instanceof ConvexError)) throw error
+      return {
+        status: "unavailable" as const,
+        message:
+          typeof error.data === "string"
+            ? error.data
+            : "Verified management access is required to view this policy.",
+      }
+    }
     const row = await ctx.db
       .query(table(args.platform))
       .withIndex("by_scope", (q) => q.eq("scopeId", args.scopeId))
       .unique()
     return row
       ? {
+          status: "ready" as const,
           policyJSON: row.policyJSON,
           revision: row.revision,
           enforcement: row.enforcement,
           health: row.health ?? "Runtime verification needed",
         }
       : {
+          status: "ready" as const,
           policyJSON: JSON.stringify(compileModerationPolicy().policy),
           revision: 0,
           enforcement: false,
@@ -108,10 +125,13 @@ export const save = mutation({
     if ((row?.revision ?? 0) !== args.expectedRevision)
       throw new ConvexError("Policy changed. Reload before saving.")
     const revision = args.expectedRevision + 1
+    const policyJSON = JSON.stringify({ ...compiled.policy, revision })
+    if (policyJSON.length > 65536)
+      throw new ConvexError("Moderation policy is too large.")
     const value = {
       scopeId: args.scopeId,
       userId: user._id,
-      policyJSON: JSON.stringify({ ...compiled.policy, revision }),
+      policyJSON,
       revision,
       enforcement: args.enforcement,
       updatedAt: Date.now(),

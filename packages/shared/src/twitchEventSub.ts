@@ -109,11 +109,11 @@ const definitions = {
           .array(
             z.object({
               type: z.string(),
-              text: z.string().max(4096),
+              text: z.string().min(1).max(4096),
               emote: z.unknown().optional(),
             })
           )
-          .max(256)
+          .max(4096)
           .optional(),
       }),
     }),

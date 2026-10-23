@@ -1,6 +1,14 @@
 "use node"
 import { z } from "zod"
 import { backendEnv } from "@workspace/env/backend"
+export class StripeRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly type?: string
+  ) {
+    super(`Stripe integration unavailable (${status}).`)
+  }
+}
 export function stripeCommunityConfig(checkout = false) {
   const key = backendEnv.STRIPE_SECRET_KEY
   if (
@@ -32,8 +40,12 @@ export async function stripeRequest(
     redirect: "error",
     signal: AbortSignal.timeout(10000),
   })
-  if (!response.ok)
-    throw new Error(`Stripe integration unavailable (${response.status}).`)
+  if (!response.ok) {
+    const error = z
+      .object({ error: z.object({ type: z.string() }) })
+      .safeParse(await response.json().catch(() => null))
+    throw new StripeRequestError(response.status, error.data?.error.type)
+  }
   const text = await response.text()
   if (text.length > 1048576) throw new Error("Stripe response exceeds limit.")
   return JSON.parse(text)

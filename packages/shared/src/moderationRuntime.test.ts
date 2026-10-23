@@ -92,3 +92,28 @@ test("invalidation prevents an in-flight old policy from restoring authority", a
   await first
   assert.equal(runtime.inspect(message(), 1), null)
 })
+
+test("scope invalidation preserves unrelated refreshes and fences obsolete completions", async () => {
+  const completions: ((value: unknown) => void)[] = []
+  const runtime = new ModerationRuntime(
+    () => new Promise((resolve) => completions.push(resolve)),
+    2
+  )
+  const old = runtime.load("guild", 0)
+  const other = runtime.load("other", 0)
+  runtime.invalidate("guild")
+  await runtime.load("guild", 1)
+  assert.equal(completions.length, 2)
+  completions[1]!(value(2))
+  await other
+  assert.equal(
+    runtime.inspect(message("other", "other"), 2)?.decision.policyRevision,
+    2
+  )
+  const replacement = runtime.load("guild", 1)
+  completions[2]!(value(3))
+  await replacement
+  completions[0]!(value(1))
+  await old
+  assert.equal(runtime.inspect(message(), 2)?.decision.policyRevision, 3)
+})

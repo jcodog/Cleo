@@ -11,6 +11,41 @@ import { silentLogger } from "../../../tests/fixtures"
 import { ChatActivity } from "../timers/ChatActivity"
 
 const secret = "test-eventsub-secret"
+test("signed dense emote chat reaches activity and chat routing without a backend message request", async () => {
+  const activity = new ChatActivity("111")
+  activity.watch(["222"])
+  const f = fixture(activity, "111")
+  const fragments = Array.from({ length: 331 }, (_, index) =>
+    index % 2
+      ? { type: "text", text: " " }
+      : { type: "emote", text: "K", emote: { id: "25" } }
+  )
+  const body = {
+    ...chatBody,
+    event: {
+      ...chatBody.event,
+      message: { text: fragments.map((f) => f.text).join(""), fragments },
+    },
+  }
+  assert.equal((await f.server.handle(request(body))).status, 204)
+  await f.server.drain()
+  assert.equal(activity.snapshot("222").count, 1)
+  assert.equal(f.chatCalls.length, 1)
+  assert.deepEqual(f.calls, [])
+  const malformed = {
+    ...body,
+    event: {
+      ...body.event,
+      message: { text: "K", fragments: [{ type: "text", text: "" }] },
+    },
+  }
+  assert.equal(
+    (await f.server.handle(request(malformed, { id: "empty-fragment" })))
+      .status,
+    400
+  )
+  assert.equal(activity.snapshot("222").count, 1)
+})
 test("verified stream lifecycle uses the existing listener without consuming Discord dispatch", async () => {
   const events: { online: boolean; eventAt: number }[] = []
   const f = fixture(undefined, undefined, async (_id, online, eventAt) => {

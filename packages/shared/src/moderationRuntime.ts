@@ -23,8 +23,11 @@ type Entry = {
 /** Adapters refresh active entries in the background. No timers or shared worker state here. */
 export class ModerationRuntime {
   private readonly cache = new Map<string, Entry>()
-  private readonly pending = new Map<string, Promise<void>>()
-  private generation = 0
+  private readonly pending = new Map<
+    string,
+    { token: object; work: Promise<void> }
+  >()
+  private activeLoads = 0
   private readonly histories = new Map<
     string,
     { messages: ModerationHistoryEntry[]; updatedAt: number }
@@ -38,16 +41,16 @@ export class ModerationRuntime {
   }
   invalidate(scopeId: string) {
     this.cache.delete(scopeId)
-    this.generation++
     this.pending.delete(scopeId)
   }
   async load(scopeId: string, now: number): Promise<void> {
     const cached = this.cache.get(scopeId)
     if (cached && now - cached.fetchedAt < 15000) return
     const existing = this.pending.get(scopeId)
-    if (existing) return existing
-    if (this.pending.size >= this.maximum) return
-    const generation = this.generation
+    if (existing) return existing.work
+    if (this.activeLoads >= this.maximum) return
+    this.activeLoads++
+    const token = {}
     const work = (async () => {
       try {
         const raw = await this.fetchPolicy(scopeId)
@@ -64,7 +67,7 @@ export class ModerationRuntime {
           cached?.value.policyJSON === value.policyJSON
             ? cached.compiled
             : compileModerationPolicy(JSON.parse(value.policyJSON))
-        if (this.generation !== generation) return
+        if (this.pending.get(scopeId)?.token !== token) return
         if (cached && value.revision < cached.value.revision) return
         this.cache.delete(scopeId)
         this.cache.set(scopeId, { value, compiled, fetchedAt: now })
@@ -78,11 +81,13 @@ export class ModerationRuntime {
         /* Last verified policy is detection-only after authority expires. */
       }
     })()
-    this.pending.set(scopeId, work)
+    this.pending.set(scopeId, { token, work })
     try {
       await work
     } finally {
-      if (this.pending.get(scopeId) === work) this.pending.delete(scopeId)
+      this.activeLoads--
+      if (this.pending.get(scopeId)?.token === token)
+        this.pending.delete(scopeId)
     }
   }
   async refresh(now: number): Promise<void> {

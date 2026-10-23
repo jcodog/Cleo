@@ -8,6 +8,7 @@ beforeEach(() => mock.timers.enable({ apis: ["setTimeout"] }))
 afterEach(() => mock.timers.reset())
 
 process.env.CLEO_OFFICIAL_GUILD_ID = "999999999999999999"
+process.env.CLEO_COMMUNITY_ROLES_ENABLED = "false"
 process.env.DISCORD_APPLICATION_ID = "888888888888888888"
 process.env.DISCORD_CLIENT_SECRET = "fixture-client-secret"
 process.env.DISCORD_BOT_CONVEX_SECRET = "fixture-bot-secret"
@@ -126,6 +127,583 @@ async function fixture() {
 }
 const discordUserId = "111111111111111111"
 const discordGuildId = "333333333333333333"
+
+test("moderation reads expose unavailable authority without leaking policies or weakening writes", async () => {
+  const f = await fixture()
+  const args = { platform: "discord" as const, scopeId: discordGuildId }
+  await f.t.run((ctx) =>
+    ctx.db.patch(f.membershipId, { managementVerifiedAt: Date.now() - 300001 })
+  )
+  let result = await f.alice.query(api.moderationPolicies.get, args)
+  assert.equal(result.status, "unavailable")
+  assert.ok(!("policyJSON" in result))
+  await assert.rejects(
+    f.alice.mutation(api.moderationPolicies.save, {
+      ...args,
+      policyJSON: "{}",
+      expectedRevision: 0,
+      enforcement: false,
+    }),
+    /Refresh/
+  )
+  await f.t.run((ctx) => ctx.db.patch(f.guildId, { botLeftAt: Date.now() }))
+  result = await f.alice.query(api.moderationPolicies.get, args)
+  assert.deepEqual(result, {
+    status: "unavailable",
+    message: "Cleo must be installed.",
+  })
+})
+
+test("compiled policy expansion cannot exceed the persisted runtime payload limit", async () => {
+  const f = await fixture()
+  const { compileModerationPolicy } =
+    await import("@workspace/shared/moderation")
+  const identities = Array.from({ length: 100 }, () => "a".repeat(128))
+  let input = "",
+    compiled = ""
+  for (let count = 0; count <= 100; count++) {
+    const raw = {
+      exemptions: { userIds: identities, roleIds: identities },
+      rules: {
+        links: { exemptions: { userIds: identities, roleIds: identities } },
+        discordInvites: { exemptions: { userIds: identities.slice(0, count) } },
+      },
+    }
+    input = JSON.stringify(raw)
+    compiled = JSON.stringify({
+      ...compileModerationPolicy(raw).policy,
+      revision: 1,
+    })
+    if (compiled.length > 65536) break
+  }
+  assert.ok(input.length <= 65536 && compiled.length > 65536)
+  await assert.rejects(
+    f.alice.mutation(api.moderationPolicies.save, {
+      platform: "discord",
+      scopeId: discordGuildId,
+      policyJSON: input,
+      expectedRevision: 0,
+      enforcement: false,
+    }),
+    /too large/
+  )
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("discordModerationPolicies").first()),
+    null
+  )
+})
+
+test("disabled community rollout makes periodic role bootstrap inert", async () => {
+  const f = await fixture()
+  await f.t.mutation(internal.communityRoles.bootstrap, {})
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.query("communityRoleJobs").collect()),
+    []
+  )
+  assert.deepEqual(
+    await f.t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect()
+    ),
+    []
+  )
+})
+
+test("Linked Roles disconnect rejects busy leases, releases failed attempts and revokes on retry", async (t) => {
+  const f = await fixture()
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  const { encryptDiscordTokens } = await import("./lib/integrationSecurity")
+  const tokens = encryptDiscordTokens(
+    JSON.stringify({
+      access_token: "access",
+      refresh_token: "refresh",
+      expires_in: 3600,
+      scope: "identify role_connections.write",
+      token_type: "Bearer",
+    })
+  )
+  assert.equal(
+    await f.alice.action(api.communityActions.disconnectLinkedRoles, {}),
+    null
+  )
+  await f.t.mutation(internal.discordConnections.storeTokens, {
+    userId: f.userId,
+    discordUserId,
+    encryptedTokens: tokens,
+    expiresAt: Date.now() + 3600000,
+  })
+  const lease = await f.t.mutation(internal.discordConnections.lease, {
+    userId: f.userId,
+  })
+  assert.ok(lease)
+  let fail = true,
+    requests = 0
+  globalThis.fetch = async () => {
+    requests++
+    if (fail) return new Response("unavailable", { status: 503 })
+    return new Response(null, { status: 204 })
+  }
+  await assert.rejects(
+    f.alice.action(api.communityActions.disconnectLinkedRoles, {}),
+    /Retry disconnecting/
+  )
+  assert.equal(requests, 0)
+  assert.equal(
+    (
+      await f.t.query(internal.discordConnections.connection, {
+        userId: f.userId,
+      })
+    )?.revokedAt,
+    undefined
+  )
+  await f.t.mutation(internal.discordConnections.release, {
+    userId: f.userId,
+    revision: lease.revision,
+  })
+  await assert.rejects(
+    f.alice.action(api.communityActions.disconnectLinkedRoles, {})
+  )
+  assert.equal(
+    (
+      await f.t.query(internal.discordConnections.connection, {
+        userId: f.userId,
+      })
+    )?.leaseUntil,
+    0
+  )
+  fail = false
+  await f.alice.action(api.communityActions.disconnectLinkedRoles, {})
+  const disconnected = await f.t.query(internal.discordConnections.connection, {
+    userId: f.userId,
+  })
+  assert.ok(disconnected?.revokedAt)
+  assert.equal(disconnected.encryptedTokens, "")
+  const before = requests
+  await f.alice.action(api.communityActions.disconnectLinkedRoles, {})
+  assert.equal(requests, before)
+})
+
+test("Checkout recovery retries beyond the old cap and closes only after verified provider expiry", async (t) => {
+  const f = await purchased()
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  await f.t.mutation(internal.premiumPurchases.checkoutCreated, {
+    key: f.reservation.key,
+    sessionId: "cs_recover",
+    url: "https://checkout.stripe.com/recover",
+    expiresAt: Date.now() - 1,
+  })
+  let available = false
+  globalThis.fetch = async () => {
+    if (!available) throw new Error("Stripe outage after expiry")
+    return Response.json({ status: "expired", subscription: null })
+  }
+  const before = await f.t.run((ctx) =>
+    ctx.db.system.query("_scheduled_functions").collect()
+  )
+  await f.t.action(internal.premiumActions.recoverCheckout, {
+    key: f.reservation.key,
+    attempt: 13,
+  })
+  const after = await f.t.run((ctx) =>
+    ctx.db.system.query("_scheduled_functions").collect()
+  )
+  assert.equal(after.length, before.length + 1)
+  const retry = after.find((job) => !before.some((old) => old._id === job._id))!
+  assert.ok(retry.scheduledTime >= Date.now() + 3599000)
+  assert.equal(
+    (
+      await f.t.query(internal.premiumPurchases.checkoutByKey, {
+        key: f.reservation.key,
+      })
+    )?.closedAt,
+    undefined
+  )
+  available = true
+  await f.t.action(internal.premiumActions.recoverCheckout, {
+    key: f.reservation.key,
+    attempt: 13,
+  })
+  assert.ok(
+    (
+      await f.t.query(internal.premiumPurchases.checkoutByKey, {
+        key: f.reservation.key,
+      })
+    )?.closedAt
+  )
+  let fetches = 0
+  globalThis.fetch = async () => {
+    fetches++
+    throw new Error("closed reservation must not fetch")
+  }
+  await f.t.action(internal.premiumActions.recoverCheckout, {
+    key: f.reservation.key,
+    attempt: 13,
+  })
+  assert.equal(fetches, 0)
+})
+
+test("pre-request reservations can be replaced but in-flight or ambiguous Checkout creation remains fenced", async () => {
+  const f = await purchased()
+  await f.t.run((ctx) =>
+    ctx.db.patch(f.reservation._id, { expiresAt: Date.now() + 1000 })
+  )
+  const args = {
+    userId: f.userId,
+    discordUserId,
+    discordGuildId,
+    purchaserKind: "administrator" as const,
+    announce: false,
+    displayRole: false,
+    key: "replacement",
+  }
+  const replacement = await f.t.mutation(
+    internal.premiumPurchases.reserve,
+    args
+  )
+  assert.equal(replacement.key, "replacement")
+  assert.ok(replacement.expiresAt > Date.now() + 3599000)
+  await assert.rejects(
+    f.t.mutation(internal.premiumPurchases.beginCheckout, {
+      key: f.reservation.key,
+    }),
+    /changed/
+  )
+  await assert.rejects(
+    f.t.mutation(internal.premiumPurchases.checkoutCreated, {
+      key: f.reservation.key,
+      sessionId: "late",
+      url: "https://checkout.stripe.com/late",
+      expiresAt: Date.now() + 3600000,
+    })
+  )
+  await f.t.mutation(internal.premiumPurchases.beginCheckout, {
+    key: replacement.key,
+  })
+  const retries = await Promise.all(
+    ["concurrent-one", "concurrent-two"].map((key) =>
+      f.t.mutation(internal.premiumPurchases.reserve, { ...args, key })
+    )
+  )
+  assert.ok(retries.every((row) => row.key === replacement.key))
+  await assert.rejects(
+    f.t.mutation(internal.premiumPurchases.reserve, {
+      ...args,
+      key: "changed-consent",
+      announce: true,
+    }),
+    /already in progress/
+  )
+  await f.t.run((ctx) =>
+    ctx.db.patch(replacement._id, { expiresAt: Date.now() + 1804999 })
+  )
+  await assert.rejects(
+    f.t.mutation(internal.premiumPurchases.beginCheckout, {
+      key: replacement.key,
+    }),
+    /awaiting reconciliation/
+  )
+})
+
+test("Checkout retries definitive validation failures and fences uncertain concurrent Stripe requests", async (t) => {
+  const f = await fixture(),
+    originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  let mode: "invalid" | "outage" | "stalled" | "conflict" = "invalid"
+  const keys: string[] = []
+  let started: () => void = () => {},
+    finish: () => void = () => {}
+  const began = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  const waiting = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  globalThis.fetch = async (input, init) => {
+    const url = String(input)
+    if (url.startsWith("https://api.clerk.com/"))
+      return Response.json([{ token: "fixture-oauth" }])
+    if (url.endsWith("/users/@me")) return Response.json({ id: discordUserId })
+    if (url.includes("/users/@me/guilds"))
+      return Response.json([
+        { id: discordGuildId, owner: false, permissions: "8" },
+      ])
+    if (new URL(url).pathname === `/api/v10/guilds/${discordGuildId}`)
+      return Response.json({
+        id: discordGuildId,
+        owner_id: "444444444444444444",
+        name: "Test",
+      })
+    assert.equal(url, "https://api.stripe.com/v1/checkout/sessions")
+    const fields = new URLSearchParams(String(init?.body))
+    keys.push(fields.get("metadata[cleo_checkout]")!)
+    assert.ok(Number(fields.get("expires_at")) * 1000 >= Date.now() + 1800000)
+    if (mode === "invalid")
+      return Response.json(
+        { error: { type: "invalid_request_error" } },
+        { status: 400 }
+      )
+    if (mode === "outage") throw new Error("ambiguous Stripe timeout")
+    if (mode === "conflict")
+      return Response.json(
+        { error: { type: "idempotency_error" } },
+        { status: 409 }
+      )
+    started()
+    await waiting
+    return Response.json({
+      id: "cs_concurrent",
+      url: "https://checkout.stripe.com/concurrent",
+      expires_at: Number(fields.get("expires_at")),
+    })
+  }
+  const args = { discordGuildId, announce: false, displayRole: false }
+  await assert.rejects(f.alice.action(api.premiumActions.checkout, args), /400/)
+  assert.ok(
+    (
+      await f.t.query(internal.premiumPurchases.checkoutByKey, {
+        key: keys[0]!,
+      })
+    )?.closedAt
+  )
+  mode = "outage"
+  await assert.rejects(
+    f.alice.action(api.premiumActions.checkout, { ...args, announce: true }),
+    /timeout/
+  )
+  assert.notEqual(keys[0], keys[1])
+  await assert.rejects(
+    f.alice.action(api.premiumActions.checkout, args),
+    /already in progress/
+  )
+  assert.equal(keys.length, 2)
+  mode = "stalled"
+  const first = f.alice.action(api.premiumActions.checkout, {
+    ...args,
+    announce: true,
+  })
+  await began
+  mode = "conflict"
+  await assert.rejects(
+    f.alice.action(api.premiumActions.checkout, { ...args, announce: true }),
+    /409/
+  )
+  assert.equal(keys[1], keys[2])
+  assert.equal(keys[2], keys[3])
+  assert.equal(
+    (
+      await f.t.query(internal.premiumPurchases.checkoutByKey, {
+        key: keys[1]!,
+      })
+    )?.closedAt,
+    undefined
+  )
+  finish()
+  assert.equal(await first, "https://checkout.stripe.com/concurrent")
+  assert.equal(
+    await f.alice.action(api.premiumActions.checkout, {
+      ...args,
+      announce: true,
+    }),
+    "https://checkout.stripe.com/concurrent"
+  )
+  assert.equal(keys.length, 4)
+})
+
+test("Stripe reconciliation releases failures, acknowledges unmanaged webhooks and serializes concurrent work", async (t) => {
+  const f = await purchased()
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  const now = Math.floor(Date.now() / 1000)
+  const subscription = {
+    id: "sub_recovery",
+    customer: "cus_alice",
+    status: "active",
+    cancel_at_period_end: false,
+    metadata: { cleo_checkout: f.reservation.key },
+    items: {
+      data: [
+        {
+          current_period_start: now - 10,
+          current_period_end: now + 3600,
+          price: { id: "price_premium", product: "prod_premium" },
+        },
+      ],
+    },
+  }
+  let mode:
+    | "offline"
+    | "schema"
+    | "association"
+    | "invoice"
+    | "payment"
+    | "charge"
+    | "unmanaged"
+    | "success"
+    | "stalled" = "offline"
+  let started: () => void = () => {},
+    finish: () => void = () => {}
+  const began = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  const waiting = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  globalThis.fetch = async (input) => {
+    if (mode === "offline") throw new Error("Stripe unavailable")
+    const url = String(input)
+    if (url.includes("/invoices/")) {
+      if (mode === "invoice") throw new Error("invoice lookup unavailable")
+      return Response.json({
+        id: "invoice_recovery",
+        amount_paid: 1000,
+        status: "paid",
+        period_end: now + 3600,
+        parent: { subscription_details: { subscription: subscription.id } },
+        lines: {
+          has_more: false,
+          data: [
+            {
+              period: { start: now - 10, end: now + 3600 },
+              parent: {
+                subscription_item_details: { subscription: subscription.id },
+              },
+            },
+          ],
+        },
+        payments: {
+          has_more: false,
+          data: [
+            {
+              status: "paid",
+              amount_paid: 1000,
+              payment: {
+                type: "payment_intent",
+                payment_intent: "pi_recovery",
+              },
+            },
+          ],
+        },
+      })
+    }
+    if (url.includes("/payment_intents/")) {
+      if (mode === "payment") throw new Error("payment lookup unavailable")
+      return Response.json({
+        status: "succeeded",
+        customer: "cus_alice",
+        amount_received: 1000,
+        latest_charge: "ch_recovery",
+      })
+    }
+    if (url.includes("/charges/")) throw new Error("charge lookup unavailable")
+    if (mode === "schema")
+      return Response.json({
+        id: subscription.id,
+        metadata: { cleo_checkout: f.reservation.key },
+      })
+    if (mode === "association")
+      return Response.json({
+        ...subscription,
+        metadata: { cleo_checkout: "missing-trusted-checkout" },
+      })
+    if (mode === "invoice" || mode === "payment" || mode === "charge")
+      return Response.json({
+        ...subscription,
+        latest_invoice: "invoice_recovery",
+      })
+    if (mode === "stalled") {
+      started()
+      await waiting
+    }
+    return Response.json(
+      mode === "unmanaged" || mode === "stalled"
+        ? { id: subscription.id, metadata: {} }
+        : subscription
+    )
+  }
+  const args = {
+    subscriptionId: subscription.id,
+    eventId: "recover-failed-event",
+    revoked: false,
+  }
+  for (const failure of [
+    "offline",
+    "schema",
+    "association",
+    "invoice",
+    "payment",
+    "charge",
+  ] as const) {
+    mode = failure
+    await assert.rejects(
+      f.t.action(internal.premiumActions.reconcile, args),
+      failure
+    )
+    assert.equal(
+      await f.t.mutation(internal.premiumPurchases.acquire, {
+        subscriptionId: subscription.id,
+        worker: "retry",
+      }),
+      true
+    )
+    await f.t.mutation(internal.premiumPurchases.release, {
+      subscriptionId: subscription.id,
+      worker: "retry",
+    })
+  }
+  mode = "unmanaged"
+  const body = JSON.stringify({
+    id: "unmanaged-webhook",
+    type: "customer.subscription.updated",
+    livemode: false,
+    data: { object: { id: subscription.id } },
+  })
+  const timestamp = String(Math.floor(Date.now() / 1000))
+  const signature = `t=${timestamp},v1=${createHmac("sha256", "whsec_fixture").update(`${timestamp}.${body}`).digest("hex")}`
+  assert.equal(
+    await f.t.action(internal.premiumActions.webhook, { body, signature }),
+    true
+  )
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("guildSubscriptions").first()),
+    null
+  )
+  mode = "stalled"
+  const first = f.t.action(internal.premiumActions.reconcile, args)
+  await began
+  await assert.rejects(
+    f.t.action(internal.premiumActions.reconcile, args),
+    /in progress/
+  )
+  finish()
+  await first
+  mode = "success"
+  await f.t.action(internal.premiumActions.reconcile, args)
+  assert.ok(await f.t.run((ctx) => ctx.db.query("guildSubscriptions").first()))
+  await f.t.mutation(internal.premiumPurchases.acquire, {
+    subscriptionId: subscription.id,
+    worker: "replacement-worker",
+  })
+  await f.t.mutation(internal.premiumPurchases.release, {
+    subscriptionId: subscription.id,
+    worker: "obsolete-worker",
+  })
+  assert.equal(
+    await f.t.mutation(internal.premiumPurchases.acquire, {
+      subscriptionId: subscription.id,
+      worker: "racer",
+    }),
+    false
+  )
+})
 
 test("test-mode hosted Checkout verifies fresh Administrator permission and signed Basil invoices reconcile real payment evidence", async () => {
   const f = await fixture(),
@@ -453,20 +1031,20 @@ test("moderation saves require verified scope authority, validate limits, and us
       }),
     })
   )
+  const saved = await f.alice.query(api.moderationPolicies.get, {
+    platform: args.platform,
+    scopeId: args.scopeId,
+  })
+  assert.ok(saved.status === "ready")
+  assert.equal(saved.enforcement, false)
   assert.equal(
     (
-      await f.alice.query(api.moderationPolicies.get, {
-        platform: args.platform,
-        scopeId: args.scopeId,
+      await f.bob.query(api.moderationPolicies.get, {
+        platform: "twitch",
+        scopeId: "222",
       })
-    ).enforcement,
-    false
-  )
-  await assert.rejects(
-    f.bob.query(api.moderationPolicies.get, {
-      platform: "twitch",
-      scopeId: "222",
-    })
+    ).status,
+    "unavailable"
   )
   assert.equal(
     await f.alice.mutation(api.moderationPolicies.save, {

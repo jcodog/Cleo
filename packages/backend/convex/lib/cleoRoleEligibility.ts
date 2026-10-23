@@ -116,11 +116,16 @@ export async function roleEligibility(
     paidSupporter,
   })
 }
-export async function queueRoleSync(ctx: MutationCtx, discordUserId: string) {
+export async function queueRoleSync(
+  ctx: MutationCtx,
+  discordUserId: string,
+  periodic = false
+) {
   const current = await ctx.db
     .query("communityRoleJobs")
     .withIndex("by_user", (q) => q.eq("discordUserId", discordUserId))
     .unique()
+  if (current && periodic) return
   if (current)
     await ctx.db.patch(current._id, {
       revision: current.revision + 1,

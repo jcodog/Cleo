@@ -107,6 +107,11 @@ roles or purchases. Installation evidence expires after 24 hours and becomes
 verification-needed. Discord does not provide a general bot endpoint to poll all
 personal installations; signed events and fresh user-install interactions are
 the supported evidence. Ambiguous deauthorization never confirms installation.
+Periodic role bootstrapping runs only when the Convex community-role gate is
+enabled. It inserts missing jobs without resetting existing retry backoff,
+revisions or active leases. Disconnecting Linked Roles while a token refresh or
+metadata update holds the lease returns a retryable error. Wait one minute and
+retry; success means the grant was revoked or was already disconnected.
 
 ## Stripe test setup
 
@@ -148,9 +153,17 @@ the supported evidence. Ambiguous deauthorization never confirms installation.
    adapter and separately approved Stripe setup. No live key or charge was used.
 
 Checkout reservations and Stripe idempotency keys prevent concurrent duplicate
-session creation. Uncertain expired reservations remain blocked until provider
-reconciliation. Recovery runs every five minutes with bounded retries, and known
-subscriptions refresh every five minutes. Invoices with incomplete pagination or
+session creation. A reservation abandoned before any Stripe session request can
+be replaced by its purchaser with fresh expiry and consent. Once session creation
+starts, concurrent retries share its idempotency key; timeouts and conflicts keep
+it fenced. A definitive Stripe parameter rejection releases it for a fresh retry.
+Uncertain expired reservations remain blocked until provider reconciliation.
+Recovery retries every five minutes initially, then hourly after attempt 12,
+until Stripe confirms expiry or a completed subscription is reconciled. Known
+subscriptions refresh every five minutes. Failed reconciliation always releases
+its worker's lease so webhook retries can recover immediately. Subscriptions
+without Cleo checkout metadata are acknowledged without granting coverage;
+malformed managed subscriptions still fail closed. Invoices with incomplete pagination or
 more than ten payments fail closed for manual reconciliation. Subscription
 entitlements continue to use the existing Convex resolver.
 
@@ -202,24 +215,25 @@ are rejected. Production moderation activation remains deferred.
 
 ## Implementation validation
 
-Final local validation completed in three rounds, with no coverage thresholds
-changed. The first round exposed a Checkout HTTP fixture missing the Discord
-query string and three lint cleanups. The second exposed the existing navigation
-test's outdated item count. The third passed all nine coverage tasks.
+The CodeRabbit correction pass added recovery, concurrency and boundary tests
+for all ten existing findings. Final coverage passed all nine workspace tasks
+on the third run, with no assertions or coverage thresholds changed. Earlier
+Windows runs encountered an existing Twitch file-lock race and a shutdown-test
+timeout while other verification workloads were active.
 
 | Workspace   | Passing tests | Reported statements / branches / functions / lines |
 | ----------- | ------------: | -------------------------------------------------- |
-| Shared      |            82 | 100% / 100% / 100% / 100%                          |
-| Backend     |           304 | 100% / 100% / 100% / 100%                          |
-| Discord bot |           308 | 100% / 100% / 100% / 100%                          |
-| Twitch bot  |           122 | 100% / 100% / 100% / 100%                          |
+| Shared      |            84 | 100% / 100% / 100% / 100%                          |
+| Backend     |           313 | 100% / 100% / 100% / 100%                          |
+| Discord bot |           309 | 100% / 100% / 100% / 100%                          |
+| Twitch bot  |           123 | 100% / 100% / 100% / 100%                          |
 | Dashboard   |            98 | 100% / 100% / 100% / 100%                          |
 | Environment |            23 | 100% / 100% / 100% / 100%                          |
 | Logger      |             7 | 100% / 100% / 100% / 100%                          |
 | Landing     |             4 | 100% / 100% / 100% / 100%                          |
 | UI          |             2 | 100% / 100% / 100% / 100%                          |
 
-Total: **950 passing tests**. Coverage uses each package's established inclusion
+Total: **963 passing tests**. Coverage uses each package's established inclusion
 list. Shared and Twitch include their full source scopes; backend, Discord and
 dashboard have explicit existing coverage allowlists. These percentages do not
 claim every new integration file has 100% coverage. The added functional tests
@@ -227,11 +241,14 @@ exercise OAuth identity/state, signed application events, test Checkout and
 payment reconciliation, refunds, privacy, durable delivery states, policy locks,
 cache leases and signed Twitch chat routing.
 
-Executed successfully: changed-file Prettier check, `bun run lint`, final
-dashboard lint after the navigation-test edit, `bun run typecheck`,
-`bun run test:coverage --continue`, and `bun run build`. Coverage executes the
+Executed successfully: changed-file Prettier check, `bun run lint:ci`,
+`bun run typecheck`, `bun run test:ci` with Git Bash on PATH,
+`bun run test:coverage --concurrency=1 --continue`, and `bun run build`.
+The Twitch browser suite passed 19 checks; welcome verification passed all 12
+checks across Chromium and Firefox after the competing workloads finished.
+Coverage executes the
 same test suites as package `test` scripts; a redundant final root test run was
-not added. Final coverage reused three unchanged successful Turbo tasks.
+not added. Final coverage reused seven unchanged successful Turbo tasks.
 
 No external Discord installation, native-role claim, actual Stripe Checkout,
 live webhook delivery or VPS deployment was fabricated. Those operator smoke

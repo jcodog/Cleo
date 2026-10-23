@@ -25,7 +25,7 @@ export default new Event({
     }
 
     try {
-      await recordUserInstallation(interaction)
+      void recordUserInstallation(interaction).catch(() => undefined)
       await command.execute({ interaction })
     } catch (error) {
       await replyWithCommandError({

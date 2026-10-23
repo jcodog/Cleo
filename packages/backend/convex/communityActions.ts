@@ -302,11 +302,22 @@ export const disconnectLinkedRoles = action({
       internal.discordConnections.lease,
       { userId: user._id }
     )
-    if (connection && !connection.revokedAt) {
-      const result = tokenSchema.parse(
-        JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
+    if (!connection) {
+      const existing = await ctx.runQuery(
+        internal.discordConnections.connection,
+        { userId: user._id }
       )
+      if (existing && !existing.revokedAt)
+        throw new Error(
+          "Linked Roles are updating. Retry disconnecting in a minute."
+        )
+      return null
+    }
+    if (connection && !connection.revokedAt) {
       try {
+        const result = tokenSchema.parse(
+          JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
+        )
         if (connection.expiresAt > Date.now())
           await discordJson(
             `/users/@me/applications/${discordApplicationConfig()}/role-connection`,

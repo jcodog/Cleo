@@ -158,7 +158,9 @@ export function ModerationSection({
       </form>
 
       <RecentModerationActions result={moderationActionsResult} />
-      <PolicyEditor platform="discord" scopeId={overview.discordGuildId} />
+      {isBotLeft ? null : (
+        <PolicyEditor platform="discord" scopeId={overview.discordGuildId} />
+      )}
     </div>
   )
 }

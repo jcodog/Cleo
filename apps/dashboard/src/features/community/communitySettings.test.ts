@@ -25,6 +25,7 @@ test("moderation stays locked and purchase visibility starts private in actual d
   let slots: unknown[] = [],
     index = 0
   let view: unknown = {
+    status: "ready",
     policyJSON: "{}",
     revision: 0,
     enforcement: false,
@@ -117,6 +118,7 @@ test("moderation stays locked and purchase visibility starts private in actual d
   )
   assert.equal(calls.length, 0)
   view = {
+    status: "ready",
     policyJSON: "{}",
     revision: 1,
     enforcement: false,
@@ -127,6 +129,17 @@ test("moderation stays locked and purchase visibility starts private in actual d
       content(node).includes("Another configuration revision")
     )
   )
+
+  for (const message of [
+    "Cleo must be installed.",
+    "Refresh your Discord server permissions before editing moderation.",
+  ]) {
+    view = { status: "unavailable", message }
+    const unavailable = policy()
+    assert.ok(unavailable.some((node) => content(node).includes(message)))
+    assert.ok(!unavailable.some((node) => node.type === "fieldset"))
+    assert.equal(calls.length, 0)
+  }
 
   const { PremiumPurchases } = await import("./PremiumPurchases")
   slots = []

@@ -1820,12 +1820,14 @@ export declare const api: {
       "query",
       "public",
       { platform: "discord" | "twitch"; scopeId: string },
-      {
-        enforcement: boolean;
-        health: string;
-        policyJSON: string;
-        revision: number;
-      }
+      | {
+          enforcement: boolean;
+          health: string;
+          policyJSON: string;
+          revision: number;
+          status: "ready";
+        }
+      | { message: string; status: "unavailable" }
     >;
     save: FunctionReference<
       "mutation",
@@ -7052,6 +7054,12 @@ export declare const internal: {
       },
       null
     >;
+    beginCheckout: FunctionReference<
+      "mutation",
+      "internal",
+      { key: string },
+      null
+    >;
     billingUser: FunctionReference<
       "query",
       "internal",
@@ -7092,6 +7100,7 @@ export declare const internal: {
         announce: boolean;
         closedAt?: number;
         createdAt: number;
+        creationStartedAt?: number;
         discordUserId: string;
         displayRole: boolean;
         expiresAt: number;
@@ -7179,6 +7188,12 @@ export declare const internal: {
       { cursor?: string },
       { cursor: string | null; ids: Array<string> }
     >;
+    release: FunctionReference<
+      "mutation",
+      "internal",
+      { subscriptionId: string; worker: string },
+      null
+    >;
     reserve: FunctionReference<
       "mutation",
       "internal",
@@ -7197,6 +7212,7 @@ export declare const internal: {
         announce: boolean;
         closedAt?: number;
         createdAt: number;
+        creationStartedAt?: number;
         discordUserId: string;
         displayRole: boolean;
         expiresAt: number;

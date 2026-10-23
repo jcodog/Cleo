@@ -13,6 +13,7 @@ import {
   stripeSubscription,
   stripeInvoice,
   invoicePaidUntil,
+  StripeRequestError,
 } from "./lib/stripeCommunity"
 import { verifyStripeSignature } from "./lib/integrationSecurity"
 
@@ -103,6 +104,9 @@ export const checkout = action({
       throw new Error(
         "Your community authority changed. Wait for checkout reconciliation and try again."
       )
+    await ctx.runMutation(internal.premiumPurchases.beginCheckout, {
+      key: reservation.key,
+    })
     const session = z
       .object({ id: z.string(), url: z.string().url(), expires_at: z.number() })
       .parse(
@@ -120,7 +124,19 @@ export const checkout = action({
             expires_at: String(Math.floor(reservation.expiresAt / 1000)),
           },
           `cleo-checkout:${reservation.key}`
-        )
+        ).catch(async (error) => {
+          // A validation rejection created no session. Timeouts, conflicts and
+          // idempotency errors remain fenced until provider reconciliation.
+          if (
+            error instanceof StripeRequestError &&
+            error.status === 400 &&
+            error.type === "invalid_request_error"
+          )
+            await ctx.runMutation(internal.premiumPurchases.closeCheckout, {
+              key: reservation.key,
+            })
+          throw error
+        })
       )
     if (new URL(session.url).hostname !== "checkout.stripe.com")
       throw new Error("Unexpected Stripe Checkout location.")
@@ -178,7 +194,7 @@ export const recoverCheckout = internalAction({
       internal.premiumPurchases.checkoutByKey,
       { key: args.key }
     )
-    if (!reservation) return null
+    if (!reservation || reservation.closedAt !== undefined) return null
     if (!reservation.sessionId) {
       // The URL is returned only after persistence. An abandoned reservation without a
       // persisted session cannot have exposed a payable Checkout URL to the user.
@@ -186,11 +202,11 @@ export const recoverCheckout = internalAction({
         await ctx.runMutation(internal.premiumPurchases.closeCheckout, {
           key: args.key,
         })
-      else if (args.attempt < 13)
+      else
         await ctx.scheduler.runAfter(
           300000,
           internal.premiumActions.recoverCheckout,
-          { ...args, attempt: args.attempt + 1 }
+          { ...args, attempt: Math.min(args.attempt + 1, 13) }
         )
       return null
     }
@@ -217,14 +233,13 @@ export const recoverCheckout = internalAction({
         return null
       }
     } catch {
-      /* Retry boundedly; verified webhooks and periodic reconciliation remain authoritative. */
+      /* Keep uncertain reservations fenced and retry at a capped frequency. */
     }
-    if (args.attempt < 12)
-      await ctx.scheduler.runAfter(
-        300000,
-        internal.premiumActions.recoverCheckout,
-        { ...args, attempt: args.attempt + 1 }
-      )
+    await ctx.scheduler.runAfter(
+      args.attempt < 12 ? 300000 : 3600000,
+      internal.premiumActions.recoverCheckout,
+      { ...args, attempt: Math.min(args.attempt + 1, 13) }
+    )
     return null
   },
 })
@@ -341,114 +356,133 @@ export const reconcile = internalAction({
       }))
     )
       throw new Error("Subscription reconciliation in progress.")
-    const subscription = stripeSubscription.parse(
-      await stripeRequest(
+    try {
+      const rawSubscription = await stripeRequest(
         `/subscriptions/${encodeURIComponent(args.subscriptionId)}`
       )
-    )
-    const item = subscription.items.data[0]
-    if (!item) throw new Error("Subscription price unavailable.")
-    let paidInvoice:
-      | {
-          id: string
-          paidUntil: number
-          payments: { paymentIntentId: string; chargeId: string }[]
+      const identity = z
+        .object({
+          id: z.string(),
+          metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+        })
+        .parse(rawSubscription)
+      if (identity.id !== args.subscriptionId)
+        throw new Error("Subscription identity mismatch.")
+      if (identity.metadata?.cleo_checkout === undefined) return null
+      const subscription = stripeSubscription.parse(rawSubscription)
+      const item = subscription.items.data[0]
+      if (!item) throw new Error("Subscription price unavailable.")
+      let paidInvoice:
+        | {
+            id: string
+            paidUntil: number
+            payments: { paymentIntentId: string; chargeId: string }[]
+          }
+        | undefined
+      let paymentReversed = false
+      const invoiceId = args.paidInvoiceId ?? subscription.latest_invoice
+      if (invoiceId) {
+        const invoice = stripeInvoice.parse(
+          await stripeRequest(
+            `/invoices/${encodeURIComponent(invoiceId)}?expand[]=payments`
+          )
+        )
+        const paidUntil = invoicePaidUntil(
+          invoice,
+          subscription.id,
+          item.current_period_end
+        )
+        if (paidUntil !== undefined) {
+          if (!invoice.payments || invoice.payments.has_more)
+            throw new Error("Complete invoice payment evidence required.")
+          const payments = await Promise.all(
+            invoice.payments.data
+              .filter(
+                (payment) =>
+                  payment.status === "paid" &&
+                  payment.amount_paid > 0 &&
+                  payment.payment.type === "payment_intent" &&
+                  payment.payment.payment_intent
+              )
+              .map(async (entry) => {
+                const paymentIntentId = entry.payment.payment_intent!
+                const payment = z
+                  .object({
+                    status: z.string(),
+                    customer: z.string(),
+                    amount_received: z.number().int(),
+                    latest_charge: z.string().nullable(),
+                  })
+                  .parse(
+                    await stripeRequest(
+                      `/payment_intents/${encodeURIComponent(paymentIntentId)}`
+                    )
+                  )
+                if (
+                  payment.status !== "succeeded" ||
+                  payment.customer !== subscription.customer ||
+                  payment.amount_received <= 0 ||
+                  !payment.latest_charge
+                )
+                  throw new Error(
+                    "Verified successful Stripe payment required."
+                  )
+                const charge = z
+                  .object({
+                    customer: z.string(),
+                    payment_intent: z.string(),
+                    paid: z.boolean(),
+                    refunded: z.boolean(),
+                    disputed: z.boolean(),
+                    amount_refunded: z.number().int(),
+                  })
+                  .parse(
+                    await stripeRequest(
+                      `/charges/${encodeURIComponent(payment.latest_charge)}`
+                    )
+                  )
+                if (
+                  charge.customer !== subscription.customer ||
+                  charge.payment_intent !== paymentIntentId ||
+                  !charge.paid
+                )
+                  throw new Error("Charge identity verification failed.")
+                paymentReversed ||=
+                  charge.refunded ||
+                  charge.disputed ||
+                  charge.amount_refunded > 0
+                return { paymentIntentId, chargeId: payment.latest_charge }
+              })
+          )
+          if (payments.length)
+            paidInvoice = { id: invoice.id, paidUntil, payments }
         }
-      | undefined
-    let paymentReversed = false
-    const invoiceId = args.paidInvoiceId ?? subscription.latest_invoice
-    if (invoiceId) {
-      const invoice = stripeInvoice.parse(
-        await stripeRequest(
-          `/invoices/${encodeURIComponent(invoiceId)}?expand[]=payments`
-        )
-      )
-      const paidUntil = invoicePaidUntil(
-        invoice,
-        subscription.id,
-        item.current_period_end
-      )
-      if (paidUntil !== undefined) {
-        if (!invoice.payments || invoice.payments.has_more)
-          throw new Error("Complete invoice payment evidence required.")
-        const payments = await Promise.all(
-          invoice.payments.data
-            .filter(
-              (payment) =>
-                payment.status === "paid" &&
-                payment.amount_paid > 0 &&
-                payment.payment.type === "payment_intent" &&
-                payment.payment.payment_intent
-            )
-            .map(async (entry) => {
-              const paymentIntentId = entry.payment.payment_intent!
-              const payment = z
-                .object({
-                  status: z.string(),
-                  customer: z.string(),
-                  amount_received: z.number().int(),
-                  latest_charge: z.string().nullable(),
-                })
-                .parse(
-                  await stripeRequest(
-                    `/payment_intents/${encodeURIComponent(paymentIntentId)}`
-                  )
-                )
-              if (
-                payment.status !== "succeeded" ||
-                payment.customer !== subscription.customer ||
-                payment.amount_received <= 0 ||
-                !payment.latest_charge
-              )
-                throw new Error("Verified successful Stripe payment required.")
-              const charge = z
-                .object({
-                  customer: z.string(),
-                  payment_intent: z.string(),
-                  paid: z.boolean(),
-                  refunded: z.boolean(),
-                  disputed: z.boolean(),
-                  amount_refunded: z.number().int(),
-                })
-                .parse(
-                  await stripeRequest(
-                    `/charges/${encodeURIComponent(payment.latest_charge)}`
-                  )
-                )
-              if (
-                charge.customer !== subscription.customer ||
-                charge.payment_intent !== paymentIntentId ||
-                !charge.paid
-              )
-                throw new Error("Charge identity verification failed.")
-              paymentReversed ||=
-                charge.refunded || charge.disputed || charge.amount_refunded > 0
-              return { paymentIntentId, chargeId: payment.latest_charge }
-            })
-        )
-        if (payments.length)
-          paidInvoice = { id: invoice.id, paidUntil, payments }
       }
+      await ctx.runMutation(internal.premiumPurchases.apply, {
+        eventId: args.eventId,
+        worker,
+        subscriptionId: subscription.id,
+        customerId: subscription.customer,
+        checkoutKey: subscription.metadata.cleo_checkout,
+        productId: item.price.product,
+        priceId: item.price.id,
+        status: subscription.status,
+        startsAt: item.current_period_start * 1000,
+        endsAt: item.current_period_end * 1000,
+        trialEndsAt: subscription.trial_end
+          ? subscription.trial_end * 1000
+          : undefined,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        revoked: args.revoked || paymentReversed,
+        testMode: true,
+        paidInvoice,
+      })
+      return null
+    } finally {
+      await ctx.runMutation(internal.premiumPurchases.release, {
+        subscriptionId: args.subscriptionId,
+        worker,
+      })
     }
-    await ctx.runMutation(internal.premiumPurchases.apply, {
-      eventId: args.eventId,
-      worker,
-      subscriptionId: subscription.id,
-      customerId: subscription.customer,
-      checkoutKey: subscription.metadata.cleo_checkout,
-      productId: item.price.product,
-      priceId: item.price.id,
-      status: subscription.status,
-      startsAt: item.current_period_start * 1000,
-      endsAt: item.current_period_end * 1000,
-      trialEndsAt: subscription.trial_end
-        ? subscription.trial_end * 1000
-        : undefined,
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-      revoked: args.revoked || paymentReversed,
-      testMode: true,
-      paidInvoice,
-    })
-    return null
   },
 })
