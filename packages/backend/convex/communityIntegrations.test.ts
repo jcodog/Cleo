@@ -634,18 +634,18 @@ test("Stripe reconciliation releases failures, acknowledges unmanaged webhooks a
     eventId: "recover-failed-event",
     revoked: false,
   }
-  for (const failure of [
-    "offline",
-    "schema",
-    "association",
-    "invoice",
-    "payment",
-    "charge",
+  for (const [failure, expected] of [
+    ["offline", /Stripe unavailable/],
+    ["schema", /"path":\s*\[\s*"customer"\s*\]/],
+    ["association", /Untrusted Stripe subscription association/],
+    ["invoice", /invoice lookup unavailable/],
+    ["payment", /payment lookup unavailable/],
+    ["charge", /charge lookup unavailable/],
   ] as const) {
     mode = failure
     await assert.rejects(
       f.t.action(internal.premiumActions.reconcile, args),
-      failure
+      expected
     )
     assert.equal(
       await f.t.mutation(internal.premiumPurchases.acquire, {
