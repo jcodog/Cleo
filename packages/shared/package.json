@@ -17,6 +17,7 @@
     "zod": "^4.6.7"
   },
   "exports": {
+    "./moderation": "./src/moderation/index.ts",
     "./twitchTimers": "./src/twitchTimers.ts",
     "./welcomeCard": "./src/welcomeCard.ts",
     "./drawWelcomeCard": "./src/drawWelcomeCard.ts",
