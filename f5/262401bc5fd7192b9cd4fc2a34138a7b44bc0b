@@ -1,0 +1,28 @@
+packages/backend/convex/communityIntegrations.test.ts
+  s_9ab004eff526bf::t_3f6bfea4bea90f 637-643,648
+apps/discord-bot/src/services/communityRoleSync.ts
+  s_9ab004eff526bf::t_c9de77ced5347a 67-70,78-81
+  s_9ab004eff526bf::t_3f6bfea4bea90f 3,55-56,62,64-65,71-77,82-83,119,132,135,164,169-180
+apps/discord-bot/src/services/communityRoleSync.test.ts
+  s_9ab004eff526bf::t_1f095f9b485bc5 1-15,17-20,22-27,34-36,43-44,46-49,58,80-81,88,96-97,120,122,126-127,140,152-153,155,161-167,169-183,185-187,190-199,205-209,220-221,223-224,228-234,236-237,241-253,255-256,263-267
+  s_9ab004eff526bf::t_492b0a20419fa6 71
+  s_9ab004eff526bf::t_5fa04e21f53416 21,156
+  s_9ab004eff526bf::t_c9de77ced5347a 16,28-33,37-42,45,50-57,59-70,72-79,82-87,89-95,98-102,107-119,121,123-125,128-139,141-151,154,168,184,188-189,200-204,210-219,222,225-227,235,238-240,254,257-262
+  s_9ab004eff526bf::t_f61d1da433d670 103-106,157-160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f5262401bc5fd7192b9cd4fc2a34138a7b44bc0b",
+  "prompts": {},
+  "sessions": {
+    "s_9ab004eff526bf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a168aa-c6f8-7f32-bcba-d5b51f2dcf4e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
