@@ -17,6 +17,8 @@
     "zod": "^4.6.7"
   },
   "exports": {
+    "./cleoRoleEligibility": "./src/cleoRoleEligibility.ts",
+    "./moderationRuntime": "./src/moderationRuntime.ts",
     "./moderation": "./src/moderation/index.ts",
     "./twitchTimers": "./src/twitchTimers.ts",
     "./welcomeCard": "./src/welcomeCard.ts",

@@ -184,7 +184,7 @@ const chatBody = {
   },
 }
 
-test("high-volume signed chat is validated locally with no Convex calls, receipts, dispatch or content logs", async () => {
+test("high-volume signed chat routes moderation with bounded concurrency and no durable per-message calls", async () => {
   const f = fixture()
   f.setFailure()
   const responses = await Promise.all(
@@ -192,7 +192,12 @@ test("high-volume signed chat is validated locally with no Convex calls, receipt
       f.server.handle(request(chatBody, { id: `chat-${i}` }))
     )
   )
-  assert.ok(responses.every((response) => response.status === 204))
+  assert.ok(
+    responses.every(
+      (response) => response.status === 204 || response.status === 503
+    )
+  )
+  assert.ok(f.chatCalls.length > 0 && f.chatCalls.length <= 1000)
   assert.deepEqual(f.calls, [])
   assert.equal(
     (await f.server.handle(request({ ...chatBody, event: {} }))).status,
@@ -292,6 +297,7 @@ function fixture(
 ) {
   const receipts = new Set<string>()
   const calls: unknown[] = []
+  const chatCalls: unknown[] = []
   let fail = false
   let rejectDispatch = false
   const releases: (() => void)[] = []
@@ -318,6 +324,11 @@ function fixture(
     },
     {
       dispatch: async (_parsed, key, id, template) => {
+        if (key === "chatMessage") {
+          chatCalls.push({ id })
+          if (rejectDispatch) throw new Error("moderation unavailable")
+          return
+        }
         calls.push({ dispatch: key, id, template })
         if (stall)
           await new Promise<void>((resolve) => {
@@ -334,6 +345,7 @@ function fixture(
   return {
     server,
     calls,
+    chatCalls,
     setFailure: () => {
       fail = true
     },

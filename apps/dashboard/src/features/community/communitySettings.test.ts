@@ -1,0 +1,208 @@
+import assert from "node:assert/strict"
+import { test } from "node:test"
+import * as React from "react"
+import { getFunctionName } from "convex/server"
+
+type Props = {
+  children?: React.ReactNode
+  disabled?: boolean
+  checked?: boolean
+  onClick?: () => Promise<void>
+  href?: string
+}
+function nodes(node: React.ReactNode): React.ReactElement<Props>[] {
+  if (!React.isValidElement<Props>(node)) return []
+  if (typeof node.type === "function")
+    return nodes((node.type as (props: Props) => React.ReactNode)(node.props))
+  return [node, ...React.Children.toArray(node.props.children).flatMap(nodes)]
+}
+function content(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (!React.isValidElement<Props>(node)) return ""
+  return React.Children.toArray(node.props.children).map(content).join(" ")
+}
+test("moderation stays locked and purchase visibility starts private in actual dashboard components", async (t) => {
+  let slots: unknown[] = [],
+    index = 0
+  let view: unknown = {
+    policyJSON: "{}",
+    revision: 0,
+    enforcement: false,
+    health: "Release locked",
+  }
+  const calls: { path: string; args: unknown }[] = []
+  t.mock.module("react", {
+    exports: {
+      ...React,
+      useState: (initial: unknown) => {
+        const at = index++
+        if (!(at in slots))
+          slots[at] = typeof initial === "function" ? initial() : initial
+        return [
+          slots[at],
+          (value: unknown) => {
+            slots[at] = typeof value === "function" ? value(slots[at]) : value
+          },
+        ]
+      },
+      useRef: (value: unknown) => ({ current: value }),
+      useEffect: () => {},
+    },
+  })
+  t.mock.module("convex/react", {
+    exports: {
+      useQuery: () => view,
+      useMutation:
+        (reference: Parameters<typeof getFunctionName>[0]) =>
+        async (args: unknown) => {
+          calls.push({ path: getFunctionName(reference), args })
+          return 1
+        },
+      useAction:
+        (reference: Parameters<typeof getFunctionName>[0]) =>
+        async (args: unknown) => {
+          calls.push({ path: getFunctionName(reference), args })
+          return "https://checkout.stripe.com/fixture"
+        },
+    },
+  })
+  t.mock.module("next/link", { defaultExport: "a" })
+  for (const [module, names] of [
+    ["button", ["Button"]],
+    ["switch", ["Switch"]],
+    ["input", ["Input"]],
+    ["textarea", ["Textarea"]],
+    ["field", ["Field", "FieldLabel", "FieldDescription"]],
+  ] satisfies [string, string[]][])
+    t.mock.module(`@workspace/ui/components/${module}`, {
+      exports: Object.fromEntries(
+        names.map((name) => [
+          name,
+          name === "Button" ? "button" : name === "Switch" ? "switch" : name,
+        ])
+      ),
+    })
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "React")
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+  Object.defineProperty(globalThis, "React", {
+    configurable: true,
+    value: React,
+  })
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { location: { assign: () => {} } },
+  })
+  t.after(() => {
+    for (const [name, descriptor] of [
+      ["React", previous],
+      ["window", previousWindow],
+    ] as const)
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor)
+      else Reflect.deleteProperty(globalThis, name)
+  })
+  const { PolicyEditor } = await import("../moderation/PolicyEditor")
+  function policy() {
+    index = 0
+    return nodes(
+      PolicyEditor({ platform: "discord", scopeId: "333333333333333333" })
+    )
+  }
+  const controls = policy()
+  assert.equal(
+    controls.find((node) => node.type === "fieldset")?.props.disabled,
+    true
+  )
+  assert.ok(
+    controls.some((node) => content(node).includes("Moderation is unavailable"))
+  )
+  assert.equal(calls.length, 0)
+  view = {
+    policyJSON: "{}",
+    revision: 1,
+    enforcement: false,
+    health: "Release locked",
+  }
+  assert.ok(
+    policy().some((node) =>
+      content(node).includes("Another configuration revision")
+    )
+  )
+
+  const { PremiumPurchases } = await import("./PremiumPurchases")
+  slots = []
+  index = 0
+  view = {
+    configured: true,
+    canManageOwnBilling: true,
+    communityPublishIdentity: false,
+    subscriptions: [],
+  }
+  const purchase = nodes(
+    PremiumPurchases({ discordGuildId: "333333333333333333" })
+  )
+  assert.ok(
+    purchase
+      .filter((node) => node.type === "switch")
+      .every((node) => node.props.checked === false)
+  )
+  const checkout = purchase.find(
+    (node) =>
+      node.type === "button" && content(node).includes("Continue to Stripe")
+  )
+  assert.ok(checkout && !checkout.props.disabled)
+  await checkout.props.onClick?.()
+  assert.deepEqual(calls.at(-1), {
+    path: "premiumActions:checkout",
+    args: {
+      discordGuildId: "333333333333333333",
+      announce: false,
+      displayRole: false,
+    },
+  })
+  slots = []
+  index = 0
+  view = {
+    configured: false,
+    canManageOwnBilling: false,
+    communityPublishIdentity: null,
+    subscriptions: [],
+  }
+  assert.equal(
+    nodes(PremiumPurchases({ discordGuildId: "333333333333333333" })).find(
+      (node) =>
+        node.type === "button" && content(node).includes("Continue to Stripe")
+    )?.props.disabled,
+    true
+  )
+  slots = []
+  index = 0
+  assert.ok(
+    !nodes(PremiumPurchases({})).some(
+      (node) =>
+        node.type === "button" && content(node).includes("Continue to Stripe")
+    )
+  )
+
+  const { AccountRoles } = await import("./AccountRoles")
+  slots = []
+  index = 0
+  view = null
+  const account = nodes(AccountRoles({}))
+  assert.ok(
+    account.some((node) =>
+      content(node).includes("Add Cleo to my Discord account")
+    )
+  )
+  assert.ok(
+    account.some((node) =>
+      content(node).includes("Add Cleo to a Discord server")
+    )
+  )
+  assert.ok(
+    account.some((node) =>
+      content(node).includes(
+        "never grant ownership, staff status or permissions"
+      )
+    )
+  )
+})

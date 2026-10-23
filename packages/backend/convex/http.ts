@@ -2,11 +2,53 @@ import { httpRouter } from "convex/server"
 
 import { internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
+import { boundedWebhookBody } from "./lib/boundedWebhookBody"
 import { backendEnv } from "@workspace/env/backend"
 import { normalizeClerkUserData } from "./lib/clerkUserData"
 import { type ClerkWebhookEvent, verifyClerkWebhook } from "./lib/clerkWebhook"
 
 const http = httpRouter()
+http.route({
+  path: "/stripe-community-webhook",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await boundedWebhookBody(request, 262144)
+    if (body === null) return new Response(null, { status: 413 })
+    try {
+      const valid = await ctx.runAction(internal.premiumActions.webhook, {
+        body,
+        signature: request.headers.get("stripe-signature") ?? "",
+      })
+      return new Response(null, { status: valid ? 204 : 400 })
+    } catch {
+      return new Response(null, { status: 503 })
+    }
+  }),
+})
+http.route({
+  path: "/discord-application-webhook",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await boundedWebhookBody(request, 65536)
+    if (body === null) return new Response(null, { status: 413 })
+    try {
+      const valid = await ctx.runAction(
+        internal.discordApplicationWebhooks.receive,
+        {
+          body,
+          signature: request.headers.get("X-Signature-Ed25519") ?? "",
+          timestamp: request.headers.get("X-Signature-Timestamp") ?? "",
+        }
+      )
+      return new Response(null, {
+        status: valid ? 204 : 401,
+        headers: { "Content-Type": "application/json" },
+      })
+    } catch {
+      return new Response(null, { status: 503 })
+    }
+  }),
+})
 http.route({
   path: "/clerk-users-webhook",
   method: "POST",

@@ -1,4 +1,5 @@
 import { GUILD_WELCOME_PREMIUM_STYLE } from "@workspace/shared/cleoEntitlements"
+import { MODERATION_ROLLOUT_LOCKED } from "@workspace/shared/moderation"
 import { ConvexError, v } from "convex/values"
 import type { Doc } from "../../../../_generated/dataModel"
 import type { MutationCtx } from "../../../../_generated/server"
@@ -64,6 +65,8 @@ export const update = mutation({
   returns: guildConfigDoc,
   handler: async (ctx, args) => {
     const guild = await loadManagedGuild(ctx, args.discordGuildId)
+    if (MODERATION_ROLLOUT_LOCKED && args.modules.moderationEnabled)
+      throw new ConvexError("Moderation cannot be enabled in this release.")
     if (args.welcome?.style !== undefined) {
       let style: WelcomeCardStyle
       try {

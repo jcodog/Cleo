@@ -397,6 +397,116 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  communityAnnouncementOutbox: {
+    document: {
+      activationId: Id<"paidCommunityActivations">;
+      attempt?: string;
+      key: string;
+      messageId?: string;
+      state: "pending" | "sending" | "sent" | "uncertain" | "suppressed";
+      updatedAt: number;
+      _id: Id<"communityAnnouncementOutbox">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "activationId"
+      | "attempt"
+      | "key"
+      | "messageId"
+      | "state"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_key: ["key", "_creationTime"];
+      by_state: ["state", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  communityPayments: {
+    document: {
+      chargeId?: string;
+      invoiceId: string;
+      paymentIntentId?: string;
+      subscriptionId: string;
+      _id: Id<"communityPayments">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "chargeId"
+      | "invoiceId"
+      | "paymentIntentId"
+      | "subscriptionId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_charge: ["chargeId", "_creationTime"];
+      by_invoice: ["invoiceId", "_creationTime"];
+      by_payment_intent: ["paymentIntentId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  communityPreferences: {
+    document: {
+      guildId: Id<"guilds">;
+      publishIdentity: boolean;
+      revision: number;
+      updatedAt: number;
+      _id: Id<"communityPreferences">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "guildId"
+      | "publishIdentity"
+      | "revision"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_guild: ["guildId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  communityRoleJobs: {
+    document: {
+      attemptedRevision?: number;
+      attempts: number;
+      discordUserId: string;
+      leaseUntil: number;
+      nextAt: number;
+      revision: number;
+      worker?: string;
+      _id: Id<"communityRoleJobs">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "attemptedRevision"
+      | "attempts"
+      | "discordUserId"
+      | "leaseUntil"
+      | "nextAt"
+      | "revision"
+      | "worker";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_due: ["nextAt", "_creationTime"];
+      by_user: ["discordUserId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   discordBotRuntimeErrors: {
     document: {
       commandName?: string;
@@ -697,6 +807,35 @@ export type DataModel = {
         "_creationTime",
       ];
       by_severity_and_last_seen_at: ["severity", "lastSeenAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  discordConnectionSessions: {
+    document: {
+      consumed: boolean;
+      discordUserId: string;
+      expiresAt: number;
+      purpose: "install" | "roles";
+      stateHash: string;
+      userId: Id<"users">;
+      _id: Id<"discordConnectionSessions">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "consumed"
+      | "discordUserId"
+      | "expiresAt"
+      | "purpose"
+      | "stateHash"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_state: ["stateHash", "_creationTime"];
+      by_user: ["userId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -1388,6 +1527,100 @@ export type DataModel = {
         "occurredAt",
         "_creationTime",
       ];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  discordModerationPolicies: {
+    document: {
+      enforcement: boolean;
+      health?: string;
+      leaseUntil?: number;
+      policyJSON: string;
+      revision: number;
+      scopeId: string;
+      updatedAt: number;
+      userId: Id<"users">;
+      worker?: string;
+      _id: Id<"discordModerationPolicies">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "enforcement"
+      | "health"
+      | "leaseUntil"
+      | "policyJSON"
+      | "revision"
+      | "scopeId"
+      | "updatedAt"
+      | "userId"
+      | "worker";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_scope: ["scopeId", "_creationTime"];
+      by_updated: ["updatedAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  discordRoleConnections: {
+    document: {
+      discordUserId: string;
+      encryptedTokens: string;
+      expiresAt: number;
+      leaseUntil?: number;
+      revision: number;
+      revokedAt?: number;
+      updatedAt: number;
+      userId: Id<"users">;
+      _id: Id<"discordRoleConnections">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "discordUserId"
+      | "encryptedTokens"
+      | "expiresAt"
+      | "leaseUntil"
+      | "revision"
+      | "revokedAt"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_updated: ["updatedAt", "_creationTime"];
+      by_user: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  discordUserInstallations: {
+    document: {
+      discordUserId: string;
+      eventKey: string;
+      evidenceAt: number;
+      expiresAt: number;
+      state: "active" | "uncertain" | "revoked";
+      _id: Id<"discordUserInstallations">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "discordUserId"
+      | "eventKey"
+      | "evidenceAt"
+      | "expiresAt"
+      | "state";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_discord_user: ["discordUserId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -2342,6 +2575,24 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  integrationReceipts: {
+    document: {
+      createdAt: number;
+      key: string;
+      provider: string;
+      _id: Id<"integrationReceipts">;
+      _creationTime: number;
+    };
+    fieldPaths: "_creationTime" | "_id" | "createdAt" | "key" | "provider";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_created: ["createdAt", "_creationTime"];
+      by_provider_key: ["provider", "key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   linkedAccounts: {
     document: {
       accessTokenSecretId?: string;
@@ -2390,6 +2641,89 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  paidCommunityActivations: {
+    document: {
+      announce: boolean;
+      discordUserId: string;
+      displayRole: boolean;
+      firstPaidInvoiceId: string;
+      guildId: Id<"guilds">;
+      paidUntil: number;
+      purchaserKind: "owner" | "administrator";
+      revoked: boolean;
+      subscriptionId: string;
+      testMode: boolean;
+      updatedAt: number;
+      userId: Id<"users">;
+      _id: Id<"paidCommunityActivations">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "announce"
+      | "discordUserId"
+      | "displayRole"
+      | "firstPaidInvoiceId"
+      | "guildId"
+      | "paidUntil"
+      | "purchaserKind"
+      | "revoked"
+      | "subscriptionId"
+      | "testMode"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_guild: ["guildId", "_creationTime"];
+      by_subscription: ["subscriptionId", "_creationTime"];
+      by_user: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  premiumCheckouts: {
+    document: {
+      announce: boolean;
+      closedAt?: number;
+      createdAt: number;
+      discordUserId: string;
+      displayRole: boolean;
+      expiresAt: number;
+      guildId: Id<"guilds">;
+      key: string;
+      purchaserKind: "owner" | "administrator";
+      sessionId?: string;
+      url?: string;
+      userId: Id<"users">;
+      _id: Id<"premiumCheckouts">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "announce"
+      | "closedAt"
+      | "createdAt"
+      | "discordUserId"
+      | "displayRole"
+      | "expiresAt"
+      | "guildId"
+      | "key"
+      | "purchaserKind"
+      | "sessionId"
+      | "url"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_guild: ["guildId", "_creationTime"];
+      by_key: ["key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   staffDiscordMetrics: {
     document: {
       activeGuildCount: number;
@@ -2410,6 +2744,24 @@ export type DataModel = {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_key: ["key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  stripeReconciliationLocks: {
+    document: {
+      leaseUntil: number;
+      subscriptionId: string;
+      worker: string;
+      _id: Id<"stripeReconciliationLocks">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      "_creationTime" | "_id" | "leaseUntil" | "subscriptionId" | "worker";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_subscription: ["subscriptionId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -2799,6 +3151,41 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  twitchModerationPolicies: {
+    document: {
+      enforcement: boolean;
+      health?: string;
+      leaseUntil?: number;
+      policyJSON: string;
+      revision: number;
+      scopeId: string;
+      updatedAt: number;
+      userId: Id<"users">;
+      worker?: string;
+      _id: Id<"twitchModerationPolicies">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "enforcement"
+      | "health"
+      | "leaseUntil"
+      | "policyJSON"
+      | "revision"
+      | "scopeId"
+      | "updatedAt"
+      | "userId"
+      | "worker";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_scope: ["scopeId", "_creationTime"];
+      by_updated: ["updatedAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   twitchTimerGrants: {
     document: {
       broadcasterId: string;
@@ -2849,9 +3236,9 @@ export type DataModel = {
         expiresAt: number;
         id: string;
         phase?: "prepared" | "sending" | "uncertain";
+        priorAttemptAt?: number;
         revision: number;
         rotation?: string;
-        priorAttemptAt?: number;
         streamId?: string;
       };
       executionSequence?: number;
@@ -2885,6 +3272,7 @@ export type DataModel = {
       | "execution.expiresAt"
       | "execution.id"
       | "execution.phase"
+      | "execution.priorAttemptAt"
       | "execution.revision"
       | "execution.rotation"
       | "execution.streamId"

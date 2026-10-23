@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values"
+import { MODERATION_ROLLOUT_LOCKED } from "@workspace/shared/moderation"
 import type { Doc } from "../../../../_generated/dataModel"
 import type { MutationCtx } from "../../../../_generated/server"
 import { mutation } from "../../../../_generated/server"
@@ -22,6 +23,8 @@ export const update = mutation({
   returns: guildConfigDoc,
   handler: async (ctx, args) => {
     const guild = await loadManagedGuild(ctx, args.discordGuildId)
+    if (MODERATION_ROLLOUT_LOCKED && args.modules.moderationEnabled)
+      throw new ConvexError("Moderation cannot be enabled in this release.")
     const existingConfig = await getGuildConfig(ctx, guild._id)
     const now = Date.now()
 

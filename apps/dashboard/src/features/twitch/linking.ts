@@ -51,10 +51,19 @@ export function getTwitchLinkState(
 export async function beginTwitchLink(
   user: LinkingUser,
   origin: string,
-  desiredEvents: readonly EventKey[] = []
+  desiredEvents: readonly EventKey[] = [],
+  moderationScopes: readonly (
+    | "moderator:manage:chat_messages"
+    | "moderator:manage:warnings"
+    | "moderator:manage:banned_users"
+  )[] = []
 ): Promise<string> {
-  const callback = new URL("/twitch/link-callback?returnTo=%2Ftwitch", origin)
-    .href
+  const callback = new URL(
+    moderationScopes.length
+      ? "/twitch/link-callback?returnTo=%2Ftwitch%2Fmoderation"
+      : "/twitch/link-callback?returnTo=%2Ftwitch",
+    origin
+  ).href
   const existing = user.externalAccounts.find((account) =>
     isTwitchProvider(account.provider)
   )
@@ -62,6 +71,7 @@ export async function beginTwitchLink(
     additionalScopes: [
       ...new Set([
         ...resolveBroadcasterScopes(desiredEvents),
+        ...moderationScopes,
         ...(existing?.approvedScopes?.split(/\s+/).filter(Boolean) ?? []),
       ]),
     ],

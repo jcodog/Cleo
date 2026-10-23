@@ -3,6 +3,7 @@ import { Events, MessageFlags } from "discord.js"
 import type { BotClient } from "@/classes/Client"
 import { Event } from "../../classes/Event"
 import { replyWithCommandError } from "@/utils/replyWithCommandError"
+import { recordUserInstallation } from "@/services/communityRoleSync"
 
 export default new Event({
   name: Events.InteractionCreate,
@@ -24,6 +25,7 @@ export default new Event({
     }
 
     try {
+      await recordUserInstallation(interaction)
       await command.execute({ interaction })
     } catch (error) {
       await replyWithCommandError({

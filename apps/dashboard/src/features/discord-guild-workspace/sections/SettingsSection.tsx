@@ -1,3 +1,4 @@
+import { PremiumPurchases } from "@/features/community/PremiumPurchases"
 import { BotStatusFields, OverviewField } from "../components/workspace-ui"
 import type { GuildOverview } from "../types"
 
@@ -35,6 +36,7 @@ export function SettingsSection({
           <BotStatusFields isBotLeft={isBotLeft} overview={overview} />
         </dl>
       </div>
+      <PremiumPurchases discordGuildId={overview.discordGuildId} />
     </section>
   )
 }

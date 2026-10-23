@@ -28,3 +28,5 @@ export {
   type NormalizedModerationMessage,
   type BlockedWord,
 } from "./types"
+/** Product release lock. Environment flags cannot enable moderation in this release. */
+export const MODERATION_ROLLOUT_LOCKED = true

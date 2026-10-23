@@ -1531,6 +1531,110 @@ export declare const api: {
       };
     };
   };
+  communityActions: {
+    beginLinkedRoles: FunctionReference<"action", "public", {}, string>;
+    disconnectLinkedRoles: FunctionReference<"action", "public", {}, null>;
+    finishLinkedRoles: FunctionReference<
+      "action",
+      "public",
+      { code: string; state: string },
+      null
+    >;
+    installAccount: FunctionReference<"action", "public", {}, string>;
+    refreshEligibility: FunctionReference<"action", "public", {}, null>;
+  };
+  communityRoles: {
+    current: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        communityManager:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        communityOwner:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        creatorPro:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        discordBotUser:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        member:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        personalPremium:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumCommunityManager:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumCommunityOwner:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumSupporter:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        twitchBotUser:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+      } | null
+    >;
+  };
+  communityRuntime: {
+    claimJobs: FunctionReference<
+      "action",
+      "public",
+      { secret: string; worker: string },
+      null | {
+        guildId: string;
+        jobs: Array<{
+          discordUserId: string;
+          eligibility: {
+            communityManager:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            communityOwner:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            creatorPro:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            discordBotUser:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            member:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            personalPremium:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            premiumCommunityManager:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            premiumCommunityOwner:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            premiumSupporter:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+            twitchBotUser:
+              "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          };
+          id: Id<"communityRoleJobs">;
+          leaseUntil: number;
+          revision: number;
+        }>;
+        roleIdsJSON: string;
+      }
+    >;
+    enqueue: FunctionReference<
+      "action",
+      "public",
+      { discordUserId: string; secret: string },
+      null
+    >;
+    installationInteraction: FunctionReference<
+      "action",
+      "public",
+      { discordUserId: string; interactionId: string; secret: string },
+      null
+    >;
+    settleJob: FunctionReference<
+      "action",
+      "public",
+      {
+        id: Id<"communityRoleJobs">;
+        revision: number;
+        secret: string;
+        success: boolean;
+        worker: string;
+      },
+      null
+    >;
+  };
   liveNotificationActions: {
     get: FunctionReference<
       "action",
@@ -1663,6 +1767,77 @@ export declare const api: {
           | "providerUnavailable"
           | "revoked";
       }
+    >;
+  };
+  moderationActions: {
+    claimDiscord: FunctionReference<
+      "action",
+      "public",
+      {
+        messageId: string;
+        revision: number;
+        scopeId: string;
+        secret: string;
+        worker: string;
+      },
+      boolean
+    >;
+    enforceTwitch: FunctionReference<
+      "action",
+      "public",
+      {
+        actionJSON: string;
+        authorId: string;
+        messageId: string;
+        revision: number;
+        scopeId: string;
+        secret: string;
+        worker: string;
+      },
+      null
+    >;
+    runtime: FunctionReference<
+      "action",
+      "public",
+      {
+        health?: string;
+        platform: "discord" | "twitch";
+        scopeId: string;
+        secret: string;
+        worker: string;
+      },
+      null | {
+        authorityUntil: number;
+        enforcement: boolean;
+        leaseDurationMs: number;
+        policyJSON: string;
+        revision: number;
+      }
+    >;
+  };
+  moderationPolicies: {
+    get: FunctionReference<
+      "query",
+      "public",
+      { platform: "discord" | "twitch"; scopeId: string },
+      {
+        enforcement: boolean;
+        health: string;
+        policyJSON: string;
+        revision: number;
+      }
+    >;
+    save: FunctionReference<
+      "mutation",
+      "public",
+      {
+        enforcement: boolean;
+        expectedRevision: number;
+        platform: "discord" | "twitch";
+        policyJSON: string;
+        scopeId: string;
+      },
+      number
     >;
   };
   mutations: {
@@ -1870,6 +2045,50 @@ export declare const api: {
         };
       };
     };
+  };
+  premiumActions: {
+    checkout: FunctionReference<
+      "action",
+      "public",
+      { announce: boolean; discordGuildId: string; displayRole: boolean },
+      string
+    >;
+    portal: FunctionReference<"action", "public", {}, string>;
+    setCommunityConsent: FunctionReference<
+      "action",
+      "public",
+      { discordGuildId: string; publishIdentity: boolean },
+      null
+    >;
+  };
+  premiumPurchases: {
+    preferences: FunctionReference<
+      "mutation",
+      "public",
+      {
+        activationId: Id<"paidCommunityActivations">;
+        announce: boolean;
+        displayRole: boolean;
+      },
+      null
+    >;
+    view: FunctionReference<
+      "query",
+      "public",
+      { discordGuildId?: string },
+      {
+        canManageOwnBilling: boolean;
+        communityPublishIdentity: boolean | null;
+        configured: boolean;
+        subscriptions: Array<{
+          active: boolean;
+          announce: boolean;
+          displayRole: boolean;
+          id: Id<"paidCommunityActivations">;
+          testMode: boolean;
+        }>;
+      }
+    >;
   };
   queries: {
     dashboard: {
@@ -3025,7 +3244,7 @@ export declare const api: {
       {},
       {
         connected: boolean;
-        draftScope: null | { userId: Id<"users">; broadcasterId: string };
+        draftScope: { broadcasterId: string; userId: Id<"users"> } | null;
         entitlement: {
           expiresAt: number | null;
           limit: number;
@@ -3093,6 +3312,335 @@ export declare const api: {
  * ```
  */
 export declare const internal: {
+  communityActions: {
+    publishLinkedRoles: FunctionReference<
+      "action",
+      "internal",
+      { userId: Id<"users"> },
+      null
+    >;
+  };
+  communityRecognition: {
+    claim: FunctionReference<
+      "mutation",
+      "internal",
+      { attempt: string },
+      {
+        discordUserId: string;
+        id: Id<"communityAnnouncementOutbox">;
+        key: string;
+        name: string;
+        purchaserKind: "owner" | "administrator";
+      } | null
+    >;
+    reconciled: FunctionReference<
+      "mutation",
+      "internal",
+      { id: Id<"communityAnnouncementOutbox">; messageId: string },
+      null
+    >;
+    settle: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        attempt: string;
+        id: Id<"communityAnnouncementOutbox">;
+        messageId?: string;
+      },
+      null
+    >;
+    uncertain: FunctionReference<
+      "query",
+      "internal",
+      {},
+      Array<{
+        _creationTime: number;
+        _id: Id<"communityAnnouncementOutbox">;
+        activationId: Id<"paidCommunityActivations">;
+        attempt?: string;
+        key: string;
+        messageId?: string;
+        state: "pending" | "sending" | "sent" | "uncertain" | "suppressed";
+        updatedAt: number;
+      }>
+    >;
+  };
+  communityRoles: {
+    account: FunctionReference<
+      "query",
+      "internal",
+      { userId?: Id<"users"> },
+      {
+        discord: {
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        };
+        user: {
+          _creationTime: number;
+          _id: Id<"users">;
+          clerkUserId: string;
+          createdAt: number;
+          displayName?: string | null;
+          email: string;
+          imageUrl?: string | null;
+          onboardingCompletedAt?: number;
+          onboardingProvenance?: "pre-rollout" | "post-rollout";
+          onboardingVersion?: number;
+          role: "user" | "staff" | "admin" | "superadmin";
+          status?: "active" | "disabled";
+          updatedAt: number;
+        };
+      }
+    >;
+    bootstrap: FunctionReference<
+      "mutation",
+      "internal",
+      { cursor?: string },
+      null
+    >;
+    claim: FunctionReference<
+      "mutation",
+      "internal",
+      { worker: string },
+      Array<{
+        discordUserId: string;
+        eligibility: {
+          communityManager:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          communityOwner:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          creatorPro:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          discordBotUser:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          member:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          personalPremium:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          premiumCommunityManager:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          premiumCommunityOwner:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          premiumSupporter:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+          twitchBotUser:
+            "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        };
+        id: Id<"communityRoleJobs">;
+        leaseUntil: number;
+        revision: number;
+      }>
+    >;
+    eligibility: FunctionReference<
+      "query",
+      "internal",
+      { discordUserId: string },
+      {
+        communityManager:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        communityOwner:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        creatorPro:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        discordBotUser:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        member:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        personalPremium:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumCommunityManager:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumCommunityOwner:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumSupporter:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        twitchBotUser:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+      }
+    >;
+    enqueue: FunctionReference<
+      "mutation",
+      "internal",
+      { discordUserId: string },
+      null
+    >;
+    forDiscord: FunctionReference<
+      "query",
+      "internal",
+      { discordUserId: string },
+      {
+        discord: {
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        };
+        user: {
+          _creationTime: number;
+          _id: Id<"users">;
+          clerkUserId: string;
+          createdAt: number;
+          displayName?: string | null;
+          email: string;
+          imageUrl?: string | null;
+          onboardingCompletedAt?: number;
+          onboardingProvenance?: "pre-rollout" | "post-rollout";
+          onboardingVersion?: number;
+          role: "user" | "staff" | "admin" | "superadmin";
+          status?: "active" | "disabled";
+          updatedAt: number;
+        };
+      } | null
+    >;
+    refreshGuilds: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        discordUserId: string;
+        guilds: Array<{ id: string; owner?: boolean; permissions?: string }>;
+        reconciliation?: boolean;
+        userId: Id<"users">;
+      },
+      null
+    >;
+    settle: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        id: Id<"communityRoleJobs">;
+        revision: number;
+        success: boolean;
+        worker: string;
+      },
+      null
+    >;
+  };
+  discordApplicationWebhooks: {
+    receive: FunctionReference<
+      "action",
+      "internal",
+      { body: string; signature: string; timestamp: string },
+      boolean
+    >;
+  };
+  discordConnections: {
+    begin: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        discordUserId: string;
+        purpose: "install" | "roles";
+        stateHash: string;
+        userId: Id<"users">;
+      },
+      null
+    >;
+    connection: FunctionReference<
+      "query",
+      "internal",
+      { userId: Id<"users"> },
+      {
+        _creationTime: number;
+        _id: Id<"discordRoleConnections">;
+        discordUserId: string;
+        encryptedTokens: string;
+        expiresAt: number;
+        leaseUntil?: number;
+        revision: number;
+        revokedAt?: number;
+        updatedAt: number;
+        userId: Id<"users">;
+      } | null
+    >;
+    consume: FunctionReference<
+      "mutation",
+      "internal",
+      { stateHash: string; userId: Id<"users"> },
+      string
+    >;
+    installation: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        discordUserId: string;
+        eventKey: string;
+        evidenceAt: number;
+        state: "active" | "uncertain" | "revoked";
+      },
+      null
+    >;
+    lease: FunctionReference<
+      "mutation",
+      "internal",
+      { userId: Id<"users"> },
+      {
+        _creationTime: number;
+        _id: Id<"discordRoleConnections">;
+        discordUserId: string;
+        encryptedTokens: string;
+        expiresAt: number;
+        leaseUntil?: number;
+        revision: number;
+        revokedAt?: number;
+        updatedAt: number;
+        userId: Id<"users">;
+      } | null
+    >;
+    reconcile: FunctionReference<
+      "mutation",
+      "internal",
+      { cursor?: string },
+      null
+    >;
+    release: FunctionReference<
+      "mutation",
+      "internal",
+      { revision: number; userId: Id<"users"> },
+      null
+    >;
+    revoke: FunctionReference<
+      "mutation",
+      "internal",
+      { expectedRevision?: number; userId: Id<"users"> },
+      null
+    >;
+    storeTokens: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        discordUserId: string;
+        encryptedTokens: string;
+        expectedRevision?: number;
+        expiresAt: number;
+        userId: Id<"users">;
+      },
+      null
+    >;
+  };
   liveNotificationActions: {
     begin: FunctionReference<
       "action",
@@ -3718,6 +4266,94 @@ export declare const internal: {
         liveNotificationsEnabled: boolean;
       },
       { revision: number; subscriptions: Array<Id<"twitchEventSubscriptions">> }
+    >;
+  };
+  moderationPolicies: {
+    claimEnforcement: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        messageId: string;
+        platform: "discord" | "twitch";
+        revision: number;
+        scopeId: string;
+        worker: string;
+      },
+      boolean
+    >;
+    enforcementContext: FunctionReference<
+      "mutation",
+      "internal",
+      { revision: number; scopeId: string; worker: string },
+      null | {
+        discord: Array<{
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        }>;
+        policyJSON: string;
+        twitch: Array<{
+          _creationTime: number;
+          _id: Id<"linkedAccounts">;
+          accessTokenSecretId?: string;
+          avatarUrl?: string;
+          createdAt: number;
+          displayName?: string;
+          expiresAt?: number;
+          externalProvider?: string;
+          provider: "discord" | "kick" | "twitch" | "github";
+          providerAccountId: string;
+          refreshTokenSecretId?: string;
+          scopes: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+          username?: string;
+        }>;
+        user: {
+          _creationTime: number;
+          _id: Id<"users">;
+          clerkUserId: string;
+          createdAt: number;
+          displayName?: string | null;
+          email: string;
+          imageUrl?: string | null;
+          onboardingCompletedAt?: number;
+          onboardingProvenance?: "pre-rollout" | "post-rollout";
+          onboardingVersion?: number;
+          role: "user" | "staff" | "admin" | "superadmin";
+          status?: "active" | "disabled";
+          updatedAt: number;
+        } | null;
+      }
+    >;
+    runtime: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        health?: string;
+        platform: "discord" | "twitch";
+        scopeId: string;
+        worker: string;
+      },
+      null | {
+        authorityUntil: number;
+        enforcement: boolean;
+        leaseDurationMs: number;
+        policyJSON: string;
+        revision: number;
+      }
     >;
   };
   mutations: {
@@ -6342,6 +6978,237 @@ export declare const internal: {
       };
     };
   };
+  premiumActions: {
+    reconcile: FunctionReference<
+      "action",
+      "internal",
+      {
+        eventId: string;
+        paidInvoiceId?: string;
+        revoked: boolean;
+        subscriptionId: string;
+      },
+      null
+    >;
+    reconcileKnown: FunctionReference<
+      "action",
+      "internal",
+      { cursor?: string },
+      null
+    >;
+    recoverCheckout: FunctionReference<
+      "action",
+      "internal",
+      { attempt: number; key: string },
+      null
+    >;
+    webhook: FunctionReference<
+      "action",
+      "internal",
+      { body: string; signature: string },
+      boolean
+    >;
+  };
+  premiumPurchases: {
+    acquire: FunctionReference<
+      "mutation",
+      "internal",
+      { subscriptionId: string; worker: string },
+      boolean
+    >;
+    apply: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        cancelAtPeriodEnd: boolean;
+        checkoutKey: string;
+        customerId: string;
+        endsAt: number;
+        eventId: string;
+        paidInvoice?: {
+          id: string;
+          paidUntil: number;
+          payments: Array<{ chargeId: string; paymentIntentId: string }>;
+        };
+        priceId: string;
+        productId: string;
+        revoked: boolean;
+        startsAt: number;
+        status:
+          | "active"
+          | "trialing"
+          | "past_due"
+          | "canceled"
+          | "unpaid"
+          | "incomplete"
+          | "incomplete_expired"
+          | "paused"
+          | "expired"
+          | "revoked";
+        subscriptionId: string;
+        testMode: boolean;
+        trialEndsAt?: number;
+        worker: string;
+      },
+      null
+    >;
+    billingUser: FunctionReference<
+      "query",
+      "internal",
+      {},
+      {
+        customer: {
+          _creationTime: number;
+          _id: Id<"billingCustomers">;
+          clerkUserId: string;
+          createdAt: number;
+          stripeCustomerId: string;
+          userId: Id<"users">;
+        } | null;
+        user: {
+          _creationTime: number;
+          _id: Id<"users">;
+          clerkUserId: string;
+          createdAt: number;
+          displayName?: string | null;
+          email: string;
+          imageUrl?: string | null;
+          onboardingCompletedAt?: number;
+          onboardingProvenance?: "pre-rollout" | "post-rollout";
+          onboardingVersion?: number;
+          role: "user" | "staff" | "admin" | "superadmin";
+          status?: "active" | "disabled";
+          updatedAt: number;
+        };
+      }
+    >;
+    checkoutByKey: FunctionReference<
+      "query",
+      "internal",
+      { key: string },
+      {
+        _creationTime: number;
+        _id: Id<"premiumCheckouts">;
+        announce: boolean;
+        closedAt?: number;
+        createdAt: number;
+        discordUserId: string;
+        displayRole: boolean;
+        expiresAt: number;
+        guildId: Id<"guilds">;
+        key: string;
+        purchaserKind: "owner" | "administrator";
+        sessionId?: string;
+        url?: string;
+        userId: Id<"users">;
+      } | null
+    >;
+    checkoutCreated: FunctionReference<
+      "mutation",
+      "internal",
+      { expiresAt: number; key: string; sessionId: string; url: string },
+      null
+    >;
+    closeCheckout: FunctionReference<
+      "mutation",
+      "internal",
+      { key: string },
+      null
+    >;
+    communityConsent: FunctionReference<
+      "mutation",
+      "internal",
+      { discordGuildId: string; publishIdentity: boolean },
+      null
+    >;
+    context: FunctionReference<
+      "query",
+      "internal",
+      { discordGuildId: string; userId: Id<"users"> },
+      {
+        customer: {
+          _creationTime: number;
+          _id: Id<"billingCustomers">;
+          clerkUserId: string;
+          createdAt: number;
+          stripeCustomerId: string;
+          userId: Id<"users">;
+        } | null;
+        guild: {
+          _creationTime: number;
+          _id: Id<"guilds">;
+          botInstallationVerifiedAt?: number;
+          botJoinedAt?: number;
+          botLeftAt?: number;
+          createdAt: number;
+          description?: string;
+          discordGuildId: string;
+          iconHash?: string;
+          iconUrl?: string;
+          lastOpenedAt?: number;
+          lastSyncedAt?: number;
+          memberCount?: number;
+          name: string;
+          ownerDiscordId?: string;
+          presenceCount?: number;
+          readyShardCount?: number;
+          readyShardId?: number;
+          readyShardKey?: string;
+          staffMetricsTracked?: boolean;
+          updatedAt: number;
+        } | null;
+        price: {
+          _creationTime: number;
+          _id: Id<"guildBillingPrices">;
+          enabled: boolean;
+          stripePriceId: string;
+          stripeProductId: string;
+          updatedAt: number;
+        } | null;
+      }
+    >;
+    paymentSubscription: FunctionReference<
+      "query",
+      "internal",
+      { chargeId?: string; paymentIntentId?: string },
+      string | null
+    >;
+    reconciliationPage: FunctionReference<
+      "query",
+      "internal",
+      { cursor?: string },
+      { cursor: string | null; ids: Array<string> }
+    >;
+    reserve: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        announce: boolean;
+        discordGuildId: string;
+        discordUserId: string;
+        displayRole: boolean;
+        key: string;
+        purchaserKind: "owner" | "administrator";
+        userId: Id<"users">;
+      },
+      {
+        _creationTime: number;
+        _id: Id<"premiumCheckouts">;
+        announce: boolean;
+        closedAt?: number;
+        createdAt: number;
+        discordUserId: string;
+        displayRole: boolean;
+        expiresAt: number;
+        guildId: Id<"guilds">;
+        key: string;
+        purchaserKind: "owner" | "administrator";
+        sessionId?: string;
+        url?: string;
+        userId: Id<"users">;
+      }
+    >;
+  };
   queries: {
     bot: {
       discord: {
@@ -6670,6 +7537,10 @@ export declare const internal: {
         >;
       };
     };
+  };
+  recognitionActions: {
+    deliver: FunctionReference<"action", "internal", {}, null>;
+    reconcile: FunctionReference<"action", "internal", {}, null>;
   };
   twitchChat: {
     cleanup: FunctionReference<
@@ -7341,9 +8212,9 @@ export declare const internal: {
             expiresAt: number;
             id: string;
             phase?: "prepared" | "sending" | "uncertain";
+            priorAttemptAt?: number;
             revision: number;
             rotation?: string;
-            priorAttemptAt?: number;
             streamId?: string;
           };
           executionSequence?: number;

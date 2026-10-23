@@ -6,6 +6,7 @@ const productRoots = [
   "/kick",
   "/staff",
   "/account",
+  "/discord/linked-role",
   "/settings",
   "/billing",
   "/subscription",

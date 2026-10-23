@@ -25,6 +25,30 @@ function safeBackendCode(value: unknown): string | undefined {
   return undefined
 }
 export class ConvexService {
+  moderationPolicy(scopeId: string, worker: string) {
+    return this.action("moderationActions:runtime", {
+      platform: "twitch",
+      scopeId,
+      worker,
+    })
+  }
+  async moderate(
+    scopeId: string,
+    worker: string,
+    revision: number,
+    authorId: string,
+    messageId: string,
+    actionJSON: string
+  ) {
+    await this.action("moderationActions:enforceTwitch", {
+      scopeId,
+      worker,
+      revision,
+      authorId,
+      messageId,
+      actionJSON,
+    })
+  }
   async timerPage(since?: number, cursor?: string, until?: number) {
     return z
       .object({
