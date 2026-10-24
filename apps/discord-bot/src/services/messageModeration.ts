@@ -54,6 +54,7 @@ export async function moderateDiscordMessage(message: Message) {
     {
       id: message.id,
       scopeId: message.guild.id,
+      historyScopeId: message.channelId,
       authorId: message.author.id,
       content: message.content,
       roleIds: [...message.member.roles.cache.keys()],

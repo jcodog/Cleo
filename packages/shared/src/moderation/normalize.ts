@@ -12,6 +12,7 @@ export const moderationMessageSchema = z
   .strictObject({
     id: identity,
     scopeId: identity,
+    historyScopeId: identity.optional(),
     authorId: identity,
     content: z.string().max(MODERATION_LIMITS.messageLength),
     roleIds: boundedArray(identity, MODERATION_LIMITS.identities)

@@ -112,6 +112,10 @@ enabled. It inserts missing jobs without resetting existing retry backoff,
 revisions or active leases. Disconnecting Linked Roles while a token refresh or
 metadata update holds the lease returns a retryable error. Wait one minute and
 retry; success means the grant was revoked or was already disconnected.
+Only the Discord shard caching the available official guild claims role jobs.
+Provider preparation runs in parallel for at most five users under a two-minute
+preparation lease. Dispatch rechecks worker/revision ownership and supplies a
+fresh one-minute lease. Guild loss settles unfinished claims as failed.
 
 ## Stripe test setup
 
@@ -167,6 +171,31 @@ malformed managed subscriptions still fail closed. Invoices with incomplete pagi
 more than ten payments fail closed for manual reconciliation. Subscription
 entitlements continue to use the existing Convex resolver.
 
+Subscription reconciliation now selects at most 20 indexed due records per
+batch. Failures remain due for a later retry; verified canceled, revoked and
+expired records leave the recurring queue. Before enabling this integration on
+an existing deployment, initialize legacy billing records once. From
+`packages/backend`, on the intended development deployment, run:
+
+```sh
+bunx --no-install convex run premiumPurchases:backfillReconciliation '{}'
+```
+
+This internal mutation processes 100 records at a time and schedules its own
+continuation. It is safe to repeat. `nextReconcileAt` is absent on legacy rows,
+numeric for scheduled work and `null` after verified terminal/expired state.
+An expired legacy active row gets one provider reconciliation before leaving the
+queue. Run the equivalent migration in production only as part of a separately
+approved release through the existing coordinator. No production migration was
+performed during development. No new environment variables are required.
+
+Native Linked Roles sweeps select only active connections due for refresh;
+permanently revoked history is excluded by index. Unknown refund/dispute events
+are acknowledged after retrieving the charge and proving its customer has no
+managed subscription or open community checkout. A known customer's incomplete
+payment association keeps failing closed until payment reconciliation supplies
+the evidence. Recognized reversals remain sticky.
+
 ## Recognition and privacy
 
 An eligible first paid activation creates one durable outbox record. Renewals,
@@ -178,10 +207,22 @@ message says they sponsored the community, never that the owner authorised it.
 
 Discord delivery uses a stable nonce and one send attempt. Ambiguous sends become
 `uncertain`; reconciliation matches the bot author's reference footer in the last
-100 channel messages. An unmatched uncertain row needs operator investigation,
-not a blind resend. Consent withdrawal prevents pending publication but does not
+100 channel messages, in the verified official-server channel. An unmatched row
+moves to `investigation`, leaving subsequent uncertain records serviceable. It
+is never returned to the send queue automatically. Investigate that state using
+Discord history and the stable reference footer; do not clear it to `pending`
+or blindly resend. Network failures leave rows uncertain for later recovery.
+Consent withdrawal prevents pending publication but does not
 delete a message already posted. Preserve Stripe receipts/payment associations
 for durable idempotency and reversal handling.
+
+The moderation release lock also short-circuits Twitch processing before cache
+access. Future unlocked runtime histories are isolated by Discord channel while
+sharing guild policy caches. They retain at most 256 message IDs, timestamps and
+SHA-256 comparison digests per history, with at most the configured number of
+histories. Raw history remains subject to the original 65,536-character engine
+budget. Four concurrent background policy refreshes are deduplicated and do not
+block Twitch readiness. These changes do not enable moderation.
 
 ## VPS changes and safe rollout after review
 
@@ -215,25 +256,25 @@ are rejected. Production moderation activation remains deferred.
 
 ## Implementation validation
 
-The CodeRabbit correction pass added recovery, concurrency and boundary tests
-for all ten existing findings. Final coverage passed all nine workspace tasks
-on the third run, with no assertions or coverage thresholds changed. Earlier
-Windows runs encountered an existing Twitch file-lock race and a shutdown-test
-timeout while other verification workloads were active.
+The combined Cubic/Grok correction pass adds recovery, query-count, concurrency,
+privacy and boundary regressions for the 16 outstanding findings. Final coverage
+passed all nine workspace tasks on the second full run, with no assertions or
+coverage thresholds weakened. The first run identified an uncovered bounded
+history rollover branch; its regression now verifies the capacity boundary.
 
 | Workspace   | Passing tests | Reported statements / branches / functions / lines |
 | ----------- | ------------: | -------------------------------------------------- |
-| Shared      |            84 | 100% / 100% / 100% / 100%                          |
-| Backend     |           313 | 100% / 100% / 100% / 100%                          |
-| Discord bot |           309 | 100% / 100% / 100% / 100%                          |
-| Twitch bot  |           123 | 100% / 100% / 100% / 100%                          |
+| Shared      |            88 | 100% / 100% / 100% / 100%                          |
+| Backend     |           331 | 100% / 100% / 100% / 100%                          |
+| Discord bot |           316 | 100% / 100% / 100% / 100%                          |
+| Twitch bot  |           124 | 100% / 100% / 100% / 100%                          |
 | Dashboard   |            98 | 100% / 100% / 100% / 100%                          |
 | Environment |            23 | 100% / 100% / 100% / 100%                          |
 | Logger      |             7 | 100% / 100% / 100% / 100%                          |
 | Landing     |             4 | 100% / 100% / 100% / 100%                          |
 | UI          |             2 | 100% / 100% / 100% / 100%                          |
 
-Total: **963 passing tests**. Coverage uses each package's established inclusion
+Total: **993 passing tests**. Coverage uses each package's established inclusion
 list. Shared and Twitch include their full source scopes; backend, Discord and
 dashboard have explicit existing coverage allowlists. These percentages do not
 claim every new integration file has 100% coverage. The added functional tests
@@ -244,11 +285,14 @@ cache leases and signed Twitch chat routing.
 Executed successfully: changed-file Prettier check, `bun run lint:ci`,
 `bun run typecheck`, `bun run test:ci` with Git Bash on PATH,
 `bun run test:coverage --concurrency=1 --continue`, and `bun run build`.
-The Twitch browser suite passed 19 checks; welcome verification passed all 12
-checks across Chromium and Firefox after the competing workloads finished.
+The eight added browser checks exercise real React callback effects in Strict
+Mode, URL cleanup and independent recognition preferences through the existing
+Twitch Playwright fixture. The full Twitch/browser suite passed 27 checks and
+welcome verification passed 12 checks across Chromium and Firefox. GitHub CI
+results are recorded on the PR; no additional review was requested.
 Coverage executes the
 same test suites as package `test` scripts; a redundant final root test run was
-not added. Final coverage reused seven unchanged successful Turbo tasks.
+not added. Final coverage reran affected workspaces and reused unchanged Turbo tasks.
 
 No external Discord installation, native-role claim, actual Stripe Checkout,
 live webhook delivery or VPS deployment was fabricated. Those operator smoke

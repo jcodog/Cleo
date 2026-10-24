@@ -3,7 +3,7 @@ import { AccountRoles } from "@/features/community/AccountRoles"
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ code?: string; state?: string }>
+  searchParams: Promise<{ code?: string; state?: string; error?: string }>
 }) {
   await auth.protect()
   const params = await searchParams
@@ -12,7 +12,11 @@ export default async function Page({
       <h1 className="font-heading text-2xl font-medium">
         Discord Linked Roles
       </h1>
-      <AccountRoles code={params.code} state={params.state} />
+      <AccountRoles
+        code={params.code}
+        state={params.state}
+        error={params.error}
+      />
     </div>
   )
 }

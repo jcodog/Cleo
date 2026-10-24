@@ -13,6 +13,7 @@ import { serializeLogError } from "@workspace/logger"
 import { ChatActivity } from "../services/timers/ChatActivity"
 import { TimerScheduler } from "../services/timers/TimerScheduler"
 import { ModerationRuntime } from "@workspace/shared/moderationRuntime"
+import { MODERATION_ROLLOUT_LOCKED } from "@workspace/shared/moderation"
 import { randomUUID } from "node:crypto"
 import { eventDefinitions } from "@workspace/shared/twitchEventSub"
 
@@ -65,6 +66,7 @@ export class TwitchClient {
         convex,
         announcements,
         moderation: async (event) => {
+          if (MODERATION_ROLLOUT_LOCKED) return
           const parsed = eventDefinitions.chatMessage.parse(event)
           if (parsed.chatter_user_id === config.TWITCH_BOT_USER_ID) return
           await this.moderation.load(
@@ -175,7 +177,10 @@ export class TwitchClient {
         // Token maintenance and readiness reporting. No subscription lifecycle work.
         await delay(30000, undefined, { signal })
         await this.auth.maintain()
-        await this.moderation.refresh(Math.floor(performance.now()))
+        if (!MODERATION_ROLLOUT_LOCKED)
+          void this.moderation
+            .refresh(Math.floor(performance.now()))
+            .catch(() => this.logger.warn("Moderation refresh unavailable"))
         if (!this.webhook.isListening)
           throw new Error("Twitch webhook listener unavailable.")
         await state("ready")

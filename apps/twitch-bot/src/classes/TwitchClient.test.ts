@@ -11,8 +11,18 @@ import {
   apiConfig,
 } from "../../tests/fixtures"
 import { createGrant } from "../auth/grantStore"
+import * as moderationExports from "@workspace/shared/moderation"
+import { ModerationRuntime } from "@workspace/shared/moderationRuntime"
 
 test("client startup, token maintenance, local health, clean shutdown and failures never query desired subscriptions", async (t) => {
+  t.mock.module("@workspace/shared/moderation", {
+    exports: { ...moderationExports, MODERATION_ROLLOUT_LOCKED: false },
+  })
+  const refresh = t.mock.method(
+    ModerationRuntime.prototype,
+    "refresh",
+    () => new Promise<void>(() => {})
+  )
   let tick: () => void = () => {}
   t.mock.module("node:timers/promises", {
     exports: {
@@ -53,9 +63,16 @@ test("client startup, token maintenance, local health, clean shutdown and failur
       4
     )
     assert.equal(client.webhook.isListening, false)
+    assert.ok(refresh.mock.callCount() > 0)
+    refresh.mock.mockImplementation(async () => {
+      throw new Error("refresh fixture failure")
+    })
     const warnings: string[] = []
     const reportAbort = new AbortController()
-    tick = () => reportAbort.abort()
+    let reportTicks = 0
+    tick = () => {
+      if (++reportTicks === 2) reportAbort.abort()
+    }
     const degraded = new TwitchClient(
       config,
       {
@@ -75,7 +92,12 @@ test("client startup, token maintenance, local health, clean shutdown and failur
       }
     )
     await degraded.run(reportAbort.signal)
-    assert.deepEqual(warnings, ["Twitch control-plane readiness unavailable"])
+    assert.deepEqual(warnings, [
+      "Twitch control-plane readiness unavailable",
+      "Moderation refresh unavailable",
+      "Twitch control-plane readiness unavailable",
+    ])
+    assert.ok(refresh.mock.callCount() > 0)
     assert.equal(JSON.parse(await readFile(path, "utf8")).state, "stopped")
     const failed = new TwitchClient(config, silentLogger, async () => {
       throw new Error("network")

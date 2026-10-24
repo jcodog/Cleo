@@ -2,10 +2,14 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { createHmac } from "node:crypto"
 import { resolve } from "node:path"
-import { TwitchClient } from "./TwitchClient"
+import * as moderationExports from "@workspace/shared/moderation"
 import { runtimeEnv, silentLogger, json } from "../../tests/fixtures"
 
-test("signed chat reaches shared moderation, respects badges, emote spans, cache and enforcement gates", async () => {
+test("future unlocked chat reaches shared moderation, respects badges, emote spans, cache and enforcement gates", async (t) => {
+  t.mock.module("@workspace/shared/moderation", {
+    exports: { ...moderationExports, MODERATION_ROLLOUT_LOCKED: false },
+  })
+  const { TwitchClient } = await import("./TwitchClient")
   const config = {
     ...runtimeEnv(resolve("unused-grant"), resolve("unused-state")),
     TWITCH_MODERATION_ENFORCEMENT_ENABLED: "true",

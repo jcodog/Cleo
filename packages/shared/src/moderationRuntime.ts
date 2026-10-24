@@ -1,9 +1,12 @@
 import { z } from "zod"
+import { sha256 } from "@noble/hashes/sha2"
+import { bytesToHex } from "@noble/hashes/utils"
+import { normalizeModerationMessage } from "./moderation/normalize"
 import {
   compileModerationPolicy,
   evaluateModeration,
   type ModerationMessage,
-  type ModerationHistoryEntry,
+  MODERATION_LIMITS,
 } from "./moderation"
 
 export const moderationRuntimePolicy = z.object({
@@ -28,9 +31,13 @@ export class ModerationRuntime {
     { token: object; work: Promise<void> }
   >()
   private activeLoads = 0
+  private refreshing: Promise<void> | undefined
   private readonly histories = new Map<
     string,
-    { messages: ModerationHistoryEntry[]; updatedAt: number }
+    {
+      messages: { id: string; timestamp: number; digest: string }[]
+      updatedAt: number
+    }
   >()
   constructor(
     private readonly fetchPolicy: (scopeId: string) => Promise<unknown>,
@@ -55,20 +62,23 @@ export class ModerationRuntime {
       try {
         const raw = await this.fetchPolicy(scopeId)
         const value = moderationRuntimePolicy.parse(
-          raw ?? {
-            revision: 0,
-            policyJSON: "{}",
-            enforcement: false,
-            authorityUntil: 0,
-            leaseDurationMs: 0,
-          }
+          raw === null
+            ? {
+                revision: 0,
+                policyJSON: "{}",
+                enforcement: false,
+                authorityUntil: 0,
+                leaseDurationMs: 0,
+              }
+            : raw
         )
         const compiled =
           cached?.value.policyJSON === value.policyJSON
             ? cached.compiled
             : compileModerationPolicy(JSON.parse(value.policyJSON))
         if (this.pending.get(scopeId)?.token !== token) return
-        if (cached && value.revision < cached.value.revision) return
+        if (raw !== null && cached && value.revision < cached.value.revision)
+          return
         this.cache.delete(scopeId)
         this.cache.set(scopeId, { value, compiled, fetchedAt: now })
         while (this.cache.size > this.maximum) {
@@ -91,41 +101,81 @@ export class ModerationRuntime {
     }
   }
   async refresh(now: number): Promise<void> {
+    if (this.refreshing) return this.refreshing
+    const work = this.refreshPolicies(now)
+    this.refreshing = work
+    try {
+      await work
+    } finally {
+      this.refreshing = undefined
+    }
+  }
+  private async refreshPolicies(now: number): Promise<void> {
+    const scopes: string[] = []
     for (const [scopeId, entry] of this.cache) {
       if (now - entry.fetchedAt > 300000) {
         this.invalidate(scopeId)
         continue
       }
-      await this.load(scopeId, now)
+      scopes.push(scopeId)
     }
     for (const [key, history] of this.histories)
-      if (now - history.updatedAt > 300000) this.histories.delete(key)
+      if (now - history.updatedAt > 300000) {
+        this.histories.delete(key)
+      }
+    let cursor = 0
+    await Promise.all(
+      Array.from({ length: Math.min(4, scopes.length) }, async () => {
+        while (cursor < scopes.length) await this.load(scopes[cursor++]!, now)
+      })
+    )
   }
   inspect(message: ModerationMessage, now: number) {
     const entry = this.cache.get(message.scopeId)
     if (!entry || now < entry.fetchedAt || now - entry.fetchedAt > 120000)
       return null
-    const key = JSON.stringify([message.scopeId, message.authorId])
+    const key = JSON.stringify([
+      message.scopeId,
+      message.historyScopeId ?? message.scopeId,
+      message.authorId,
+    ])
     const history = (this.histories.get(key)?.messages ?? []).filter(
-      (h) => now - h.timestamp <= 300000
+      (h) => h.timestamp <= now && now - h.timestamp <= 300000
     )
     if (history.some((h) => h.id === message.id)) return null
+    const text = normalizeModerationMessage(message).comparisonText
+    const bytes = new Uint8Array(text.length * 2)
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i)
+      bytes[i * 2] = code & 255
+      bytes[i * 2 + 1] = code >>> 8
+    }
+    const digest = bytesToHex(sha256(bytes))
+    const { duplicateMessages, flooding } = entry.compiled.policy.rules
+    const recentCounts = {
+      duplicateCount:
+        1 +
+        history.filter(
+          (h) =>
+            h.digest === digest &&
+            now - h.timestamp <= duplicateMessages.windowMs
+        ).length,
+      floodCount:
+        1 +
+        history.filter((h) => now - h.timestamp <= flooding.windowMs).length,
+    }
     const decision = evaluateModeration({
       message,
       policy: entry.compiled,
-      history,
+      recentCounts,
       now,
     })
     history.push({
       id: message.id,
-      scopeId: message.scopeId,
-      authorId: message.authorId,
-      content: message.content,
+      digest,
       timestamp: now,
     })
-    let textLength = history.reduce((total, h) => total + h.content.length, 0)
-    while (history.length > 64 || textLength > 57344)
-      textLength -= history.shift()!.content.length
+    while (history.length > MODERATION_LIMITS.historyEntries) history.shift()
     this.histories.delete(key)
     this.histories.set(key, { messages: history, updatedAt: now })
     while (this.histories.size > this.maximum) {

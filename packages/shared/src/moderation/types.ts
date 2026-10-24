@@ -166,6 +166,7 @@ export type ModerationEmote = Readonly<{ start: number; end: number }>
 export type ModerationMessage = Readonly<{
   id: string
   scopeId: string
+  historyScopeId?: string
   authorId: string
   content: string
   roleIds?: readonly string[]

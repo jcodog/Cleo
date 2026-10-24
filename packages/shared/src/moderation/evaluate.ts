@@ -1,4 +1,5 @@
 import { matchBlockedWords } from "./blockedWords"
+import { z } from "zod"
 import {
   characterStatistics,
   phraseRepetition,
@@ -20,6 +21,10 @@ import {
 import { detectUrls, isAllowedHostname, isDiscordInvite } from "./urls"
 
 const severityRank = { none: 0, low: 1, medium: 2, high: 3 }
+const recentCountsSchema = z.strictObject({
+  duplicateCount: z.number().int().min(1).max(257),
+  floodCount: z.number().int().min(1).max(257),
+})
 const actionRank = { none: 0, log: 1, warn: 2, delete: 3, timeout: 4 }
 
 function isExempt(
@@ -39,11 +44,13 @@ export function evaluateModeration({
   policy: compiled,
   history = [],
   now,
+  recentCounts,
 }: {
   message: ModerationMessage
   policy: CompiledModerationPolicy
   history?: readonly ModerationHistoryEntry[]
   now: number
+  recentCounts?: { duplicateCount: number; floodCount: number }
 }): ModerationDecision {
   if (!Number.isSafeInteger(now) || now < 0)
     throw new RangeError("Moderation time must be a nonnegative safe integer.")
@@ -52,13 +59,17 @@ export function evaluateModeration({
   const rules = policy.rules
   const statistics = characterStatistics(normalized.graphemes)
   // Validate history even with disabled rules so invalid input never silently passes.
-  const counts = recentMessageCounts(
+  const historyCounts = recentMessageCounts(
     normalized,
     history,
     now,
     rules.duplicateMessages.windowMs,
     rules.flooding.windowMs
   )
+  const counts =
+    recentCounts === undefined
+      ? historyCounts
+      : recentCountsSchema.parse(recentCounts)
   const detections: ModerationDetection[] = []
   if (rules.links.enabled || rules.discordInvites.enabled) {
     const urls = detectUrls(normalized.text)

@@ -17,6 +17,153 @@ const value = (revision = 1, enforcement = true) => ({
   authorityUntil: 60000,
   leaseDurationMs: 60000,
 })
+
+test("runtime supports maximum flood and duplicate thresholds for full-sized messages without retaining raw history", async () => {
+  const runtime = new ModerationRuntime(async () => ({
+    ...value(),
+    policyJSON: JSON.stringify({
+      rules: {
+        duplicateMessages: { enabled: true, minimum: 256, windowMs: 300000 },
+        flooding: { enabled: true, minimum: 256, windowMs: 300000 },
+      },
+    }),
+  }))
+  await runtime.load("guild", 0)
+  for (let i = 0; i < 256; i++) {
+    const result = runtime.inspect(
+      message(String(i), "guild", "X".repeat(8192)),
+      i
+    )!
+    assert.equal(result.decision.matched, i === 255)
+    if (i === 255)
+      assert.deepEqual(result.decision.ruleIds, [
+        "duplicateMessages",
+        "flooding",
+      ])
+  }
+  assert.equal(
+    runtime.inspect(message("rollover", "guild", "X".repeat(8192)), 256)
+      ?.decision.matched,
+    true
+  )
+  assert.equal(
+    runtime.inspect(message("boundary", "guild", "x".repeat(8192)), 300001),
+    null
+  )
+})
+
+test("per-channel history stays isolated while guild policy is shared and withdrawal clears authority", async () => {
+  let response: unknown = {
+    ...value(2),
+    policyJSON: JSON.stringify({
+      revision: 2,
+      rules: {
+        duplicateMessages: { enabled: true, minimum: 2 },
+        flooding: { enabled: true, minimum: 2 },
+      },
+    }),
+  }
+  let calls = 0
+  const runtime = new ModerationRuntime(async () => {
+    calls++
+    return response
+  })
+  await runtime.load("guild", 0)
+  assert.equal(
+    runtime.inspect({ ...message("one"), historyScopeId: "channel-one" }, 1)
+      ?.decision.matched,
+    false
+  )
+  assert.equal(
+    runtime.inspect({ ...message("two"), historyScopeId: "channel-two" }, 2)
+      ?.decision.matched,
+    false
+  )
+  assert.deepEqual(
+    runtime.inspect({ ...message("three"), historyScopeId: "channel-one" }, 3)
+      ?.decision.ruleIds,
+    ["duplicateMessages", "flooding"]
+  )
+  assert.equal(calls, 1)
+  response = null
+  await runtime.load("guild", 15000)
+  const withdrawn = runtime.inspect(message("withdrawn"), 15001)
+  assert.equal(withdrawn?.decision.matched, false)
+  assert.equal(withdrawn?.enforce, false)
+})
+
+test("slow policy refreshes use four concurrent requests and overlapping refreshes deduplicate", async () => {
+  const completions: (() => void)[] = []
+  let slow = false,
+    active = 0,
+    maximum = 0,
+    calls = 0
+  const runtime = new ModerationRuntime(async () => {
+    if (slow) {
+      calls++
+      active++
+      maximum = Math.max(maximum, active)
+      await new Promise<void>((resolve) => completions.push(resolve))
+      active--
+    }
+    return value()
+  })
+  for (let i = 0; i < 8; i++) await runtime.load(String(i), 0)
+  slow = true
+  const first = runtime.refresh(15000),
+    second = runtime.refresh(15000)
+  assert.equal(active, 4)
+  assert.equal(
+    runtime.inspect(message("available", "7"), 15001)?.decision.matched,
+    true
+  )
+  completions.splice(0).forEach((resolve) => resolve())
+  for (let i = 0; i < 5 && calls < 8; i++) await Promise.resolve()
+  assert.equal(calls, 8)
+  completions.splice(0).forEach((resolve) => resolve())
+  await Promise.all([first, second])
+  assert.equal(maximum, 4)
+  assert.equal(calls, 8)
+})
+
+test("count summaries preserve Unicode comparison, empty messages and malformed-provider authority rules", async () => {
+  let response: unknown = {
+    ...value(2),
+    policyJSON: JSON.stringify({
+      revision: 2,
+      rules: { duplicateMessages: { enabled: true, minimum: 2 } },
+    }),
+  }
+  const runtime = new ModerationRuntime(async () => response)
+  await runtime.load("guild", 0)
+  assert.equal(
+    runtime.inspect(message("first", "guild", "\ud800"), 1)?.decision.matched,
+    false
+  )
+  assert.equal(
+    runtime.inspect(message("second", "guild", "\ud801"), 2)?.decision.matched,
+    false
+  )
+  assert.equal(
+    runtime.inspect(message("third", "guild", "\ud800"), 3)?.decision.matched,
+    true
+  )
+  assert.equal(
+    runtime.inspect(message("empty", "guild", ""), 4)?.decision.matched,
+    false
+  )
+  assert.equal(
+    runtime.inspect(message("empty-two", "guild", ""), 5)?.decision.matched,
+    true
+  )
+  response = undefined
+  await runtime.load("guild", 15000)
+  assert.equal(
+    runtime.inspect(message("kept", "guild", ""), 15001)?.decision
+      .policyRevision,
+    2
+  )
+})
 test("runtime caches and deduplicates refreshes without per-message reads", async () => {
   let calls = 0
   const runtime = new ModerationRuntime(async () => {

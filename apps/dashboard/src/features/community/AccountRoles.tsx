@@ -11,9 +11,11 @@ import { Button } from "@workspace/ui/components/button"
 export function AccountRoles({
   code,
   state,
+  error,
 }: {
   code?: string
   state?: string
+  error?: string
 }) {
   const roles = useQuery(api.communityRoles.current)
   const install = useAction(api.communityActions.installAccount)
@@ -25,21 +27,29 @@ export function AccountRoles({
   const [busy, setBusy] = useState(false)
   const handled = useRef(false)
   useEffect(() => {
-    if (!code || !state || handled.current) return
+    if (handled.current || (!code && !state && !error)) return
     handled.current = true
+    window.history.replaceState(null, "", "/discord/linked-role")
+    if (error || !code || !state) {
+      return
+    }
     void finish({ code, state })
       .then(() => {
         setNotice(
           "Discord Linked Roles verified. Claim eligible roles in Discord."
         )
-        window.history.replaceState(null, "", "/discord/linked-role")
       })
       .catch(() =>
         setNotice(
           "Discord verification failed. Start again with the Discord account linked to Cleo."
         )
       )
-  }, [code, state, finish])
+  }, [code, state, error, finish])
+  const visibleNotice =
+    notice ||
+    (error || Boolean(code) !== Boolean(state)
+      ? "Discord verification failed. Start again with the Discord account linked to Cleo."
+      : "")
   async function act(operation: () => Promise<unknown>) {
     setBusy(true)
     setNotice("")
@@ -98,9 +108,9 @@ export function AccountRoles({
           Disconnect Linked Roles
         </Button>
       </div>
-      {notice ? (
+      {visibleNotice ? (
         <p role="status" className="text-sm">
-          {notice}
+          {visibleNotice}
         </p>
       ) : null}
       <dl className="divide-y">
