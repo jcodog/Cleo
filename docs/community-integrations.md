@@ -107,6 +107,13 @@ roles or purchases. Installation evidence expires after 24 hours and becomes
 verification-needed. Discord does not provide a general bot endpoint to poll all
 personal installations; signed events and fresh user-install interactions are
 the supported evidence. Ambiguous deauthorization never confirms installation.
+User-install interactions are recorded asynchronously, using the creation time
+encoded in Discord's interaction snowflake, not backend processing time. The
+backend rejects interactions at least 24 hours old, over five seconds in the
+future, or outside Discord's unsigned 64-bit range. Delayed or equal-time
+positive evidence cannot override newer or conflicting negative evidence;
+genuinely newer interactions can verify the installation again. The 24-hour
+expiry starts at interaction creation, and duplicate delivery never extends it.
 Periodic role bootstrapping runs only when the Convex community-role gate is
 enabled. It inserts missing jobs without resetting existing retry backoff,
 revisions or active leases. Disconnecting Linked Roles while a token refresh or
@@ -209,9 +216,43 @@ Discord delivery uses a stable nonce and one send attempt. Ambiguous sends becom
 `uncertain`; reconciliation matches the bot author's reference footer in the last
 100 channel messages, in the verified official-server channel. An unmatched row
 moves to `investigation`, leaving subsequent uncertain records serviceable. It
-is never returned to the send queue automatically. Investigate that state using
-Discord history and the stable reference footer; do not clear it to `pending`
-or blindly resend. Network failures leave rows uncertain for later recovery.
+is never returned to the send queue automatically. Each new investigation emits
+a structured warning in Convex logs with namespace
+`backend.community-recognition`, `outboxId` and outcome
+`unmatched_bot_announcement`. No purchaser, community or billing details are
+included. Repeated reconciliation of the same investigation emits no new warning.
+Network failures leave rows uncertain for later recovery.
+
+Operators with Convex CLI access can inspect outstanding cases without enabling
+delivery:
+
+```bash
+bunx --no-install convex run communityRecognition:investigations '{}'
+```
+
+`count` is the number of entries on that page, at most 100. Entries expose only
+their internal outbox ID and update time. If `nextCursor` is present, continue
+with `'{"cursor":"<nextCursor>"}'`; sum the page counts for the outstanding total.
+This indexed query does not scan other outbox states. Use the deployment selected
+by your existing CLI configuration; this command does not deploy code.
+
+Locate the candidate message in the configured official `#community-upgrades`
+channel using Discord history and the stable `Cleo recognition ...` footer.
+Copy its Discord message ID and verify it against the outbox entry:
+
+```bash
+bunx --no-install convex run recognitionActions:reconcile '{"investigationId":"<outbox ID>","messageId":"<Discord message ID>"}'
+```
+
+This privileged recovery action requires the existing bot token, official guild
+ID and announcement channel ID. It works with `CLEO_RECOGNITION_ENABLED=false`
+and only reads Discord: it verifies channel ownership, current bot authorship,
+the exact message ID and stable footer before marking the case `sent`. It can
+recover a message beyond the latest 100. Failed verification leaves the case
+open, and repeated successful recovery is harmless. Check the investigation
+listing again afterwards. If no message can be positively verified, leave the
+case open for investigation. Never reset it to `pending` or blindly resend;
+absence from recent history is not proof of non-delivery.
 Consent withdrawal prevents pending publication but does not
 delete a message already posted. Preserve Stripe receipts/payment associations
 for durable idempotency and reversal handling.

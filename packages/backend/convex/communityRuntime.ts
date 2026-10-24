@@ -90,10 +90,19 @@ export const installationInteraction = action({
       !/^\d{17,20}$/.test(args.interactionId)
     )
       throw new Error("Invalid Discord interaction identity.")
+    const snowflake = BigInt(args.interactionId)
+    const evidenceAt = Number((snowflake >> 22n) + 1420070400000n)
+    const now = Date.now()
+    if (
+      snowflake > 18446744073709551615n ||
+      evidenceAt > now + 5000 ||
+      evidenceAt <= now - 86400000
+    )
+      throw new Error("Invalid Discord interaction timestamp.")
     await ctx.runMutation(internal.discordConnections.installation, {
       discordUserId: args.discordUserId,
       state: "active",
-      evidenceAt: Date.now(),
+      evidenceAt,
       eventKey: `interaction:${args.interactionId}`,
     })
     return null

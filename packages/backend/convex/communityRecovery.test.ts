@@ -708,6 +708,144 @@ test("ambiguous announcement sends never replay and unmatched batches do not sta
   assert.equal(posts, 1)
 })
 
+test("investigation transition emits one privacy-safe signal and never requeues ambiguous sends", async (t) => {
+  const f = await fixture()
+  await f.activate()
+  const row = (await f.t.run((ctx) =>
+    ctx.db.query("communityAnnouncementOutbox").unique()
+  ))!
+  await f.t.run((ctx) => ctx.db.patch(row._id, { state: "uncertain" }))
+  const warnings: string[] = []
+  t.mock.method(console, "warn", (line: string) => warnings.push(line))
+  let requests = 0
+  fetchFixture(t, async (input, init) => {
+    requests++
+    assert.notEqual(init?.method, "POST")
+    if (String(input).endsWith("/users/@me"))
+      return Response.json({ id: "bot", bot: true })
+    if (String(input).includes("messages?")) return Response.json([])
+    return Response.json({ guild_id: process.env.CLEO_OFFICIAL_GUILD_ID })
+  })
+  await f.t.action(internal.recognitionActions.reconcile, {})
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(row._id)))?.state,
+    "investigation"
+  )
+  assert.equal(warnings.length, 1)
+  assert.deepEqual(JSON.parse(warnings[0]!), {
+    level: "warn",
+    namespace: "backend.community-recognition",
+    message: "Community recognition requires investigation.",
+    metadata: {
+      outboxId: row._id,
+      state: "investigation",
+      outcome: "unmatched_bot_announcement",
+    },
+  })
+  for (const privateValue of [
+    row.key,
+    discordUserId,
+    "Private",
+    "cus_alice",
+    "fixture-bot",
+    "sk_test_fixture",
+  ])
+    assert.equal(warnings[0]!.includes(privateValue), false)
+  await Promise.all([
+    f.t.action(internal.recognitionActions.reconcile, {}),
+    f.t.mutation(internal.communityRecognition.reconciled, { id: row._id }),
+    f.t.mutation(internal.communityRecognition.reconciled, { id: row._id }),
+  ])
+  assert.equal(warnings.length, 1)
+  assert.equal(requests, 3)
+  assert.equal(
+    await f.t.mutation(internal.communityRecognition.claim, {
+      attempt: "no-resend",
+    }),
+    null
+  )
+  const cases = await f.t.query(
+    internal.communityRecognition.investigations,
+    {}
+  )
+  assert.equal(cases.count, 1)
+  assert.deepEqual(Object.keys(cases.entries[0]!).sort(), ["id", "updatedAt"])
+  assert.equal(cases.nextCursor, null)
+})
+
+test("verified recovery emits no investigation signal and investigation pages are bounded and exclude other states", async (t) => {
+  const f = await fixture()
+  await f.activate()
+  const row = (await f.t.run((ctx) =>
+    ctx.db.query("communityAnnouncementOutbox").unique()
+  ))!
+  await f.t.run((ctx) => ctx.db.patch(row._id, { state: "uncertain" }))
+  const warnings: string[] = []
+  t.mock.method(console, "warn", (line: string) => warnings.push(line))
+  const { digestIntegrationValue } = await import("./lib/integrationSecurity")
+  fetchFixture(t, async (input, init) => {
+    assert.notEqual(init?.method, "POST")
+    if (String(input).endsWith("/users/@me"))
+      return Response.json({ id: "bot", bot: true })
+    if (String(input).includes("messages?"))
+      return Response.json([
+        {
+          id: "verified",
+          author: { id: "bot" },
+          embeds: [
+            {
+              footer: {
+                text: `Cleo recognition ${digestIntegrationValue(row.key).slice(0, 24)}`,
+              },
+            },
+          ],
+        },
+      ])
+    return Response.json({ guild_id: process.env.CLEO_OFFICIAL_GUILD_ID })
+  })
+  await f.t.action(internal.recognitionActions.reconcile, {})
+  await f.t.action(internal.recognitionActions.reconcile, {})
+  assert.equal((await f.t.run((ctx) => ctx.db.get(row._id)))?.state, "sent")
+  assert.deepEqual(warnings, [])
+  assert.equal(
+    (await f.t.query(internal.communityRecognition.investigations, {})).count,
+    0
+  )
+  await f.t.run(async (ctx) => {
+    for (let i = 0; i < 105; i++)
+      await ctx.db.insert("communityAnnouncementOutbox", {
+        activationId: row.activationId,
+        key: `private-case-${i}`,
+        state: "investigation",
+        updatedAt: i,
+      })
+    for (const state of ["uncertain", "pending", "suppressed"] as const)
+      await ctx.db.insert("communityAnnouncementOutbox", {
+        activationId: row.activationId,
+        key: state,
+        state,
+        updatedAt: Date.now(),
+      })
+  })
+  const first = await f.t.query(
+    internal.communityRecognition.investigations,
+    {}
+  )
+  assert.equal(first.count, 100)
+  assert.equal(first.entries.length, 100)
+  assert.ok(first.nextCursor)
+  const last = await f.t.query(internal.communityRecognition.investigations, {
+    cursor: first.nextCursor,
+  })
+  assert.equal(last.count, 5)
+  assert.equal(last.nextCursor, null)
+  assert.equal(
+    new Set([...first.entries, ...last.entries].map(({ id }) => id)).size,
+    105
+  )
+  assert.equal(JSON.stringify(first).includes("private-case"), false)
+})
+
 for (const revokeFails of [false, true])
   test(`mismatched OAuth grant is revoked before rejection, revoke failure=${revokeFails}`, async (t) => {
     const f = await fixture()

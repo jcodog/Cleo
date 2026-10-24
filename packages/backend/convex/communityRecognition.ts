@@ -3,6 +3,9 @@ import { internalMutation, internalQuery } from "./_generated/server"
 import { announcementDoc } from "./lib/communityValidators"
 import { getGuildAccess } from "./lib/guildEntitlements"
 import { backendEnv } from "@workspace/env/backend"
+import { createLogger } from "@workspace/logger"
+
+const logger = createLogger("backend.community-recognition")
 const payload = v.object({
   id: v.id("communityAnnouncementOutbox"),
   key: v.string(),
@@ -119,12 +122,64 @@ export const reconciled = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.id)
-    if (row?.state === "uncertain")
+    if (
+      row?.state === "uncertain" ||
+      (row?.state === "investigation" && args.messageId)
+    ) {
       await ctx.db.patch(row._id, {
         state: args.messageId ? "sent" : "investigation",
         messageId: args.messageId,
         updatedAt: Date.now(),
       })
+      if (!args.messageId)
+        logger.warn("Community recognition requires investigation.", {
+          outboxId: row._id,
+          state: "investigation",
+          outcome: "unmatched_bot_announcement",
+        })
+    }
     return null
+  },
+})
+
+export const investigations = internalQuery({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.object({
+    count: v.number(),
+    entries: v.array(
+      v.object({
+        id: v.id("communityAnnouncementOutbox"),
+        updatedAt: v.number(),
+      })
+    ),
+    nextCursor: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("communityAnnouncementOutbox")
+      .withIndex("by_state", (q) => q.eq("state", "investigation"))
+      .paginate({ cursor: args.cursor ?? null, numItems: 100 })
+    return {
+      count: page.page.length,
+      entries: page.page.map((row) => ({
+        id: row._id,
+        updatedAt: row.updatedAt,
+      })),
+      nextCursor: page.isDone ? null : page.continueCursor,
+    }
+  },
+})
+
+export const investigation = internalQuery({
+  args: { id: v.id("communityAnnouncementOutbox") },
+  returns: v.union(
+    v.object({ _id: v.id("communityAnnouncementOutbox"), key: v.string() }),
+    v.null()
+  ),
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get(args.id)
+    return row?.state === "investigation"
+      ? { _id: row._id, key: row.key }
+      : null
   },
 })

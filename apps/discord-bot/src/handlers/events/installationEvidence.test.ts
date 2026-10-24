@@ -18,9 +18,9 @@ test("a stalled installation evidence request cannot delay the command response 
   const handler = (await import("./interactionCreate")).default
   let executed = false
   const interaction = {
-    id: "123",
-    user: { id: "111" },
-    authorizingIntegrationOwners: { userId: "111" },
+    id: ((BigInt(Date.now()) - 1420070400000n) << 22n).toString(),
+    user: { id: "111111111111111111" },
+    authorizingIntegrationOwners: { userId: "111111111111111111" },
     isChatInputCommand: () => true,
     commandName: "ping",
     client: {
@@ -38,6 +38,11 @@ test("a stalled installation evidence request cannot delay the command response 
   }
   const execution = handler.execute(interaction as never)
   assert.equal(action.mock.callCount(), 1)
+  assert.deepEqual(action.mock.calls[0]?.arguments[1], {
+    secret: "fixture-bot-secret",
+    discordUserId: interaction.user.id,
+    interactionId: interaction.id,
+  })
   assert.equal(executed, true)
   await execution
   reject(new Error("backend unavailable"))
@@ -48,4 +53,16 @@ test("a stalled installation evidence request cannot delay the command response 
   executed = false
   await handler.execute(interaction as never)
   assert.equal(executed, true)
+  for (const authorizingIntegrationOwners of [
+    { guildId: "222222222222222222" },
+    { userId: "333333333333333333" },
+  ]) {
+    executed = false
+    await handler.execute({
+      ...interaction,
+      authorizingIntegrationOwners,
+    } as never)
+    assert.equal(executed, true)
+  }
+  assert.equal(action.mock.callCount(), 2)
 })

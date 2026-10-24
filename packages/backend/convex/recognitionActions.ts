@@ -7,9 +7,9 @@ import { internal } from "./_generated/api"
 import { backendEnv } from "@workspace/env/backend"
 import { discordJson } from "./lib/communityDiscord"
 import { digestIntegrationValue } from "./lib/integrationSecurity"
-function config() {
+function config(delivery = true) {
   if (
-    backendEnv.CLEO_RECOGNITION_ENABLED !== "true" ||
+    (delivery && backendEnv.CLEO_RECOGNITION_ENABLED !== "true") ||
     !backendEnv.DISCORD_BOT_TOKEN ||
     !backendEnv.CLEO_OFFICIAL_GUILD_ID ||
     !backendEnv.CLEO_COMMUNITY_UPGRADES_CHANNEL_ID
@@ -90,12 +90,32 @@ export const deliver = internalAction({
   },
 })
 export const reconcile = internalAction({
-  args: {},
+  args: {
+    investigationId: v.optional(v.id("communityAnnouncementOutbox")),
+    messageId: v.optional(v.string()),
+  },
   returns: v.null(),
-  handler: async (ctx) => {
-    const settings = config()
+  handler: async (ctx, args) => {
+    if (
+      Boolean(args.investigationId) !== Boolean(args.messageId) ||
+      (args.messageId !== undefined && !/^\d{17,20}$/.test(args.messageId))
+    )
+      throw new Error(
+        "An investigation and valid Discord message ID are required."
+      )
+    // Operator recovery verifies an existing message, even while delivery is disabled.
+    const settings = config(!args.investigationId)
     if (!settings) return null
-    const jobs = await ctx.runQuery(internal.communityRecognition.uncertain, {})
+    const investigation = args.investigationId
+      ? await ctx.runQuery(internal.communityRecognition.investigation, {
+          id: args.investigationId,
+        })
+      : null
+    const jobs = args.investigationId
+      ? investigation
+        ? [investigation]
+        : []
+      : await ctx.runQuery(internal.communityRecognition.uncertain, {})
     if (!jobs.length) return null
     const channel = z
       .object({ guild_id: z.string() })
@@ -111,6 +131,14 @@ export const reconcile = internalAction({
       throw new Error(
         "Recognition channel must belong to Cleo's official server."
       )
+    const response = await discordJson(
+      args.messageId
+        ? `/channels/${settings.channelId}/messages/${args.messageId}`
+        : `/channels/${settings.channelId}/messages?limit=100`,
+      settings.token,
+      {},
+      true
+    )
     const messages = z
       .array(
         z.object({
@@ -124,14 +152,7 @@ export const reconcile = internalAction({
         })
       )
       .max(100)
-      .parse(
-        await discordJson(
-          `/channels/${settings.channelId}/messages?limit=100`,
-          settings.token,
-          {},
-          true
-        )
-      )
+      .parse(args.messageId ? [response] : response)
     const me = z
       .object({ id: z.string(), bot: z.literal(true) })
       .parse(await discordJson("/users/@me", settings.token, {}, true))
@@ -140,8 +161,11 @@ export const reconcile = internalAction({
       const sent = messages.find(
         (m) =>
           m.author.id === me.id &&
+          (!args.messageId || m.id === args.messageId) &&
           m.embeds?.some((e) => e.footer?.text === footer)
       )
+      if (args.investigationId && !sent)
+        throw new Error("The investigation message could not be verified.")
       await ctx.runMutation(internal.communityRecognition.reconciled, {
         id: job._id,
         messageId: sent?.id,

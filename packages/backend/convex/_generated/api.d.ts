@@ -3335,6 +3335,25 @@ export declare const internal: {
         purchaserKind: "owner" | "administrator";
       } | null
     >;
+    investigation: FunctionReference<
+      "query",
+      "internal",
+      { id: Id<"communityAnnouncementOutbox"> },
+      { _id: Id<"communityAnnouncementOutbox">; key: string } | null
+    >;
+    investigations: FunctionReference<
+      "query",
+      "internal",
+      { cursor?: string },
+      {
+        count: number;
+        entries: Array<{
+          id: Id<"communityAnnouncementOutbox">;
+          updatedAt: number;
+        }>;
+        nextCursor: string | null;
+      }
+    >;
     reconciled: FunctionReference<
       "mutation",
       "internal",
@@ -7588,7 +7607,15 @@ export declare const internal: {
   };
   recognitionActions: {
     deliver: FunctionReference<"action", "internal", {}, null>;
-    reconcile: FunctionReference<"action", "internal", {}, null>;
+    reconcile: FunctionReference<
+      "action",
+      "internal",
+      {
+        investigationId?: Id<"communityAnnouncementOutbox">;
+        messageId?: string;
+      },
+      null
+    >;
   };
   twitchChat: {
     cleanup: FunctionReference<

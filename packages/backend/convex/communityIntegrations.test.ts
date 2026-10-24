@@ -37,6 +37,7 @@ const modules = {
   "./moderationActions.ts": () => import("./moderationActions"),
   "./discordConnections.ts": () => import("./discordConnections"),
   "./communityRoles.ts": () => import("./communityRoles"),
+  "./communityRuntime.ts": () => import("./communityRuntime"),
   "./communityActions.ts": () => import("./communityActions"),
   "./discordApplicationWebhooks.ts": () =>
     import("./discordApplicationWebhooks"),
@@ -127,6 +128,168 @@ async function fixture() {
 }
 const discordUserId = "111111111111111111"
 const discordGuildId = "333333333333333333"
+
+function interactionSnowflake(timestamp: number): string {
+  return ((BigInt(timestamp) - 1420070400000n) << 22n).toString()
+}
+
+test("interaction creation time fences delayed evidence against signed deauthorization and expires without renewal on replay", async (t) => {
+  const f = await fixture()
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  const deauthorizedAt = now - 2000
+  const timestamp = String(Math.floor(now / 1000))
+  const body = JSON.stringify({
+    type: 1,
+    application_id: process.env.DISCORD_APPLICATION_ID,
+    event: {
+      type: "APPLICATION_DEAUTHORIZED",
+      timestamp: new Date(deauthorizedAt).toISOString(),
+      data: { user: { id: discordUserId } },
+    },
+  })
+  assert.equal(
+    await f.t.action(internal.discordApplicationWebhooks.receive, {
+      body,
+      timestamp,
+      signature: sign(
+        null,
+        Buffer.from(timestamp + body),
+        webhookKeys.privateKey
+      ).toString("hex"),
+    }),
+    true
+  )
+  const record = (createdAt: number) =>
+    f.t.action(api.communityRuntime.installationInteraction, {
+      secret: "fixture-bot-secret",
+      discordUserId,
+      interactionId: interactionSnowflake(createdAt),
+    })
+  await record(now - 3000)
+  const installation = () =>
+    f.t.run((ctx) => ctx.db.query("discordUserInstallations").unique())
+  assert.equal((await installation())?.evidenceAt, deauthorizedAt)
+  const revoked = await f.alice.query(api.communityRoles.current, {})
+  assert.equal(revoked?.discordBotUser, "verificationNeeded")
+  assert.equal(revoked?.member, "eligible")
+  await record(deauthorizedAt)
+  assert.equal((await installation())?.state, "uncertain")
+  const createdAt = now - 1000
+  await record(createdAt)
+  assert.equal((await installation())?.state, "active")
+  assert.equal((await installation())?.evidenceAt, createdAt)
+  assert.equal((await installation())?.expiresAt, createdAt + 86400000)
+  assert.equal(
+    (await f.alice.query(api.communityRoles.current, {}))?.discordBotUser,
+    "eligible"
+  )
+  const receipts = await f.t.run((ctx) =>
+    ctx.db.query("integrationReceipts").collect()
+  )
+  const job = await f.t.run((ctx) => ctx.db.query("communityRoleJobs").unique())
+  now += 10000
+  await record(createdAt)
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.query("integrationReceipts").collect()),
+    receipts
+  )
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.query("communityRoleJobs").unique()),
+    job
+  )
+  assert.equal((await installation())?.expiresAt, createdAt + 86400000)
+  now = createdAt + 86400000
+  assert.equal(
+    (await f.alice.query(api.communityRoles.current, {}))?.discordBotUser,
+    "verificationNeeded"
+  )
+})
+
+test("equal-time negative evidence wins in either processing order", async (t) => {
+  const f = await fixture()
+  const now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  const args = {
+    secret: "fixture-bot-secret",
+    discordUserId,
+    interactionId: interactionSnowflake(now),
+  }
+  await f.t.action(api.communityRuntime.installationInteraction, args)
+  await f.t.mutation(internal.discordConnections.installation, {
+    discordUserId,
+    state: "revoked",
+    evidenceAt: now,
+    eventKey: "equal-time-revocation",
+  })
+  await f.t.action(api.communityRuntime.installationInteraction, args)
+  const installation = await f.t.run((ctx) =>
+    ctx.db.query("discordUserInstallations").unique()
+  )
+  assert.equal(installation?.state, "revoked")
+  assert.equal(
+    (await f.alice.query(api.communityRoles.current, {}))?.discordBotUser,
+    "notEligible"
+  )
+})
+
+test("interaction timestamp validation rejects stale, future and overflowing snowflakes without recording evidence", async (t) => {
+  const f = await fixture()
+  const now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  for (const interactionId of [
+    "not-a-snowflake",
+    "00000000000000000",
+    "18446744073709551616",
+    interactionSnowflake(now + 5001),
+    interactionSnowflake(now - 86400000),
+    interactionSnowflake(now - 86400001),
+  ])
+    await assert.rejects(
+      f.t.action(api.communityRuntime.installationInteraction, {
+        secret: "fixture-bot-secret",
+        discordUserId,
+        interactionId,
+      }),
+      /Invalid Discord interaction/
+    )
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("discordUserInstallations").first()),
+    null
+  )
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("integrationReceipts").first()),
+    null
+  )
+  await assert.rejects(
+    f.t.action(api.communityRuntime.installationInteraction, {
+      secret: "wrong-secret",
+      discordUserId,
+      interactionId: interactionSnowflake(now),
+    }),
+    /Invalid Discord bot Convex secret/
+  )
+  await f.t.action(api.communityRuntime.installationInteraction, {
+    secret: "fixture-bot-secret",
+    discordUserId,
+    interactionId: interactionSnowflake(now - 86399999),
+  })
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("discordUserInstallations").unique()))
+      ?.expiresAt,
+    now + 1
+  )
+  await f.t.action(api.communityRuntime.installationInteraction, {
+    secret: "fixture-bot-secret",
+    discordUserId,
+    interactionId: interactionSnowflake(now + 5000),
+  })
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("discordUserInstallations").unique()))
+      ?.evidenceAt,
+    now + 5000
+  )
+})
 
 test("moderation reads expose unavailable authority without leaking policies or weakening writes", async () => {
   const f = await fixture()
