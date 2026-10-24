@@ -1,0 +1,21 @@
+packages/backend/convex/actions/dashboard/discord/lib/dashboardGuildSync.ts
+  s_9ab004eff526bf::t_572481a9791364 163
+packages/backend/convex/communityMembershipRefresh.test.ts
+  s_9ab004eff526bf::t_572481a9791364 26-27,38-40,42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f93bf6014d74682472ada66c49c92f2b6a5c8fec",
+  "prompts": {},
+  "sessions": {
+    "s_9ab004eff526bf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a168aa-c6f8-7f32-bcba-d5b51f2dcf4e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
