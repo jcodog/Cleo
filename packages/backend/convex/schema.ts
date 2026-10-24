@@ -46,7 +46,10 @@ import {
 } from "./dbTables/twitchLiveNotifications"
 import { guilds } from "./dbTables/guilds"
 import { guildConfigs } from "./dbTables/guildConfigs"
-import { discordGuildMemberships } from "./dbTables/discordGuildMemberships"
+import {
+  discordGuildMemberships,
+  discordGuildRefreshes,
+} from "./dbTables/discordGuildMemberships"
 import { errorLogs } from "./dbTables/errorLogs"
 import { discordGuildInstallSessions } from "./dbTables/discordGuildInstallSessions"
 import { guildAuditEvents } from "./dbTables/guildAuditEvents"
@@ -103,6 +106,7 @@ export default defineSchema({
   guilds,
   guildConfigs,
   discordGuildMemberships,
+  discordGuildRefreshes,
   discordGuildInstallSessions,
   errorLogs,
   guildAuditEvents,

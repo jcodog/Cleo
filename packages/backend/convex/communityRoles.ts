@@ -5,6 +5,12 @@ import { requireCurrentUser } from "./lib/auth"
 import { roleEligibility, queueRoleSync } from "./lib/cleoRoleEligibility"
 import { internal } from "./_generated/api"
 import { userDoc, linkedAccountDoc } from "./lib/validators"
+import { discordGuildEvidence } from "./dbTables/discordGuildMemberships"
+import {
+  currentDiscordAccount,
+  discordGuildRefresh,
+} from "./lib/discordGuildMemberships"
+import { reconcileDiscordGuildRefresh } from "./lib/discordGuildRefresh"
 
 const status = v.union(
   v.literal("eligible"),
@@ -233,90 +239,55 @@ export const refreshGuilds = internalMutation({
     userId: v.id("users"),
     discordUserId: v.string(),
     reconciliation: v.optional(v.boolean()),
-    guilds: v.array(
-      v.object({
-        id: v.string(),
-        owner: v.optional(v.boolean()),
-        permissions: v.optional(v.string()),
-      })
-    ),
+    observedAt: v.optional(v.number()),
+    guilds: v.array(discordGuildEvidence),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (args.guilds.length > 1000)
-      throw new Error("Membership batch too large.")
-    const accounts = await ctx.db
-      .query("linkedAccounts")
-      .withIndex("by_user_provider", (q) =>
-        q.eq("userId", args.userId).eq("provider", "discord")
-      )
-      .take(2)
     if (
-      accounts.length !== 1 ||
-      accounts[0]?.providerAccountId !== args.discordUserId
+      args.guilds.length > 1000 ||
+      new Set(args.guilds.map((guild) => guild.id)).size !== args.guilds.length
     )
+      throw new Error("Membership batch exceeds bounds or contains duplicates.")
+    const account = await currentDiscordAccount(ctx, args.userId)
+    if (!account || account.providerAccountId !== args.discordUserId)
       throw new Error("Discord identity changed.")
-    const now = Date.now()
-    const old = await ctx.db
-      .query("discordGuildMemberships")
-      .withIndex("by_discord_user_id", (q) =>
-        q.eq("discordUserId", args.discordUserId)
-      )
-      .take(101)
-    const incoming = new Map(args.guilds.map((g) => [g.id, g]))
-    for (const membership of old) {
-      const guild = await ctx.db.get(membership.guildId)
-      if (guild && !incoming.has(guild.discordGuildId))
-        await ctx.db.patch(membership._id, {
-          revokedAt: now,
-          canManage: false,
-          isOwner: false,
-          permissions: "0",
-          managementVerifiedAt: now,
-          updatedAt: now,
-        })
+    const previous = await discordGuildRefresh(ctx, args.discordUserId)
+    const observedAt = args.observedAt ?? Date.now()
+    if (
+      !Number.isSafeInteger(observedAt) ||
+      observedAt > Date.now() + 5000 ||
+      observedAt <= Date.now() - 300000 ||
+      observedAt < account.createdAt
+    )
+      throw new Error("Discord membership verification expired or changed.")
+    if (previous && previous.startedAt > observedAt) return null
+    const revision = (previous?.revision ?? 0) + 1
+    const value = {
+      userId: args.userId,
+      discordUserId: args.discordUserId,
+      linkedAccountId: account._id,
+      revision,
+      startedAt: observedAt,
+      state: "pending" as const,
+      phase: "existing" as const,
+      cursor: undefined,
+      offset: 0,
+      guilds: args.guilds,
+      reconciliation: args.reconciliation ?? false,
     }
-    for (const incomingGuild of args.guilds) {
-      const guild = await ctx.db
-        .query("guilds")
-        .withIndex("by_discord_guild_id", (q) =>
-          q.eq("discordGuildId", incomingGuild.id)
-        )
-        .unique()
-      if (!guild || guild.botLeftAt !== undefined) continue
-      const current = await ctx.db
-        .query("discordGuildMemberships")
-        .withIndex("by_guild_id_and_discord_user_id", (q) =>
-          q.eq("guildId", guild._id).eq("discordUserId", args.discordUserId)
-        )
-        .unique()
-      let canManage = !!incomingGuild.owner
-      try {
-        canManage ||= (BigInt(incomingGuild.permissions ?? "0") & 40n) !== 0n
-      } catch {
-        /* No authority from malformed permissions. */
-      }
-      const value = {
-        guildId: guild._id,
-        userId: args.userId,
-        discordUserId: args.discordUserId,
-        isOwner: !!incomingGuild.owner,
-        permissions: incomingGuild.permissions ?? "0",
-        canManage,
-        managementVerifiedAt: now,
-        managementVerificationSource: "discord-oauth" as const,
-        revokedAt: undefined,
-        createdAt: current?.createdAt ?? now,
-        updatedAt: now,
-      }
-      if (current) await ctx.db.patch(current._id, value)
-      else await ctx.db.insert("discordGuildMemberships", value)
-      if (incomingGuild.owner)
-        await ctx.db.patch(guild._id, { ownerDiscordId: args.discordUserId })
-      else if (guild.ownerDiscordId === args.discordUserId)
-        await ctx.db.patch(guild._id, { ownerDiscordId: undefined })
-    }
-    if (!args.reconciliation) await queueRoleSync(ctx, args.discordUserId)
+    const id =
+      previous?._id ?? (await ctx.db.insert("discordGuildRefreshes", value))
+    if (previous) await ctx.db.patch(id, value)
+    await reconcileDiscordGuildRefresh(ctx, id, revision)
+    return null
+  },
+})
+export const continueGuildRefresh = internalMutation({
+  args: { id: v.id("discordGuildRefreshes"), revision: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await reconcileDiscordGuildRefresh(ctx, args.id, args.revision)
     return null
   },
 })

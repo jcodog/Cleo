@@ -124,6 +124,27 @@ Provider preparation runs in parallel for at most five users under a two-minute
 preparation lease. Dispatch rechecks worker/revision ownership and supplies a
 fresh one-minute lease. Guild loss settles unfinished claims as failed.
 
+Full Discord membership refreshes reconcile stored memberships in indexed
+batches of at most 100, followed by at most 50 incoming guilds per transaction.
+A durable refresh revision fences continuations and account changes. Until a
+snapshot completes, its partial writes cannot grant management authority. The
+five-minute deadline starts before provider verification, not at the final batch;
+failed, interrupted or delayed older snapshots cannot renew stale permissions.
+Dashboard reads, writes and guild listings require the currently linked Discord
+identity and the same five-minute freshness check as community roles. Manage
+Server still permits ordinary dashboard access; purchases and Community Manager
+roles retain their stricter owner/Administrator requirements. Use the normal
+dashboard server refresh or Account and roles refresh to reverify expired access.
+The existing conservative role limit above 100 stored memberships remains in place.
+
+These post-254 corrections add a Convex refresh checkpoint table and indexes
+through the normal coordinated release. No new environment variables, VPS
+services or one-off customer billing migration are required. An empty billing
+deployment has no legacy billing rows to migrate. For nonempty legacy billing
+data, retain the `premiumPurchases:backfillReconciliation` procedure below.
+All moderation, role-assignment, test-payment and recognition release gates stay
+unchanged; these fixes do not authorise enabling them.
+
 ## Stripe test setup
 
 1. In Stripe test mode, create the recurring server Premium Product and Price.
@@ -212,6 +233,10 @@ consent, current identity binding, paid eligibility and installed guild state.
 Role visibility and announcements are separate opt-ins. An Administrator's
 message says they sponsored the community, never that the owner authorised it.
 
+Pending claims inspect at most 20 records per transaction
+and advance past suppressed entries. Delivery remains capped at five claims per
+invocation, at most 100 inspected pending records, using the pending-state index.
+Suppression does not reset ambiguous sends or consult historical sent rows.
 Discord delivery uses a stable nonce and one send attempt. Ambiguous sends become
 `uncertain`; reconciliation matches the bot author's reference footer in the last
 100 channel messages, in the verified official-server channel. An unmatched row

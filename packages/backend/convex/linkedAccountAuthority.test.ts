@@ -342,7 +342,7 @@ async function seedManagedGuild(t: TestConvex<typeof schema>) {
       guildId,
       discordUserId,
       canManage: true,
-      managementVerifiedAt: 1,
+      managementVerifiedAt: Date.now(),
       managementVerificationSource: "discord-bot",
     }
   )

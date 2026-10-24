@@ -270,8 +270,16 @@ async function seedManagedGuild(t: TestConvex<typeof schema>) {
       userId,
       discordUserId: REQUESTER_ID,
       canManage: true,
-      managementVerifiedAt: 1,
+      managementVerifiedAt: Date.now(),
       managementVerificationSource: "discord-oauth",
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    await ctx.db.insert("linkedAccounts", {
+      userId,
+      provider: "discord",
+      providerAccountId: REQUESTER_ID,
+      scopes: [],
       createdAt: 1,
       updatedAt: 1,
     })

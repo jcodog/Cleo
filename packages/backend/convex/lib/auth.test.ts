@@ -77,6 +77,7 @@ test("guild management accepts only a current direct verified membership", async
   const t = convexTest({ schema, modules })
   const userId = await seedUser(t, "direct-manager", "user")
   const asManager = t.withIdentity({ subject: "direct-manager" })
+  await seedDiscordAccount(t, userId, "discord-direct-valid")
 
   const validGuildId = await seedGuild(t, "direct-valid")
   const validMembershipId = await seedMembership(t, {
@@ -84,7 +85,7 @@ test("guild management accepts only a current direct verified membership", async
     userId,
     discordUserId: "discord-direct-valid",
     canManage: true,
-    managementVerifiedAt: 1,
+    managementVerifiedAt: Date.now(),
   })
   const valid = await asManager.run(
     async (ctx) => await requireDiscordGuildManager(ctx, validGuildId)
@@ -92,12 +93,16 @@ test("guild management accepts only a current direct verified membership", async
   assert.equal(valid._id, validMembershipId)
 
   const rejectedMemberships = [
-    { suffix: "cannot-manage", canManage: false, managementVerifiedAt: 1 },
+    {
+      suffix: "cannot-manage",
+      canManage: false,
+      managementVerifiedAt: Date.now(),
+    },
     { suffix: "unverified", canManage: true },
     {
       suffix: "revoked",
       canManage: true,
-      managementVerifiedAt: 1,
+      managementVerifiedAt: Date.now(),
       revokedAt: 2,
     },
   ]
@@ -107,7 +112,7 @@ test("guild management accepts only a current direct verified membership", async
     await seedMembership(t, {
       guildId,
       userId,
-      discordUserId: `discord-${suffix}`,
+      discordUserId: "discord-direct-valid",
       ...membership,
     })
     await assertConvexError(
@@ -150,7 +155,7 @@ test("guild management falls back through a linked Discord account", async () =>
     guildId: deniedGuildId,
     discordUserId: "discord-linked",
     canManage: false,
-    managementVerifiedAt: 1,
+    managementVerifiedAt: Date.now(),
   })
   const asLinkedManager = t.withIdentity({ subject: "linked-manager" })
   await assertConvexError(
@@ -165,7 +170,7 @@ test("guild management falls back through a linked Discord account", async () =>
     guildId: allowedGuildId,
     discordUserId: "discord-linked",
     canManage: true,
-    managementVerifiedAt: 1,
+    managementVerifiedAt: Date.now(),
   })
   const membership = await asLinkedManager.run(
     async (ctx) => await requireDiscordGuildManager(ctx, allowedGuildId)

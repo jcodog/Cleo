@@ -274,6 +274,7 @@ export const refreshEligibility = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    const observedAt = Date.now()
     const { user, discord } = await ctx.runQuery(
       internal.communityRoles.account,
       {}
@@ -283,6 +284,7 @@ export const refreshEligibility = action({
       discord.providerAccountId
     )
     await ctx.runMutation(internal.communityRoles.refreshGuilds, {
+      observedAt,
       userId: user._id,
       discordUserId: discord.providerAccountId,
       guilds,

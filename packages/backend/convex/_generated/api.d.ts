@@ -3449,6 +3449,12 @@ export declare const internal: {
         revision: number;
       }>
     >;
+    continueGuildRefresh: FunctionReference<
+      "mutation",
+      "internal",
+      { id: Id<"discordGuildRefreshes">; revision: number },
+      null
+    >;
     dispatch: FunctionReference<
       "mutation",
       "internal",
@@ -3563,6 +3569,7 @@ export declare const internal: {
       {
         discordUserId: string;
         guilds: Array<{ id: string; owner?: boolean; permissions?: string }>;
+        observedAt?: number;
         reconciliation?: boolean;
         userId: Id<"users">;
       },

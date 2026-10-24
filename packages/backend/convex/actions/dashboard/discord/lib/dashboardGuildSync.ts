@@ -2,6 +2,7 @@
 
 import { createLogger } from "@workspace/logger"
 import { ConvexError } from "convex/values"
+import { verifiedDiscordGuilds } from "../../../../lib/communityDiscord"
 
 import { internal } from "../../../../_generated/api"
 import type { Id } from "../../../../_generated/dataModel"
@@ -55,6 +56,7 @@ type ActiveInstallSession = {
 const dashboardDiscordLog = createLogger("backend.dashboard.discord")
 
 export async function syncDashboardGuilds(ctx: ActionCtx) {
+  const observedAt = Date.now()
   let context = await ctx.runQuery(
     internal.queries.dashboard.discord.install.context
       .getInstallableGuildsContext,
@@ -72,9 +74,12 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     }
 
     if (syncResult.status === "unavailable") {
-      dashboardDiscordLog.warn("Clerk user sync unavailable for guild discovery.", {
-        reason: syncResult.reason,
-      })
+      dashboardDiscordLog.warn(
+        "Clerk user sync unavailable for guild discovery.",
+        {
+          reason: syncResult.reason,
+        }
+      )
 
       return {
         status: "discordGuildDiscoveryUnavailable" as const,
@@ -174,6 +179,33 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
   }
 
   const liveGuilds = userGuildsResult.guilds
+
+  try {
+    const guilds = await verifiedDiscordGuilds(
+      context.user.clerkUserId,
+      context.discordAccount.providerAccountId,
+      tokenResult.accessToken
+    )
+    await ctx.runMutation(internal.communityRoles.refreshGuilds, {
+      observedAt,
+      userId: context.user._id,
+      discordUserId: context.discordAccount.providerAccountId,
+      guilds,
+    })
+    context = await ctx.runQuery(
+      internal.queries.dashboard.discord.install.context
+        .getInstallableGuildsContext,
+      {}
+    )
+    if (context.status === "missingUser")
+      throw new Error("Account changed during verification.")
+  } catch {
+    return {
+      status: "discordGuildDiscoveryUnavailable" as const,
+      reason: "discordApiUnavailable" as const,
+      guilds: context.status === "ready" ? context.guilds : [],
+    }
+  }
 
   return {
     status: "ready" as const,

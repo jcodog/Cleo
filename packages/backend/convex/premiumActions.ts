@@ -412,67 +412,76 @@ export const reconcile = internalAction({
           subscription.id,
           item.current_period_end
         )
+        if (
+          invoice.id !== invoiceId ||
+          (invoice.status === "paid" &&
+            invoice.amount_paid > 0 &&
+            paidUntil === undefined)
+        )
+          throw new Error("Complete paid invoice coverage evidence required.")
         if (paidUntil !== undefined) {
           if (!invoice.payments || invoice.payments.has_more)
             throw new Error("Complete invoice payment evidence required.")
+          const successful = invoice.payments.data.filter(
+            (payment) => payment.status === "paid"
+          )
+          if (
+            !successful.length ||
+            successful.some(
+              (entry) =>
+                entry.amount_paid === null ||
+                entry.amount_paid <= 0 ||
+                entry.payment.type !== "payment_intent" ||
+                !entry.payment.payment_intent
+            )
+          )
+            throw new Error("Verified successful Stripe payment required.")
           const payments = await Promise.all(
-            invoice.payments.data
-              .filter(
-                (payment) =>
-                  payment.status === "paid" &&
-                  payment.amount_paid > 0 &&
-                  payment.payment.type === "payment_intent" &&
-                  payment.payment.payment_intent
+            successful.map(async (entry) => {
+              const paymentIntentId = entry.payment.payment_intent!
+              const payment = z
+                .object({
+                  status: z.string(),
+                  customer: z.string(),
+                  amount_received: z.number().int(),
+                  latest_charge: z.string().nullable(),
+                })
+                .parse(
+                  await stripeRequest(
+                    `/payment_intents/${encodeURIComponent(paymentIntentId)}`
+                  )
+                )
+              if (
+                payment.status !== "succeeded" ||
+                payment.customer !== subscription.customer ||
+                payment.amount_received <= 0 ||
+                !payment.latest_charge
               )
-              .map(async (entry) => {
-                const paymentIntentId = entry.payment.payment_intent!
-                const payment = z
-                  .object({
-                    status: z.string(),
-                    customer: z.string(),
-                    amount_received: z.number().int(),
-                    latest_charge: z.string().nullable(),
-                  })
-                  .parse(
-                    await stripeRequest(
-                      `/payment_intents/${encodeURIComponent(paymentIntentId)}`
-                    )
+                throw new Error("Verified successful Stripe payment required.")
+              const charge = z
+                .object({
+                  customer: z.string(),
+                  payment_intent: z.string(),
+                  paid: z.boolean(),
+                  refunded: z.boolean(),
+                  disputed: z.boolean(),
+                  amount_refunded: z.number().int(),
+                })
+                .parse(
+                  await stripeRequest(
+                    `/charges/${encodeURIComponent(payment.latest_charge)}`
                   )
-                if (
-                  payment.status !== "succeeded" ||
-                  payment.customer !== subscription.customer ||
-                  payment.amount_received <= 0 ||
-                  !payment.latest_charge
                 )
-                  throw new Error(
-                    "Verified successful Stripe payment required."
-                  )
-                const charge = z
-                  .object({
-                    customer: z.string(),
-                    payment_intent: z.string(),
-                    paid: z.boolean(),
-                    refunded: z.boolean(),
-                    disputed: z.boolean(),
-                    amount_refunded: z.number().int(),
-                  })
-                  .parse(
-                    await stripeRequest(
-                      `/charges/${encodeURIComponent(payment.latest_charge)}`
-                    )
-                  )
-                if (
-                  charge.customer !== subscription.customer ||
-                  charge.payment_intent !== paymentIntentId ||
-                  !charge.paid
-                )
-                  throw new Error("Charge identity verification failed.")
-                paymentReversed ||=
-                  charge.refunded ||
-                  charge.disputed ||
-                  charge.amount_refunded > 0
-                return { paymentIntentId, chargeId: payment.latest_charge }
-              })
+              if (
+                charge.customer !== subscription.customer ||
+                charge.payment_intent !== paymentIntentId ||
+                !charge.paid
+              )
+                throw new Error("Charge identity verification failed.")
+              paymentReversed ||=
+                charge.refunded || charge.disputed || charge.amount_refunded > 0
+              return { paymentIntentId, chargeId: payment.latest_charge }
+            })
           )
           if (payments.length)
             paidInvoice = { id: invoice.id, paidUntil, payments }

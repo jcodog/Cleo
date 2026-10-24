@@ -3,6 +3,11 @@ import type { UserIdentity } from "convex/server"
 
 import type { Doc } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
+import {
+  currentDiscordAccount,
+  discordGuildRefresh,
+  isFreshDiscordMembership,
+} from "./discordGuildMemberships"
 
 type AuthCtx = QueryCtx | MutationCtx
 
@@ -23,15 +28,11 @@ export async function getCurrentUser(
 
   return await ctx.db
     .query("users")
-    .withIndex("by_clerk_user_id", (q) =>
-      q.eq("clerkUserId", identity.subject)
-    )
+    .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", identity.subject))
     .unique()
 }
 
-export async function requireCurrentUser(
-  ctx: AuthCtx
-): Promise<Doc<"users">> {
+export async function requireCurrentUser(ctx: AuthCtx): Promise<Doc<"users">> {
   const user = await getCurrentUser(ctx)
 
   if (!user) {
@@ -83,22 +84,7 @@ export async function requireDiscordGuildManager(
 ): Promise<Doc<"discordGuildMemberships">> {
   const user = await requireCurrentUser(ctx)
 
-  const directMembership = await ctx.db
-    .query("discordGuildMemberships")
-    .withIndex("by_user_id_and_guild_id", (q) =>
-      q.eq("userId", user._id).eq("guildId", guildId)
-    )
-    .unique()
-
-  if (isVerifiedGuildManager(directMembership)) {
-    return directMembership
-  }
-
-  const discordAccount = await ctx.db
-    .query("linkedAccounts")
-    .withIndex("by_user_id", (q) => q.eq("userId", user._id))
-    .filter((q) => q.eq(q.field("provider"), "discord"))
-    .first()
+  const discordAccount = await currentDiscordAccount(ctx, user._id)
 
   if (!discordAccount) {
     throwForbiddenGuildAccess()
@@ -107,30 +93,30 @@ export async function requireDiscordGuildManager(
   const membership = await ctx.db
     .query("discordGuildMemberships")
     .withIndex("by_guild_id_and_discord_user_id", (q) =>
-      q.eq("guildId", guildId).eq("discordUserId", discordAccount.providerAccountId)
+      q
+        .eq("guildId", guildId)
+        .eq("discordUserId", discordAccount.providerAccountId)
     )
     .unique()
 
-  if (!isVerifiedGuildManager(membership)) {
+  const refresh = await discordGuildRefresh(
+    ctx,
+    discordAccount.providerAccountId
+  )
+  if (
+    !membership?.canManage ||
+    !isFreshDiscordMembership(membership, discordAccount, refresh, Date.now())
+  ) {
     throwForbiddenGuildAccess()
   }
 
   return membership
 }
 
-function isVerifiedGuildManager(
-  membership: Doc<"discordGuildMemberships"> | null
-): membership is Doc<"discordGuildMemberships"> {
-  return Boolean(
-    membership?.canManage &&
-      membership.managementVerifiedAt !== undefined &&
-      membership.revokedAt === undefined
-  )
-}
-
 function throwForbiddenGuildAccess(): never {
   throw new ConvexError({
     code: "FORBIDDEN",
-    message: "Verified Discord guild management access is required.",
+    message:
+      "Verified Discord guild management access is required. Refresh your Discord server permissions.",
   })
 }

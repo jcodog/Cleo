@@ -41,9 +41,12 @@ const guildList = z
   .max(200)
 export async function verifiedDiscordGuilds(
   clerkUserId: string,
-  discordUserId: string
+  discordUserId: string,
+  accessToken?: string
 ) {
-  const token = await getClerkDiscordAccessToken(clerkUserId)
+  const token = accessToken
+    ? { status: "ready" as const, accessToken }
+    : await getClerkDiscordAccessToken(clerkUserId)
   if (token.status !== "ready")
     throw new Error("Refresh your Discord account connection.")
   const me = z
@@ -52,6 +55,7 @@ export async function verifiedDiscordGuilds(
   if (me.id !== discordUserId)
     throw new Error("Discord account identity changed.")
   const result: z.infer<typeof guildList> = []
+  const seen = new Set<string>()
   let after = ""
   for (let page = 0; page < 5; page++) {
     const guilds = guildList.parse(
@@ -60,6 +64,15 @@ export async function verifiedDiscordGuilds(
         token.accessToken
       )
     )
+    for (const guild of guilds) {
+      if (
+        !/^\d{17,20}$/.test(guild.id) ||
+        seen.has(guild.id) ||
+        (after && BigInt(guild.id) <= BigInt(after))
+      )
+        throw new Error("Discord membership pagination could not be verified.")
+      seen.add(guild.id)
+    }
     result.push(...guilds)
     if (guilds.length < 200) return result
     after = guilds.at(-1)?.id ?? ""

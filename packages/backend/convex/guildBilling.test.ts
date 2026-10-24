@@ -58,6 +58,14 @@ async function fixture() {
       createdAt: 1,
       updatedAt: 1,
     })
+    await ctx.db.insert("linkedAccounts", {
+      userId,
+      provider: "discord",
+      providerAccountId: "345678901234567890",
+      scopes: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
     const guildIds = []
     for (const discordGuildId of [guildA, guildB]) {
       const guildId = await ctx.db.insert("guilds", {
@@ -74,7 +82,7 @@ async function fixture() {
         discordUserId: "345678901234567890",
         canManage: true,
         permissions: "32",
-        managementVerifiedAt: 1,
+        managementVerifiedAt: Date.now(),
         createdAt: 1,
         updatedAt: 1,
       })

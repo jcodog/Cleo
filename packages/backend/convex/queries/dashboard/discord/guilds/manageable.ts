@@ -1,8 +1,10 @@
 import { v } from "convex/values"
-import type { Doc, Id } from "../../../../_generated/dataModel"
 import { query } from "../../../../_generated/server"
 import { getCurrentUser } from "../../../../lib/auth"
-import { shouldReplaceMembership } from "../../../../lib/discordGuildMemberships"
+import {
+  currentDiscordAccount,
+  freshManageableMemberships,
+} from "../../../../lib/discordGuildMemberships"
 import { dashboardDiscordGuildSelectorViewModel } from "../../../../lib/validators"
 
 export const list = query({
@@ -15,63 +17,13 @@ export const list = query({
       return []
     }
 
-    const discordAccount = await ctx.db
-      .query("linkedAccounts")
-      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
-      .filter((q) => q.eq(q.field("provider"), "discord"))
-      .first()
-
-    const directMemberships = await ctx.db
-      .query("discordGuildMemberships")
-      .withIndex("by_user_id_and_guild_id", (q) => q.eq("userId", user._id))
-      .collect()
-
-    const discordMemberships = discordAccount
-      ? await ctx.db
-          .query("discordGuildMemberships")
-          .withIndex("by_discord_user_id", (q) =>
-            q.eq("discordUserId", discordAccount.providerAccountId)
-          )
-          .collect()
-      : []
-
-    const membershipsByGuildId = new Map<
-      Id<"guilds">,
-      Doc<"discordGuildMemberships">
-    >()
-
-    for (const membership of [...directMemberships, ...discordMemberships]) {
-      const isDirectUserMembership = membership.userId === user._id
-      const isDiscordIdentityMembership =
-        discordAccount !== null &&
-        membership.discordUserId === discordAccount.providerAccountId
-
-      if (
-        (!isDirectUserMembership && !isDiscordIdentityMembership) ||
-        !membership.canManage ||
-        membership.managementVerifiedAt === undefined ||
-        membership.revokedAt !== undefined
-      ) {
-        continue
-      }
-
-      const existing = membershipsByGuildId.get(membership.guildId)
-
-      if (
-        !existing ||
-        shouldReplaceMembership({
-          existing,
-          incoming: membership,
-          incomingIsDirect: isDirectUserMembership,
-          userId: user._id,
-        })
-      ) {
-        membershipsByGuildId.set(membership.guildId, membership)
-      }
-    }
+    if (user.status === "disabled") return []
+    const discordAccount = await currentDiscordAccount(ctx, user._id)
+    if (!discordAccount) return []
+    const memberships = await freshManageableMemberships(ctx, discordAccount)
 
     const guilds = await Promise.all(
-      Array.from(membershipsByGuildId.values()).map(async (membership) => {
+      memberships.map(async (membership) => {
         const guild = await ctx.db.get(membership.guildId)
 
         if (!guild || !isGuildInstalled(guild)) {

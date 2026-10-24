@@ -2,7 +2,10 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../../../../_generated/dataModel"
 import { internalQuery, query } from "../../../../_generated/server"
 import { getCurrentUser } from "../../../../lib/auth"
-import { shouldReplaceMembership } from "../../../../lib/discordGuildMemberships"
+import {
+  currentDiscordAccount,
+  freshManageableMemberships,
+} from "../../../../lib/discordGuildMemberships"
 import {
   dashboardDiscordInstallableGuildViewModel,
   dashboardDiscordInstallSessionViewModel,
@@ -298,11 +301,7 @@ async function getDiscordAccount(
   ctx: Parameters<typeof getCurrentUser>[0],
   userId: Id<"users">
 ): Promise<Doc<"linkedAccounts"> | null> {
-  return await ctx.db
-    .query("linkedAccounts")
-    .withIndex("by_user_id", (q) => q.eq("userId", userId))
-    .filter((q) => q.eq(q.field("provider"), "discord"))
-    .first()
+  return currentDiscordAccount(ctx, userId)
 }
 
 async function getKnownManageableGuilds(
@@ -311,49 +310,13 @@ async function getKnownManageableGuilds(
   discordAccount: Doc<"linkedAccounts">,
   activeSessions: Doc<"discordGuildInstallSessions">[]
 ) {
-  const directMemberships = await ctx.db
-    .query("discordGuildMemberships")
-    .withIndex("by_user_id", (q) => q.eq("userId", user._id))
-    .collect()
-
-  const discordMemberships = await ctx.db
-    .query("discordGuildMemberships")
-    .withIndex("by_discord_user_id", (q) =>
-      q.eq("discordUserId", discordAccount.providerAccountId)
-    )
-    .collect()
-
-  const membershipsByGuildId = new Map<
-    Id<"guilds">,
-    Doc<"discordGuildMemberships">
-  >()
-
-  for (const membership of [...directMemberships, ...discordMemberships]) {
-    if (!isVerifiedManagerMembership(membership)) {
-      continue
-    }
-
-    const existing = membershipsByGuildId.get(membership.guildId)
-    const isDirectUserMembership = membership.userId === user._id
-
-    if (
-      !existing ||
-      shouldReplaceMembership({
-        existing,
-        incoming: membership,
-        incomingIsDirect: isDirectUserMembership,
-        userId: user._id,
-      })
-    ) {
-      membershipsByGuildId.set(membership.guildId, membership)
-    }
-  }
+  const memberships = await freshManageableMemberships(ctx, discordAccount)
 
   const sessionByDiscordGuildId =
     getNewestSessionByDiscordGuildId(activeSessions)
 
   const guilds = await Promise.all(
-    Array.from(membershipsByGuildId.values()).map(async (membership) => {
+    memberships.map(async (membership) => {
       const guild = await ctx.db.get(membership.guildId)
 
       if (!guild) {
@@ -420,16 +383,6 @@ function isGuildInstalled(guild: {
     guild.botLeftAt === undefined &&
     (guild.botJoinedAt !== undefined ||
       guild.botInstallationVerifiedAt !== undefined)
-  )
-}
-
-function isVerifiedManagerMembership(
-  membership: Doc<"discordGuildMemberships"> | null
-): membership is Doc<"discordGuildMemberships"> {
-  return Boolean(
-    membership?.canManage &&
-    membership.managementVerifiedAt !== undefined &&
-    membership.revokedAt === undefined
   )
 }
 

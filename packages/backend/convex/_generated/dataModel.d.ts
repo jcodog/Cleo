@@ -1231,6 +1231,12 @@ export type DataModel = {
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
+      by_discord_management: [
+        "discordUserId",
+        "canManage",
+        "managementVerifiedAt",
+        "_creationTime",
+      ];
       by_discord_user_id: ["discordUserId", "_creationTime"];
       by_guild_id: ["guildId", "_creationTime"];
       by_guild_id_and_discord_user_id: [
@@ -1240,6 +1246,44 @@ export type DataModel = {
       ];
       by_user_id: ["userId", "_creationTime"];
       by_user_id_and_guild_id: ["userId", "guildId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  discordGuildRefreshes: {
+    document: {
+      cursor?: string;
+      discordUserId: string;
+      guilds: Array<{ id: string; owner?: boolean; permissions?: string }>;
+      linkedAccountId: Id<"linkedAccounts">;
+      offset: number;
+      phase: "existing" | "incoming";
+      reconciliation: boolean;
+      revision: number;
+      startedAt: number;
+      state: "pending" | "complete" | "failed";
+      userId: Id<"users">;
+      _id: Id<"discordGuildRefreshes">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "cursor"
+      | "discordUserId"
+      | "guilds"
+      | "linkedAccountId"
+      | "offset"
+      | "phase"
+      | "reconciliation"
+      | "revision"
+      | "startedAt"
+      | "state"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_discord_user: ["discordUserId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

@@ -35,11 +35,13 @@ export const claimJobs = action({
         })
         if (account) {
           try {
+            const observedAt = Date.now()
             const guilds = await verifiedDiscordGuilds(
               account.user.clerkUserId,
               job.discordUserId
             )
             await ctx.runMutation(internal.communityRoles.refreshGuilds, {
+              observedAt,
               userId: account.user._id,
               discordUserId: job.discordUserId,
               guilds,
