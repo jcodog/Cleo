@@ -67,6 +67,7 @@ export function resolveTwitchRuntimeEnv(
         .max(65535)
         .default(8087),
       TWITCH_READINESS_PATH: privatePath,
+      TWITCH_MODERATION_ENFORCEMENT_ENABLED: z.string().optional(),
     })
     .refine(
       (value) =>

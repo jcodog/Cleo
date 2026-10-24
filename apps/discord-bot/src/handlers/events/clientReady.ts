@@ -3,6 +3,7 @@ import { Events, type Client } from "discord.js"
 import { Event } from "@/classes/Event"
 import { convexBotClient } from "@/services/convexBotClient"
 import { configureRotatingStatus } from "@/services/rotatingStatus"
+import { configureCommunityRoleSync } from "@/services/communityRoleSync"
 import { botLog, botLogError } from "@/utils/botLog"
 import {
   createGuildSnapshot,
@@ -44,6 +45,7 @@ export async function handleClientReady(
   log(`Connected to ${client.guilds.cache.size} guild(s).`, "info")
   log(formatReadySyncScopeLog(shardScope), "info")
   configureStatus(client)
+  configureCommunityRoleSync(client)
 
   const snapshots: GuildSnapshot[] = []
 

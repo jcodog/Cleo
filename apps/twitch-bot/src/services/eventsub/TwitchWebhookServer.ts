@@ -118,6 +118,14 @@ export class TwitchWebhookServer {
             time,
             now
           )
+        if (time > now - 30000) {
+          if (this.pending.size >= 256)
+            return new Response(null, { status: 503 })
+          const moderation = this.router
+            .dispatch(parsed, route.key, messageId)
+            .catch(() => this.logger.warn("Chat moderation unavailable"))
+          this.track(moderation)
+        }
         return new Response(null, { status: 204 })
       }
       if (this.pending.size >= 256) return new Response(null, { status: 503 })

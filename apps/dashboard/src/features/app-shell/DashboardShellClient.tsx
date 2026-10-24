@@ -244,6 +244,12 @@ export function DashboardShellClient({
             icon: IconClock,
             isActive: pathname === "/twitch/timers",
           },
+          {
+            title: "Moderation",
+            href: "/twitch/moderation",
+            icon: IconShield,
+            isActive: pathname === "/twitch/moderation",
+          },
         ],
       },
     ],
@@ -251,7 +257,24 @@ export function DashboardShellClient({
 
   return (
     <AppShell
-      footerNavSections={[]}
+      footerNavSections={[
+        {
+          items: [
+            {
+              title: "Account and roles",
+              href: "/account/roles",
+              icon: IconShield,
+              isActive: pathname === "/account/roles",
+            },
+            {
+              title: "My billing",
+              href: "/account/billing",
+              icon: IconSettings,
+              isActive: pathname === "/account/billing",
+            },
+          ],
+        },
+      ]}
       navSections={platformNavSections[currentArea]}
       showDiscordGuildSelect={currentArea === "discord"}
       showPlatformSelector={

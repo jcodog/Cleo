@@ -17,6 +17,8 @@ import {
 } from "@/services/runtimeErrorReporter"
 import { botLog, botLogError } from "@/utils/botLog"
 import type { LogMetadata } from "@workspace/logger"
+import { discordEnv } from "@workspace/env/discord"
+import { MODERATION_ROLLOUT_LOCKED } from "@workspace/shared/moderation"
 
 type LoadedClientEvent = {
   [TEventName in keyof ClientEvents]: Event<TEventName>
@@ -28,8 +30,17 @@ const defaultClientOptions = {
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildModeration,
     GatewayIntentBits.GuildMessages,
+    ...(!MODERATION_ROLLOUT_LOCKED &&
+    discordEnv.DISCORD_MESSAGE_CONTENT_ENABLED === "true"
+      ? [GatewayIntentBits.MessageContent]
+      : []),
   ],
-  partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.User],
+  partials: [
+    Partials.Channel,
+    Partials.GuildMember,
+    Partials.Message,
+    Partials.User,
+  ],
 } satisfies ClientOptions
 
 type BotClientRuntimeOptions = {
@@ -234,17 +245,11 @@ function getSafeEventContext(
     context.discordGuildId = firstArg.guildId
   }
 
-  if (
-    "channelId" in firstArg &&
-    typeof firstArg.channelId === "string"
-  ) {
+  if ("channelId" in firstArg && typeof firstArg.channelId === "string") {
     context.discordChannelId = firstArg.channelId
   }
 
-  if (
-    "commandName" in firstArg &&
-    typeof firstArg.commandName === "string"
-  ) {
+  if ("commandName" in firstArg && typeof firstArg.commandName === "string") {
     context.commandName = firstArg.commandName
   }
 

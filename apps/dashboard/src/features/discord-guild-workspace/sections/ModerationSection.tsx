@@ -23,6 +23,8 @@ import {
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Switch } from "@workspace/ui/components/switch"
 import { useMutation, useQuery } from "convex/react"
+import { PolicyEditor } from "@/features/moderation/PolicyEditor"
+import { MODERATION_ROLLOUT_LOCKED } from "@workspace/shared/moderation"
 
 import { toOptionalChannelValue } from "../lib/config"
 import { formatDateTime, getErrorMessage, toTitleCase } from "../lib/format"
@@ -50,7 +52,8 @@ export function ModerationSection({
   )
   const optionsState = useDiscordConfigOptions(overview.discordGuildId)
   const [moderationEnabled, setModerationEnabled] = useState(
-    overview.guildConfig?.moderationEnabled ?? false
+    !MODERATION_ROLLOUT_LOCKED &&
+      (overview.guildConfig?.moderationEnabled ?? false)
   )
   const [modLogChannelId, setModLogChannelId] = useState(
     overview.guildConfig?.modLogChannelId ?? ""
@@ -107,7 +110,11 @@ export function ModerationSection({
                 <Switch
                   aria-label="Moderation"
                   checked={moderationEnabled}
-                  disabled={isBotLeft || saveState === "saving"}
+                  disabled={
+                    MODERATION_ROLLOUT_LOCKED ||
+                    isBotLeft ||
+                    saveState === "saving"
+                  }
                   onCheckedChange={(checked) => {
                     setModerationEnabled(checked)
                     setSaveState("idle")
@@ -117,7 +124,7 @@ export function ModerationSection({
                 <FieldContent>
                   <FieldTitle>Moderation</FieldTitle>
                   <FieldDescription>
-                    Allow Cleo to run configured moderation commands.
+                    Moderation cannot be enabled in this release.
                   </FieldDescription>
                 </FieldContent>
               </Field>
@@ -151,6 +158,9 @@ export function ModerationSection({
       </form>
 
       <RecentModerationActions result={moderationActionsResult} />
+      {isBotLeft ? null : (
+        <PolicyEditor platform="discord" scopeId={overview.discordGuildId} />
+      )}
     </div>
   )
 }

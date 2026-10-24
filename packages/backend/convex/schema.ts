@@ -1,5 +1,22 @@
 import { defineSchema } from "convex/server"
 import {
+  communityPayments,
+  stripeReconciliationLocks,
+} from "./dbTables/communityIntegrations"
+import {
+  discordModerationPolicies,
+  twitchModerationPolicies,
+  discordUserInstallations,
+  discordConnectionSessions,
+  discordRoleConnections,
+  communityRoleJobs,
+  communityPreferences,
+  premiumCheckouts,
+  paidCommunityActivations,
+  communityAnnouncementOutbox,
+  integrationReceipts,
+} from "./dbTables/communityIntegrations"
+import {
   twitchTimerGroups,
   twitchTimerGrants,
   twitchTimerSessions,
@@ -50,6 +67,19 @@ import {
 } from "./dbTables/cleoPets"
 
 export default defineSchema({
+  communityPayments,
+  stripeReconciliationLocks,
+  discordModerationPolicies,
+  twitchModerationPolicies,
+  discordUserInstallations,
+  discordConnectionSessions,
+  discordRoleConnections,
+  communityRoleJobs,
+  communityPreferences,
+  premiumCheckouts,
+  paidCommunityActivations,
+  communityAnnouncementOutbox,
+  integrationReceipts,
   twitchTimerGroups,
   twitchTimerGrants,
   twitchTimerSessions,

@@ -11,6 +11,41 @@ import { silentLogger } from "../../../tests/fixtures"
 import { ChatActivity } from "../timers/ChatActivity"
 
 const secret = "test-eventsub-secret"
+test("signed dense emote chat reaches activity and chat routing without a backend message request", async () => {
+  const activity = new ChatActivity("111")
+  activity.watch(["222"])
+  const f = fixture(activity, "111")
+  const fragments = Array.from({ length: 331 }, (_, index) =>
+    index % 2
+      ? { type: "text", text: " " }
+      : { type: "emote", text: "K", emote: { id: "25" } }
+  )
+  const body = {
+    ...chatBody,
+    event: {
+      ...chatBody.event,
+      message: { text: fragments.map((f) => f.text).join(""), fragments },
+    },
+  }
+  assert.equal((await f.server.handle(request(body))).status, 204)
+  await f.server.drain()
+  assert.equal(activity.snapshot("222").count, 1)
+  assert.equal(f.chatCalls.length, 1)
+  assert.deepEqual(f.calls, [])
+  const malformed = {
+    ...body,
+    event: {
+      ...body.event,
+      message: { text: "K", fragments: [{ type: "text", text: "" }] },
+    },
+  }
+  assert.equal(
+    (await f.server.handle(request(malformed, { id: "empty-fragment" })))
+      .status,
+    400
+  )
+  assert.equal(activity.snapshot("222").count, 1)
+})
 test("verified stream lifecycle uses the existing listener without consuming Discord dispatch", async () => {
   const events: { online: boolean; eventAt: number }[] = []
   const f = fixture(undefined, undefined, async (_id, online, eventAt) => {
@@ -184,7 +219,7 @@ const chatBody = {
   },
 }
 
-test("high-volume signed chat is validated locally with no Convex calls, receipts, dispatch or content logs", async () => {
+test("high-volume signed chat routes moderation with bounded concurrency and no durable per-message calls", async () => {
   const f = fixture()
   f.setFailure()
   const responses = await Promise.all(
@@ -192,7 +227,12 @@ test("high-volume signed chat is validated locally with no Convex calls, receipt
       f.server.handle(request(chatBody, { id: `chat-${i}` }))
     )
   )
-  assert.ok(responses.every((response) => response.status === 204))
+  assert.ok(
+    responses.every(
+      (response) => response.status === 204 || response.status === 503
+    )
+  )
+  assert.ok(f.chatCalls.length > 0 && f.chatCalls.length <= 1000)
   assert.deepEqual(f.calls, [])
   assert.equal(
     (await f.server.handle(request({ ...chatBody, event: {} }))).status,
@@ -292,6 +332,7 @@ function fixture(
 ) {
   const receipts = new Set<string>()
   const calls: unknown[] = []
+  const chatCalls: unknown[] = []
   let fail = false
   let rejectDispatch = false
   const releases: (() => void)[] = []
@@ -318,6 +359,11 @@ function fixture(
     },
     {
       dispatch: async (_parsed, key, id, template) => {
+        if (key === "chatMessage") {
+          chatCalls.push({ id })
+          if (rejectDispatch) throw new Error("moderation unavailable")
+          return
+        }
         calls.push({ dispatch: key, id, template })
         if (stall)
           await new Promise<void>((resolve) => {
@@ -334,6 +380,7 @@ function fixture(
   return {
     server,
     calls,
+    chatCalls,
     setFailure: () => {
       fail = true
     },

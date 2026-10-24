@@ -11,6 +11,7 @@ export type HandlerContext = {
   convex: Pick<ConvexService, "streamOnline">
   messageId: string
   template?: string
+  moderation?: (event: EventPayload<"chatMessage">) => Promise<void>
 }
 import { chatMessage } from "../../handlers/eventsub/chatMessage"
 import { streamOnline } from "../../handlers/eventsub/streamOnline"
@@ -62,7 +63,10 @@ export const routes = [
 ]
 export class EventSubRouter {
   constructor(
-    private readonly services: Pick<HandlerContext, "announcements" | "convex">,
+    private readonly services: Pick<
+      HandlerContext,
+      "announcements" | "convex" | "moderation"
+    >,
     private readonly logger: Logger
   ) {}
   async dispatch(

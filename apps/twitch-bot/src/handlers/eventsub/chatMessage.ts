@@ -1,6 +1,8 @@
 import type { EventPayload } from "@workspace/shared/twitchEventSub"
+import type { HandlerContext } from "../../services/eventsub/EventSubRouter"
 export async function chatMessage(
-  _event: EventPayload<"chatMessage">
+  event: EventPayload<"chatMessage">,
+  context?: HandlerContext
 ): Promise<void> {
-  // Chat commands are a separate feature. Never echo or execute viewer text here.
+  await context?.moderation?.(event)
 }

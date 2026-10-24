@@ -79,7 +79,14 @@ test("Twitch shell renders account settings navigation through the shared sideba
   assert.equal(props.navSections.length, 1)
   assert.equal(props.navSections[0]?.title, "Twitch account")
   const items = props.navSections.flatMap((section) => section.items)
-  assert.equal(items.length, 3)
+  assert.equal(items.length, 4)
+  assert.equal(items[3]?.href, "/twitch/moderation")
+  assert.deepEqual(
+    props.footerNavSections
+      ?.flatMap((section) => section.items)
+      .map((item) => item.href),
+    ["/account/roles", "/account/billing"]
+  )
   assert.equal(items[0]?.title, "Overview")
   assert.equal(items[0]?.href, "/twitch")
   assert.equal(items[0]?.isActive, true)
