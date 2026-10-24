@@ -98,7 +98,24 @@ const definitions = {
     schema: broadcaster.extend({
       chatter_user_id: id,
       message_id: text,
-      message: z.object({ text: z.string().max(4096) }),
+      chatter_user_login: z.string().optional(),
+      badges: z
+        .array(z.object({ set_id: z.string(), id: z.string().optional() }))
+        .max(100)
+        .optional(),
+      message: z.object({
+        text: z.string().max(4096),
+        fragments: z
+          .array(
+            z.object({
+              type: z.string(),
+              text: z.string().min(1).max(4096),
+              emote: z.unknown().optional(),
+            })
+          )
+          .max(4096)
+          .optional(),
+      }),
     }),
   }),
   streamOnline: definition({

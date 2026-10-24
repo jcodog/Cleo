@@ -18,6 +18,12 @@ import { ChatTimers } from "../../src/features/twitch/ChatTimers"
 import { TwitchWorkspace } from "../../src/features/twitch/TwitchWorkspace"
 import Link, { usePathname } from "./navigation-fixture"
 import { editedTimerCursor } from "@workspace/shared/twitchTimers"
+import {
+  CommunityFixture,
+  communityFixtureMode,
+  communityQuery,
+  communityWrite,
+} from "./community-fixture"
 
 // Test-only transport outside Next routes. No provider or backend calls.
 type View = FunctionReturnType<typeof api.twitchTimers.list>
@@ -92,6 +98,7 @@ useAppShellStore.setState({
 const client = new ConvexReactClient("https://twitch-fixture.invalid")
 client.watchQuery = (...[reference]) => ({
   localQueryResult: () => {
+    if (communityFixtureMode) return communityQuery(getFunctionName(reference))
     switch (getFunctionName(reference)) {
       case "twitchTimers:list":
         return view
@@ -117,6 +124,10 @@ client.watchQuery = (...[reference]) => ({
   journal: () => undefined,
 })
 client.mutation = async (reference, args) => {
+  if (communityFixtureMode)
+    return communityWrite(getFunctionName(reference), args, () =>
+      listeners.forEach((callback) => callback())
+    )
   if (getFunctionName(reference) === "twitchTimers:save") {
     const value = args as View["groups"][number]
     if (
@@ -180,6 +191,10 @@ client.mutation = async (reference, args) => {
   }
   throw new Error("Unexpected fixture mutation")
 }
+client.action = async (reference, args) =>
+  communityWrite(getFunctionName(reference), args, () =>
+    listeners.forEach((callback) => callback())
+  )
 window.addEventListener("timer-fixture", (event) => {
   if (!(event instanceof CustomEvent)) return
   const detail: unknown = event.detail
@@ -262,6 +277,7 @@ window.addEventListener("timer-fixture", (event) => {
 })
 function Fixture() {
   const path = usePathname()
+  if (communityFixtureMode) return <CommunityFixture />
   const page = path.endsWith("/timers")
     ? "Chatbot timers"
     : path.endsWith("/alerts")

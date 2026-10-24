@@ -232,3 +232,39 @@ test("callback return paths reject external targets/loops and provider errors ar
     false
   )
 })
+test("future moderation consent preserves prior scopes and returns to moderation without duplicating Twitch accounts", async () => {
+  await beginTwitchLink(
+    {
+      externalAccounts: [
+        {
+          provider: "twitch",
+          approvedScopes: "channel:bot bits:read",
+          reauthorize: async (params) => {
+            assert.deepEqual(params.additionalScopes, [
+              "channel:bot",
+              "moderator:manage:chat_messages",
+              "bits:read",
+            ])
+            assert.equal(
+              params.redirectUrl,
+              "https://cleo.example/twitch/link-callback?returnTo=%2Ftwitch%2Fmoderation"
+            )
+            return {
+              verification: {
+                externalVerificationRedirectURL: new URL(
+                  "https://clerk.example/reauthorize"
+                ),
+              },
+            }
+          },
+        },
+      ],
+      createExternalAccount: async () => {
+        throw new Error("Must not duplicate")
+      },
+    },
+    "https://cleo.example",
+    [],
+    ["moderator:manage:chat_messages"]
+  )
+})

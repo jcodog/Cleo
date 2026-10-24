@@ -1,5 +1,10 @@
 # Guild billing and Premium access
 
+The original foundation described below now has a test-mode Checkout, Portal,
+verified webhook and reconciliation adapter. See
+[community integration setup](community-integrations.md) for current setup,
+acceptance checks, rollout locks and live-billing limitations.
+
 JCN-53 and JCN-57's October beta scope uses Convex as the billing authority. The Linear plugin, direct Linear MCP and connected GitHub issue tools were unavailable during implementation. Scope follows the supplied requirements and the repository, including Welcome Cards from PR #247 on main. The linked issues are [#29](https://github.com/jcodog/Cleo/issues/29) and [#33](https://github.com/jcodog/Cleo/issues/33).
 
 ## Authority and lifecycle
@@ -50,4 +55,8 @@ Use `queries/internal/guildEntitlements:resolve` to inspect capability decisions
 
 ## Remaining integration
 
-Stripe signature verification, webhook ingestion, reconciliation scheduling and authenticated purchase-to-guild selection are subsequent work. Configure real approved Product/Price IDs and verified customer associations through trusted integration code before accepting paid snapshots. Checkout, Customer Portal, live payments and live guild activation are outside this implementation.
+The community adapter implements test-mode Stripe signature verification,
+webhook ingestion, scheduled reconciliation, fresh owner/Administrator purchase
+selection, Checkout and Customer Portal. It uses the existing guild entitlement
+tables and resolver. Production configuration, live charging and live activation
+remain outside this implementation. Follow the linked setup guide before testing.

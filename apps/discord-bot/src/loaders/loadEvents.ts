@@ -9,6 +9,7 @@ import guildMemberAdd from "@/handlers/events/guildMemberAdd"
 import guildMemberRemove from "@/handlers/events/guildMemberRemove"
 import interactionCreate from "@/handlers/events/interactionCreate"
 import messageDelete from "@/handlers/events/messageDelete"
+import messageCreate from "@/handlers/events/messageCreate"
 import roleCreate from "@/handlers/events/roleCreate"
 import roleDelete from "@/handlers/events/roleDelete"
 
@@ -26,6 +27,7 @@ const loadedEvents = [
   roleCreate,
   roleDelete,
   messageDelete,
+  messageCreate,
 ] as const
 
 export type LoadedEvent = (typeof loadedEvents)[number]

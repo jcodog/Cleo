@@ -20,6 +20,35 @@ const broadcaster = {
   broadcaster_user_login: "channel",
   broadcaster_user_name: "Channel",
 }
+
+test("chat accepts dense emote fragments up to the text bound and rejects empty or oversized fragments", () => {
+  const parse = (text: string, fragments: unknown[]) =>
+    eventDefinitions.chatMessage.parse({
+      ...broadcaster,
+      chatter_user_id: "333",
+      message_id: "dense",
+      message: { text, fragments },
+    })
+  const fragments = Array.from({ length: 331 }, (_, index) =>
+    index % 2
+      ? { type: "text", text: " " }
+      : { type: "emote", text: "Kappa", emote: { id: "25" } }
+  )
+  assert.equal(
+    parse(fragments.map((f) => f.text).join(""), fragments).message.fragments
+      ?.length,
+    331
+  )
+  const limit = Array.from({ length: 4096 }, () => ({
+    type: "text",
+    text: "a",
+  }))
+  assert.equal(parse("a".repeat(4096), limit).message.fragments?.length, 4096)
+  assert.throws(() => parse("a".repeat(4097), limit))
+  assert.throws(() => parse("a", [...limit, { type: "text", text: "a" }]))
+  assert.throws(() => parse("a", [{ type: "text", text: "" }]))
+  assert.throws(() => parse("a", [{ type: "text", text: "a".repeat(4097) }]))
+})
 const common = {
   ...broadcaster,
   user_name: "Viewer",

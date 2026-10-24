@@ -6,6 +6,7 @@ import {
   normalizeGuildMemberAdd,
 } from "@/services/guildEventLogging"
 import { handleGuildMemberWelcome } from "@/services/welcomeMessages"
+import { enqueueCommunityMember } from "@/services/communityRoleSync"
 
 export default new Event({
   name: Events.GuildMemberAdd,
@@ -14,5 +15,6 @@ export default new Event({
       guild: member.guild,
     })
     await handleGuildMemberWelcome(member)
+    await enqueueCommunityMember(member.guild.id, member.id)
   },
 })

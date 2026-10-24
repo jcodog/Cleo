@@ -264,7 +264,7 @@ for (const actor of authorizedCases) {
         discordGuildId,
         modules: {
           welcomeEnabled: true,
-          moderationEnabled: true,
+          moderationEnabled: false,
           loggingEnabled: true,
         },
       }
@@ -319,7 +319,7 @@ for (const actor of authorizedCases) {
       audits: await ctx.db.query("guildAuditEvents").collect(),
     }))
     assert.equal(stored.config?.welcomeEnabled, true)
-    assert.equal(stored.config?.moderationEnabled, true)
+    assert.equal(stored.config?.moderationEnabled, false)
     assert.equal(stored.config?.loggingEnabled, true)
     assert.equal(stored.config?.welcomeChannelId, nextChannelId)
     assert.equal(stored.config?.modLogChannelId, channelId)

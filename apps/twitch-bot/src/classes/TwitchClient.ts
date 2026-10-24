@@ -12,6 +12,10 @@ import { writeReadiness } from "../runtime/readiness"
 import { serializeLogError } from "@workspace/logger"
 import { ChatActivity } from "../services/timers/ChatActivity"
 import { TimerScheduler } from "../services/timers/TimerScheduler"
+import { ModerationRuntime } from "@workspace/shared/moderationRuntime"
+import { MODERATION_ROLLOUT_LOCKED } from "@workspace/shared/moderation"
+import { randomUUID } from "node:crypto"
+import { eventDefinitions } from "@workspace/shared/twitchEventSub"
 
 export class TwitchClient {
   readonly auth: TwitchAuthService
@@ -19,6 +23,7 @@ export class TwitchClient {
   private readonly convex: ConvexService
   private readonly shutdown = new AbortController()
   private readonly timers: TimerScheduler
+  private readonly moderation: ModerationRuntime
   constructor(
     private readonly config: TwitchRuntimeEnv,
     private readonly logger: Logger,
@@ -52,7 +57,82 @@ export class TwitchClient {
       logger,
       this.shutdown.signal
     )
-    const router = new EventSubRouter({ convex, announcements }, logger)
+    const worker = randomUUID()
+    this.moderation = new ModerationRuntime((scope) =>
+      convex.moderationPolicy(scope, worker)
+    )
+    const router = new EventSubRouter(
+      {
+        convex,
+        announcements,
+        moderation: async (event) => {
+          if (MODERATION_ROLLOUT_LOCKED) return
+          const parsed = eventDefinitions.chatMessage.parse(event)
+          if (parsed.chatter_user_id === config.TWITCH_BOT_USER_ID) return
+          await this.moderation.load(
+            parsed.broadcaster_user_id,
+            Math.floor(performance.now())
+          )
+          let offset = 0
+          const emotes: { start: number; end: number }[] = []
+          for (const fragment of parsed.message.fragments ?? []) {
+            if (fragment.type === "emote")
+              emotes.push({ start: offset, end: offset + fragment.text.length })
+            offset += fragment.text.length
+          }
+          if (
+            parsed.message.fragments &&
+            parsed.message.fragments.map((f) => f.text).join("") !==
+              parsed.message.text
+          )
+            return
+          const result = this.moderation.inspect(
+            {
+              id: parsed.message_id,
+              scopeId: parsed.broadcaster_user_id,
+              authorId: parsed.chatter_user_id,
+              content: parsed.message.text,
+              emotes,
+              roleIds: (parsed.badges ?? []).map((badge) => badge.set_id),
+              isAdministrator:
+                parsed.chatter_user_id === parsed.broadcaster_user_id,
+              isModerator: (parsed.badges ?? []).some(
+                (b) => b.set_id === "moderator"
+              ),
+            },
+            Math.floor(performance.now())
+          )
+          if (!result?.decision.matched) return
+          logger.info("Twitch moderation matched", {
+            rules: result.decision.ruleIds,
+          })
+          if (
+            !parsed.badges ||
+            !parsed.message.fragments ||
+            !result.enforce ||
+            config.TWITCH_MODERATION_ENFORCEMENT_ENABLED !== "true" ||
+            result.decision.proposedAction.kind === "none" ||
+            result.decision.proposedAction.kind === "log"
+          )
+            return
+          await convex
+            .moderate(
+              parsed.broadcaster_user_id,
+              worker,
+              result.decision.policyRevision,
+              parsed.chatter_user_id,
+              parsed.message_id,
+              JSON.stringify(result.decision.proposedAction)
+            )
+            .catch(() =>
+              logger.warn(
+                "Twitch moderation permission or connection unavailable"
+              )
+            )
+        },
+      },
+      logger
+    )
     this.webhook = new TwitchWebhookServer(
       config.TWITCH_EVENTSUB_SECRET,
       convex,
@@ -97,6 +177,10 @@ export class TwitchClient {
         // Token maintenance and readiness reporting. No subscription lifecycle work.
         await delay(30000, undefined, { signal })
         await this.auth.maintain()
+        if (!MODERATION_ROLLOUT_LOCKED)
+          void this.moderation
+            .refresh(Math.floor(performance.now()))
+            .catch(() => this.logger.warn("Moderation refresh unavailable"))
         if (!this.webhook.isListening)
           throw new Error("Twitch webhook listener unavailable.")
         await state("ready")

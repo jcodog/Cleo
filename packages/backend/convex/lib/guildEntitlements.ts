@@ -43,7 +43,8 @@ export function grantCandidates(
 export async function getGuildAccess(
   ctx: BillingDb,
   guild: Doc<"guilds">,
-  now = Date.now()
+  now = Date.now(),
+  options: { includeRevoked?: boolean; excludeSubscriptionId?: string } = {}
 ) {
   const [active, trial, grace, grants, revokedGrant, revokedSubscription] =
     await Promise.all([
@@ -51,20 +52,24 @@ export async function getGuildAccess(
       subscriptionCandidates(ctx, guild._id, "trialing", now),
       subscriptionCandidates(ctx, guild._id, "past_due", now),
       grantCandidates(ctx, guild._id, now),
-      ctx.db
-        .query("guildEntitlementGrants")
-        .withIndex("by_guild_revocation_end", (q) =>
-          q.eq("guildId", guild._id).gt("revokedAt", undefined)
-        )
-        .order("desc")
-        .first(),
-      ctx.db
-        .query("guildSubscriptions")
-        .withIndex("by_guild_status_end", (q) =>
-          q.eq("guildId", guild._id).eq("status", "revoked")
-        )
-        .order("desc")
-        .first(),
+      options.includeRevoked === false
+        ? null
+        : ctx.db
+            .query("guildEntitlementGrants")
+            .withIndex("by_guild_revocation_end", (q) =>
+              q.eq("guildId", guild._id).gt("revokedAt", undefined)
+            )
+            .order("desc")
+            .first(),
+      options.includeRevoked === false
+        ? null
+        : ctx.db
+            .query("guildSubscriptions")
+            .withIndex("by_guild_status_end", (q) =>
+              q.eq("guildId", guild._id).eq("status", "revoked")
+            )
+            .order("desc")
+            .first(),
     ])
   // Ingestion enforces the same limit. Corrupt or externally inserted excess
   // sources fail closed rather than granting access from an arbitrary subset.
@@ -78,7 +83,9 @@ export async function getGuildAccess(
       now,
       records: [],
     })
-  const subscriptions = [...active, ...trial, ...grace]
+  const subscriptions = [...active, ...trial, ...grace].filter(
+    (row) => row.stripeSubscriptionId !== options.excludeSubscriptionId
+  )
   const prices = new Map(
     await Promise.all(
       [...new Set(subscriptions.map((row) => row.stripePriceId))].map(
