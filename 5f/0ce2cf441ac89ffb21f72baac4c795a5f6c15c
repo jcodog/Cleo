@@ -1,0 +1,76 @@
+packages/backend/convex/mutations/internal/guildBilling.ts
+  s_9ab004eff526bf::t_4f9d2007a7c4c2 17,317-321
+packages/backend/convex/communityRoles.ts
+  s_9ab004eff526bf::t_f3840bcfeb8cdf 76,81-83,88,99,101,107,113-117,119-142,144-147
+  s_9ab004eff526bf::t_ebd463221da695 118,143,148
+packages/backend/convex/dbTables/guildBilling.ts
+  s_9ab004eff526bf::t_7b4d9ad64307cf 65
+  s_9ab004eff526bf::t_f539bab1bcc768 56
+packages/backend/convex/communityRecovery.test.ts
+  s_9ab004eff526bf::t_126c35e1cb3bba 206-216,549-555
+  s_9ab004eff526bf::t_f02bfcac589776 1-2,4-52,54-58,60-66,68-74,76-80,82-86,88-97,99-115,117,119-124,126-129,138-140,142-149,151,153-158,160-166,168-174,176-184,186-195,197-198,200-204,217-218,220-223,225-228,230-235,237-248,250-255,257-266,268-272,274-284,287-293,295-297,299-301,303-313,316-320,348-352,354-360,362-369,371-379,381-391,393-399,401-407,436-439,441-453,455-465,467-481,483-494,496-500,502-503,505-512,515,517-519,521-524,528,533-544,546-548,556-557,566-568,590-592,594-597,599-600,602-613,615-621,623-626,628-646,648-652,654-657,659-666,668-670,672-676,678-681,683-693,698-700,702-711,713-715,717-728,730-739,741-746,748-753,755-760,762-764,766-769,771-783,788-794,796-799,801-805,807-810,812-817,819-831,833-836
+  s_9ab004eff526bf::t_f28f8cd777aebf 3
+  s_9ab004eff526bf::t_f539bab1bcc768 408-410,412-413,415-422,424-425,427-435
+  s_9ab004eff526bf::t_8241039c89411a 322-326,328-338,341-347,513-514,569-574,576-583,585-589
+  s_9ab004eff526bf::t_e23980dc75b0d5 53,59,67,75,81,87,98,116,118,125,130-137,141,150,152,159,167,175,185,196,199,205,219,224,229,236,249,256,267,273,285-286,294,298,302,314-315,321,327,339-340,353,361,370,380,392,400,411,414,423,426,440,454,466,482,495,501,504,516,520,525-527,529-532,545,558-565,575,584,593,598,601,614,622,627,647,653,658,667,671,677,682,694-697,701,712,716,729,740,747,754,761,765,770,784-787,795,800,806,811,818,832
+packages/backend/convex/premiumActions.ts
+  s_9ab004eff526bf::t_4f9d2007a7c4c2 251,328-339,341-342,344-349
+  s_9ab004eff526bf::t_2b0962fdbad0ed 340,343
+packages/backend/convex/discordConnections.ts
+  s_9ab004eff526bf::t_542365bcc6229b 166,169-180,182
+  s_9ab004eff526bf::t_23f971791a0b8f 168
+packages/backend/convex/communityRuntime.ts
+  s_9ab004eff526bf::t_f3840bcfeb8cdf 31-32,53-55,57,61
+  s_9ab004eff526bf::t_a042ed7aee9945 33-50,52,56
+packages/backend/convex/dbTables/communityIntegrations.ts
+  s_9ab004eff526bf::t_4904bfeee8f8ae 58
+  s_9ab004eff526bf::t_542365bcc6229b 93,111,128,137
+  s_9ab004eff526bf::t_52421c5ee66035 112-117,119
+  s_9ab004eff526bf::t_e1e57234c56317 118
+packages/backend/convex/communityActions.ts
+  s_9ab004eff526bf::t_ab41bbc6727389 157-158,162
+packages/backend/convex/lib/cleoRoleEligibility.ts
+  s_9ab004eff526bf::t_f3840bcfeb8cdf 37-52,55,57,62,65-66
+  s_9ab004eff526bf::t_52421c5ee66035 102-110
+  s_9ab004eff526bf::t_4e6bcaf206b4b4 63-64
+packages/backend/convex/lib/communityReconciliation.ts
+  s_9ab004eff526bf::t_7b4d9ad64307cf 1-7,9-10
+  s_9ab004eff526bf::t_f539bab1bcc768 8
+packages/backend/convex/communityRecognition.ts
+  s_9ab004eff526bf::t_d50333de9fcaa5 19-21,115-116,118,124
+  s_9ab004eff526bf::t_6e6d60ee6dff7f 4-5,62-65
+  s_9ab004eff526bf::t_b13149156a5b26 24-27,117
+packages/backend/convex/lib/guildEntitlements.ts
+  s_9ab004eff526bf::t_76599f5b9731bf 47,86,88
+  s_9ab004eff526bf::t_f3840bcfeb8cdf 46,55-72
+  s_9ab004eff526bf::t_b020b4e1e91c29 87
+packages/backend/convex/recognitionActions.ts
+  s_9ab004eff526bf::t_acc4443beaeb86 126,136
+  s_9ab004eff526bf::t_d50333de9fcaa5 100-113,145-147
+  s_9ab004eff526bf::t_cd291bbc7b56a7 148
+packages/backend/convex/premiumPurchases.ts
+  s_9ab004eff526bf::t_f539bab1bcc768 300,319-323,325-326,328
+  s_9ab004eff526bf::t_76599f5b9731bf 571-573,575-576
+  s_9ab004eff526bf::t_4f9d2007a7c4c2 10,290,296-297,301-304,307-313,318,329-343,345-348,350-351,353-355,357,360,570,577-578,580-582,609-616,651
+  s_9ab004eff526bf::t_66f653eea4d1e9 298-299,305-306,324,327,344,349,352,356,359,574,579
+packages/backend/convex/_generated/api.d.ts
+  s_9ab004eff526bf::t_2188c7aa1b3a76 3341,3365-3371,3426-3439,7077-7082,7205-7210,7218
+packages/backend/convex/_generated/dataModel.d.ts
+  s_9ab004eff526bf::t_4562397f4d408e 406-412,431,1603,2487,2525,2549,2691,2694-2702,2746
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f0ce2cf441ac89ffb21f72baac4c795a5f6c15c",
+  "prompts": {},
+  "sessions": {
+    "s_9ab004eff526bf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a168aa-c6f8-7f32-bcba-d5b51f2dcf4e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
