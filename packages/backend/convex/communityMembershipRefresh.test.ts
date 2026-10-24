@@ -23,6 +23,8 @@ const modules = {
 
 test("normal dashboard refresh restores expired evidence only after full current-identity verification", async (t) => {
   const f = await fixture()
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
   await f.t.run((ctx) =>
     ctx.db.patch(f.guilds[0]!.membershipId, {
       managementVerifiedAt: Date.now() - 300001,
@@ -33,8 +35,11 @@ test("normal dashboard refresh restores expired evidence only after full current
   let mismatchedIdentity = false
   globalThis.fetch = async (input) => {
     const url = String(input)
-    if (url.includes("oauth_access_tokens"))
+    if (url.includes("oauth_access_tokens")) {
+      now += 10
+      await f.t.run((ctx) => ctx.db.patch(f.accountId, { createdAt: now }))
       return Response.json([{ token: "fixture-oauth" }])
+    }
     if (url.endsWith("/users/@me"))
       return Response.json({
         id: mismatchedIdentity ? "222222222222222222" : discordUserId,

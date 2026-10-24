@@ -56,7 +56,6 @@ type ActiveInstallSession = {
 const dashboardDiscordLog = createLogger("backend.dashboard.discord")
 
 export async function syncDashboardGuilds(ctx: ActionCtx) {
-  const observedAt = Date.now()
   let context = await ctx.runQuery(
     internal.queries.dashboard.discord.install.context
       .getInstallableGuildsContext,
@@ -161,6 +160,7 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     }
   }
 
+  const observedAt = Date.now()
   const userGuildsResult = await fetchDiscordCurrentUserGuilds(
     tokenResult.accessToken
   )
