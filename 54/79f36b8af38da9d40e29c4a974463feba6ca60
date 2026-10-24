@@ -1,0 +1,65 @@
+apps/twitch-bot/src/classes/TwitchClient.test.ts
+  s_9ab004eff526bf::t_9df56de7c101b6 14-15,18-20,95,97-100
+  s_9ab004eff526bf::t_b90ad3bdff3280 21-25,66-69,72-75,96
+apps/twitch-bot/src/classes/TwitchClient.ts
+  s_9ab004eff526bf::t_ab41bbc6727389 16,69,180-183
+packages/shared/src/moderation/normalize.ts
+  s_9ab004eff526bf::t_0a530a717e7f4c 15
+apps/discord-bot/src/services/messageModeration.ts
+  s_9ab004eff526bf::t_ab41bbc6727389 57
+apps/twitch-bot/src/classes/TwitchModeration.test.ts
+  s_9ab004eff526bf::t_9df56de7c101b6 5,8-12
+docs/community-integrations.md
+  s_9ab004eff526bf::t_cb7d9bc8d7c8d6 115-118,174-198,210-215,219-225
+  s_9ab004eff526bf::t_c223ba1721fd66 290-292
+  s_9ab004eff526bf::t_e30219aeda654b 259-263,267-270,277,288-289,295
+  s_9ab004eff526bf::t_e2b1c6343597ad 226
+apps/dashboard/tests/twitch/fixture.tsx
+  s_9ab004eff526bf::t_6d32784b46c9fe 21-26,101,127-130,194-197,280
+apps/dashboard/src/app/(app)/discord/linked-role/page.tsx
+  s_9ab004eff526bf::t_6d32784b46c9fe 6,15-19
+packages/shared/src/moderationRuntime.ts
+  s_9ab004eff526bf::t_52421c5ee66035 65-73,80
+  s_9ab004eff526bf::t_dd791464726a09 2-4,37-40,143,154-166,170,175,178
+  s_9ab004eff526bf::t_772b10076ae701 34,104-113
+  s_9ab004eff526bf::t_2299902140c5c4 146-153
+  s_9ab004eff526bf::t_ab41bbc6727389 9,81,114,120,123-131,137-141
+packages/shared/package.json
+  s_9ab004eff526bf::t_05c753596e911f 17
+packages/shared/src/moderation/types.ts
+  s_9ab004eff526bf::t_ab41bbc6727389 169
+apps/dashboard/tests/twitch/community.spec.ts
+  s_9ab004eff526bf::t_6d32784b46c9fe 1-172
+packages/shared/src/moderationRuntime.test.ts
+  s_9ab004eff526bf::t_7318f6e59c244c 20-43,49-127
+  s_9ab004eff526bf::t_8241039c89411a 128-166
+  s_9ab004eff526bf::t_15fa84a92c1d97 44-48
+apps/dashboard/src/features/community/AccountRoles.tsx
+  s_9ab004eff526bf::t_8dc47f1e483337 14,18,30,32-35,47
+  s_9ab004eff526bf::t_f11dede156b68e 48-52,111,113
+packages/shared/src/moderation/evaluate.ts
+  s_9ab004eff526bf::t_dd791464726a09 2,47,53,62,69-71
+  s_9ab004eff526bf::t_76599f5b9731bf 24-27,72
+apps/twitch-bot/src/classes/TwitchModerationLock.test.ts
+  s_9ab004eff526bf::t_9df56de7c101b6 1-76
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_9ab004eff526bf::t_6d32784b46c9fe 1-109
+bun.lock
+  s_9ab004eff526bf::t_585d8e9d081460 159,590-591
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5479f36b8af38da9d40e29c4a974463feba6ca60",
+  "prompts": {},
+  "sessions": {
+    "s_9ab004eff526bf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a168aa-c6f8-7f32-bcba-d5b51f2dcf4e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
