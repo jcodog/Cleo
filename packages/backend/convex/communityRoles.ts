@@ -73,16 +73,19 @@ export const enqueue = internalMutation({
     return null
   },
 })
-export const roleJob = v.object({
+const claimedFields = {
   id: v.id("communityRoleJobs"),
   discordUserId: v.string(),
   revision: v.number(),
   leaseUntil: v.number(),
+}
+export const roleJob = v.object({
+  ...claimedFields,
   eligibility: eligibilityValidator,
 })
 export const claim = internalMutation({
   args: { worker: v.string() },
-  returns: v.array(roleJob),
+  returns: v.array(v.object(claimedFields)),
   handler: async (ctx, args) => {
     const rows = await ctx.db
       .query("communityRoleJobs")
@@ -93,19 +96,54 @@ export const claim = internalMutation({
       if (row.leaseUntil > Date.now()) continue
       await ctx.db.patch(row._id, {
         worker: args.worker,
-        leaseUntil: Date.now() + 60000,
+        leaseUntil: Date.now() + 120000,
         attemptedRevision: row.revision,
-        nextAt: Date.now() + 60000,
+        nextAt: Date.now() + 120000,
       })
       claimed.push({
         id: row._id,
         discordUserId: row.discordUserId,
         revision: row.revision,
-        leaseUntil: Date.now() + 60000,
-        eligibility: await roleEligibility(ctx, row.discordUserId),
+        leaseUntil: Date.now() + 120000,
       })
     }
     return claimed
+  },
+})
+export const dispatch = internalMutation({
+  args: {
+    worker: v.string(),
+    jobs: v.array(
+      v.object({ id: v.id("communityRoleJobs"), revision: v.number() })
+    ),
+  },
+  returns: v.array(roleJob),
+  handler: async (ctx, args) => {
+    if (args.jobs.length > 5) throw new Error("Role batch exceeds limit.")
+    const ready = []
+    for (const job of args.jobs) {
+      const row = await ctx.db.get(job.id)
+      if (
+        !row ||
+        row.worker !== args.worker ||
+        row.attemptedRevision !== job.revision
+      )
+        continue
+      if (row.revision !== job.revision || row.leaseUntil <= Date.now()) {
+        await ctx.db.patch(row._id, { leaseUntil: 0, nextAt: Date.now() })
+        continue
+      }
+      const leaseUntil = Date.now() + 60000
+      const eligibility = await roleEligibility(ctx, row.discordUserId)
+      await ctx.db.patch(row._id, { leaseUntil, nextAt: leaseUntil })
+      ready.push({
+        ...job,
+        discordUserId: row.discordUserId,
+        leaseUntil,
+        eligibility,
+      })
+    }
+    return ready
   },
 })
 export const settle = internalMutation({

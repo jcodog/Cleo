@@ -248,7 +248,7 @@ export const reconcileKnown = internalAction({
   returns: v.null(),
   handler: async (ctx, args) => {
     if (!backendEnv.STRIPE_SECRET_KEY?.startsWith("sk_test_")) return null
-    const page = await ctx.runQuery(
+    const page = await ctx.runMutation(
       internal.premiumPurchases.reconciliationPage,
       args
     )
@@ -325,8 +325,28 @@ export const webhook = internalAction({
             event.type === "charge.refunded" ? object.id : object.charge,
           paymentIntentId: object.payment_intent ?? undefined,
         })) ?? undefined
-      if (!subscriptionId)
-        throw new Error("Payment association requires reconciliation.")
+      if (!subscriptionId) {
+        const chargeId =
+          event.type === "charge.refunded" ? object.id : object.charge
+        if (!chargeId) throw new Error("Charge identity required.")
+        const charge = z
+          .object({ id: z.string(), customer: z.string().nullable() })
+          .parse(
+            await stripeRequest(`/charges/${encodeURIComponent(chargeId)}`)
+          )
+        if (charge.id !== chargeId) throw new Error("Charge identity mismatch.")
+        if (
+          charge.customer &&
+          (await ctx.runQuery(
+            internal.premiumPurchases.managedPaymentCustomer,
+            { customerId: charge.customer }
+          ))
+        )
+          throw new Error(
+            "Known customer payment association requires reconciliation."
+          )
+        return true
+      }
       revoked = true
     } else return true
     if (!subscriptionId) return true

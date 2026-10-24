@@ -14,6 +14,7 @@ import {
   grantCandidates,
 } from "../../lib/guildEntitlements"
 import { isDiscordSnowflake } from "@workspace/shared/discordRuntimeConfig"
+import { nextSubscriptionReconciliation } from "../../lib/communityReconciliation"
 
 function invalid(message: string): never {
   throw new ConvexError({ code: "INVALID_BILLING_STATE", message })
@@ -313,6 +314,11 @@ export const reconcileSubscription = internalMutation({
       guildId: guild._id,
       lastEventId: eventId,
       reconciledAt: args.eventCreatedAt,
+      nextReconcileAt: nextSubscriptionReconciliation(
+        args.status,
+        Math.max(args.endsAt, args.graceEndsAt ?? 0),
+        now
+      ),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     }

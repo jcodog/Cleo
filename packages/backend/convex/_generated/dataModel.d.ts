@@ -403,7 +403,13 @@ export type DataModel = {
       attempt?: string;
       key: string;
       messageId?: string;
-      state: "pending" | "sending" | "sent" | "uncertain" | "suppressed";
+      state:
+        | "pending"
+        | "sending"
+        | "sent"
+        | "uncertain"
+        | "investigation"
+        | "suppressed";
       updatedAt: number;
       _id: Id<"communityAnnouncementOutbox">;
       _creationTime: number;
@@ -422,6 +428,7 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_key: ["key", "_creationTime"];
       by_state: ["state", "_creationTime"];
+      by_state_updated: ["state", "updatedAt", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -1593,6 +1600,7 @@ export type DataModel = {
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
+      by_active_due: ["revokedAt", "updatedAt", "_creationTime"];
       by_updated: ["updatedAt", "_creationTime"];
       by_user: ["userId", "_creationTime"];
     };
@@ -2476,6 +2484,7 @@ export type DataModel = {
       graceEndsAt?: number;
       guildId: Id<"guilds">;
       lastEventId: string;
+      nextReconcileAt?: number | null;
       paymentFailedAt?: number;
       reconciledAt: number;
       revision: number;
@@ -2513,6 +2522,7 @@ export type DataModel = {
       | "graceEndsAt"
       | "guildId"
       | "lastEventId"
+      | "nextReconcileAt"
       | "paymentFailedAt"
       | "reconciledAt"
       | "revision"
@@ -2536,6 +2546,7 @@ export type DataModel = {
         "graceEndsAt",
         "_creationTime",
       ];
+      by_reconcile_due: ["nextReconcileAt", "_creationTime"];
       by_stripe_subscription_id: ["stripeSubscriptionId", "_creationTime"];
     };
     searchIndexes: {};
@@ -2677,8 +2688,18 @@ export type DataModel = {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_guild: ["guildId", "_creationTime"];
+      by_guild_active_end: ["guildId", "revoked", "paidUntil", "_creationTime"];
       by_subscription: ["subscriptionId", "_creationTime"];
       by_user: ["userId", "_creationTime"];
+      by_user_recognition: [
+        "userId",
+        "discordUserId",
+        "revoked",
+        "testMode",
+        "displayRole",
+        "paidUntil",
+        "_creationTime",
+      ];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -2722,6 +2743,7 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_guild: ["guildId", "_creationTime"];
       by_key: ["key", "_creationTime"];
+      by_user_open: ["userId", "closedAt", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

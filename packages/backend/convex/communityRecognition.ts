@@ -1,6 +1,8 @@
 import { v } from "convex/values"
 import { internalMutation, internalQuery } from "./_generated/server"
 import { announcementDoc } from "./lib/communityValidators"
+import { getGuildAccess } from "./lib/guildEntitlements"
+import { backendEnv } from "@workspace/env/backend"
 const payload = v.object({
   id: v.id("communityAnnouncementOutbox"),
   key: v.string(),
@@ -14,14 +16,15 @@ export const claim = internalMutation({
   handler: async (ctx, args) => {
     const stale = await ctx.db
       .query("communityAnnouncementOutbox")
-      .withIndex("by_state", (q) => q.eq("state", "sending"))
+      .withIndex("by_state_updated", (q) =>
+        q.eq("state", "sending").lt("updatedAt", Date.now() - 60000)
+      )
       .take(20)
     for (const row of stale)
-      if (row.updatedAt < Date.now() - 60000)
-        await ctx.db.patch(row._id, {
-          state: "uncertain",
-          updatedAt: Date.now(),
-        })
+      await ctx.db.patch(row._id, {
+        state: "uncertain",
+        updatedAt: Date.now(),
+      })
     const row = await ctx.db
       .query("communityAnnouncementOutbox")
       .withIndex("by_state", (q) => q.eq("state", "pending"))
@@ -56,7 +59,10 @@ export const claim = internalMutation({
       !user ||
       user.status === "disabled" ||
       discord.length !== 1 ||
-      discord[0]?.providerAccountId !== activation.discordUserId
+      discord[0]?.providerAccountId !== activation.discordUserId ||
+      guild.discordGuildId === backendEnv.CLEO_OFFICIAL_GUILD_ID ||
+      !(await getGuildAccess(ctx, guild, Date.now(), { includeRevoked: false }))
+        .capabilities.length
     ) {
       await ctx.db.patch(row._id, {
         state: "suppressed",
@@ -106,13 +112,16 @@ export const uncertain = internalQuery({
       .take(20),
 })
 export const reconciled = internalMutation({
-  args: { id: v.id("communityAnnouncementOutbox"), messageId: v.string() },
+  args: {
+    id: v.id("communityAnnouncementOutbox"),
+    messageId: v.optional(v.string()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.id)
     if (row?.state === "uncertain")
       await ctx.db.patch(row._id, {
-        state: "sent",
+        state: args.messageId ? "sent" : "investigation",
         messageId: args.messageId,
         updatedAt: Date.now(),
       })

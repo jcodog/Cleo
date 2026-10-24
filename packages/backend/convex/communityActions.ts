@@ -154,10 +154,12 @@ export const finishLinkedRoles = action({
     const me = z
       .object({ id: z.string() })
       .parse(await discordJson("/users/@me", result.access_token))
-    if (me.id !== discordUserId)
+    if (me.id !== discordUserId) {
+      await revokeGrant(result.refresh_token).catch(() => undefined)
       throw new Error(
         "Connect the Discord identity linked to your Cleo account."
       )
+    }
     await ctx.runMutation(internal.discordConnections.storeTokens, {
       userId: user._id,
       discordUserId,

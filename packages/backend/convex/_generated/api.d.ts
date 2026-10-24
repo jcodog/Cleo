@@ -3338,7 +3338,7 @@ export declare const internal: {
     reconciled: FunctionReference<
       "mutation",
       "internal",
-      { id: Id<"communityAnnouncementOutbox">; messageId: string },
+      { id: Id<"communityAnnouncementOutbox">; messageId?: string },
       null
     >;
     settle: FunctionReference<
@@ -3362,7 +3362,13 @@ export declare const internal: {
         attempt?: string;
         key: string;
         messageId?: string;
-        state: "pending" | "sending" | "sent" | "uncertain" | "suppressed";
+        state:
+          | "pending"
+          | "sending"
+          | "sent"
+          | "uncertain"
+          | "investigation"
+          | "suppressed";
         updatedAt: number;
       }>
     >;
@@ -3417,6 +3423,20 @@ export declare const internal: {
       "mutation",
       "internal",
       { worker: string },
+      Array<{
+        discordUserId: string;
+        id: Id<"communityRoleJobs">;
+        leaseUntil: number;
+        revision: number;
+      }>
+    >;
+    dispatch: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        jobs: Array<{ id: Id<"communityRoleJobs">; revision: number }>;
+        worker: string;
+      },
       Array<{
         discordUserId: string;
         eligibility: {
@@ -7054,6 +7074,12 @@ export declare const internal: {
       },
       null
     >;
+    backfillReconciliation: FunctionReference<
+      "mutation",
+      "internal",
+      { cursor?: string },
+      null
+    >;
     beginCheckout: FunctionReference<
       "mutation",
       "internal",
@@ -7176,6 +7202,12 @@ export declare const internal: {
         } | null;
       }
     >;
+    managedPaymentCustomer: FunctionReference<
+      "query",
+      "internal",
+      { customerId: string },
+      boolean
+    >;
     paymentSubscription: FunctionReference<
       "query",
       "internal",
@@ -7183,7 +7215,7 @@ export declare const internal: {
       string | null
     >;
     reconciliationPage: FunctionReference<
-      "query",
+      "mutation",
       "internal",
       { cursor?: string },
       { cursor: string | null; ids: Array<string> }

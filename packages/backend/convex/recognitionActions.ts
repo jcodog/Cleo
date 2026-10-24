@@ -97,6 +97,20 @@ export const reconcile = internalAction({
     if (!settings) return null
     const jobs = await ctx.runQuery(internal.communityRecognition.uncertain, {})
     if (!jobs.length) return null
+    const channel = z
+      .object({ guild_id: z.string() })
+      .parse(
+        await discordJson(
+          `/channels/${settings.channelId}`,
+          settings.token,
+          {},
+          true
+        )
+      )
+    if (channel.guild_id !== settings.guildId)
+      throw new Error(
+        "Recognition channel must belong to Cleo's official server."
+      )
     const messages = z
       .array(
         z.object({
@@ -109,6 +123,7 @@ export const reconcile = internalAction({
             .optional(),
         })
       )
+      .max(100)
       .parse(
         await discordJson(
           `/channels/${settings.channelId}/messages?limit=100`,
@@ -118,7 +133,7 @@ export const reconcile = internalAction({
         )
       )
     const me = z
-      .object({ id: z.string() })
+      .object({ id: z.string(), bot: z.literal(true) })
       .parse(await discordJson("/users/@me", settings.token, {}, true))
     for (const job of jobs) {
       const footer = `Cleo recognition ${digestIntegrationValue(job.key).slice(0, 24)}`
@@ -127,11 +142,10 @@ export const reconcile = internalAction({
           m.author.id === me.id &&
           m.embeds?.some((e) => e.footer?.text === footer)
       )
-      if (sent)
-        await ctx.runMutation(internal.communityRecognition.reconciled, {
-          id: job._id,
-          messageId: sent.id,
-        })
+      await ctx.runMutation(internal.communityRecognition.reconciled, {
+        id: job._id,
+        messageId: sent?.id,
+      })
     }
     return null
   },

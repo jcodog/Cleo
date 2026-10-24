@@ -28,35 +28,37 @@ export const claimJobs = action({
     const jobs = await ctx.runMutation(internal.communityRoles.claim, {
       worker: args.worker,
     })
-    for (const job of jobs) {
-      const account = await ctx.runQuery(internal.communityRoles.forDiscord, {
-        discordUserId: job.discordUserId,
-      })
-      if (account) {
-        try {
-          const guilds = await verifiedDiscordGuilds(
-            account.user.clerkUserId,
-            job.discordUserId
-          )
-          await ctx.runMutation(internal.communityRoles.refreshGuilds, {
-            userId: account.user._id,
-            discordUserId: job.discordUserId,
-            guilds,
-            reconciliation: true,
-          })
-        } catch {
-          /* Old evidence expires; outages do not confer continuing authority. */
+    await Promise.all(
+      jobs.map(async (job) => {
+        const account = await ctx.runQuery(internal.communityRoles.forDiscord, {
+          discordUserId: job.discordUserId,
+        })
+        if (account) {
+          try {
+            const guilds = await verifiedDiscordGuilds(
+              account.user.clerkUserId,
+              job.discordUserId
+            )
+            await ctx.runMutation(internal.communityRoles.refreshGuilds, {
+              userId: account.user._id,
+              discordUserId: job.discordUserId,
+              guilds,
+              reconciliation: true,
+            })
+          } catch {
+            /* Old evidence expires; outages do not confer continuing authority. */
+          }
         }
-      }
-      job.eligibility = await ctx.runQuery(
-        internal.communityRoles.eligibility,
-        { discordUserId: job.discordUserId }
-      )
-    }
+      })
+    )
+    const ready = await ctx.runMutation(internal.communityRoles.dispatch, {
+      worker: args.worker,
+      jobs: jobs.map(({ id, revision }) => ({ id, revision })),
+    })
     return {
       guildId: backendEnv.CLEO_OFFICIAL_GUILD_ID,
       roleIdsJSON: backendEnv.CLEO_MANAGED_ROLE_IDS,
-      jobs,
+      jobs: ready,
     }
   },
 })

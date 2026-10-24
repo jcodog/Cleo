@@ -34,20 +34,36 @@ export async function roleEligibility(
     } catch {
       /* Unparseable permissions never grant eligibility. */
     }
-    const premium = (await getGuildAccess(ctx, guild)).capabilities.length > 0
+    const owner =
+      guild.ownerDiscordId === discordUserId && membership.isOwner === true
+    const installed =
+      guild.botLeftAt === undefined &&
+      guild.botInstallationVerifiedAt !== undefined &&
+      membership.revokedAt === undefined
+    const fresh =
+      (membership.managementVerifiedAt ?? 0) > now - 300000 &&
+      (membership.managementVerifiedAt ?? 0) <= now &&
+      memberships.length <= 100
+    const premium =
+      installed &&
+      fresh &&
+      (owner || administrator) &&
+      (await getGuildAccess(ctx, guild, now, { includeRevoked: false }))
+        .capabilities.length > 0
     communities.push({
       id: guild.discordGuildId,
-      owner:
-        guild.ownerDiscordId === discordUserId && membership.isOwner === true,
+      owner,
       administrator,
-      installed:
-        guild.botLeftAt === undefined &&
-        guild.botInstallationVerifiedAt !== undefined &&
-        membership.revokedAt === undefined,
+      installed,
       verifiedAt:
         memberships.length > 100 ? 0 : (membership.managementVerifiedAt ?? 0),
       premium,
     })
+    if (
+      communities.some((c) => c.owner && c.premium) &&
+      communities.some((c) => !c.owner && c.administrator && c.premium)
+    )
+      break
   }
   const installation = await ctx.db
     .query("discordUserInstallations")
@@ -83,7 +99,15 @@ export async function roleEligibility(
       runtime.updatedAt > now - 90000
     const paid = await ctx.db
       .query("paidCommunityActivations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user_recognition", (q) =>
+        q
+          .eq("userId", user._id)
+          .eq("discordUserId", discordUserId)
+          .eq("revoked", false)
+          .eq("testMode", false)
+          .eq("displayRole", true)
+          .gt("paidUntil", now)
+      )
       .take(100)
     for (const activation of paid) {
       if (

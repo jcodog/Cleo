@@ -53,6 +53,7 @@ export const guildSubscriptions = defineTable({
   eventCreatedAt: v.number(),
   revision: v.number(),
   reconciledAt: v.number(),
+  nextReconcileAt: v.optional(v.union(v.number(), v.null())),
   createdAt: v.number(),
   updatedAt: v.number(),
 })
@@ -61,6 +62,7 @@ export const guildSubscriptions = defineTable({
   .index("by_guild_status_end", ["guildId", "status", "endsAt"])
   .index("by_guild_status_grace", ["guildId", "status", "graceEndsAt"])
   .index("by_customer_id", ["customerId"])
+  .index("by_reconcile_due", ["nextReconcileAt"])
 
 export const billingEvents = defineTable({
   eventId: v.string(),

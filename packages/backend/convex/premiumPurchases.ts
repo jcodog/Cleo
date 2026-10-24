@@ -7,6 +7,7 @@ import {
 } from "./_generated/server"
 import { requireCurrentUser, requireDiscordGuildManager } from "./lib/auth"
 import { getGuildAccess } from "./lib/guildEntitlements"
+import { nextSubscriptionReconciliation } from "./lib/communityReconciliation"
 import { queueRoleSync } from "./lib/cleoRoleEligibility"
 import { backendEnv } from "@workspace/env/backend"
 import { subscriptionStatus } from "./dbTables/guildBilling"
@@ -286,27 +287,77 @@ export const closeCheckout = internalMutation({
     return null
   },
 })
-export const reconciliationPage = internalQuery({
+export const reconciliationPage = internalMutation({
   args: { cursor: v.optional(v.string()) },
   returns: v.object({
     ids: v.array(v.string()),
     cursor: v.union(v.string(), v.null()),
   }),
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("guildSubscriptions")
+      .withIndex("by_reconcile_due", (q) =>
+        q.gt("nextReconcileAt", null).lte("nextReconcileAt", Date.now())
+      )
+      .take(20)
+    for (const row of rows)
+      await ctx.db.patch(row._id, { nextReconcileAt: Date.now() + 300000 })
+    return {
+      ids: rows.map((row) => row.stripeSubscriptionId),
+      cursor: rows.length === 20 ? "due" : null,
+    }
+  },
+})
+export const backfillReconciliation = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const page = await ctx.db
       .query("guildSubscriptions")
       .paginate({ cursor: args.cursor ?? null, numItems: 100 })
-    return {
-      ids: page.page
-        .filter(
-          (row) =>
-            row.status !== "revoked" &&
-            row.status !== "canceled" &&
-            row.status !== "incomplete_expired"
+    for (const row of page.page)
+      if (row.nextReconcileAt === undefined)
+        await ctx.db.patch(row._id, {
+          nextReconcileAt: [
+            "canceled",
+            "revoked",
+            "incomplete_expired",
+          ].includes(row.status)
+            ? null
+            : Date.now(),
+        })
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.premiumPurchases.backfillReconciliation,
+        { cursor: page.continueCursor }
+      )
+    return null
+  },
+})
+export const managedPaymentCustomer = internalQuery({
+  args: { customerId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const customer = await ctx.db
+      .query("billingCustomers")
+      .withIndex("by_stripe_customer_id", (q) =>
+        q.eq("stripeCustomerId", args.customerId)
+      )
+      .unique()
+    if (!customer) return false
+    return (
+      !!(await ctx.db
+        .query("guildSubscriptions")
+        .withIndex("by_customer_id", (q) => q.eq("customerId", customer._id))
+        .first()) ||
+      !!(await ctx.db
+        .query("premiumCheckouts")
+        .withIndex("by_user_open", (q) =>
+          q.eq("userId", customer.userId).eq("closedAt", undefined)
         )
-        .map((row) => row.stripeSubscriptionId),
-      cursor: page.isDone ? null : page.continueCursor,
-    }
+        .first())
+    )
   },
 })
 export const preferences = mutation({
@@ -516,6 +567,19 @@ export const apply = internalMutation({
     const now = Date.now()
     const guild = await ctx.db.get(reservation.guildId)
     if (!guild) throw new Error("Community unavailable.")
+    const priorCoverage =
+      (
+        await getGuildAccess(ctx, guild, now, {
+          includeRevoked: false,
+          excludeSubscriptionId: args.subscriptionId,
+        })
+      ).capabilities.length > 0 ||
+      !!(await ctx.db
+        .query("paidCommunityActivations")
+        .withIndex("by_guild_active_end", (q) =>
+          q.eq("guildId", guild._id).eq("revoked", false).gt("paidUntil", now)
+        )
+        .first())
     const revoked = args.revoked || existing?.revokedAt !== undefined
     const status = revoked ? ("revoked" as const) : args.status
     const value = {
@@ -542,6 +606,14 @@ export const apply = internalMutation({
       eventCreatedAt: now,
       revision: (existing?.revision ?? 0) + 1,
       reconciledAt: now,
+      nextReconcileAt: nextSubscriptionReconciliation(
+        status,
+        Math.max(
+          args.endsAt,
+          status === "past_due" ? (existing?.graceEndsAt ?? now + 86400000) : 0
+        ),
+        now
+      ),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     }
@@ -576,22 +648,7 @@ export const apply = internalMutation({
           "paidCommunityActivations",
           paidValue
         )
-        const others = await ctx.db
-          .query("paidCommunityActivations")
-          .withIndex("by_guild", (q) => q.eq("guildId", guild._id))
-          .take(100)
-        const grants = await ctx.db
-          .query("guildEntitlementGrants")
-          .withIndex("by_guild_id", (q) => q.eq("guildId", guild._id))
-          .take(100)
-        const covered =
-          others.some(
-            (p) => p._id !== paidId && !p.revoked && p.paidUntil > now
-          ) ||
-          grants.some(
-            (g) => !g.revokedAt && g.startsAt <= now && g.endsAt > now
-          )
-        if (!covered)
+        if (!priorCoverage)
           await ctx.db.insert("communityAnnouncementOutbox", {
             activationId: paidId,
             key: `premium:${args.subscriptionId}:${args.paidInvoice.id}`,

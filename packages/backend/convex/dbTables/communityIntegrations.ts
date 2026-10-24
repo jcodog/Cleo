@@ -55,6 +55,7 @@ export const discordRoleConnections = defineTable({
 })
   .index("by_user", ["userId"])
   .index("by_updated", ["updatedAt"])
+  .index("by_active_due", ["revokedAt", "updatedAt"])
 export const communityRoleJobs = defineTable({
   discordUserId: v.string(),
   revision: v.number(),
@@ -89,6 +90,7 @@ export const premiumCheckouts = defineTable({
 })
   .index("by_guild", ["guildId"])
   .index("by_key", ["key"])
+  .index("by_user_open", ["userId", "closedAt"])
 export const paidCommunityActivations = defineTable({
   subscriptionId: v.string(),
   guildId: v.id("guilds"),
@@ -106,6 +108,15 @@ export const paidCommunityActivations = defineTable({
   .index("by_subscription", ["subscriptionId"])
   .index("by_user", ["userId"])
   .index("by_guild", ["guildId"])
+  .index("by_guild_active_end", ["guildId", "revoked", "paidUntil"])
+  .index("by_user_recognition", [
+    "userId",
+    "discordUserId",
+    "revoked",
+    "testMode",
+    "displayRole",
+    "paidUntil",
+  ])
 export const communityAnnouncementOutbox = defineTable({
   activationId: v.id("paidCommunityActivations"),
   key: v.string(),
@@ -114,6 +125,7 @@ export const communityAnnouncementOutbox = defineTable({
     v.literal("sending"),
     v.literal("sent"),
     v.literal("uncertain"),
+    v.literal("investigation"),
     v.literal("suppressed")
   ),
   messageId: v.optional(v.string()),
@@ -122,6 +134,7 @@ export const communityAnnouncementOutbox = defineTable({
 })
   .index("by_key", ["key"])
   .index("by_state", ["state"])
+  .index("by_state_updated", ["state", "updatedAt"])
 export const integrationReceipts = defineTable({
   provider: v.string(),
   key: v.string(),

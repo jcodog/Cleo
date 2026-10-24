@@ -163,19 +163,23 @@ export const reconcile = internalMutation({
   args: { cursor: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const page = await ctx.db
+    const rows = await ctx.db
       .query("discordRoleConnections")
-      .paginate({ cursor: args.cursor ?? null, numItems: 100 })
-    for (const row of page.page)
-      if (!row.revokedAt)
-        await ctx.scheduler.runAfter(
-          0,
-          internal.communityActions.publishLinkedRoles,
-          { userId: row.userId }
-        )
-    if (!page.isDone)
+      .withIndex("by_active_due", (q) =>
+        q.eq("revokedAt", undefined).lte("updatedAt", Date.now() - 300000)
+      )
+      .take(100)
+    for (const row of rows) {
+      await ctx.db.patch(row._id, { updatedAt: Date.now() })
+      await ctx.scheduler.runAfter(
+        0,
+        internal.communityActions.publishLinkedRoles,
+        { userId: row.userId }
+      )
+    }
+    if (rows.length === 100)
       await ctx.scheduler.runAfter(0, internal.discordConnections.reconcile, {
-        cursor: page.continueCursor,
+        cursor: args.cursor,
       })
     return null
   },
