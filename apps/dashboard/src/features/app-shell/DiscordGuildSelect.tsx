@@ -63,6 +63,8 @@ function GuildIcon({
 }
 
 export function DiscordGuildSelect() {
+  const refresh = useQuery(api.communityRoles.refreshProgress)
+  const verifying = refresh?.state === "pending"
   const router = useRouter()
   const pathname = usePathname()
   const manageableGuilds = useQuery(
@@ -83,10 +85,10 @@ export function DiscordGuildSelect() {
   const selectedGuild = guildOptions.find(
     (guild) => guild.discordGuildId === selectedDiscordGuildId
   )
-  const isLoading = manageableGuilds === undefined
+  const isLoading = manageableGuilds === undefined || verifying
 
   useEffect(() => {
-    if (!manageableGuilds || !selectedDiscordGuildId) {
+    if (verifying || !manageableGuilds || !selectedDiscordGuildId) {
       return
     }
 
@@ -97,7 +99,12 @@ export function DiscordGuildSelect() {
     ) {
       setSelectedDiscordGuildId(undefined)
     }
-  }, [manageableGuilds, selectedDiscordGuildId, setSelectedDiscordGuildId])
+  }, [
+    manageableGuilds,
+    selectedDiscordGuildId,
+    setSelectedDiscordGuildId,
+    verifying,
+  ])
 
   function handleAddGuild() {
     router.push("/dashboard/add-server")
@@ -110,7 +117,9 @@ export function DiscordGuildSelect() {
   const triggerLabel =
     selectedGuild?.name ??
     (isLoading
-      ? "Loading servers"
+      ? verifying
+        ? "Verifying servers"
+        : "Loading servers"
       : guildOptions.length > 0
         ? "Select a server"
         : "No servers")

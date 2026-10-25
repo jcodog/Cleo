@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { afterEach, test } from "node:test"
+import { afterEach, beforeEach, mock, test } from "node:test"
 import { convexTest, type TestConvex } from "convex-test"
 
 import { api, internal } from "./_generated/api"
@@ -37,6 +37,7 @@ const discordGuildId = "123456789012345678"
 const channelId = "234567890123456789"
 const nextChannelId = "345678901234567890"
 const discordUserId = "456789012345678901"
+beforeEach(() => mock.timers.enable({ apis: ["Date"], now: 1000 }))
 const originalFetch = globalThis.fetch
 
 test("Premium welcome saves fail closed per guild without changing free configuration", async () => {
@@ -120,6 +121,7 @@ test("Premium welcome saves fail closed per guild without changing free configur
   assert.deepEqual(await t.run((ctx) => ctx.db.get(free._id)), free)
 })
 afterEach(() => {
+  mock.timers.reset()
   globalThis.fetch = originalFetch
 })
 
@@ -152,8 +154,8 @@ async function seedUser(
   t: TestConvex<typeof schema>,
   role: Doc<"users">["role"] = "user"
 ) {
-  return t.run((ctx) =>
-    ctx.db.insert("users", {
+  return t.run(async (ctx) => {
+    const userId = await ctx.db.insert("users", {
       clerkUserId: "manager",
       email: "manager@example.com",
       role,
@@ -161,7 +163,16 @@ async function seedUser(
       createdAt: 1,
       updatedAt: 1,
     })
-  )
+    await ctx.db.insert("linkedAccounts", {
+      userId,
+      provider: "discord",
+      providerAccountId: discordUserId,
+      scopes: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    return userId
+  })
 }
 
 test("REST verification returns schema-valid guilds and restores manager access for new and existing guilds", async () => {

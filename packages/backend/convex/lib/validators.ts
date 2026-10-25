@@ -361,6 +361,10 @@ export const dashboardDiscordInstallableGuildViewModel = v.object({
 
 export const dashboardDiscordInstallableGuildsResult = v.union(
   v.object({
+    status: v.literal("verificationPending"),
+    guilds: v.array(dashboardDiscordInstallableGuildViewModel),
+  }),
+  v.object({
     status: v.literal("missingDiscordIdentity"),
   }),
   v.object({
@@ -370,6 +374,7 @@ export const dashboardDiscordInstallableGuildsResult = v.union(
   }),
   v.object({
     status: v.literal("ready"),
+    verifiedAt: v.number(),
     guilds: v.array(dashboardDiscordInstallableGuildViewModel),
   })
 )

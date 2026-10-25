@@ -1214,6 +1214,39 @@ export declare const api: {
               "action",
               "public",
               {},
+              | {
+                  guilds: Array<{
+                    dashboardHref?: string;
+                    discordGuildId: string;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    installSessionExpiresAt?: number;
+                    installSessionId?: Id<"discordGuildInstallSessions">;
+                    installSessionStatus?:
+                      "pending" | "bot_joined" | "configured" | "expired";
+                    isOwner?: boolean;
+                    memberCount?: number;
+                    name: string;
+                    permissions?: string;
+                    presenceCount?: number;
+                    state:
+                      | "installed"
+                      | "installable"
+                      | "pending"
+                      | "verificationNeeded"
+                      | "unavailable"
+                      | "forbidden";
+                    unavailableReason?:
+                      | "missingManageGuildPermission"
+                      | "botLeft"
+                      | "botSyncUnavailable"
+                      | "verificationUnavailable"
+                      | "discordBotTokenUnavailable"
+                      | "discordApiUnavailable"
+                      | "discordRestDeniedAccess";
+                  }>;
+                  status: "verificationPending";
+                }
               | { status: "missingDiscordIdentity" }
               | {
                   guilds: Array<{
@@ -1286,6 +1319,7 @@ export declare const api: {
                       | "discordRestDeniedAccess";
                   }>;
                   status: "ready";
+                  verifiedAt: number;
                 }
             >;
           };
@@ -1452,6 +1486,39 @@ export declare const api: {
               "action",
               "public",
               {},
+              | {
+                  guilds: Array<{
+                    dashboardHref?: string;
+                    discordGuildId: string;
+                    iconHash?: string;
+                    iconUrl?: string;
+                    installSessionExpiresAt?: number;
+                    installSessionId?: Id<"discordGuildInstallSessions">;
+                    installSessionStatus?:
+                      "pending" | "bot_joined" | "configured" | "expired";
+                    isOwner?: boolean;
+                    memberCount?: number;
+                    name: string;
+                    permissions?: string;
+                    presenceCount?: number;
+                    state:
+                      | "installed"
+                      | "installable"
+                      | "pending"
+                      | "verificationNeeded"
+                      | "unavailable"
+                      | "forbidden";
+                    unavailableReason?:
+                      | "missingManageGuildPermission"
+                      | "botLeft"
+                      | "botSyncUnavailable"
+                      | "verificationUnavailable"
+                      | "discordBotTokenUnavailable"
+                      | "discordApiUnavailable"
+                      | "discordRestDeniedAccess";
+                  }>;
+                  status: "verificationPending";
+                }
               | { status: "missingDiscordIdentity" }
               | {
                   guilds: Array<{
@@ -1524,6 +1591,7 @@ export declare const api: {
                       | "discordRestDeniedAccess";
                   }>;
                   status: "ready";
+                  verifiedAt: number;
                 }
             >;
           };
@@ -1570,6 +1638,59 @@ export declare const api: {
         twitchBotUser:
           "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
       } | null
+    >;
+    refreshProgress: FunctionReference<
+      "query",
+      "public",
+      {},
+      | { state: "superseded" }
+      | {
+          observedAt: number;
+          state: "pending" | "complete" | "failed" | "expired";
+          ticket: { id: Id<"discordGuildRefreshes">; revision: number };
+        }
+      | null
+    >;
+  };
+  communityRoleTesting: {
+    access: FunctionReference<"query", "public", {}, boolean>;
+    current: FunctionReference<"query", "public", { userId: Id<"users"> }, any>;
+    set: FunctionReference<
+      "mutation",
+      "public",
+      {
+        hours: number;
+        reason: string;
+        roles: Array<
+          | "member"
+          | "personalPremium"
+          | "creatorPro"
+          | "discordBotUser"
+          | "twitchBotUser"
+          | "communityOwner"
+          | "premiumCommunityOwner"
+          | "communityManager"
+          | "premiumCommunityManager"
+          | "premiumSupporter"
+        >;
+        userId: Id<"users">;
+      },
+      null
+    >;
+    users: FunctionReference<
+      "query",
+      "public",
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+      },
+      any
     >;
   };
   communityRuntime: {
@@ -1633,6 +1754,17 @@ export declare const api: {
         worker: string;
       },
       null
+    >;
+    validateJob: FunctionReference<
+      "action",
+      "public",
+      {
+        id: Id<"communityRoleJobs">;
+        revision: number;
+        secret: string;
+        worker: string;
+      },
+      boolean
     >;
   };
   liveNotificationActions: {
@@ -3318,7 +3450,11 @@ export declare const internal: {
     publishLinkedRoles: FunctionReference<
       "action",
       "internal",
-      { userId: Id<"users"> },
+      {
+        attempt?: number;
+        refresh?: { id: Id<"discordGuildRefreshes">; revision: number };
+        userId: Id<"users">;
+      },
       null
     >;
   };
@@ -3449,6 +3585,12 @@ export declare const internal: {
         revision: number;
       }>
     >;
+    continueGuildRefresh: FunctionReference<
+      "mutation",
+      "internal",
+      { id: Id<"discordGuildRefreshes">; revision: number },
+      null
+    >;
     dispatch: FunctionReference<
       "mutation",
       "internal",
@@ -3557,16 +3699,70 @@ export declare const internal: {
         };
       } | null
     >;
+    publication: FunctionReference<
+      "query",
+      "internal",
+      {
+        connectionRevision: number;
+        discordUserId: string;
+        ticket?: { id: Id<"discordGuildRefreshes">; revision: number };
+        userId: Id<"users">;
+      },
+      {
+        communityManager:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        communityOwner:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        creatorPro:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        discordBotUser:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        member:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        personalPremium:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumCommunityManager:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumCommunityOwner:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        premiumSupporter:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+        twitchBotUser:
+          "eligible" | "notEligible" | "verificationNeeded" | "unavailable";
+      } | null
+    >;
     refreshGuilds: FunctionReference<
       "mutation",
       "internal",
       {
         discordUserId: string;
         guilds: Array<{ id: string; owner?: boolean; permissions?: string }>;
+        observedAt: number;
         reconciliation?: boolean;
         userId: Id<"users">;
       },
-      null
+      | { state: "superseded" }
+      | {
+          observedAt: number;
+          state: "pending" | "complete" | "failed" | "expired";
+          ticket: { id: Id<"discordGuildRefreshes">; revision: number };
+        }
+    >;
+    refreshStatus: FunctionReference<
+      "query",
+      "internal",
+      {
+        discordUserId: string;
+        ticket?: { id: Id<"discordGuildRefreshes">; revision: number };
+        userId: Id<"users">;
+      },
+      | { state: "superseded" }
+      | {
+          observedAt: number;
+          state: "pending" | "complete" | "failed" | "expired";
+          ticket: { id: Id<"discordGuildRefreshes">; revision: number };
+        }
+      | null
     >;
     settle: FunctionReference<
       "mutation",
@@ -3577,6 +3773,20 @@ export declare const internal: {
         success: boolean;
         worker: string;
       },
+      null
+    >;
+    validateRoleJob: FunctionReference<
+      "query",
+      "internal",
+      { id: Id<"communityRoleJobs">; revision: number; worker: string },
+      boolean
+    >;
+  };
+  communityRoleTesting: {
+    expire: FunctionReference<
+      "mutation",
+      "internal",
+      { id: Id<"communityRoleTestGrants"> },
       null
     >;
   };
@@ -3611,6 +3821,7 @@ export declare const internal: {
         encryptedTokens: string;
         expiresAt: number;
         leaseUntil?: number;
+        publishedMetadata?: string;
         revision: number;
         revokedAt?: number;
         updatedAt: number;
@@ -3637,7 +3848,7 @@ export declare const internal: {
     lease: FunctionReference<
       "mutation",
       "internal",
-      { userId: Id<"users"> },
+      { expectedRevision?: number; userId: Id<"users"> },
       {
         _creationTime: number;
         _id: Id<"discordRoleConnections">;
@@ -3645,11 +3856,23 @@ export declare const internal: {
         encryptedTokens: string;
         expiresAt: number;
         leaseUntil?: number;
+        publishedMetadata?: string;
         revision: number;
         revokedAt?: number;
         updatedAt: number;
         userId: Id<"users">;
       } | null
+    >;
+    published: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        expectedRevision: number;
+        metadata: string;
+        ticket?: { id: Id<"discordGuildRefreshes">; revision: number };
+        userId: Id<"users">;
+      },
+      null
     >;
     reconcile: FunctionReference<
       "mutation",

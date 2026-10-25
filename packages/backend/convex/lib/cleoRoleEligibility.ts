@@ -3,6 +3,11 @@ import { backendEnv } from "@workspace/env/backend"
 import type { QueryCtx, MutationCtx } from "../_generated/server"
 import { getGuildAccess } from "./guildEntitlements"
 import { chatRevoked } from "./twitchRevocation"
+import {
+  currentDiscordAccount,
+  discordGuildRefresh,
+  isFreshDiscordMembership,
+} from "./discordGuildMemberships"
 
 export async function roleEligibility(
   ctx: QueryCtx | MutationCtx,
@@ -14,9 +19,15 @@ export async function roleEligibility(
       q.eq("provider", "discord").eq("providerAccountId", discordUserId)
     )
     .take(2)
-  const account = accounts.length === 1 ? accounts[0] : undefined
+  let account = accounts.length === 1 ? accounts[0] : undefined
+  if (
+    account &&
+    (await currentDiscordAccount(ctx, account.userId))?._id !== account._id
+  )
+    account = undefined
   const user = account ? await ctx.db.get(account.userId) : null
   const now = Date.now()
+  const refresh = await discordGuildRefresh(ctx, discordUserId)
   const memberships = await ctx.db
     .query("discordGuildMemberships")
     .withIndex("by_discord_user_id", (q) =>
@@ -41,8 +52,8 @@ export async function roleEligibility(
       guild.botInstallationVerifiedAt !== undefined &&
       membership.revokedAt === undefined
     const fresh =
-      (membership.managementVerifiedAt ?? 0) > now - 300000 &&
-      (membership.managementVerifiedAt ?? 0) <= now &&
+      !!account &&
+      isFreshDiscordMembership(membership, account, refresh, now) &&
       memberships.length <= 100
     const premium =
       installed &&
@@ -55,8 +66,7 @@ export async function roleEligibility(
       owner,
       administrator,
       installed,
-      verifiedAt:
-        memberships.length > 100 ? 0 : (membership.managementVerifiedAt ?? 0),
+      verifiedAt: fresh ? (membership.managementVerifiedAt ?? 0) : 0,
       premium,
     })
     if (
@@ -130,7 +140,7 @@ export async function roleEligibility(
       }
     }
   }
-  return resolveCleoRoleEligibility({
+  const eligibility = resolveCleoRoleEligibility({
     now,
     verifiedAccount: !!account && !!user && user.status !== "disabled",
     officialGuildId: backendEnv.CLEO_OFFICIAL_GUILD_ID,
@@ -139,6 +149,23 @@ export async function roleEligibility(
     twitchActive,
     paidSupporter,
   })
+  // Test qualifications affect permission-free community roles only, never billing or guild access.
+  if (account && user && user.status !== "disabled") {
+    const grant = await ctx.db
+      .query("communityRoleTestGrants")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .first()
+    if (
+      grant &&
+      grant.revokedAt === undefined &&
+      grant.expiresAt > now &&
+      grant.discordUserId === discordUserId &&
+      grant.linkedAccountId === account._id
+    )
+      for (const role of grant.roles) eligibility[role] = "eligible"
+  }
+  return eligibility
 }
 export async function queueRoleSync(
   ctx: MutationCtx,

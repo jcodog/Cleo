@@ -60,7 +60,10 @@ commit it. Changing that key without a key migration requires users to reconnect
    requires `applications.commands`; preserve existing guild installation scopes
    and permissions. The dashboard offers separate account and server buttons.
 2. Add the exact role-connection OAuth redirect above. Set the Linked Roles
-   verification URL to the dashboard's `/account/roles` page. The flow requests
+   verification URL to the dashboard's `/discord/linked-role` page. The informational
+   `/account/roles` FAQ does not initiate OAuth. The callback starts authorisation
+   when opened directly from Discord and consumes the returned code/state once.
+   The flow requests
    `identify role_connections.write`, uses a five-minute single-use state bound
    to the signed-in user's current linked Discord identity, and encrypts tokens.
 3. Configure the application event webhook URL as
@@ -100,8 +103,14 @@ commit it. Changing that key without a key migration requires users to reconnect
 
 Role synchronization uses the existing Discord process. It claims bounded jobs
 every 15 seconds, checks fresh Discord membership through Clerk OAuth, and
-reconciles linked accounts every five minutes. External community authority
-expires after five minutes without verified refresh. Owner and Administrator
+reconciles linked accounts every five minutes. External community evidence
+expires after five minutes without verified refresh, denying privileged dashboard
+access and marking eligibility unverified. Expiry or a provider outage alone does
+not remove previously published Discord roles or native Linked Roles metadata.
+Cleo preserves that external state until a completed authoritative refresh confirms
+the current eligibility, or a confirmed account/link revocation requires removal.
+An unverified or parked job is not evidence that an external role was revoked.
+Owner and Administrator
 eligibility remain independent; Manage Server alone is insufficient for manager
 roles or purchases. Installation evidence expires after 24 hours and becomes
 verification-needed. Discord does not provide a general bot endpoint to poll all
@@ -123,6 +132,79 @@ Only the Discord shard caching the available official guild claims role jobs.
 Provider preparation runs in parallel for at most five users under a two-minute
 preparation lease. Dispatch rechecks worker/revision ownership and supplies a
 fresh one-minute lease. Guild loss settles unfinished claims as failed.
+
+Failed, expired or missing verification allows at most five failed provider
+attempts per role-job revision. Retry delays are 30, 60, 120 and 240 seconds; the
+fifth failure releases the lease and parks the job with `attempts >= 5` and
+`nextAt = Number.MAX_SAFE_INTEGER`. Parked jobs make no provider requests, and
+periodic bootstrapping does not wake them. Pending scheduled database reconciliation
+resumes its existing checkpoint after 30 seconds without consuming provider retries;
+it remains bounded by the original five-minute evidence deadline.
+
+New verification evidence, an explicit refresh or another legitimate enqueue advances
+the revision, resets retries and makes the job due again. Stale dispatch/settlement
+cannot unpark it or consume a newer revision's budget. To recover an outage, restore
+provider access and use normal dashboard verification; a completed snapshot wakes
+the job and publishes any confirmed permission loss. Native Linked Roles retain
+their separate five-minute reconciliation schedule, which can also obtain fresh
+evidence and wake a parked bot-role job. No manual database edit is required.
+
+Full Discord membership refreshes reconcile stored memberships in indexed
+batches of at most 100, followed by at most 50 incoming guilds per transaction.
+A durable refresh revision fences continuations and account changes. Until a
+snapshot completes, its partial writes cannot grant management authority. The
+five-minute deadline starts before provider verification, not at the final batch;
+failed, interrupted or delayed older snapshots cannot renew stale permissions.
+Dashboard reads, writes and guild listings require the currently linked Discord
+identity and the same five-minute freshness check as community roles. Manage
+Server still permits ordinary dashboard access; purchases and Community Manager
+roles retain their stricter owner/Administrator requirements. Use the normal
+dashboard server discovery to reverify expired access. The Add flow offers separate
+personal-account and server installations; Clerk continues to own account settings.
+The existing conservative role limit above 100 stored memberships remains in place.
+
+Refresh initiation returns a revision-qualified `pending`, `complete`, `failed`,
+`superseded` or `expired` result. Only the current completed snapshot can publish
+new external role decisions. Pending verification denies privileged reads without
+sending temporary negative role decisions. Every successful completion, including
+runtime reconciliation, queues bot reconciliation and native metadata publication.
+The publisher reuses that snapshot, checks its revision immediately before writing,
+and retries token-lease contention or transient publication failures at most three
+times. The existing recurring reconciliation provides subsequent recovery. Native
+metadata unchanged since its last successful publication is not sent again.
+
+Dashboard discovery returns `verificationPending` until the checkpoint completes.
+The Add page polls at one-second intervals, for at most 20 attempts, then shows a
+retryable unavailable message. Polls resume the same checkpoint without fetching
+another provider snapshot. Dashboard session caches are scoped to the Clerk and
+Discord identities and expire at the original five-minute evidence deadline.
+
+### Admin test qualifications
+
+In Staff Operations, open **Linked Roles testing** (`/staff/linked-roles`). An active
+admin or superadmin can select a user, choose individual roles or **Select all
+qualifications**, enter an audit reason and grant them for 1–24 hours. To test your
+own setup, select yourself and then claim the native roles from Discord. **Remove
+test qualifications** restores normal eligibility. The grant records its actor,
+reason, original linked-account ID, Discord identity, expiry and revocation. Relinking
+or disabling the user invalidates it. Expiry schedules normal reconciliation.
+
+These grants affect only permission-free community-role eligibility and the five
+existing native metadata fields. They create no paid subscription, server-management
+permission, payment or announcement, and do not bypass any role-delivery gate. Member,
+Discord Bot User and Twitch Bot User still use the existing gated bot assignment;
+native Premium Supporter remains claimed through Discord. No extra Discord metadata
+field is introduced. Grant history is retained in `communityRoleTestGrants`; inspect
+it by user in the Convex dashboard when auditing a test. No tokens appear in the UI.
+
+These post-254 corrections add a Convex refresh checkpoint table and indexes,
+optional publication-fencing fields and the additive `communityRoleTestGrants` table
+through the normal coordinated release. No new environment variables, VPS
+services or one-off customer billing migration are required. An empty billing
+deployment has no legacy billing rows to migrate. For nonempty legacy billing
+data, retain the `premiumPurchases:backfillReconciliation` procedure below.
+All moderation, role-assignment, test-payment and recognition release gates stay
+unchanged; these fixes do not authorise enabling them.
 
 ## Stripe test setup
 
@@ -212,6 +294,10 @@ consent, current identity binding, paid eligibility and installed guild state.
 Role visibility and announcements are separate opt-ins. An Administrator's
 message says they sponsored the community, never that the owner authorised it.
 
+Pending claims inspect at most 20 records per transaction
+and advance past suppressed entries. Delivery remains capped at five claims per
+invocation, at most 100 inspected pending records, using the pending-state index.
+Suppression does not reset ambiguous sends or consult historical sent rows.
 Discord delivery uses a stable nonce and one send attempt. Ambiguous sends become
 `uncertain`; reconciliation matches the bot author's reference footer in the last
 100 channel messages, in the verified official-server channel. An unmatched row
@@ -297,25 +383,25 @@ are rejected. Production moderation activation remains deferred.
 
 ## Implementation validation
 
-The combined Cubic/Grok correction pass adds recovery, query-count, concurrency,
-privacy and boundary regressions for the 16 outstanding findings. Final coverage
-passed all nine workspace tasks on the second full run, with no assertions or
-coverage thresholds weakened. The first run identified an uncovered bounded
-history rollover branch; its regression now verifies the capacity boundary.
+The PR #264 corrections cover nullable payment evidence, bounded membership
+reconciliation, recognition throughput and the full asynchronous refresh lifecycle.
+Regression fixtures include concurrent refreshes, expiry, disconnects, delayed
+publication, admin test qualifications and real dashboard callback/polling effects.
+All nine existing workspace coverage gates pass without relaxed assertions.
 
 | Workspace   | Passing tests | Reported statements / branches / functions / lines |
 | ----------- | ------------: | -------------------------------------------------- |
 | Shared      |            88 | 100% / 100% / 100% / 100%                          |
-| Backend     |           331 | 100% / 100% / 100% / 100%                          |
-| Discord bot |           316 | 100% / 100% / 100% / 100%                          |
+| Backend     |           382 | 100% / 100% / 100% / 100%                          |
+| Discord bot |           317 | 100% / 100% / 100% / 100%                          |
 | Twitch bot  |           124 | 100% / 100% / 100% / 100%                          |
-| Dashboard   |            98 | 100% / 100% / 100% / 100%                          |
+| Dashboard   |           100 | 100% / 100% / 100% / 100%                          |
 | Environment |            23 | 100% / 100% / 100% / 100%                          |
 | Logger      |             7 | 100% / 100% / 100% / 100%                          |
 | Landing     |             4 | 100% / 100% / 100% / 100%                          |
 | UI          |             2 | 100% / 100% / 100% / 100%                          |
 
-Total: **993 passing tests**. Coverage uses each package's established inclusion
+Total: **1,047 passing tests**. Coverage uses each package's established inclusion
 list. Shared and Twitch include their full source scopes; backend, Discord and
 dashboard have explicit existing coverage allowlists. These percentages do not
 claim every new integration file has 100% coverage. The added functional tests
@@ -323,17 +409,20 @@ exercise OAuth identity/state, signed application events, test Checkout and
 payment reconciliation, refunds, privacy, durable delivery states, policy locks,
 cache leases and signed Twitch chat routing.
 
-Executed successfully: changed-file Prettier check, `bun run lint:ci`,
-`bun run typecheck`, `bun run test:ci` with Git Bash on PATH,
-`bun run test:coverage --concurrency=1 --continue`, and `bun run build`.
-The eight added browser checks exercise real React callback effects in Strict
-Mode, URL cleanup and independent recognition preferences through the existing
-Twitch Playwright fixture. The full Twitch/browser suite passed 27 checks and
-welcome verification passed 12 checks across Chromium and Firefox. GitHub CI
-results are recorded on the PR; no additional review was requested.
-Coverage executes the
-same test suites as package `test` scripts; a redundant final root test run was
-not added. Final coverage reran affected workspaces and reused unchanged Turbo tasks.
+Executed successfully against the PR's committed dependency set: changed-file
+Prettier, root lint, all nine workspace TypeScript and coverage scripts, all four
+application builds, `bun run test:ci` with Git Bash on PATH and the two PWA build
+checks. The existing browser fixture covers FAQ interaction, direct Discord OAuth,
+callback cleanup, admin qualification controls, pending discovery, session recovery
+and independent purchase consents. The Twitch/community browser suite has 35 checks;
+welcome verification has 12 across Chromium and Firefox.
+
+Workspace scripts avoid a Windows Turborepo wrapper stall during typecheck and
+coverage. The Linux operations shell suite requires POSIX permission semantics;
+Git Bash cannot enforce its mode-0600 fixture on this Windows filesystem. The
+unchanged full root workflow and Linux operations checks must pass on the final PR
+HEAD before merge. Coverage executes the same suites as package `test` scripts.
+No additional independent review was requested.
 
 No external Discord installation, native-role claim, actual Stripe Checkout,
 live webhook delivery or VPS deployment was fabricated. Those operator smoke

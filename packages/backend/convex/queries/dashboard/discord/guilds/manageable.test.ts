@@ -16,7 +16,9 @@ const modules = {
 
 test("guild recency belongs to each manager's verified membership", async (t) => {
   const convex = convexTest({ schema, modules })
-  const now = 1_800_000_000_000
+  const now = Date.now()
+  let clock = now
+  t.mock.method(Date, "now", () => clock)
   const firstClerkUserId = "clerk_first_manager"
   const secondClerkUserId = "clerk_second_manager"
 
@@ -43,6 +45,18 @@ test("guild recency belongs to each manager's verified membership", async (t) =>
         createdAt: now,
         updatedAt: now,
       })
+      for (const [userId, providerAccountId] of [
+        [firstUserId, "223456789012345678"],
+        [secondUserId, "323456789012345678"],
+      ] as const)
+        await ctx.db.insert("linkedAccounts", {
+          userId,
+          provider: "discord",
+          providerAccountId,
+          scopes: [],
+          createdAt: now,
+          updatedAt: now,
+        })
       const firstMembershipId = await ctx.db.insert("discordGuildMemberships", {
         guildId,
         userId: firstUserId,
@@ -81,7 +95,7 @@ test("guild recency belongs to each manager's verified membership", async (t) =>
   assert.equal(firstGuilds[0]?.lastOpenedAt, 100)
   assert.equal(secondGuilds[0]?.lastOpenedAt, 200)
 
-  t.mock.method(Date, "now", () => 300)
+  clock = now + 300
   await convex
     .withIdentity({ subject: firstClerkUserId })
     .mutation(api.mutations.dashboard.discord.guilds.markOpened.markOpened, {
@@ -94,7 +108,7 @@ test("guild recency belongs to each manager's verified membership", async (t) =>
     secondMembership: await ctx.db.get(secondMembershipId),
   }))
 
-  assert.equal(stored.firstMembership?.lastOpenedAt, 300)
+  assert.equal(stored.firstMembership?.lastOpenedAt, now + 300)
   assert.equal(stored.secondMembership?.lastOpenedAt, 200)
   assert.equal(stored.guild?.lastOpenedAt, undefined)
 })

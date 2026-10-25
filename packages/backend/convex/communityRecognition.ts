@@ -28,63 +28,68 @@ export const claim = internalMutation({
         state: "uncertain",
         updatedAt: Date.now(),
       })
-    const row = await ctx.db
+    const pending = await ctx.db
       .query("communityAnnouncementOutbox")
       .withIndex("by_state", (q) => q.eq("state", "pending"))
-      .first()
-    if (!row) return null
-    const activation = await ctx.db.get(row.activationId)
-    const guild = activation ? await ctx.db.get(activation.guildId) : null
-    const consent = guild
-      ? await ctx.db
-          .query("communityPreferences")
-          .withIndex("by_guild", (q) => q.eq("guildId", guild._id))
-          .unique()
-      : null
-    const user = activation ? await ctx.db.get(activation.userId) : null
-    const discord = activation
-      ? await ctx.db
-          .query("linkedAccounts")
-          .withIndex("by_user_provider", (q) =>
-            q.eq("userId", activation.userId).eq("provider", "discord")
-          )
-          .take(2)
-      : []
-    if (
-      !activation ||
-      activation.testMode ||
-      activation.revoked ||
-      activation.paidUntil <= Date.now() ||
-      !activation.announce ||
-      !consent?.publishIdentity ||
-      !guild ||
-      guild.botLeftAt !== undefined ||
-      !user ||
-      user.status === "disabled" ||
-      discord.length !== 1 ||
-      discord[0]?.providerAccountId !== activation.discordUserId ||
-      guild.discordGuildId === backendEnv.CLEO_OFFICIAL_GUILD_ID ||
-      !(await getGuildAccess(ctx, guild, Date.now(), { includeRevoked: false }))
-        .capabilities.length
-    ) {
+      .take(20)
+    for (const row of pending) {
+      const activation = await ctx.db.get(row.activationId)
+      const guild = activation ? await ctx.db.get(activation.guildId) : null
+      const consent = guild
+        ? await ctx.db
+            .query("communityPreferences")
+            .withIndex("by_guild", (q) => q.eq("guildId", guild._id))
+            .unique()
+        : null
+      const user = activation ? await ctx.db.get(activation.userId) : null
+      const discord = activation
+        ? await ctx.db
+            .query("linkedAccounts")
+            .withIndex("by_user_provider", (q) =>
+              q.eq("userId", activation.userId).eq("provider", "discord")
+            )
+            .take(2)
+        : []
+      if (
+        !activation ||
+        activation.testMode ||
+        activation.revoked ||
+        activation.paidUntil <= Date.now() ||
+        !activation.announce ||
+        !consent?.publishIdentity ||
+        !guild ||
+        guild.botLeftAt !== undefined ||
+        !user ||
+        user.status === "disabled" ||
+        discord.length !== 1 ||
+        discord[0]?.providerAccountId !== activation.discordUserId ||
+        guild.discordGuildId === backendEnv.CLEO_OFFICIAL_GUILD_ID ||
+        !(
+          await getGuildAccess(ctx, guild, Date.now(), {
+            includeRevoked: false,
+          })
+        ).capabilities.length
+      ) {
+        await ctx.db.patch(row._id, {
+          state: "suppressed",
+          updatedAt: Date.now(),
+        })
+        continue
+      }
       await ctx.db.patch(row._id, {
-        state: "suppressed",
+        state: "sending",
+        attempt: args.attempt,
         updatedAt: Date.now(),
       })
-      return null
+      return {
+        id: row._id,
+        key: row.key,
+        discordUserId: activation.discordUserId,
+        name: guild.name,
+        purchaserKind: activation.purchaserKind,
+      }
     }
-    await ctx.db.patch(row._id, {
-      state: "sending",
-      attempt: args.attempt,
-      updatedAt: Date.now(),
-    })
-    return {
-      id: row._id,
-      key: row.key,
-      discordUserId: activation.discordUserId,
-      name: guild.name,
-      purchaserKind: activation.purchaserKind,
-    }
+    return null
   },
 })
 export const settle = internalMutation({

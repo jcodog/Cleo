@@ -122,7 +122,7 @@ export const stripeInvoice = z.object({
         .array(
           z.object({
             status: z.string(),
-            amount_paid: z.number().int(),
+            amount_paid: z.number().int().nullable(),
             payment: z.object({
               type: z.string(),
               payment_intent: id.optional(),

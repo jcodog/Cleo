@@ -1,4 +1,5 @@
 "use client"
+import { pollDiscordDiscovery } from "./pollDiscordDiscovery"
 
 import { useEffect, useRef, useState } from "react"
 import {
@@ -73,6 +74,7 @@ type InstallableGuild = {
 }
 
 type InstallableGuildsResult =
+  | { status: "verificationPending"; guilds: InstallableGuild[] }
   | {
       status: "missingDiscordIdentity"
     }
@@ -150,8 +152,15 @@ function DiscordAddServerState() {
     }
 
     let cancelled = false
+    const controller = new AbortController()
 
-    listInstallableGuilds({})
+    pollDiscordDiscovery(
+      () => listInstallableGuilds({}),
+      controller.signal,
+      (result) => {
+        if (!cancelled) setGuildResult(result)
+      }
+    )
       .then((result) => {
         if (!cancelled) {
           setGuildResult(result)
@@ -159,6 +168,11 @@ function DiscordAddServerState() {
       })
       .catch(() => {
         if (!cancelled) {
+          setGuildResult({
+            status: "discordGuildDiscoveryUnavailable",
+            reason: "discordApiUnavailable",
+            guilds: [],
+          })
           setNotice({
             tone: "destructive",
             title: "Discord servers could not be loaded",
@@ -170,6 +184,7 @@ function DiscordAddServerState() {
 
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [discoveryAuthState, listInstallableGuilds])
 
@@ -336,10 +351,14 @@ function DiscordAddServerState() {
   if (
     currentUser === undefined ||
     isConvexAuthLoading ||
-    (discoveryAuthState === "authenticated" && guildResult === null)
+    (discoveryAuthState === "authenticated" && guildResult === null) ||
+    guildResult?.status === "verificationPending"
   ) {
     return (
       <div className="flex flex-col gap-3">
+        {guildResult?.status === "verificationPending" ? (
+          <p role="status">Verifying Discord server access...</p>
+        ) : null}
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-12 w-full" />
       </div>
@@ -535,9 +554,51 @@ export function DiscordAddServerPageShell() {
         </Empty>
       </Unauthenticated>
       <Authenticated>
+        <AccountInstallation />
         <DiscordAddServerState />
       </Authenticated>
     </main>
+  )
+}
+
+function AccountInstallation() {
+  const install = useAction(api.communityActions.installAccount)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  return (
+    <section
+      className="mb-6 border-b pb-6"
+      aria-label="Personal Discord installation"
+    >
+      <h2 className="font-heading text-base font-medium">
+        Add Cleo to my Discord account
+      </h2>
+      <p className="mt-2 mb-3 text-sm text-muted-foreground">
+        Use Cleo's supported commands from your own Discord account.
+      </p>
+      <Button
+        variant="outline"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true)
+          setError("")
+          try {
+            window.location.assign(await install({}))
+          } catch {
+            setError("Discord installation could not be started. Try again.")
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        Add to my account
+      </Button>
+      {error ? (
+        <p role="alert" className="mt-2 text-sm">
+          {error}
+        </p>
+      ) : null}
+    </section>
   )
 }
 

@@ -37,6 +37,7 @@ const EMPTY_MANAGEABLE_GUILDS: ManageableGuild[] = []
 
 /** List deduplicated, openable guilds from authorized queries without inventing missing membership data. */
 export function DiscordDashboardPageShell() {
+  const refresh = useQuery(api.communityRoles.refreshProgress)
   const { isLoading: isConvexAuthLoading } = useConvexAuth()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
   const manageableGuilds = useQuery(
@@ -59,7 +60,8 @@ export function DiscordDashboardPageShell() {
   const isLoading =
     isConvexAuthLoading ||
     currentUser === undefined ||
-    manageableGuilds === undefined
+    manageableGuilds === undefined ||
+    refresh?.state === "pending"
 
   return (
     <DashboardFrame>

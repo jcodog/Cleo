@@ -139,6 +139,20 @@ export function configureCommunityRoleSync(client: Client<true>) {
               const id = mapping[key]
               if (!id) continue
               const wanted = job.eligibility[key] === "eligible"
+              if (wanted === member.roles.cache.has(id)) continue
+              if (
+                !(await service.client.action(
+                  api.communityRuntime.validateJob,
+                  {
+                    secret: service.secret,
+                    worker,
+                    id: job.id,
+                    revision: job.revision,
+                  }
+                ))
+              )
+                throw new Error("Role reconciliation was superseded.")
+              requireAvailableGuild()
               if (wanted && !member.roles.cache.has(id))
                 await member.roles.add(
                   id,

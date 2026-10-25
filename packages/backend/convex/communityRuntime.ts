@@ -4,7 +4,7 @@ import { action } from "./_generated/server"
 import { internal } from "./_generated/api"
 import { assertValidBotSecret } from "./actions/bot/discord/lib/auth"
 import { backendEnv } from "@workspace/env/backend"
-import { verifiedDiscordGuilds } from "./lib/communityDiscord"
+import { prepareCommunityRefresh } from "./lib/communityRefresh"
 import { roleJob } from "./communityRoles"
 
 export const claimJobs = action({
@@ -35,15 +35,10 @@ export const claimJobs = action({
         })
         if (account) {
           try {
-            const guilds = await verifiedDiscordGuilds(
-              account.user.clerkUserId,
-              job.discordUserId
-            )
-            await ctx.runMutation(internal.communityRoles.refreshGuilds, {
+            await prepareCommunityRefresh(ctx, {
               userId: account.user._id,
               discordUserId: job.discordUserId,
-              guilds,
-              reconciliation: true,
+              clerkUserId: account.user.clerkUserId,
             })
           } catch {
             /* Old evidence expires; outages do not confer continuing authority. */
@@ -74,6 +69,19 @@ export const settleJob = action({
   handler: async (ctx, { secret, ...args }) => {
     assertValidBotSecret(secret)
     return ctx.runMutation(internal.communityRoles.settle, args)
+  },
+})
+export const validateJob = action({
+  args: {
+    secret: v.string(),
+    worker: v.string(),
+    id: v.id("communityRoleJobs"),
+    revision: v.number(),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, { secret, ...args }) => {
+    assertValidBotSecret(secret)
+    return ctx.runQuery(internal.communityRoles.validateRoleJob, args)
   },
 })
 export const installationInteraction = action({

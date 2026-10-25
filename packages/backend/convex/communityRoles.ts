@@ -1,10 +1,27 @@
 import { v } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
 import { query, internalQuery, internalMutation } from "./_generated/server"
-import { requireCurrentUser } from "./lib/auth"
+import { requireCurrentUser, getCurrentUser } from "./lib/auth"
 import { roleEligibility, queueRoleSync } from "./lib/cleoRoleEligibility"
 import { internal } from "./_generated/api"
 import { userDoc, linkedAccountDoc } from "./lib/validators"
+import { discordGuildEvidence } from "./dbTables/discordGuildMemberships"
+import {
+  currentDiscordAccount,
+  discordGuildRefresh,
+} from "./lib/discordGuildMemberships"
+import { reconcileDiscordGuildRefresh } from "./lib/discordGuildRefresh"
+import {
+  refreshTicket,
+  refreshLifecycle,
+  guildRefreshLifecycle,
+  isAuthorityReduction,
+  rolePublicationState,
+} from "./lib/discordRefreshLifecycle"
+
+const MAX_VERIFICATION_ATTEMPTS = 5
+// Outside the supported epoch range; only a new revision makes this job due again.
+const PARKED_ROLE_JOB_AT = Number.MAX_SAFE_INTEGER
 
 const status = v.union(
   v.literal("eligible"),
@@ -126,7 +143,8 @@ export const dispatch = internalMutation({
       if (
         !row ||
         row.worker !== args.worker ||
-        row.attemptedRevision !== job.revision
+        row.attemptedRevision !== job.revision ||
+        row.leaseUntil === 0
       )
         continue
       if (row.revision !== job.revision || row.leaseUntil <= Date.now()) {
@@ -134,8 +152,53 @@ export const dispatch = internalMutation({
         continue
       }
       const leaseUntil = Date.now() + 60000
+      const publication = await rolePublicationState(ctx, row.discordUserId)
+      if (publication.account && publication.lifecycle?.state !== "complete") {
+        const pending = publication.lifecycle?.state === "pending"
+        const attempts = row.attempts + (pending ? 0 : 1)
+        await ctx.db.patch(row._id, {
+          leaseUntil: 0,
+          attempts,
+          nextAt: pending
+            ? Date.now() + 30000
+            : attempts >= MAX_VERIFICATION_ATTEMPTS
+              ? PARKED_ROLE_JOB_AT
+              : Date.now() + 30000 * 2 ** Math.min(attempts - 1, 3),
+        })
+        continue
+      }
       const eligibility = await roleEligibility(ctx, row.discordUserId)
-      await ctx.db.patch(row._id, { leaseUntil, nextAt: leaseUntil })
+      const snapshot =
+        publication.lifecycle?.state === "complete"
+          ? publication.lifecycle
+          : null
+      const testGrant = publication.account
+        ? await ctx.db
+            .query("communityRoleTestGrants")
+            .withIndex("by_user", (q) =>
+              q.eq("userId", publication.account!.userId)
+            )
+            .order("desc")
+            .first()
+        : null
+      const grantExpiresAt =
+        testGrant &&
+        testGrant.revokedAt === undefined &&
+        testGrant.linkedAccountId === publication.account?._id &&
+        testGrant.discordUserId === row.discordUserId &&
+        testGrant.expiresAt > Date.now()
+          ? testGrant.expiresAt
+          : Infinity
+      await ctx.db.patch(row._id, {
+        leaseUntil,
+        nextAt: leaseUntil,
+        attemptedAccountId: publication.account?._id,
+        attemptedRefreshId: snapshot?.ticket.id,
+        attemptedRefreshRevision: snapshot?.ticket.revision,
+        authorityUntil: snapshot
+          ? Math.min(snapshot.observedAt + 300000, grantExpiresAt)
+          : undefined,
+      })
       ready.push({
         ...job,
         discordUserId: row.discordUserId,
@@ -159,12 +222,14 @@ export const settle = internalMutation({
     if (
       !row ||
       row.worker !== args.worker ||
-      row.attemptedRevision !== args.revision
+      row.attemptedRevision !== args.revision ||
+      row.leaseUntil <= Date.now()
     )
       return null
     await ctx.db.patch(row._id, {
       leaseUntil: 0,
-      attempts: args.success ? 0 : row.attempts + 1,
+      attempts:
+        row.revision !== args.revision || args.success ? 0 : row.attempts + 1,
       nextAt:
         row.revision !== args.revision
           ? Date.now()
@@ -223,7 +288,10 @@ export const forDiscord = internalQuery({
       .take(2)
     const discord = accounts.length === 1 ? accounts[0] : undefined
     const user = discord ? await ctx.db.get(discord.userId) : null
-    return discord && user && user.status !== "disabled"
+    return discord &&
+      user &&
+      user.status !== "disabled" &&
+      (await currentDiscordAccount(ctx, user._id))?._id === discord._id
       ? { user, discord }
       : null
   },
@@ -233,90 +301,161 @@ export const refreshGuilds = internalMutation({
     userId: v.id("users"),
     discordUserId: v.string(),
     reconciliation: v.optional(v.boolean()),
-    guilds: v.array(
-      v.object({
-        id: v.string(),
-        owner: v.optional(v.boolean()),
-        permissions: v.optional(v.string()),
-      })
-    ),
+    observedAt: v.number(),
+    guilds: v.array(discordGuildEvidence),
   },
+  returns: refreshLifecycle,
+  handler: async (ctx, args) => {
+    if (
+      args.guilds.length > 1000 ||
+      new Set(args.guilds.map((guild) => guild.id)).size !== args.guilds.length
+    )
+      throw new Error("Membership batch exceeds bounds or contains duplicates.")
+    const account = await currentDiscordAccount(ctx, args.userId)
+    if (!account || account.providerAccountId !== args.discordUserId)
+      throw new Error("Discord identity changed.")
+    const previous = await discordGuildRefresh(ctx, args.discordUserId)
+    const observedAt = args.observedAt
+    if (
+      !Number.isSafeInteger(observedAt) ||
+      observedAt > Date.now() + 5000 ||
+      observedAt <= Date.now() - 300000 ||
+      observedAt < account.createdAt
+    )
+      throw new Error("Discord membership verification expired or changed.")
+    if (previous && previous.startedAt > observedAt)
+      return { state: "superseded" as const }
+    if (
+      previous &&
+      previous.startedAt === observedAt &&
+      previous.linkedAccountId === account._id &&
+      previous.userId === args.userId
+    ) {
+      if (JSON.stringify(previous.guilds) === JSON.stringify(args.guilds))
+        return (await guildRefreshLifecycle(ctx, args))!
+      if (!isAuthorityReduction(previous.guilds, args.guilds))
+        return { state: "superseded" as const }
+    }
+    const revision = (previous?.revision ?? 0) + 1
+    const value = {
+      userId: args.userId,
+      discordUserId: args.discordUserId,
+      linkedAccountId: account._id,
+      revision,
+      startedAt: observedAt,
+      state: "pending" as const,
+      phase: "existing" as const,
+      cursor: undefined,
+      offset: 0,
+      guilds: args.guilds,
+      reconciliation: args.reconciliation ?? false,
+    }
+    const id =
+      previous?._id ?? (await ctx.db.insert("discordGuildRefreshes", value))
+    if (previous) await ctx.db.patch(id, value)
+    await queueRoleSync(ctx, args.discordUserId)
+    await reconcileDiscordGuildRefresh(ctx, id, revision)
+    return (await guildRefreshLifecycle(ctx, {
+      ...args,
+      ticket: { id, revision },
+    }))!
+  },
+})
+export const continueGuildRefresh = internalMutation({
+  args: { id: v.id("discordGuildRefreshes"), revision: v.number() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (args.guilds.length > 1000)
-      throw new Error("Membership batch too large.")
-    const accounts = await ctx.db
-      .query("linkedAccounts")
-      .withIndex("by_user_provider", (q) =>
-        q.eq("userId", args.userId).eq("provider", "discord")
-      )
-      .take(2)
-    if (
-      accounts.length !== 1 ||
-      accounts[0]?.providerAccountId !== args.discordUserId
-    )
-      throw new Error("Discord identity changed.")
-    const now = Date.now()
-    const old = await ctx.db
-      .query("discordGuildMemberships")
-      .withIndex("by_discord_user_id", (q) =>
-        q.eq("discordUserId", args.discordUserId)
-      )
-      .take(101)
-    const incoming = new Map(args.guilds.map((g) => [g.id, g]))
-    for (const membership of old) {
-      const guild = await ctx.db.get(membership.guildId)
-      if (guild && !incoming.has(guild.discordGuildId))
-        await ctx.db.patch(membership._id, {
-          revokedAt: now,
-          canManage: false,
-          isOwner: false,
-          permissions: "0",
-          managementVerifiedAt: now,
-          updatedAt: now,
-        })
-    }
-    for (const incomingGuild of args.guilds) {
-      const guild = await ctx.db
-        .query("guilds")
-        .withIndex("by_discord_guild_id", (q) =>
-          q.eq("discordGuildId", incomingGuild.id)
-        )
-        .unique()
-      if (!guild || guild.botLeftAt !== undefined) continue
-      const current = await ctx.db
-        .query("discordGuildMemberships")
-        .withIndex("by_guild_id_and_discord_user_id", (q) =>
-          q.eq("guildId", guild._id).eq("discordUserId", args.discordUserId)
-        )
-        .unique()
-      let canManage = !!incomingGuild.owner
-      try {
-        canManage ||= (BigInt(incomingGuild.permissions ?? "0") & 40n) !== 0n
-      } catch {
-        /* No authority from malformed permissions. */
-      }
-      const value = {
-        guildId: guild._id,
-        userId: args.userId,
-        discordUserId: args.discordUserId,
-        isOwner: !!incomingGuild.owner,
-        permissions: incomingGuild.permissions ?? "0",
-        canManage,
-        managementVerifiedAt: now,
-        managementVerificationSource: "discord-oauth" as const,
-        revokedAt: undefined,
-        createdAt: current?.createdAt ?? now,
-        updatedAt: now,
-      }
-      if (current) await ctx.db.patch(current._id, value)
-      else await ctx.db.insert("discordGuildMemberships", value)
-      if (incomingGuild.owner)
-        await ctx.db.patch(guild._id, { ownerDiscordId: args.discordUserId })
-      else if (guild.ownerDiscordId === args.discordUserId)
-        await ctx.db.patch(guild._id, { ownerDiscordId: undefined })
-    }
-    if (!args.reconciliation) await queueRoleSync(ctx, args.discordUserId)
+    await reconcileDiscordGuildRefresh(ctx, args.id, args.revision)
     return null
+  },
+})
+export const refreshStatus = internalQuery({
+  args: {
+    userId: v.id("users"),
+    discordUserId: v.string(),
+    ticket: v.optional(refreshTicket),
+  },
+  returns: v.union(refreshLifecycle, v.null()),
+  handler: guildRefreshLifecycle,
+})
+export const refreshProgress = query({
+  args: {},
+  returns: v.union(refreshLifecycle, v.null()),
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx)
+    if (!user || user.status === "disabled") return null
+    const account = await currentDiscordAccount(ctx, user._id)
+    return account
+      ? guildRefreshLifecycle(ctx, {
+          userId: user._id,
+          discordUserId: account.providerAccountId,
+        })
+      : null
+  },
+})
+export const validateRoleJob = internalQuery({
+  args: {
+    id: v.id("communityRoleJobs"),
+    worker: v.string(),
+    revision: v.number(),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get(args.id)
+    if (
+      !row ||
+      row.worker !== args.worker ||
+      row.revision !== args.revision ||
+      row.attemptedRevision !== args.revision ||
+      row.leaseUntil <= Date.now() ||
+      (row.authorityUntil !== undefined && row.authorityUntil <= Date.now())
+    )
+      return false
+    const current = await rolePublicationState(
+      ctx,
+      row.discordUserId,
+      row.attemptedRefreshId !== undefined &&
+        row.attemptedRefreshRevision !== undefined
+        ? { id: row.attemptedRefreshId, revision: row.attemptedRefreshRevision }
+        : undefined
+    )
+    return (
+      current.account?._id === row.attemptedAccountId &&
+      (!current.account || current.lifecycle?.state === "complete")
+    )
+  },
+})
+export const publication = internalQuery({
+  args: {
+    userId: v.id("users"),
+    discordUserId: v.string(),
+    ticket: v.optional(refreshTicket),
+    connectionRevision: v.number(),
+  },
+  returns: v.union(eligibilityValidator, v.null()),
+  handler: async (ctx, args) => {
+    const connection = await ctx.db
+      .query("discordRoleConnections")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique()
+    if (
+      !connection ||
+      connection.revokedAt !== undefined ||
+      connection.revision !== args.connectionRevision ||
+      connection.discordUserId !== args.discordUserId ||
+      (connection.leaseUntil ?? 0) <= Date.now()
+    )
+      return null
+    const current = await rolePublicationState(
+      ctx,
+      args.discordUserId,
+      args.ticket
+    )
+    if (
+      current.account?.userId !== args.userId ||
+      current.lifecycle?.state !== "complete"
+    )
+      return null
+    return roleEligibility(ctx, args.discordUserId)
   },
 })

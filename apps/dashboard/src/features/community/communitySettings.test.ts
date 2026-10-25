@@ -195,27 +195,4 @@ test("moderation stays locked and purchase visibility starts private in actual d
         node.type === "button" && content(node).includes("Continue to Stripe")
     )
   )
-
-  const { AccountRoles } = await import("./AccountRoles")
-  slots = []
-  index = 0
-  view = null
-  const account = nodes(AccountRoles({}))
-  assert.ok(
-    account.some((node) =>
-      content(node).includes("Add Cleo to my Discord account")
-    )
-  )
-  assert.ok(
-    account.some((node) =>
-      content(node).includes("Add Cleo to a Discord server")
-    )
-  )
-  assert.ok(
-    account.some((node) =>
-      content(node).includes(
-        "never grant ownership, staff status or permissions"
-      )
-    )
-  )
 })

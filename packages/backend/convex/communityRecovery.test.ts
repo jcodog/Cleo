@@ -138,6 +138,340 @@ async function fixture() {
   }
 }
 
+test("nullable unpaid invoice payments preserve failure grace, successful retries and sticky reversal ordering", async (t) => {
+  const f = await fixture()
+  await f.activate()
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  let subscriptionStatus = "past_due",
+    mode = "open",
+    refunded = false
+  const periodEnd = Math.floor(now / 1000) + 172800
+  const unpaid = ["open", "canceled"].map((status) => ({
+    status,
+    amount_paid: null,
+    payment: { type: "payment_intent", payment_intent: `pi_${status}` },
+  }))
+  const invoice = () => ({
+    id: "in_retry",
+    amount_paid: mode === "open" ? 0 : 1000,
+    status: mode === "open" ? "open" : "paid",
+    parent: { subscription_details: { subscription: "sub_one" } },
+    period_end: periodEnd,
+    lines: {
+      has_more: mode === "lines",
+      data: [
+        {
+          period: { start: periodEnd - 172800, end: periodEnd },
+          parent: { subscription_item_details: { subscription: "sub_one" } },
+        },
+      ],
+    },
+    payments: {
+      has_more: mode === "payments",
+      data: [
+        ...unpaid,
+        ...(mode === "missing" || mode === "open"
+          ? []
+          : [
+              {
+                status: "paid",
+                amount_paid: mode === "null-paid" ? null : 1000,
+                payment: { type: "payment_intent", payment_intent: "pi_retry" },
+              },
+            ]),
+      ],
+    },
+  })
+  fetchFixture(t, async (input) => {
+    const url = String(input)
+    if (url.includes("/subscriptions/"))
+      return Response.json({
+        id: "sub_one",
+        customer: "cus_alice",
+        status: subscriptionStatus,
+        cancel_at_period_end: false,
+        metadata: { cleo_checkout: f.reservation.key },
+        latest_invoice: "in_retry",
+        items: {
+          data: [
+            {
+              current_period_start: periodEnd - 172800,
+              current_period_end: periodEnd,
+              price: { id: "price_premium", product: "prod_premium" },
+            },
+          ],
+        },
+      })
+    if (url.includes("/invoices/")) return Response.json(invoice())
+    if (url.includes("/payment_intents/")) {
+      assert.ok(
+        url.endsWith("/pi_retry"),
+        "Unpaid siblings must not be looked up as payment evidence"
+      )
+      return Response.json({
+        status: "succeeded",
+        customer: mode === "identity" ? "cus_other" : "cus_alice",
+        amount_received: 1000,
+        latest_charge: "ch_retry",
+      })
+    }
+    if (url.includes("/charges/"))
+      return Response.json({
+        customer: "cus_alice",
+        payment_intent: "pi_retry",
+        paid: true,
+        refunded,
+        disputed: false,
+        amount_refunded: refunded ? 1000 : 0,
+      })
+    throw new Error("Unexpected Stripe fixture request")
+  })
+  const webhook = async (id: string, type: string, object: unknown) => {
+    const body = JSON.stringify({ id, type, livemode: false, data: { object } })
+    const timestamp = String(Math.floor(now / 1000))
+    return f.t.action(internal.premiumActions.webhook, {
+      body,
+      signature: `t=${timestamp},v1=${createHmac("sha256", "whsec_fixture").update(`${timestamp}.${body}`).digest("hex")}`,
+    })
+  }
+  const subscription = () =>
+    f.t.run((ctx) => ctx.db.query("guildSubscriptions").unique())
+  const activation = () =>
+    f.t.run((ctx) => ctx.db.query("paidCommunityActivations").unique())
+  assert.equal(
+    await webhook("failed", "invoice.payment_failed", invoice()),
+    true
+  )
+  const failed = (await subscription())!
+  assert.equal(failed.status, "past_due")
+  assert.equal(failed.graceEndsAt, now + 86400000)
+  now += 3600000
+  assert.equal(
+    await webhook("failed-again", "invoice.payment_failed", invoice()),
+    true
+  )
+  assert.equal((await subscription())?.graceEndsAt, failed.graceEndsAt)
+  mode = "paid"
+  subscriptionStatus = "active"
+  assert.equal(await webhook("retry-paid", "invoice.paid", invoice()), true)
+  assert.equal((await activation())?.paidUntil, periodEnd * 1000)
+  assert.equal((await subscription())?.graceEndsAt, undefined)
+  assert.equal(await webhook("retry-paid", "invoice.paid", invoice()), true)
+  assert.equal(
+    (
+      await f.t.run((ctx) =>
+        ctx.db
+          .query("communityPayments")
+          .withIndex("by_charge", (q) => q.eq("chargeId", "ch_retry"))
+          .collect()
+      )
+    ).length,
+    1
+  )
+  for (mode of ["lines", "payments", "missing", "null-paid", "identity"]) {
+    await assert.rejects(
+      webhook(`invalid-${mode}`, "invoice.paid", invoice()),
+      /evidence required|successful Stripe payment/
+    )
+    assert.equal((await activation())?.paidUntil, periodEnd * 1000)
+  }
+  mode = "paid"
+  refunded = true
+  assert.equal(
+    await webhook("refund", "charge.refunded", {
+      id: "ch_retry",
+      payment_intent: "pi_retry",
+    }),
+    true
+  )
+  refunded = false
+  assert.equal(await webhook("late-paid", "invoice.paid", invoice()), true)
+  assert.equal((await subscription())?.revokedAt !== undefined, true)
+})
+
+test("recognition advances past mixed suppressed entries and never retries the eligible row's uncertain send", async (t) => {
+  const f = await fixture()
+  await f.activate()
+  await f.t.mutation(internal.premiumPurchases.communityConsent, {
+    discordGuildId,
+    publishIdentity: true,
+  })
+  const original = (await f.t.run((ctx) =>
+    ctx.db.query("communityAnnouncementOutbox").unique()
+  ))!
+  await f.t.run(async (ctx) => {
+    const activation = (await ctx.db.get(original.activationId))!
+    await ctx.db.patch(activation._id, { announce: false })
+    const { _id, _creationTime, ...value } = activation
+    void _id
+    void _creationTime
+    const privateGuild = await ctx.db.insert("guilds", {
+      discordGuildId: "444444444444444444",
+      name: "Private community",
+      botInstallationVerifiedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    for (const [index, changes] of [
+      { announce: false },
+      { testMode: true },
+      { revoked: true },
+      { paidUntil: Date.now() },
+      { guildId: privateGuild },
+      { discordUserId: "222222222222222222" },
+      {},
+    ].entries()) {
+      const activationId = await ctx.db.insert("paidCommunityActivations", {
+        ...value,
+        subscriptionId: `sub_mixed_${index}`,
+        ...changes,
+      })
+      await ctx.db.insert("communityAnnouncementOutbox", {
+        activationId,
+        key: `mixed-${index}`,
+        state: "pending",
+        updatedAt: Date.now(),
+      })
+    }
+  })
+  let posts = 0
+  fetchFixture(t, async (input, init) => {
+    if (init?.method === "POST") {
+      posts++
+      const body = JSON.parse(String(init.body))
+      assert.deepEqual(body.allowed_mentions, {
+        parse: [],
+        users: [discordUserId],
+      })
+      assert.equal(body.content.includes("Private community"), false)
+      throw new Error("uncertain delivery fixture")
+    }
+    assert.ok(String(input).includes("/channels/"))
+    return Response.json({ guild_id: process.env.CLEO_OFFICIAL_GUILD_ID })
+  })
+  await f.t.action(internal.recognitionActions.deliver, {})
+  const rows = await f.t.run((ctx) =>
+    ctx.db.query("communityAnnouncementOutbox").collect()
+  )
+  assert.equal(rows.filter((row) => row.state === "suppressed").length, 7)
+  assert.equal(rows.filter((row) => row.state === "uncertain").length, 1)
+  assert.equal(posts, 1)
+  await f.t.action(internal.recognitionActions.deliver, {})
+  assert.equal(posts, 1)
+})
+
+test("suppression is capped at 20 pending records per claim despite historical outbox rows", async () => {
+  const f = await fixture()
+  await f.activate()
+  const original = (await f.t.run((ctx) =>
+    ctx.db.query("communityAnnouncementOutbox").unique()
+  ))!
+  await f.t.run(async (ctx) => {
+    await ctx.db.patch(original.activationId, { announce: false })
+    for (let i = 0; i < 124; i++)
+      await ctx.db.insert("communityAnnouncementOutbox", {
+        activationId: original.activationId,
+        key: `bounded-${i}`,
+        state: i < 24 ? "pending" : "sent",
+        updatedAt: Date.now(),
+      })
+  })
+  assert.equal(
+    await f.t.mutation(internal.communityRecognition.claim, {
+      attempt: "first",
+    }),
+    null
+  )
+  let rows = await f.t.run((ctx) =>
+    ctx.db.query("communityAnnouncementOutbox").collect()
+  )
+  assert.equal(rows.filter((row) => row.state === "pending").length, 5)
+  assert.equal(rows.filter((row) => row.state === "suppressed").length, 20)
+  assert.equal(
+    await f.t.mutation(internal.communityRecognition.claim, {
+      attempt: "second",
+    }),
+    null
+  )
+  rows = await f.t.run((ctx) =>
+    ctx.db.query("communityAnnouncementOutbox").collect()
+  )
+  assert.equal(rows.filter((row) => row.state === "suppressed").length, 25)
+  assert.equal(rows.filter((row) => row.state === "sent").length, 100)
+})
+
+test("concurrent recognition claims own distinct eligible rows and settlement keeps attempt fencing", async () => {
+  const f = await fixture()
+  await f.activate()
+  await f.t.mutation(internal.premiumPurchases.communityConsent, {
+    discordGuildId,
+    publishIdentity: true,
+  })
+  const original = (await f.t.run((ctx) =>
+    ctx.db.query("communityAnnouncementOutbox").unique()
+  ))!
+  await f.t.run((ctx) =>
+    ctx.db.insert("communityAnnouncementOutbox", {
+      activationId: original.activationId,
+      key: "second-eligible",
+      state: "pending",
+      updatedAt: Date.now(),
+    })
+  )
+  const [one, two] = await Promise.all(
+    ["one", "two"].map((attempt) =>
+      f.t.mutation(internal.communityRecognition.claim, { attempt })
+    )
+  )
+  assert.ok(one && two)
+  assert.notEqual(one.id, two.id)
+  await f.t.mutation(internal.communityRecognition.settle, {
+    id: one.id,
+    attempt: "two",
+    messageId: "forged",
+  })
+  assert.equal((await f.t.run((ctx) => ctx.db.get(one.id)))?.state, "sending")
+  await f.t.mutation(internal.communityRecognition.settle, {
+    id: one.id,
+    attempt: "one",
+  })
+  assert.equal((await f.t.run((ctx) => ctx.db.get(one.id)))?.state, "uncertain")
+  assert.equal(
+    await f.t.mutation(internal.communityRecognition.claim, {
+      attempt: "no-replay",
+    }),
+    null
+  )
+})
+
+test("recognition requires current guild entitlement even when activation has not expired", async () => {
+  const f = await fixture()
+  await f.activate()
+  await f.t.mutation(internal.premiumPurchases.communityConsent, {
+    discordGuildId,
+    publishIdentity: true,
+  })
+  await f.t.run(async (ctx) => {
+    const subscription = (await ctx.db.query("guildSubscriptions").unique())!
+    await ctx.db.patch(subscription._id, { endsAt: Date.now() })
+  })
+  assert.equal(
+    await f.t.mutation(internal.communityRecognition.claim, {
+      attempt: "expired-entitlement",
+    }),
+    null
+  )
+  assert.equal(
+    (
+      await f.t.run((ctx) =>
+        ctx.db.query("communityAnnouncementOutbox").unique()
+      )
+    )?.state,
+    "suppressed"
+  )
+})
+
 test("role batches prepare slow providers concurrently and dispatch fresh fenced leases", async (t) => {
   const f = await fixture()
   let now = Date.now()
@@ -200,8 +534,22 @@ test("role batches prepare slow providers concurrently and dispatch fresh fenced
   assert.equal(started, 5)
   now += 55000
   release()
-  const result = await work
-  assert.equal(result?.jobs.length, 5)
+  const intermediate = await work
+  assert.deepEqual(
+    intermediate?.jobs,
+    [],
+    "Starting or completing verification invalidates the claimed generation; failed providers never dispatch"
+  )
+  const result = await f.t.action(api.communityRuntime.claimJobs, {
+    secret: "fixture-secret",
+    worker: "shard-owner",
+  })
+  assert.equal(result?.jobs.length, 4)
+  assert.equal(
+    started,
+    5,
+    "Completed snapshots must be reused without another provider call"
+  )
   assert.ok(result.jobs.every((job) => job.leaseUntil === now + 60000))
   assert.deepEqual(
     await f.t.mutation(internal.communityRoles.dispatch, {

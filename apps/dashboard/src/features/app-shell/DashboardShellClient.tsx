@@ -214,6 +214,12 @@ export function DashboardShellClient({
           icon: IconLifebuoy,
           isActive: pathname.startsWith("/staff/support-tickets"),
         },
+        {
+          title: "Linked Roles testing",
+          href: "/staff/linked-roles",
+          icon: IconShield,
+          isActive: pathname.startsWith("/staff/linked-roles"),
+        },
       ],
     },
   ]
@@ -261,7 +267,7 @@ export function DashboardShellClient({
         {
           items: [
             {
-              title: "Account and roles",
+              title: "Linked Roles",
               href: "/account/roles",
               icon: IconShield,
               isActive: pathname === "/account/roles",
