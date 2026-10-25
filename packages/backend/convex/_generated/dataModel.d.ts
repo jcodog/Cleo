@@ -485,8 +485,12 @@ export type DataModel = {
   };
   communityRoleJobs: {
     document: {
+      attemptedAccountId?: Id<"linkedAccounts">;
+      attemptedRefreshId?: Id<"discordGuildRefreshes">;
+      attemptedRefreshRevision?: number;
       attemptedRevision?: number;
       attempts: number;
+      authorityUntil?: number;
       discordUserId: string;
       leaseUntil: number;
       nextAt: number;
@@ -498,8 +502,12 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "attemptedAccountId"
+      | "attemptedRefreshId"
+      | "attemptedRefreshRevision"
       | "attemptedRevision"
       | "attempts"
+      | "authorityUntil"
       | "discordUserId"
       | "leaseUntil"
       | "nextAt"
@@ -510,6 +518,55 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_due: ["nextAt", "_creationTime"];
       by_user: ["discordUserId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  communityRoleTestGrants: {
+    document: {
+      createdAt: number;
+      discordUserId: string;
+      expiresAt: number;
+      grantedBy: Id<"users">;
+      linkedAccountId: Id<"linkedAccounts">;
+      reason: string;
+      revocationReason?: string;
+      revokedAt?: number;
+      revokedBy?: Id<"users">;
+      roles: Array<
+        | "member"
+        | "personalPremium"
+        | "creatorPro"
+        | "discordBotUser"
+        | "twitchBotUser"
+        | "communityOwner"
+        | "premiumCommunityOwner"
+        | "communityManager"
+        | "premiumCommunityManager"
+        | "premiumSupporter"
+      >;
+      userId: Id<"users">;
+      _id: Id<"communityRoleTestGrants">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "createdAt"
+      | "discordUserId"
+      | "expiresAt"
+      | "grantedBy"
+      | "linkedAccountId"
+      | "reason"
+      | "revocationReason"
+      | "revokedAt"
+      | "revokedBy"
+      | "roles"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_user: ["userId", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -1623,6 +1680,7 @@ export type DataModel = {
       encryptedTokens: string;
       expiresAt: number;
       leaseUntil?: number;
+      publishedMetadata?: string;
       revision: number;
       revokedAt?: number;
       updatedAt: number;
@@ -1637,6 +1695,7 @@ export type DataModel = {
       | "encryptedTokens"
       | "expiresAt"
       | "leaseUntil"
+      | "publishedMetadata"
       | "revision"
       | "revokedAt"
       | "updatedAt"

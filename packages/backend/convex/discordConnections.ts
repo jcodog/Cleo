@@ -1,4 +1,8 @@
 import { v } from "convex/values"
+import {
+  refreshTicket,
+  guildRefreshLifecycle,
+} from "./lib/discordRefreshLifecycle"
 import { internalMutation, internalQuery } from "./_generated/server"
 import { internal } from "./_generated/api"
 import { queueRoleSync } from "./lib/cleoRoleEligibility"
@@ -88,6 +92,10 @@ export const storeTokens = internalMutation({
       userId: args.userId,
       discordUserId: args.discordUserId,
       encryptedTokens: args.encryptedTokens,
+      publishedMetadata:
+        args.expectedRevision === undefined
+          ? undefined
+          : current?.publishedMetadata,
       expiresAt: args.expiresAt,
       revision: (current?.revision ?? 0) + 1,
       leaseUntil:
@@ -134,14 +142,21 @@ export const revoke = internalMutation({
   },
 })
 export const lease = internalMutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), expectedRevision: v.optional(v.number()) },
   returns: v.union(roleConnectionDoc, v.null()),
   handler: async (ctx, args) => {
     const row = await ctx.db
       .query("discordRoleConnections")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .unique()
-    if (!row || row.revokedAt || (row.leaseUntil ?? 0) > Date.now()) return null
+    if (
+      !row ||
+      row.revokedAt !== undefined ||
+      (row.leaseUntil ?? 0) > Date.now() ||
+      (args.expectedRevision !== undefined &&
+        row.revision !== args.expectedRevision)
+    )
+      return null
     await ctx.db.patch(row._id, { leaseUntil: Date.now() + 60000 })
     return row
   },
@@ -156,6 +171,36 @@ export const release = internalMutation({
       .unique()
     if (row?.revision === args.revision)
       await ctx.db.patch(row._id, { leaseUntil: 0, updatedAt: Date.now() })
+    return null
+  },
+})
+export const published = internalMutation({
+  args: {
+    userId: v.id("users"),
+    expectedRevision: v.number(),
+    metadata: v.string(),
+    ticket: v.optional(refreshTicket),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("discordRoleConnections")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique()
+    if (
+      row &&
+      row.revokedAt === undefined &&
+      row.revision === args.expectedRevision &&
+      (row.leaseUntil ?? 0) > Date.now()
+    ) {
+      const current = await guildRefreshLifecycle(ctx, {
+        userId: args.userId,
+        discordUserId: row.discordUserId,
+        ticket: args.ticket,
+      })
+      if (current?.state === "complete")
+        await ctx.db.patch(row._id, { publishedMetadata: args.metadata })
+    }
     return null
   },
 })

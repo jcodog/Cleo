@@ -140,7 +140,7 @@ export async function roleEligibility(
       }
     }
   }
-  return resolveCleoRoleEligibility({
+  const eligibility = resolveCleoRoleEligibility({
     now,
     verifiedAccount: !!account && !!user && user.status !== "disabled",
     officialGuildId: backendEnv.CLEO_OFFICIAL_GUILD_ID,
@@ -149,6 +149,23 @@ export async function roleEligibility(
     twitchActive,
     paidSupporter,
   })
+  // Test qualifications affect permission-free community roles only, never billing or guild access.
+  if (account && user && user.status !== "disabled") {
+    const grant = await ctx.db
+      .query("communityRoleTestGrants")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .first()
+    if (
+      grant &&
+      grant.revokedAt === undefined &&
+      grant.expiresAt > now &&
+      grant.discordUserId === discordUserId &&
+      grant.linkedAccountId === account._id
+    )
+      for (const role of grant.roles) eligibility[role] = "eligible"
+  }
+  return eligibility
 }
 export async function queueRoleSync(
   ctx: MutationCtx,

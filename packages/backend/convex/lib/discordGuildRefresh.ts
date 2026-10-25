@@ -23,6 +23,7 @@ export async function reconcileDiscordGuildRefresh(
     account._id !== refresh.linkedAccountId ||
     account.providerAccountId !== refresh.discordUserId ||
     !user ||
+    refresh.startedAt < account.createdAt ||
     user.status === "disabled" ||
     refresh.startedAt <= Date.now() - DISCORD_MANAGEMENT_TTL
   ) {
@@ -114,10 +115,17 @@ export async function reconcileDiscordGuildRefresh(
     cursor,
     offset,
     state: complete ? "complete" : "pending",
-    ...(complete ? { guilds: [] } : {}),
   })
   if (complete) {
-    if (!refresh.reconciliation) await queueRoleSync(ctx, refresh.discordUserId)
+    await queueRoleSync(ctx, refresh.discordUserId)
+    await ctx.scheduler.runAfter(
+      0,
+      internal.communityActions.publishLinkedRoles,
+      {
+        userId: refresh.userId,
+        refresh: { id, revision },
+      }
+    )
   } else
     await ctx.scheduler.runAfter(
       0,

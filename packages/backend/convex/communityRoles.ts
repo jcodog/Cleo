@@ -1,7 +1,7 @@
 import { v } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
 import { query, internalQuery, internalMutation } from "./_generated/server"
-import { requireCurrentUser } from "./lib/auth"
+import { requireCurrentUser, getCurrentUser } from "./lib/auth"
 import { roleEligibility, queueRoleSync } from "./lib/cleoRoleEligibility"
 import { internal } from "./_generated/api"
 import { userDoc, linkedAccountDoc } from "./lib/validators"
@@ -11,6 +11,13 @@ import {
   discordGuildRefresh,
 } from "./lib/discordGuildMemberships"
 import { reconcileDiscordGuildRefresh } from "./lib/discordGuildRefresh"
+import {
+  refreshTicket,
+  refreshLifecycle,
+  guildRefreshLifecycle,
+  isAuthorityReduction,
+  rolePublicationState,
+} from "./lib/discordRefreshLifecycle"
 
 const status = v.union(
   v.literal("eligible"),
@@ -140,8 +147,46 @@ export const dispatch = internalMutation({
         continue
       }
       const leaseUntil = Date.now() + 60000
+      const publication = await rolePublicationState(ctx, row.discordUserId)
+      if (publication.account && publication.lifecycle?.state !== "complete") {
+        await ctx.db.patch(row._id, {
+          leaseUntil: 0,
+          nextAt: Date.now() + 30000,
+        })
+        continue
+      }
       const eligibility = await roleEligibility(ctx, row.discordUserId)
-      await ctx.db.patch(row._id, { leaseUntil, nextAt: leaseUntil })
+      const snapshot =
+        publication.lifecycle?.state === "complete"
+          ? publication.lifecycle
+          : null
+      const testGrant = publication.account
+        ? await ctx.db
+            .query("communityRoleTestGrants")
+            .withIndex("by_user", (q) =>
+              q.eq("userId", publication.account!.userId)
+            )
+            .order("desc")
+            .first()
+        : null
+      const grantExpiresAt =
+        testGrant &&
+        testGrant.revokedAt === undefined &&
+        testGrant.linkedAccountId === publication.account?._id &&
+        testGrant.discordUserId === row.discordUserId &&
+        testGrant.expiresAt > Date.now()
+          ? testGrant.expiresAt
+          : Infinity
+      await ctx.db.patch(row._id, {
+        leaseUntil,
+        nextAt: leaseUntil,
+        attemptedAccountId: publication.account?._id,
+        attemptedRefreshId: snapshot?.ticket.id,
+        attemptedRefreshRevision: snapshot?.ticket.revision,
+        authorityUntil: snapshot
+          ? Math.min(snapshot.observedAt + 300000, grantExpiresAt)
+          : undefined,
+      })
       ready.push({
         ...job,
         discordUserId: row.discordUserId,
@@ -229,7 +274,10 @@ export const forDiscord = internalQuery({
       .take(2)
     const discord = accounts.length === 1 ? accounts[0] : undefined
     const user = discord ? await ctx.db.get(discord.userId) : null
-    return discord && user && user.status !== "disabled"
+    return discord &&
+      user &&
+      user.status !== "disabled" &&
+      (await currentDiscordAccount(ctx, user._id))?._id === discord._id
       ? { user, discord }
       : null
   },
@@ -239,10 +287,10 @@ export const refreshGuilds = internalMutation({
     userId: v.id("users"),
     discordUserId: v.string(),
     reconciliation: v.optional(v.boolean()),
-    observedAt: v.optional(v.number()),
+    observedAt: v.number(),
     guilds: v.array(discordGuildEvidence),
   },
-  returns: v.null(),
+  returns: refreshLifecycle,
   handler: async (ctx, args) => {
     if (
       args.guilds.length > 1000 ||
@@ -253,7 +301,7 @@ export const refreshGuilds = internalMutation({
     if (!account || account.providerAccountId !== args.discordUserId)
       throw new Error("Discord identity changed.")
     const previous = await discordGuildRefresh(ctx, args.discordUserId)
-    const observedAt = args.observedAt ?? Date.now()
+    const observedAt = args.observedAt
     if (
       !Number.isSafeInteger(observedAt) ||
       observedAt > Date.now() + 5000 ||
@@ -261,7 +309,19 @@ export const refreshGuilds = internalMutation({
       observedAt < account.createdAt
     )
       throw new Error("Discord membership verification expired or changed.")
-    if (previous && previous.startedAt > observedAt) return null
+    if (previous && previous.startedAt > observedAt)
+      return { state: "superseded" as const }
+    if (
+      previous &&
+      previous.startedAt === observedAt &&
+      previous.linkedAccountId === account._id &&
+      previous.userId === args.userId
+    ) {
+      if (JSON.stringify(previous.guilds) === JSON.stringify(args.guilds))
+        return (await guildRefreshLifecycle(ctx, args))!
+      if (!isAuthorityReduction(previous.guilds, args.guilds))
+        return { state: "superseded" as const }
+    }
     const revision = (previous?.revision ?? 0) + 1
     const value = {
       userId: args.userId,
@@ -279,8 +339,12 @@ export const refreshGuilds = internalMutation({
     const id =
       previous?._id ?? (await ctx.db.insert("discordGuildRefreshes", value))
     if (previous) await ctx.db.patch(id, value)
+    await queueRoleSync(ctx, args.discordUserId)
     await reconcileDiscordGuildRefresh(ctx, id, revision)
-    return null
+    return (await guildRefreshLifecycle(ctx, {
+      ...args,
+      ticket: { id, revision },
+    }))!
   },
 })
 export const continueGuildRefresh = internalMutation({
@@ -289,5 +353,95 @@ export const continueGuildRefresh = internalMutation({
   handler: async (ctx, args) => {
     await reconcileDiscordGuildRefresh(ctx, args.id, args.revision)
     return null
+  },
+})
+export const refreshStatus = internalQuery({
+  args: {
+    userId: v.id("users"),
+    discordUserId: v.string(),
+    ticket: v.optional(refreshTicket),
+  },
+  returns: v.union(refreshLifecycle, v.null()),
+  handler: guildRefreshLifecycle,
+})
+export const refreshProgress = query({
+  args: {},
+  returns: v.union(refreshLifecycle, v.null()),
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx)
+    if (!user || user.status === "disabled") return null
+    const account = await currentDiscordAccount(ctx, user._id)
+    return account
+      ? guildRefreshLifecycle(ctx, {
+          userId: user._id,
+          discordUserId: account.providerAccountId,
+        })
+      : null
+  },
+})
+export const validateRoleJob = internalQuery({
+  args: {
+    id: v.id("communityRoleJobs"),
+    worker: v.string(),
+    revision: v.number(),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get(args.id)
+    if (
+      !row ||
+      row.worker !== args.worker ||
+      row.revision !== args.revision ||
+      row.attemptedRevision !== args.revision ||
+      row.leaseUntil <= Date.now() ||
+      (row.authorityUntil !== undefined && row.authorityUntil <= Date.now())
+    )
+      return false
+    const current = await rolePublicationState(
+      ctx,
+      row.discordUserId,
+      row.attemptedRefreshId !== undefined &&
+        row.attemptedRefreshRevision !== undefined
+        ? { id: row.attemptedRefreshId, revision: row.attemptedRefreshRevision }
+        : undefined
+    )
+    return (
+      current.account?._id === row.attemptedAccountId &&
+      (!current.account || current.lifecycle?.state === "complete")
+    )
+  },
+})
+export const publication = internalQuery({
+  args: {
+    userId: v.id("users"),
+    discordUserId: v.string(),
+    ticket: v.optional(refreshTicket),
+    connectionRevision: v.number(),
+  },
+  returns: v.union(eligibilityValidator, v.null()),
+  handler: async (ctx, args) => {
+    const connection = await ctx.db
+      .query("discordRoleConnections")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique()
+    if (
+      !connection ||
+      connection.revokedAt !== undefined ||
+      connection.revision !== args.connectionRevision ||
+      connection.discordUserId !== args.discordUserId ||
+      (connection.leaseUntil ?? 0) <= Date.now()
+    )
+      return null
+    const current = await rolePublicationState(
+      ctx,
+      args.discordUserId,
+      args.ticket
+    )
+    if (
+      current.account?.userId !== args.userId ||
+      current.lifecycle?.state !== "complete"
+    )
+      return null
+    return roleEligibility(ctx, args.discordUserId)
   },
 })

@@ -1053,6 +1053,12 @@ test("Linked Role OAuth binds the current Discord identity and publishes exactly
         scope: "identify role_connections.write",
       })
     if (url.endsWith("/users/@me")) return Response.json({ id: identity })
+    if (url.includes("oauth_access_tokens"))
+      return Response.json([{ token: "fixture-clerk-oauth" }])
+    if (url.includes("/users/@me/guilds"))
+      return Response.json([
+        { id: discordGuildId, owner: false, permissions: "8" },
+      ])
     if (url.endsWith("/role-connection") && init?.method === "PUT") {
       writes.push(JSON.parse(String(init.body)))
       return Response.json({})
@@ -1502,6 +1508,7 @@ test("role jobs preserve newer changes, independent owner/admin eligibility and 
     []
   )
   await f.t.mutation(internal.communityRoles.refreshGuilds, {
+    observedAt: Date.now(),
     userId: f.userId,
     discordUserId,
     guilds: [],

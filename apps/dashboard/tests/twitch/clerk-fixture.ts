@@ -10,5 +10,10 @@ const user = {
   ],
 }
 export const useUser = () => ({ user, isLoaded: true })
+export const useAuth = () => ({
+  isLoaded: true,
+  isSignedIn: true,
+  userId: "fixture-clerk",
+})
 export const useClerk = () => ({ openUserProfile() {} })
 export const useReverification = (callback: unknown) => callback

@@ -1,150 +1,68 @@
 "use client"
-import { useAction, useQuery } from "convex/react"
-import { useState, useEffect, useRef } from "react"
-import Link from "next/link"
-import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
-  CLEO_COMMUNITY_ROLES,
-  CLEO_ROLE_FAQ,
-} from "@workspace/shared/cleoRoleEligibility"
-import { Button } from "@workspace/ui/components/button"
-export function AccountRoles({
-  code,
-  state,
-  error,
-}: {
-  code?: string
-  state?: string
-  error?: string
-}) {
-  const roles = useQuery(api.communityRoles.current)
-  const install = useAction(api.communityActions.installAccount)
-  const begin = useAction(api.communityActions.beginLinkedRoles)
-  const finish = useAction(api.communityActions.finishLinkedRoles)
-  const refresh = useAction(api.communityActions.refreshEligibility)
-  const disconnect = useAction(api.communityActions.disconnectLinkedRoles)
-  const [notice, setNotice] = useState("")
-  const [busy, setBusy] = useState(false)
-  const handled = useRef(false)
-  useEffect(() => {
-    if (handled.current || (!code && !state && !error)) return
-    handled.current = true
-    window.history.replaceState(null, "", "/discord/linked-role")
-    if (error || !code || !state) {
-      return
-    }
-    void finish({ code, state })
-      .then(() => {
-        setNotice(
-          "Discord Linked Roles verified. Claim eligible roles in Discord."
-        )
-      })
-      .catch(() =>
-        setNotice(
-          "Discord verification failed. Start again with the Discord account linked to Cleo."
-        )
-      )
-  }, [code, state, error, finish])
-  const visibleNotice =
-    notice ||
-    (error || Boolean(code) !== Boolean(state)
-      ? "Discord verification failed. Start again with the Discord account linked to Cleo."
-      : "")
-  async function act(operation: () => Promise<unknown>) {
-    setBusy(true)
-    setNotice("")
-    try {
-      const result = await operation()
-      if (typeof result === "string") window.location.assign(result)
-      else setNotice("Verification updated.")
-    } catch (failure) {
-      setNotice(
-        failure instanceof Error
-          ? failure.message
-          : "This capability is unavailable."
-      )
-    } finally {
-      setBusy(false)
-    }
-  }
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@workspace/ui/components/accordion"
+const questions = [
+  [
+    "What are Linked Roles?",
+    "Linked Roles show your verified connection to Cleo and independent communities, such as owning a community, managing one or supporting its Premium subscription. Roles can stack when you qualify for more than one.",
+  ],
+  [
+    "How do I claim a role?",
+    "Open the Cleo server in Discord, choose a Linked Role and complete verification when Discord asks. Sign in with the Discord account linked to Cleo.",
+  ],
+  [
+    "Why hasn't my role appeared yet?",
+    "Discord verification and role updates can take a little time. Check that you are using your linked account, that you meet the requirements and that you have claimed the role in Discord.",
+  ],
+  [
+    "What do Community Owner and Community Manager mean?",
+    "Community Owner means you own an independent server using Cleo. Community Manager means you have Administrator permission in an independent server using Cleo. Manage Server alone does not qualify. Premium versions also require that community's active Premium coverage.",
+  ],
+  [
+    "Do these roles give me permissions in Cleo's server?",
+    "No. Community Owner and Community Manager do not grant ownership, staff status or permissions in Cleo's official Discord server. They describe your relationship with independent communities.",
+  ],
+  [
+    "What happens if I disconnect or lose eligibility?",
+    "Disconnecting your Discord verification or losing the required installation, permissions, subscription or consent removes the corresponding eligibility. Other roles remain independent. Premium Supporter recognition is optional.",
+  ],
+] as const
+export function AccountRoles() {
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Community roles describe independent servers. They never grant
-        ownership, staff status or permissions in Cleo's official Discord
-        server.
-      </p>
-      <div className="flex flex-wrap gap-3">
-        <Button disabled={busy} onClick={() => act(() => install({}))}>
-          Add Cleo to my Discord account
-        </Button>
-        <Button
-          variant="outline"
-          render={<Link href="/dashboard/add-server" />}
-        >
-          Add Cleo to a Discord server
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => act(() => refresh({}))}
-        >
-          Refresh verification
-        </Button>
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => act(() => begin({}))}
-        >
-          Connect Discord Linked Roles
-        </Button>
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => act(() => disconnect({}))}
-        >
-          Disconnect Linked Roles
-        </Button>
-      </div>
-      {visibleNotice ? (
-        <p role="status" className="text-sm">
-          {visibleNotice}
+    <div className="max-w-2xl space-y-8">
+      <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+        <p>
+          Show your connection to Cleo and the communities you support through
+          Discord Linked Roles.
         </p>
-      ) : null}
-      <dl className="divide-y">
-        {CLEO_COMMUNITY_ROLES.map((role) => (
-          <div className="flex justify-between gap-4 py-3 text-sm" key={role}>
-            <dt>
-              {role
-                .replace(/([A-Z])/g, " $1")
-                .replace(/^./, (c) => c.toUpperCase())}
-            </dt>
-            <dd>
-              {roles === undefined
-                ? "Loading…"
-                : roles === null
-                  ? "Verification needed"
-                  : {
-                      eligible: "Eligible",
-                      notEligible: "Not eligible",
-                      verificationNeeded: "Verification needed",
-                      unavailable: "Unavailable",
-                    }[roles[role]]}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <section className="space-y-3">
-        <h2 className="font-heading text-lg font-medium">Linked roles FAQ</h2>
-        {CLEO_ROLE_FAQ.split("\n\n")
-          .slice(1)
-          .map((paragraph) => (
-            <p className="text-sm text-muted-foreground" key={paragraph}>
-              {paragraph}
-            </p>
+        <p>
+          Open the Cleo server in Discord, choose a Linked Role and complete
+          verification when Discord asks.
+        </p>
+      </div>
+      <section aria-labelledby="linked-roles-faq">
+        <h2
+          id="linked-roles-faq"
+          className="mb-3 font-heading text-base font-medium"
+        >
+          Frequently asked questions
+        </h2>
+        <Accordion>
+          {questions.map(([question, answer]) => (
+            <AccordionItem key={question} value={question}>
+              <AccordionTrigger className="gap-4 py-4">
+                {question}
+              </AccordionTrigger>
+              <AccordionContent className="pr-6 pb-4 leading-relaxed text-muted-foreground">
+                {answer}
+              </AccordionContent>
+            </AccordionItem>
           ))}
+        </Accordion>
       </section>
     </div>
   )

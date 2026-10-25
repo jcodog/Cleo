@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server"
-import { AccountRoles } from "@/features/community/AccountRoles"
+import { LinkedRoleCallback } from "@/features/community/LinkedRoleCallback"
 export default async function Page({
   searchParams,
 }: {
@@ -12,7 +12,7 @@ export default async function Page({
       <h1 className="font-heading text-2xl font-medium">
         Discord Linked Roles
       </h1>
-      <AccountRoles
+      <LinkedRoleCallback
         code={params.code}
         state={params.state}
         error={params.error}

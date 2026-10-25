@@ -2,7 +2,7 @@
 
 import { createLogger } from "@workspace/logger"
 import { ConvexError } from "convex/values"
-import { verifiedDiscordGuilds } from "../../../../lib/communityDiscord"
+import { prepareCommunityRefresh } from "../../../../lib/communityRefresh"
 
 import { internal } from "../../../../_generated/api"
 import type { Id } from "../../../../_generated/dataModel"
@@ -145,6 +145,21 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     }
   }
 
+  const snapshot = await prepareCommunityRefresh(ctx, {
+    userId: context.user._id,
+    discordUserId: context.discordAccount.providerAccountId,
+    clerkUserId: context.user.clerkUserId,
+  }).catch(() => null)
+  const verifiedDiscordUserId = context.discordAccount.providerAccountId
+  if (snapshot?.state === "pending" || snapshot?.state === "superseded")
+    return { status: "verificationPending" as const, guilds: [] }
+  if (snapshot?.state !== "complete")
+    return {
+      status: "discordGuildDiscoveryUnavailable" as const,
+      reason: "discordApiUnavailable" as const,
+      guilds: [],
+    }
+
   const tokenResult = await getClerkDiscordAccessToken(context.user.clerkUserId)
 
   if (tokenResult.status === "unavailable") {
@@ -160,7 +175,6 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     }
   }
 
-  const observedAt = Date.now()
   const userGuildsResult = await fetchDiscordCurrentUserGuilds(
     tokenResult.accessToken
   )
@@ -181,34 +195,39 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
   const liveGuilds = userGuildsResult.guilds
 
   try {
-    const guilds = await verifiedDiscordGuilds(
-      context.user.clerkUserId,
-      context.discordAccount.providerAccountId,
-      tokenResult.accessToken
+    const completed = await ctx.runQuery(
+      internal.communityRoles.refreshStatus,
+      {
+        userId: context.user._id,
+        discordUserId: context.discordAccount.providerAccountId,
+        ticket: snapshot.ticket,
+      }
     )
-    await ctx.runMutation(internal.communityRoles.refreshGuilds, {
-      observedAt,
-      userId: context.user._id,
-      discordUserId: context.discordAccount.providerAccountId,
-      guilds,
-    })
+    if (completed?.state === "pending" || completed?.state === "superseded")
+      return { status: "verificationPending" as const, guilds: [] }
+    if (completed?.state !== "complete")
+      throw new Error("Discord verification did not complete.")
     context = await ctx.runQuery(
       internal.queries.dashboard.discord.install.context
         .getInstallableGuildsContext,
       {}
     )
-    if (context.status === "missingUser")
+    if (
+      context.status === "missingUser" ||
+      context.discordAccount?.providerAccountId !== verifiedDiscordUserId
+    )
       throw new Error("Account changed during verification.")
   } catch {
     return {
       status: "discordGuildDiscoveryUnavailable" as const,
       reason: "discordApiUnavailable" as const,
-      guilds: context.status === "ready" ? context.guilds : [],
+      guilds: [],
     }
   }
 
   return {
     status: "ready" as const,
+    verifiedAt: snapshot.observedAt,
     guilds: mergeInstallableGuilds({
       activeSessions: context.installSessions,
       knownGuilds: context.guilds,

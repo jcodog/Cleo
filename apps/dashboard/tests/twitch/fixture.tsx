@@ -1,6 +1,6 @@
 import React from "react"
 import { createRoot } from "react-dom/client"
-import { ConvexProvider, ConvexReactClient } from "convex/react"
+import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react"
 import { getFunctionName } from "convex/server"
 import {
   SidebarProvider,
@@ -96,6 +96,15 @@ useAppShellStore.setState({
     : "123456789012345678",
 })
 const client = new ConvexReactClient("https://twitch-fixture.invalid")
+client.setAuth = (_fetchToken, onChange) => {
+  onChange?.(true)
+}
+client.clearAuth = () => {}
+const useFixtureAuth = () => ({
+  isLoading: false,
+  isAuthenticated: true,
+  fetchAccessToken: async () => "fixture-token",
+})
 client.watchQuery = (...[reference]) => ({
   localQueryResult: () => {
     if (communityFixtureMode) return communityQuery(getFunctionName(reference))
@@ -324,7 +333,7 @@ function Fixture() {
 const root = document.getElementById("root")
 if (!root) throw new Error("Missing browser fixture root")
 createRoot(root).render(
-  <ConvexProvider client={client}>
+  <ConvexProviderWithAuth client={client} useAuth={useFixtureAuth}>
     <Fixture />
-  </ConvexProvider>
+  </ConvexProviderWithAuth>
 )

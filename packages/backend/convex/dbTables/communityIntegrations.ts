@@ -1,5 +1,23 @@
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
+import { CLEO_COMMUNITY_ROLES } from "@workspace/shared/cleoRoleEligibility"
+
+export const communityTestRole = v.union(
+  ...CLEO_COMMUNITY_ROLES.map((role) => v.literal(role))
+)
+export const communityRoleTestGrants = defineTable({
+  userId: v.id("users"),
+  discordUserId: v.string(),
+  linkedAccountId: v.id("linkedAccounts"),
+  roles: v.array(communityTestRole),
+  reason: v.string(),
+  grantedBy: v.id("users"),
+  createdAt: v.number(),
+  expiresAt: v.number(),
+  revokedAt: v.optional(v.number()),
+  revokedBy: v.optional(v.id("users")),
+  revocationReason: v.optional(v.string()),
+}).index("by_user", ["userId"])
 
 export const moderationPlatform = v.union(
   v.literal("discord"),
@@ -47,6 +65,7 @@ export const discordRoleConnections = defineTable({
   userId: v.id("users"),
   discordUserId: v.string(),
   encryptedTokens: v.string(),
+  publishedMetadata: v.optional(v.string()),
   expiresAt: v.number(),
   revision: v.number(),
   revokedAt: v.optional(v.number()),
@@ -60,6 +79,10 @@ export const communityRoleJobs = defineTable({
   discordUserId: v.string(),
   revision: v.number(),
   attemptedRevision: v.optional(v.number()),
+  attemptedAccountId: v.optional(v.id("linkedAccounts")),
+  attemptedRefreshId: v.optional(v.id("discordGuildRefreshes")),
+  attemptedRefreshRevision: v.optional(v.number()),
+  authorityUntil: v.optional(v.number()),
   leaseUntil: v.number(),
   worker: v.optional(v.string()),
   attempts: v.number(),

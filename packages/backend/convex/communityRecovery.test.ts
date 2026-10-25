@@ -534,8 +534,22 @@ test("role batches prepare slow providers concurrently and dispatch fresh fenced
   assert.equal(started, 5)
   now += 55000
   release()
-  const result = await work
-  assert.equal(result?.jobs.length, 5)
+  const intermediate = await work
+  assert.deepEqual(
+    intermediate?.jobs,
+    [],
+    "Starting or completing verification invalidates the claimed generation; failed providers never dispatch"
+  )
+  const result = await f.t.action(api.communityRuntime.claimJobs, {
+    secret: "fixture-secret",
+    worker: "shard-owner",
+  })
+  assert.equal(result?.jobs.length, 4)
+  assert.equal(
+    started,
+    5,
+    "Completed snapshots must be reused without another provider call"
+  )
   assert.ok(result.jobs.every((job) => job.leaseUntil === now + 60000))
   assert.deepEqual(
     await f.t.mutation(internal.communityRoles.dispatch, {

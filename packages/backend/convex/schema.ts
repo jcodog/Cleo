@@ -2,6 +2,7 @@ import { defineSchema } from "convex/server"
 import {
   communityPayments,
   stripeReconciliationLocks,
+  communityRoleTestGrants,
 } from "./dbTables/communityIntegrations"
 import {
   discordModerationPolicies,
@@ -72,6 +73,7 @@ import {
 export default defineSchema({
   communityPayments,
   stripeReconciliationLocks,
+  communityRoleTestGrants,
   discordModerationPolicies,
   twitchModerationPolicies,
   discordUserInstallations,

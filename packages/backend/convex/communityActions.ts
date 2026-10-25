@@ -8,7 +8,6 @@ import { backendEnv } from "@workspace/env/backend"
 import {
   discordApplicationConfig,
   discordJson,
-  verifiedDiscordGuilds,
   DiscordCapabilityError,
 } from "./lib/communityDiscord"
 import {
@@ -17,6 +16,8 @@ import {
   decryptDiscordTokens,
 } from "./lib/integrationSecurity"
 import { cleoRoleMetadata } from "@workspace/shared/cleoRoleEligibility"
+import { refreshTicket } from "./lib/discordRefreshLifecycle"
+import { prepareCommunityRefresh } from "./lib/communityRefresh"
 
 const tokenSchema = z.object({
   access_token: z.string(),
@@ -173,23 +174,83 @@ export const finishLinkedRoles = action({
   },
 })
 export const publishLinkedRoles = internalAction({
-  args: { userId: v.id("users") },
+  args: {
+    userId: v.id("users"),
+    refresh: v.optional(refreshTicket),
+    attempt: v.optional(v.number()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const stored = await ctx.runQuery(internal.discordConnections.connection, {
+      userId: args.userId,
+    })
+    if (!stored || stored.revokedAt !== undefined) return null
+    const account = await ctx.runQuery(internal.communityRoles.forDiscord, {
+      discordUserId: stored.discordUserId,
+    })
+    let ticket = args.refresh
+    if (account?.user._id === args.userId) {
+      const snapshot = ticket
+        ? await ctx.runQuery(internal.communityRoles.refreshStatus, {
+            userId: args.userId,
+            discordUserId: stored.discordUserId,
+            ticket,
+          })
+        : await prepareCommunityRefresh(ctx, {
+            userId: args.userId,
+            discordUserId: stored.discordUserId,
+            clerkUserId: account.user.clerkUserId,
+          })
+      if (snapshot?.state !== "complete") return null
+      ticket = snapshot.ticket
+    }
+    const retry = async (delay: number) => {
+      if ((args.attempt ?? 0) < 3)
+        await ctx.scheduler.runAfter(
+          delay,
+          internal.communityActions.publishLinkedRoles,
+          {
+            userId: args.userId,
+            refresh: ticket,
+            attempt: (args.attempt ?? 0) + 1,
+          }
+        )
+    }
     const connection = await ctx.runMutation(
       internal.discordConnections.lease,
-      args
+      { userId: args.userId, expectedRevision: stored.revision }
     )
-    if (!connection) return null
+    if (!connection) {
+      const current = await ctx.runQuery(
+        internal.discordConnections.connection,
+        { userId: args.userId }
+      )
+      if (
+        current &&
+        current.revokedAt === undefined &&
+        current.discordUserId === stored.discordUserId
+      )
+        await retry(
+          Math.max(
+            100,
+            Math.min(
+              60000,
+              (current.leaseUntil ?? Date.now()) - Date.now() + 100
+            )
+          )
+        )
+      return null
+    }
     let revision = connection.revision
     try {
       let result = tokenSchema.parse(
         JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
       )
-      const account = await ctx.runQuery(internal.communityRoles.forDiscord, {
-        discordUserId: connection.discordUserId,
-      })
-      if (account?.user._id !== connection.userId) {
+      const currentAccount = await ctx.runQuery(
+        internal.communityRoles.forDiscord,
+        { discordUserId: connection.discordUserId }
+      )
+      if (currentAccount?.user._id !== connection.userId) {
         if (connection.expiresAt > Date.now())
           await discordJson(
             `/users/@me/applications/${discordApplicationConfig()}/role-connection`,
@@ -203,24 +264,10 @@ export const publishLinkedRoles = internalAction({
           })
         await revokeGrant(result.refresh_token)
         await ctx.runMutation(internal.discordConnections.revoke, {
-          ...args,
+          userId: args.userId,
           expectedRevision: revision,
         })
         return null
-      }
-      try {
-        const guilds = await verifiedDiscordGuilds(
-          account.user.clerkUserId,
-          connection.discordUserId
-        )
-        await ctx.runMutation(internal.communityRoles.refreshGuilds, {
-          userId: connection.userId,
-          discordUserId: connection.discordUserId,
-          guilds,
-          reconciliation: true,
-        })
-      } catch {
-        /* Membership evidence expires; failed refresh never extends eligibility. */
       }
       if (connection.expiresAt < Date.now() + 60000) {
         result = await tokens({
@@ -228,7 +275,7 @@ export const publishLinkedRoles = internalAction({
           refresh_token: result.refresh_token,
         })
         await ctx.runMutation(internal.discordConnections.storeTokens, {
-          ...args,
+          userId: args.userId,
           discordUserId: connection.discordUserId,
           encryptedTokens: encryptDiscordTokens(JSON.stringify(result)),
           expiresAt: Date.now() + result.expires_in * 1000,
@@ -237,9 +284,17 @@ export const publishLinkedRoles = internalAction({
         revision++
       }
       const eligibility = await ctx.runQuery(
-        internal.communityRoles.eligibility,
-        { discordUserId: connection.discordUserId }
+        internal.communityRoles.publication,
+        {
+          userId: args.userId,
+          discordUserId: connection.discordUserId,
+          ticket,
+          connectionRevision: revision,
+        }
       )
+      if (!eligibility) return null
+      const metadata = JSON.stringify(cleoRoleMetadata(eligibility))
+      if (metadata === connection.publishedMetadata) return null
       await discordJson(
         `/users/@me/applications/${discordApplicationConfig()}/role-connection`,
         result.access_token,
@@ -247,23 +302,32 @@ export const publishLinkedRoles = internalAction({
           method: "PUT",
           body: JSON.stringify({
             platform_name: "Cleo",
-            metadata: cleoRoleMetadata(eligibility),
+            metadata: JSON.parse(metadata),
           }),
         }
       )
+      await ctx.runMutation(internal.discordConnections.published, {
+        userId: args.userId,
+        expectedRevision: revision,
+        metadata,
+        ticket,
+      })
     } catch (error) {
       if (
         error instanceof RevokedDiscordGrant ||
         (error instanceof DiscordCapabilityError && error.status === 401)
       )
         await ctx.runMutation(internal.discordConnections.revoke, {
-          ...args,
+          userId: args.userId,
           expectedRevision: revision,
         })
-      else throw error
+      else {
+        await retry(1000 * 2 ** (args.attempt ?? 0))
+        throw error
+      }
     } finally {
       await ctx.runMutation(internal.discordConnections.release, {
-        ...args,
+        userId: args.userId,
         revision,
       })
     }
@@ -274,25 +338,18 @@ export const refreshEligibility = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const observedAt = Date.now()
     const { user, discord } = await ctx.runQuery(
       internal.communityRoles.account,
       {}
     )
-    const guilds = await verifiedDiscordGuilds(
-      user.clerkUserId,
-      discord.providerAccountId
-    )
-    await ctx.runMutation(internal.communityRoles.refreshGuilds, {
-      observedAt,
-      userId: user._id,
-      discordUserId: discord.providerAccountId,
-      guilds,
-    })
-    await ctx.scheduler.runAfter(
-      0,
-      internal.communityActions.publishLinkedRoles,
-      { userId: user._id }
+    await prepareCommunityRefresh(
+      ctx,
+      {
+        userId: user._id,
+        discordUserId: discord.providerAccountId,
+        clerkUserId: user.clerkUserId,
+      },
+      true
     )
     return null
   },

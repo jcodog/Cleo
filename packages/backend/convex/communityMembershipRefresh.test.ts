@@ -33,11 +33,15 @@ test("normal dashboard refresh restores expired evidence only after full current
   await assert.rejects(f.access(), /Verified Discord guild management/)
   const previous = globalThis.fetch
   let mismatchedIdentity = false
+  let replaceIdentity = true
   globalThis.fetch = async (input) => {
     const url = String(input)
     if (url.includes("oauth_access_tokens")) {
-      now += 10
-      await f.t.run((ctx) => ctx.db.patch(f.accountId, { createdAt: now }))
+      if (replaceIdentity) {
+        now += 10
+        await f.t.run((ctx) => ctx.db.patch(f.accountId, { createdAt: now }))
+        replaceIdentity = false
+      }
       return Response.json([{ token: "fixture-oauth" }])
     }
     if (url.endsWith("/users/@me"))
@@ -57,10 +61,16 @@ test("normal dashboard refresh restores expired evidence only after full current
     globalThis.fetch = previous
   })
   const sync = api.actions.dashboard.discord.guilds.syncDashboardGuilds.sync
+  assert.equal(
+    (await f.manager.action(sync, {})).status,
+    "discordGuildDiscoveryUnavailable",
+    "A link replaced during provider verification must invalidate its pre-fetch timestamp"
+  )
   assert.equal((await f.manager.action(sync, {})).status, "ready")
   await f.access()
   const evidence = await f.t.run((ctx) => ctx.db.get(f.guilds[0]!.membershipId))
   mismatchedIdentity = true
+  now += 300001
   assert.equal(
     (await f.manager.action(sync, {})).status,
     "discordGuildDiscoveryUnavailable"
@@ -123,6 +133,7 @@ async function fixture(count = 1) {
     guilds: { id: string; owner?: boolean; permissions?: string }[]
   ) =>
     t.mutation(internal.communityRoles.refreshGuilds, {
+      observedAt: Date.now(),
       userId: ids.userId,
       discordUserId,
       guilds,

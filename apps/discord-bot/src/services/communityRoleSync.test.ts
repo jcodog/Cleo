@@ -39,6 +39,7 @@ async function fixture(t: TestContext) {
     roles?: () => void
     member?: () => void
     settle?: () => void
+    validate?: () => boolean
   } = {}
   const calls: { name: string; args: Record<string, unknown> }[] = []
   const changes: string[] = []
@@ -106,6 +107,8 @@ async function fixture(t: TestContext) {
     ) => {
       const name = getFunctionName(reference)
       calls.push({ name, args })
+      if (name === "communityRuntime:validateJob")
+        return hooks.validate?.() ?? true
       if (name === "communityRuntime:claimJobs") {
         hooks.claim?.()
         return {
@@ -178,6 +181,21 @@ test("an owning shard waits for guild availability and resumes on a later tick",
   await flush()
   f.assertSettled([true, true])
   assert.deepEqual(f.changes, [`add:${roleId}`, `add:${roleId}`])
+})
+
+test("a refresh invalidating dispatched authority prevents external role changes", async (t) => {
+  const f = await fixture(t)
+  f.installGuild()
+  f.hooks.validate = () => false
+  f.start()
+  await flush()
+  f.assertSettled([false, false])
+  assert.deepEqual(f.changes, [])
+  assert.equal(
+    f.calls.filter((call) => call.name === "communityRuntime:validateJob")
+      .length,
+    2
+  )
 })
 
 for (const unavailable of ["removed", "unavailable"] as const)
