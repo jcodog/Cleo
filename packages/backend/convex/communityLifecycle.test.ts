@@ -101,12 +101,14 @@ async function fixture(
     expiresAt: Date.now() + 3600000,
   })
   const writes: Record<string, string>[] = []
+  let networkRequests = 0
   let guildRequests = 0
   let liveGuilds = ids.guilds.slice(0, incomingCount)
   let beforeGuilds: (() => Promise<void>) | undefined
   let beforePut: (() => Promise<void>) | undefined
   const previous = globalThis.fetch
   globalThis.fetch = async (input, init) => {
+    networkRequests++
     const url = String(input)
     if (url.includes("oauth_access_tokens"))
       return Response.json([{ token: "fixture-oauth" }])
@@ -144,6 +146,14 @@ async function fixture(
     })),
     writes,
     requests: () => guildRequests,
+    networkRequests: () => networkRequests,
+    job: () =>
+      db.run((ctx) =>
+        ctx.db
+          .query("communityRoleJobs")
+          .withIndex("by_user", (q) => q.eq("discordUserId", discordUserId))
+          .unique()
+      ),
     setGuilds: (guilds: typeof liveGuilds) => {
       liveGuilds = guilds
     },
@@ -166,6 +176,265 @@ async function fixture(
       }),
   }
 }
+
+for (const state of ["missing", "failed", "expired"] as const)
+  test(`${state} verification exhausts five attempts, parks without provider traffic, and recovers on fresh evidence`, async (t) => {
+    const f = await fixture(t, 1)
+    let now = Date.now()
+    t.mock.method(Date, "now", () => now)
+    if (state !== "missing") {
+      await f.alice.action(api.communityActions.refreshEligibility, {})
+      await f.finish()
+      assert.equal(f.writes.at(-1)?.community_manager_tier, "1")
+      if (state === "expired") now += 300000
+      else
+        await f.db.run(async (ctx) => {
+          const refresh = await ctx.db.query("discordGuildRefreshes").unique()
+          assert.ok(refresh)
+          await ctx.db.patch(refresh._id, { state: "failed" })
+        })
+    }
+    const published = f.writes.length
+    const requests = f.requests()
+    f.holdGuilds(async () => {
+      throw new Error("Provider verification unavailable")
+    })
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      assert.deepEqual((await f.claim())?.jobs, [])
+      const job = await f.job()
+      assert.ok(job)
+      assert.equal(job.attempts, attempt)
+      assert.equal(job.leaseUntil, 0)
+      assert.equal(
+        f.writes.length,
+        published,
+        "Unverified evidence cannot change the external publication"
+      )
+      if (attempt < 5) {
+        assert.equal(job.nextAt, now + 30000 * 2 ** (attempt - 1))
+        assert.deepEqual(
+          (await f.claim())?.jobs,
+          [],
+          "Backoff must not immediately requery the provider"
+        )
+        now = job.nextAt
+      } else assert.equal(job.nextAt, Number.MAX_SAFE_INTEGER)
+    }
+    assert.equal(f.requests(), requests + 5)
+    const parked = await f.job()
+    const network = f.networkRequests()
+    for (let tick = 0; tick < 20; tick++) {
+      now += 60000
+      await f.db.mutation(internal.communityRoles.bootstrap, {})
+      assert.deepEqual((await f.claim())?.jobs, [])
+    }
+    assert.deepEqual(
+      await f.job(),
+      parked,
+      "Periodic bootstrapping cannot reset a parked revision"
+    )
+    assert.equal(
+      f.networkRequests(),
+      network,
+      "Parked job ticks must make no HTTP requests"
+    )
+    f.holdGuilds()
+    await f.alice.action(api.communityActions.refreshEligibility, {})
+    const woken = await f.job()
+    assert.ok(woken && parked)
+    assert.ok(woken.revision > parked.revision)
+    assert.equal(woken.attempts, 0)
+    assert.equal(woken.nextAt, now)
+    await f.finish()
+    const recovered = (await f.claim())?.jobs[0]
+    assert.ok(recovered)
+    assert.equal(recovered.eligibility.communityManager, "eligible")
+    await f.db.action(api.communityRuntime.settleJob, {
+      secret: "fixture-secret",
+      worker: "owner-shard",
+      id: recovered.id,
+      revision: recovered.revision,
+      success: true,
+    })
+    await f.finish()
+    now++
+    f.setGuilds([])
+    await f.alice.action(api.communityActions.refreshEligibility, {})
+    await f.finish()
+    const revoked = (await f.claim())?.jobs[0]
+    assert.ok(revoked)
+    assert.equal(revoked.eligibility.communityManager, "notEligible")
+    assert.equal(
+      f.writes.at(-1)?.community_manager_tier,
+      "0",
+      "A confirmed permission loss still updates native metadata"
+    )
+    await f.db.action(api.communityRuntime.settleJob, {
+      secret: "fixture-secret",
+      worker: "owner-shard",
+      id: revoked.id,
+      revision: revoked.revision,
+      success: true,
+    })
+    assert.equal((await f.job())?.attempts, 0)
+  })
+
+test("pending reconciliation preserves the provider retry budget and completion wakes the job", async (t) => {
+  const f = await fixture(t, 100, 205)
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  await f.alice.action(api.communityActions.refreshEligibility, {})
+  assert.equal((await f.status())?.state, "pending")
+  const job = await f.job()
+  assert.ok(job)
+  await f.db.run((ctx) => ctx.db.patch(job._id, { attempts: 2 }))
+  const network = f.networkRequests()
+  assert.deepEqual((await f.claim())?.jobs, [])
+  assert.equal((await f.status())?.state, "pending")
+  assert.equal((await f.job())?.attempts, 2)
+  assert.equal((await f.job())?.nextAt, now + 30000)
+  now += 30000
+  assert.deepEqual((await f.claim())?.jobs, [])
+  assert.equal((await f.status())?.state, "pending")
+  assert.equal((await f.job())?.attempts, 2)
+  assert.equal(
+    f.networkRequests(),
+    network,
+    "Pending work resumes the database checkpoint without re-verification"
+  )
+  await f.finish()
+  assert.equal((await f.status())?.state, "complete")
+  assert.equal((await f.job())?.attempts, 0)
+  assert.ok((await f.job())!.revision > job.revision)
+  assert.equal((await f.claim())?.jobs[0]?.eligibility.member, "eligible")
+})
+
+test("parked revisions ignore stale dispatch and settlement; explicit enqueue resets and wakes them", async (t) => {
+  const f = await fixture(t, 1)
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  f.holdGuilds(async () => {
+    throw new Error("Provider unavailable")
+  })
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await f.claim()
+    if (attempt < 4) now = (await f.job())!.nextAt
+  }
+  const parked = await f.job()
+  assert.ok(parked)
+  assert.equal(parked.nextAt, Number.MAX_SAFE_INTEGER)
+  await f.db.mutation(internal.communityRoles.dispatch, {
+    worker: "owner-shard",
+    jobs: [{ id: parked._id, revision: parked.revision }],
+  })
+  for (const success of [true, false])
+    await f.db.action(api.communityRuntime.settleJob, {
+      secret: "fixture-secret",
+      worker: "owner-shard",
+      id: parked._id,
+      revision: parked.revision,
+      success,
+    })
+  assert.deepEqual(await f.job(), parked)
+  await f.db.mutation(internal.communityRoles.enqueue, { discordUserId })
+  const woken = await f.job()
+  assert.equal(woken?.attempts, 0)
+  assert.equal(woken?.nextAt, now)
+  assert.equal(woken?.revision, parked.revision + 1)
+  await f.claim()
+  assert.equal((await f.job())?.attempts, 1)
+  now = (await f.job())!.nextAt
+  const claimed = (
+    await f.db.mutation(internal.communityRoles.claim, {
+      worker: "owner-shard",
+    })
+  )[0]
+  assert.ok(claimed)
+  await f.db.mutation(internal.communityRoles.enqueue, { discordUserId })
+  await f.db.mutation(internal.communityRoles.settle, {
+    id: claimed.id,
+    worker: "owner-shard",
+    revision: claimed.revision,
+    success: false,
+  })
+  assert.equal(
+    (await f.job())?.attempts,
+    0,
+    "A late failure cannot charge the new revision's retry budget"
+  )
+  assert.equal((await f.job())?.nextAt, now)
+})
+
+test("a provider failure finishing after a new revision cannot park that revision", async (t) => {
+  const f = await fixture(t, 1)
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  f.holdGuilds(async () => {
+    throw new Error("Provider unavailable")
+  })
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await f.claim()
+    now = (await f.job())!.nextAt
+  }
+  let entered = false
+  let release: () => void = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  f.holdGuilds(async () => {
+    entered = true
+    await gate
+    throw new Error("Delayed provider failure")
+  })
+  const old = f.claim()
+  for (let i = 0; i < 50 && !entered; i++)
+    await new Promise((resolve) => setImmediate(resolve))
+  assert.ok(entered)
+  await f.db.mutation(internal.communityRoles.enqueue, { discordUserId })
+  release()
+  assert.deepEqual((await old)?.jobs, [])
+  assert.equal((await f.job())?.attempts, 0)
+  assert.equal((await f.job())?.nextAt, now)
+  f.holdGuilds()
+  await f.claim()
+  await f.finish()
+  assert.equal(
+    (await f.claim())?.jobs[0]?.eligibility.communityManager,
+    "eligible"
+  )
+})
+
+test("disconnect and account revocation wake a parked job and still allow confirmed role removals", async (t) => {
+  const f = await fixture(t, 1)
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  f.holdGuilds(async () => {
+    throw new Error("Provider unavailable")
+  })
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await f.claim()
+    if (attempt < 4) now = (await f.job())!.nextAt
+  }
+  assert.equal((await f.job())?.nextAt, Number.MAX_SAFE_INTEGER)
+  await f.alice.action(api.communityActions.disconnectLinkedRoles, {})
+  await f.db.run((ctx) => ctx.db.patch(f.userId, { status: "disabled" }))
+  assert.equal((await f.job())?.attempts, 0)
+  const network = f.networkRequests()
+  const removal = (await f.claim())?.jobs[0]
+  assert.ok(removal)
+  assert.equal(removal.eligibility.member, "notEligible")
+  assert.equal(removal.eligibility.communityManager, "notEligible")
+  assert.equal(f.networkRequests(), network)
+  assert.equal(
+    await f.db.action(api.communityRuntime.validateJob, {
+      secret: "fixture-secret",
+      worker: "owner-shard",
+      id: removal.id,
+      revision: removal.revision,
+    }),
+    true
+  )
+})
 
 for (const count of [0, 1, 50, 51, 100, 101, 200, 205])
   test(`actual refresh, continuations and native publication converge once for ${count} guilds`, async (t) => {

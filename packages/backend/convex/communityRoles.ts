@@ -19,6 +19,10 @@ import {
   rolePublicationState,
 } from "./lib/discordRefreshLifecycle"
 
+const MAX_VERIFICATION_ATTEMPTS = 5
+// Outside the supported epoch range; only a new revision makes this job due again.
+const PARKED_ROLE_JOB_AT = Number.MAX_SAFE_INTEGER
+
 const status = v.union(
   v.literal("eligible"),
   v.literal("notEligible"),
@@ -139,7 +143,8 @@ export const dispatch = internalMutation({
       if (
         !row ||
         row.worker !== args.worker ||
-        row.attemptedRevision !== job.revision
+        row.attemptedRevision !== job.revision ||
+        row.leaseUntil === 0
       )
         continue
       if (row.revision !== job.revision || row.leaseUntil <= Date.now()) {
@@ -149,9 +154,16 @@ export const dispatch = internalMutation({
       const leaseUntil = Date.now() + 60000
       const publication = await rolePublicationState(ctx, row.discordUserId)
       if (publication.account && publication.lifecycle?.state !== "complete") {
+        const pending = publication.lifecycle?.state === "pending"
+        const attempts = row.attempts + (pending ? 0 : 1)
         await ctx.db.patch(row._id, {
           leaseUntil: 0,
-          nextAt: Date.now() + 30000,
+          attempts,
+          nextAt: pending
+            ? Date.now() + 30000
+            : attempts >= MAX_VERIFICATION_ATTEMPTS
+              ? PARKED_ROLE_JOB_AT
+              : Date.now() + 30000 * 2 ** Math.min(attempts - 1, 3),
         })
         continue
       }
@@ -210,12 +222,14 @@ export const settle = internalMutation({
     if (
       !row ||
       row.worker !== args.worker ||
-      row.attemptedRevision !== args.revision
+      row.attemptedRevision !== args.revision ||
+      row.leaseUntil <= Date.now()
     )
       return null
     await ctx.db.patch(row._id, {
       leaseUntil: 0,
-      attempts: args.success ? 0 : row.attempts + 1,
+      attempts:
+        row.revision !== args.revision || args.success ? 0 : row.attempts + 1,
       nextAt:
         row.revision !== args.revision
           ? Date.now()

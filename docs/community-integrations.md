@@ -103,8 +103,14 @@ commit it. Changing that key without a key migration requires users to reconnect
 
 Role synchronization uses the existing Discord process. It claims bounded jobs
 every 15 seconds, checks fresh Discord membership through Clerk OAuth, and
-reconciles linked accounts every five minutes. External community authority
-expires after five minutes without verified refresh. Owner and Administrator
+reconciles linked accounts every five minutes. External community evidence
+expires after five minutes without verified refresh, denying privileged dashboard
+access and marking eligibility unverified. Expiry or a provider outage alone does
+not remove previously published Discord roles or native Linked Roles metadata.
+Cleo preserves that external state until a completed authoritative refresh confirms
+the current eligibility, or a confirmed account/link revocation requires removal.
+An unverified or parked job is not evidence that an external role was revoked.
+Owner and Administrator
 eligibility remain independent; Manage Server alone is insufficient for manager
 roles or purchases. Installation evidence expires after 24 hours and becomes
 verification-needed. Discord does not provide a general bot endpoint to poll all
@@ -126,6 +132,22 @@ Only the Discord shard caching the available official guild claims role jobs.
 Provider preparation runs in parallel for at most five users under a two-minute
 preparation lease. Dispatch rechecks worker/revision ownership and supplies a
 fresh one-minute lease. Guild loss settles unfinished claims as failed.
+
+Failed, expired or missing verification allows at most five failed provider
+attempts per role-job revision. Retry delays are 30, 60, 120 and 240 seconds; the
+fifth failure releases the lease and parks the job with `attempts >= 5` and
+`nextAt = Number.MAX_SAFE_INTEGER`. Parked jobs make no provider requests, and
+periodic bootstrapping does not wake them. Pending scheduled database reconciliation
+resumes its existing checkpoint after 30 seconds without consuming provider retries;
+it remains bounded by the original five-minute evidence deadline.
+
+New verification evidence, an explicit refresh or another legitimate enqueue advances
+the revision, resets retries and makes the job due again. Stale dispatch/settlement
+cannot unpark it or consume a newer revision's budget. To recover an outage, restore
+provider access and use normal dashboard verification; a completed snapshot wakes
+the job and publishes any confirmed permission loss. Native Linked Roles retain
+their separate five-minute reconciliation schedule, which can also obtain fresh
+evidence and wake a parked bot-role job. No manual database edit is required.
 
 Full Discord membership refreshes reconcile stored memberships in indexed
 batches of at most 100, followed by at most 50 incoming guilds per transaction.
@@ -370,7 +392,7 @@ All nine existing workspace coverage gates pass without relaxed assertions.
 | Workspace   | Passing tests | Reported statements / branches / functions / lines |
 | ----------- | ------------: | -------------------------------------------------- |
 | Shared      |            88 | 100% / 100% / 100% / 100%                          |
-| Backend     |           375 | 100% / 100% / 100% / 100%                          |
+| Backend     |           382 | 100% / 100% / 100% / 100%                          |
 | Discord bot |           317 | 100% / 100% / 100% / 100%                          |
 | Twitch bot  |           124 | 100% / 100% / 100% / 100%                          |
 | Dashboard   |           100 | 100% / 100% / 100% / 100%                          |
@@ -379,7 +401,7 @@ All nine existing workspace coverage gates pass without relaxed assertions.
 | Landing     |             4 | 100% / 100% / 100% / 100%                          |
 | UI          |             2 | 100% / 100% / 100% / 100%                          |
 
-Total: **1,040 passing tests**. Coverage uses each package's established inclusion
+Total: **1,047 passing tests**. Coverage uses each package's established inclusion
 list. Shared and Twitch include their full source scopes; backend, Discord and
 dashboard have explicit existing coverage allowlists. These percentages do not
 claim every new integration file has 100% coverage. The added functional tests
