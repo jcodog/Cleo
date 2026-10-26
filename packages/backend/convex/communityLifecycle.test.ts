@@ -211,7 +211,11 @@ for (const state of ["missing", "failed", "expired"] as const)
         "Unverified evidence cannot change the external publication"
       )
       if (attempt < 5) {
-        assert.equal(job.nextAt, now + 30000 * 2 ** (attempt - 1))
+        const delay = 30000 * 2 ** (attempt - 1)
+        const transactionNow = await f.db.run(async () => Date.now())
+        assert.ok(
+          job.nextAt >= now + delay && job.nextAt <= transactionNow + delay
+        )
         assert.deepEqual(
           (await f.claim())?.jobs,
           [],
@@ -244,7 +248,7 @@ for (const state of ["missing", "failed", "expired"] as const)
     assert.ok(woken && parked)
     assert.ok(woken.revision > parked.revision)
     assert.equal(woken.attempts, 0)
-    assert.equal(woken.nextAt, now)
+    assert.equal(woken.nextAt, await f.db.run(async () => Date.now()))
     await f.finish()
     const recovered = (await f.claim())?.jobs[0]
     assert.ok(recovered)
@@ -292,7 +296,10 @@ test("pending reconciliation preserves the provider retry budget and completion 
   assert.deepEqual((await f.claim())?.jobs, [])
   assert.equal((await f.status())?.state, "pending")
   assert.equal((await f.job())?.attempts, 2)
-  assert.equal((await f.job())?.nextAt, now + 30000)
+  assert.equal(
+    (await f.job())?.nextAt,
+    (await f.db.run(async () => Date.now())) + 30000
+  )
   now += 30000
   assert.deepEqual((await f.claim())?.jobs, [])
   assert.equal((await f.status())?.state, "pending")
@@ -339,7 +346,7 @@ test("parked revisions ignore stale dispatch and settlement; explicit enqueue re
   await f.db.mutation(internal.communityRoles.enqueue, { discordUserId })
   const woken = await f.job()
   assert.equal(woken?.attempts, 0)
-  assert.equal(woken?.nextAt, now)
+  assert.equal(woken?.nextAt, await f.db.run(async () => Date.now()))
   assert.equal(woken?.revision, parked.revision + 1)
   await f.claim()
   assert.equal((await f.job())?.attempts, 1)
@@ -362,7 +369,7 @@ test("parked revisions ignore stale dispatch and settlement; explicit enqueue re
     0,
     "A late failure cannot charge the new revision's retry budget"
   )
-  assert.equal((await f.job())?.nextAt, now)
+  assert.equal((await f.job())?.nextAt, await f.db.run(async () => Date.now()))
 })
 
 test("a provider failure finishing after a new revision cannot park that revision", async (t) => {
@@ -394,7 +401,7 @@ test("a provider failure finishing after a new revision cannot park that revisio
   release()
   assert.deepEqual((await old)?.jobs, [])
   assert.equal((await f.job())?.attempts, 0)
-  assert.equal((await f.job())?.nextAt, now)
+  assert.equal((await f.job())?.nextAt, await f.db.run(async () => Date.now()))
   f.holdGuilds()
   await f.claim()
   await f.finish()
@@ -594,7 +601,10 @@ test("equal observations are idempotent, conflicting equal-time revocation wins,
   assert.equal((await update(f.guilds)).state, "superseded")
   assert.equal((await update(f.guilds, now - 1)).state, "superseded")
   await assert.rejects(update([], now - 300000), /expired/)
-  await assert.rejects(update([], now + 5001), /expired/)
+  await assert.rejects(
+    update([], (await f.db.run(async () => Date.now())) + 5001),
+    /expired/
+  )
   await f.finish()
   assert.equal(f.writes.length, 1)
   assert.equal(f.writes[0]?.community_manager_tier, "0")

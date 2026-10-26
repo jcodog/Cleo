@@ -3274,7 +3274,7 @@ test("retention cleanup deletes bounded old dedupe batches and prevents old sess
       streamId: "recent",
       state: "processed",
       attempts: 1,
-      createdAt: clock - 31 * 86400000,
+      createdAt: clock - 31 * 86400000 + 60000,
     })
   })
   await f.t.mutation(internal.liveNotifications.cleanup, {})

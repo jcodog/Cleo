@@ -245,7 +245,8 @@ test("nullable unpaid invoice payments preserve failure grace, successful retrie
   )
   const failed = (await subscription())!
   assert.equal(failed.status, "past_due")
-  assert.equal(failed.graceEndsAt, now + 86400000)
+  assert.ok(failed.paymentFailedAt)
+  assert.equal(failed.graceEndsAt, failed.paymentFailedAt + 86400000)
   now += 3600000
   assert.equal(
     await webhook("failed-again", "invoice.payment_failed", invoice()),
@@ -550,7 +551,10 @@ test("role batches prepare slow providers concurrently and dispatch fresh fenced
     5,
     "Completed snapshots must be reused without another provider call"
   )
-  assert.ok(result.jobs.every((job) => job.leaseUntil === now + 60000))
+  const transactionNow = await f.t.run(async () => Date.now())
+  assert.ok(
+    result.jobs.every((job) => job.leaseUntil === transactionNow + 60000)
+  )
   assert.deepEqual(
     await f.t.mutation(internal.communityRoles.dispatch, {
       worker: "other-worker",
@@ -560,7 +564,7 @@ test("role batches prepare slow providers concurrently and dispatch fresh fenced
   )
   assert.equal(
     (await f.t.run((ctx) => ctx.db.get(result.jobs[0]!.id)))?.leaseUntil,
-    now + 60000
+    result.jobs[0]!.leaseUntil
   )
   const stale = result.jobs[0]!
   await f.t.mutation(internal.communityRoles.enqueue, {

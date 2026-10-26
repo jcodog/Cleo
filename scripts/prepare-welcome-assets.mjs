@@ -12,9 +12,41 @@ import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
 import path from "node:path"
 import { gunzipSync } from "node:zlib"
+import { setTimeout as delay } from "node:timers/promises"
 
 const require = createRequire(import.meta.url)
 const root = fileURLToPath(new URL("../", import.meta.url))
+
+export async function assetsMatch(output, files) {
+  try {
+    for (const [name, source] of files) {
+      if (!(await readFile(path.join(output, name))).equals(source))
+        return false
+    }
+    return true
+  } catch (error) {
+    if (error.code === "ENOENT") return false
+    throw error
+  }
+}
+
+export async function renameWithRetry(source, destination, move = rename) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await move(source, destination)
+      return
+    } catch (error) {
+      if (
+        attempt === 5 ||
+        !["EPERM", "EACCES", "EBUSY", "ENOTEMPTY", "EEXIST"].includes(
+          error.code
+        )
+      )
+        throw error
+      await delay(50 * 2 ** attempt)
+    }
+  }
+}
 
 export async function prepareWelcomeAssets(destination) {
   const output = path.resolve(destination)
@@ -70,6 +102,19 @@ export async function prepareWelcomeAssets(destination) {
     "render-golden.json",
     await readFile(path.join(root, "scripts/assets/welcome-render-golden.json"))
   )
+  const hashes = Object.fromEntries(
+    [...files].map(([name, source]) => [
+      name,
+      createHash("sha256").update(source).digest("hex"),
+    ])
+  )
+  files.set(
+    "manifest.json",
+    Buffer.from(JSON.stringify(hashes, null, 2) + "\n")
+  )
+  // Avoid replacing thousands of unchanged files beneath Windows file watchers.
+  // Compare bytes as well as the manifest, so corrupt or missing assets are repaired.
+  if (await assetsMatch(output, files)) return
   // Load every input before touching the last usable output. Write a complete
   // sibling first; retain the old directory until replacement succeeds.
   await mkdir(path.dirname(output), { recursive: true })
@@ -79,15 +124,9 @@ export async function prepareWelcomeAssets(destination) {
   try {
     await mkdir(path.join(staged, "emoji"))
     await mkdir(path.join(staged, "fonts"))
-    const hashes = {}
     for (const [name, source] of files) {
       await writeFile(path.join(staged, name), source)
-      hashes[name] = createHash("sha256").update(source).digest("hex")
     }
-    await writeFile(
-      path.join(staged, "manifest.json"),
-      JSON.stringify(hashes, null, 2) + "\n"
-    )
     const exists = await access(output).then(
       () => true,
       (error) => {
@@ -96,18 +135,27 @@ export async function prepareWelcomeAssets(destination) {
       }
     )
     if (exists) {
-      await rename(output, backup)
+      await renameWithRetry(output, backup)
       movedPrevious = true
     }
     try {
-      await rename(staged, output)
+      await renameWithRetry(staged, output)
     } catch (error) {
-      if (movedPrevious) await rename(backup, output)
-      throw error
+      // Another preparer may have published the same complete asset set.
+      if (!(await assetsMatch(output, files))) {
+        if (movedPrevious) await renameWithRetry(backup, output)
+        throw error
+      }
     }
-    if (movedPrevious) await rm(backup, { recursive: true })
+    if (movedPrevious)
+      await rm(backup, { recursive: true, maxRetries: 5, retryDelay: 100 })
   } finally {
-    await rm(staged, { recursive: true, force: true })
+    await rm(staged, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    })
   }
 }
 
