@@ -113,4 +113,13 @@ test("Twitch shell renders account settings navigation through the shared sideba
   assert.equal(label?.props.children, "Overview")
   pathname = "/twitch/link/callback"
   assert.equal(shell().navSections[0]?.items[0]?.isActive, false)
+  // Routes remain stable during a temporary Discord membership verification gap.
+  pathname = "/dashboard/999999999999999999"
+  assert.ok(
+    shell().navSections[0]?.items.some(
+      (item) => item.title === "Premium Guild"
+    )
+  )
+  pathname = "/dashboard"
+  assert.ok(shell().navSections[0]?.items.length > 0)
 })
