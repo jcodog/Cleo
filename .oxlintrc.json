@@ -115,7 +115,8 @@
     {
       "files": [
         ".github/scripts/**/*.{js,mjs,cjs}",
-        "scripts/**/*.{js,mjs,cjs}"
+        "scripts/**/*.{js,mjs,cjs}",
+        "apps/mobile/metro.config.cjs"
       ],
       "env": {
         "node": true

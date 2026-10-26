@@ -18,6 +18,8 @@ Copy `apps/mobile/.env.example` to `apps/mobile/.env.local`. Set the publishable
 bun run --filter @workspace/mobile dev
 ```
 
+On Windows, the Metro config excludes foreign Sharp binaries from Bun's store before the watcher reaches their unreadable libvips junctions. It keeps Expo's workspace resolution and default exclusions, including Windows-compatible dependencies. macOS and Linux keep their original visibility.
+
 Clerk must have its Native API enabled and Discord sign-in configured. Register the mobile identifiers and `cleo://sso-callback` callback as required by your Clerk instance. Keep Discord as the primary identity. Use the existing Convex Clerk integration and issuer; no second auth backend is required. Deploy the directory query to a development backend through the usual operator workflow before testing it. This PR does not deploy backend changes.
 
 Clerk owns the session and uses its official Expo token cache with Expo SecureStore. The app waits for both Clerk restoration and Convex authentication before querying the directory. Sign-out removes the authenticated view immediately. Provider tokens remain on the backend.
