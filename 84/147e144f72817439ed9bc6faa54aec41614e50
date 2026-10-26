@@ -1,0 +1,39 @@
+apps/mobile/README.md
+  s_ac0b9d2e3cf020::t_00dcb88339d0c9 31,33,35-38,40-55,81,94-95
+.github/scripts/test-mobile-build.mjs
+  s_ac0b9d2e3cf020::t_aaf3e73719bd8f 1-12,14-55
+  s_ac0b9d2e3cf020::t_187fe81eba8edd 13
+package.json
+  s_ac0b9d2e3cf020::t_aaf3e73719bd8f 15-16
+docs/pr-272-verification.md
+  s_ac0b9d2e3cf020::t_71222c674f6f07 12,38,44
+  s_ac0b9d2e3cf020::t_9c5508ea951c49 24-25,30-32,46
+apps/mobile/package.json
+  s_ac0b9d2e3cf020::t_2af0d3b42ad67a 10-11
+  s_ac0b9d2e3cf020::t_d57f9f51de22b6 35-36,43
+scripts/build-mobile-ios-unsigned.sh
+  s_ac0b9d2e3cf020::t_187fe81eba8edd 27-33
+  s_ac0b9d2e3cf020::t_2af0d3b42ad67a 1-26,34-77
+codemagic.yaml
+  s_ac0b9d2e3cf020::t_187fe81eba8edd 9
+  s_ac0b9d2e3cf020::t_2af0d3b42ad67a 1-8,10-21,23-42
+  s_ac0b9d2e3cf020::t_20a8a634153ecb 22
+bun.lock
+  s_ac0b9d2e3cf020::t_f1617991cb5fef 115-116,123,2514-2519
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "84147e144f72817439ed9bc6faa54aec41614e50",
+  "prompts": {},
+  "sessions": {
+    "s_ac0b9d2e3cf020": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17839-c494-7a93-8268-c01092562095",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
