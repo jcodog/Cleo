@@ -1,0 +1,27 @@
+apps/mobile/README.md
+  s_ac0b9d2e3cf020::t_ee92e781940f6b 42
+packages/backend/convex/communityActions.ts
+  s_ac0b9d2e3cf020::t_dc7bfebb90d783 494-495
+  s_ac0b9d2e3cf020::t_ee92e781940f6b 491-493
+packages/backend/convex/communityIntegrations.test.ts
+  s_ac0b9d2e3cf020::t_dc7bfebb90d783 492-497,538-543
+docs/pr-272-verification.md
+  s_ac0b9d2e3cf020::t_ee92e781940f6b 24,44
+  s_ac0b9d2e3cf020::t_9b584f9dbbd224 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7ef44ce5371669de548b1fc36258b2e9acdf1ef",
+  "prompts": {},
+  "sessions": {
+    "s_ac0b9d2e3cf020": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17839-c494-7a93-8268-c01092562095",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
