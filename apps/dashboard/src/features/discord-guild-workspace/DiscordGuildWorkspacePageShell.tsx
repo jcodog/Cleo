@@ -30,6 +30,7 @@ import { LogsSection } from "./sections/LogsSection"
 import { ModerationSection } from "./sections/ModerationSection"
 import { OverviewSection } from "./sections/OverviewSection"
 import { SettingsSection } from "./sections/SettingsSection"
+import { PremiumGuildSection } from "./sections/PremiumGuildSection"
 import { SupportSection } from "./sections/SupportSection"
 import { WelcomeSection } from "./sections/WelcomeSection"
 import { LiveNotificationsSection } from "./sections/LiveNotificationsSection"
@@ -246,7 +247,9 @@ function WorkspaceSection({
           overview={overview}
         />
       )
+    case "premium":
+      return <PremiumGuildSection overview={overview} />
     case "settings":
-      return <SettingsSection isBotLeft={isBotLeft} overview={overview} />
+      return <SettingsSection overview={overview} />
   }
 }
