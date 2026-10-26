@@ -1,0 +1,28 @@
+apps/dashboard/package.json
+  h_2bc691fceb4fe5 22-23,29,31,35
+apps/discord-bot/package.json
+  h_2bc691fceb4fe5 28,38
+apps/landing/package.json
+  h_2bc691fceb4fe5 17,22
+bun.lock
+  h_2bc691fceb4fe5 19,27-28,34,36,40,56,66,78,83,118,120-121,127,159,185,217,219,224,300,302,304,306,308,310,546,548,550,552,554,556,558,560,562,564,566,568,570,572,574,576,578,580,582,584,586,588,590,732,734,736,738,740,742,744,950,952,1076,1266,1372,1486,1584,1616,1646,1698,1814-1817
+package.json
+  h_2bc691fceb4fe5 30,42,44,49
+packages/backend/package.json
+  h_2bc691fceb4fe5 20,22-23,29
+packages/shared/package.json
+  h_2bc691fceb4fe5 17
+packages/ui/package.json
+  h_2bc691fceb4fe5 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7fb2a329ea518db3250818138941d25aa5ceb8fe",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}

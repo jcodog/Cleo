@@ -1,0 +1,16 @@
+bun.lock
+  h_2bc691fceb4fe5 185,1486
+packages/ui/package.json
+  h_2bc691fceb4fe5 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea29e71abac84521007deb6517fca90f3b42ca22",
+  "prompts": {},
+  "humans": {
+    "h_2bc691fceb4fe5": {
+      "author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+packages/shared/src/moderationRuntime.ts
+  s_ac0b9d2e3cf020::t_1951a6f20bc255 2-3
+scripts/prepare-welcome-assets.mjs
+  s_ac0b9d2e3cf020::t_f15b95f961c88d 150-151,153-156,158
+  s_ac0b9d2e3cf020::t_24299534c684c2 15,20-35,37-50,105-107,109-117,138,142,144-148
+  s_ac0b9d2e3cf020::t_d243ce6373bede 36,108,157
+package.json
+  s_ac0b9d2e3cf020::t_24299534c684c2 15-16
+packages/backend/convex/communityRecovery.test.ts
+  s_ac0b9d2e3cf020::t_5c683d592a18f6 567
+  s_ac0b9d2e3cf020::t_af241786a47355 248-249,554
+  s_ac0b9d2e3cf020::t_2b04c1103b0bb6 555-557
+packages/backend/convex/liveNotifications.test.ts
+  s_ac0b9d2e3cf020::t_af241786a47355 3277
+packages/backend/convex/communityLifecycle.test.ts
+  s_ac0b9d2e3cf020::t_5c683d592a18f6 214,216-218
+  s_ac0b9d2e3cf020::t_25110aba33b4e7 215,251,299-302,349,372,404,604-607
+scripts/prepare-welcome-assets.test.mjs
+  s_ac0b9d2e3cf020::t_24299534c684c2 1-8,10-14,16-19,21-29,31-40,42-56
+  s_ac0b9d2e3cf020::t_f20ac8e220f1aa 9,15,20,30,41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7a7fc7d216886d23d45580f23b7909ca564eaf0d",
+  "prompts": {},
+  "sessions": {
+    "s_ac0b9d2e3cf020": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17839-c494-7a93-8268-c01092562095",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
