@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 /** Legacy route only; the sidebar no longer links to an empty Settings page. */
+/** Preserve legacy Settings links while directing billing to the dedicated Premium page. */
 export function SettingsSection({
   discordGuildId,
 }: {

@@ -13,6 +13,7 @@ const convex = convexUrl
   ? new ConvexReactClient(convexUrl, { unsavedChangesWarning: false })
   : null
 
+/** Restore the Clerk SecureStore session before Convex can authenticate native routes. */
 export default function RootLayout() {
   if (!publishableKey || !convex)
     return (

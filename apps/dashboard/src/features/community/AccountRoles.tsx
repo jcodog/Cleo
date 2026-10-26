@@ -32,6 +32,7 @@ const questions = [
     "Disconnecting your Discord verification or losing the required installation, permissions, subscription or consent removes the corresponding eligibility. Other roles remain independent. Premium Supporter recognition is optional.",
   ],
 ] as const
+/** Explain native Linked Roles eligibility and link to explicit Discord verification. */
 export function AccountRoles() {
   return (
     <div className="max-w-2xl space-y-8">

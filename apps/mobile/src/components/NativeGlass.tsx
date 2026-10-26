@@ -12,6 +12,7 @@ import {
 } from "expo-glass-effect"
 import { colors } from "../theme"
 
+/** Use native glass only when compiled, available and permitted by accessibility settings. */
 export function NativeGlass({
   children,
   style,

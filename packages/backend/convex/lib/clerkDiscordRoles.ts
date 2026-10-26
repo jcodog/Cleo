@@ -17,6 +17,10 @@ const authorization = z.object({
   user: z.object({ id: z.string() }).optional(),
 })
 
+/**
+ * Retrieve Clerk's provider token and verify the exact Discord user, owning
+ * application, Linked Roles scope and remaining lifetime before publication.
+ */
 export async function clerkDiscordRoleToken(
   clerkUserId: string,
   discordUserId: string

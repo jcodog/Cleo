@@ -36,6 +36,7 @@ type ManageableGuild = {
 const EMPTY_MANAGEABLE_GUILDS: ManageableGuild[] = []
 
 /** List deduplicated, openable guilds from authorized queries without inventing missing membership data. */
+/** Present last-known servers with verification notices instead of redirecting on expiry. */
 export function DiscordDashboardPageShell() {
   const refresh = useQuery(api.communityRoles.refreshProgress)
   const { isLoading: isConvexAuthLoading } = useConvexAuth()
@@ -127,6 +128,7 @@ export function DiscordDashboardPageShell() {
   )
 }
 
+/** Keep the dashboard title and installation entry available in every directory state. */
 function DashboardFrame({ children }: { children: ReactNode }) {
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
@@ -153,6 +155,7 @@ function DashboardFrame({ children }: { children: ReactNode }) {
   )
 }
 
+/** Reserve directory space until the initial query resolves, without an empty-state flash. */
 function ServerListSkeleton() {
   return (
     <div className="min-w-0 space-y-5">
@@ -169,6 +172,7 @@ function ServerListSkeleton() {
   )
 }
 
+/** Link directly to the row's guild so stale saved selection cannot change the destination. */
 function ServerRow({
   guild,
   isLast,
@@ -198,6 +202,7 @@ function ServerRow({
   )
 }
 
+/** Use decorative server artwork with a stable initial fallback when no icon exists. */
 function GuildAvatar({
   guild,
 }: {
@@ -223,6 +228,7 @@ function GuildAvatar({
   )
 }
 
+/** Omit unknown counts and fall back to the real Discord ID rather than invented totals. */
 function formatServerMeta(guild: ManageableGuild) {
   const parts = [
     guild.memberCount !== undefined

@@ -1,3 +1,4 @@
+/** Distinguish session restoration, sign-in and backend authentication without redirects. */
 export function mobileSessionState(
   loaded: boolean,
   signedIn: boolean | undefined,
@@ -10,6 +11,7 @@ export function mobileSessionState(
   return authenticated ? "ready" : "backendUnavailable"
 }
 
+/** Describe display evidence separately from permission to use protected server features. */
 export function directoryNotice(
   status: "ready" | "pending" | "expired" | "unavailable" | "missingDiscord"
 ) {

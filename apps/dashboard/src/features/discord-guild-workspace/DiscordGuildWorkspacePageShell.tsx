@@ -48,6 +48,7 @@ type DiscordGuildWorkspacePageShellProps = {
   section?: DiscordGuildSection
 }
 
+/** Gate protected server sections on backend authority without bouncing a guild deep link. */
 export function DiscordGuildWorkspacePageShell({
   preloadedOverview,
   section = "overview",
@@ -152,6 +153,7 @@ export function DiscordGuildWorkspacePageShell({
   )
 }
 
+/** Retain the selected server context and warn when its bot installation has ended. */
 function WorkspaceReadyView({
   isBotLeft,
   overview,
@@ -191,6 +193,7 @@ function WorkspaceReadyView({
   )
 }
 
+/** Identify the current guild and section independently of the sidebar's saved selection. */
 function WorkspaceHeader({
   isBotLeft,
   overview,
@@ -216,6 +219,7 @@ function WorkspaceHeader({
   )
 }
 
+/** Key section state by guild so drafts cannot carry into a different server. */
 function WorkspaceSection({
   isBotLeft,
   overview,

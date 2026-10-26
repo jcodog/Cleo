@@ -34,6 +34,7 @@ import {
 import { getStaffTopbarEntry } from "@/features/app-shell/staffAccess"
 import type { AppShellNavSection } from "@/features/app-shell/types"
 
+/** Derive navigation from the current route and display directory without refresh redirects. */
 export function DashboardShellClient({
   children,
   preloadedManageableGuilds,

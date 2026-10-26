@@ -13,6 +13,7 @@ import { SymbolView } from "expo-symbols"
 
 WebBrowser.maybeCompleteAuthSession()
 
+/** Gate the native directory on both restored Clerk and authenticated Convex sessions. */
 export default function Home() {
   const { isLoaded, isSignedIn, sessionId } = useAuth()
   const { signOut } = useClerk()
@@ -26,6 +27,7 @@ export default function Home() {
     isLoading,
     isAuthenticated
   )
+  /** Activate only the session returned by the Clerk Discord SSO flow. */
   async function signIn() {
     setBusy(true)
     setError("")
@@ -52,6 +54,7 @@ export default function Home() {
       setBusy(false)
     }
   }
+  /** End the Clerk session; authentication gates remove the directory on sign-out. */
   async function leave() {
     setBusy(true)
     setError("")

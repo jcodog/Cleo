@@ -6,6 +6,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Switch } from "@workspace/ui/components/switch"
 import { Field, FieldLabel } from "@workspace/ui/components/field"
 import Link from "next/link"
+/** Separate guild entitlements from purchaser billing and wait for resolved billing state. */
 export function PremiumPurchases({
   discordGuildId,
 }: {
@@ -21,6 +22,7 @@ export function PremiumPurchases({
   const [publishIdentity, setPublishIdentity] = useState<boolean | null>(null)
   const [notice, setNotice] = useState("")
   const [busy, setBusy] = useState(false)
+  /** Report billing progress and provider failures without clearing saved preferences. */
   async function perform(operation: () => Promise<unknown>) {
     setBusy(true)
     setNotice("")

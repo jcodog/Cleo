@@ -47,6 +47,7 @@ class DirectoryBoundary extends Component<
     )
   }
 }
+/** Reset the directory error boundary only after an explicit retry. */
 export function Servers() {
   const [attempt, setAttempt] = useState(0)
   return (
@@ -58,6 +59,7 @@ export function Servers() {
     </DirectoryBoundary>
   )
 }
+/** Keep last-known metadata visible while bounded account and guild verification runs. */
 function Directory() {
   const directory = useQuery(
     api.queries.dashboard.discord.guilds.directory.list

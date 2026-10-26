@@ -28,11 +28,11 @@ Passed:
 - CI contract/PWA contract tests using the installed Git Bash on Windows.
 - Expo version compatibility, native typecheck and iOS/Android Hermes export with Liquid Glass and Symbols installed.
 
-The Linux-only bot release packaging verification must run in GitHub Actions. Local builds cover both bots, but Windows is not a substitute for the pinned Linux release environment. GitHub required-check results belong to the final pushed commit, not this local record.
+The [GitHub Actions run for signed commit `13dbc3c`](https://github.com/jcodog/Cleo/actions/runs/40340502517) passed Code quality, Tests and coverage, Web verification, Release verification and the required aggregate check. Linux bot packaging and the reviewed welcome pixels passed there. Both Vercel previews also passed. Required checks must remain green on the final pushed commit.
 
 ## Reviews and remaining operator work
 
-CodeRabbit's original undefined-comparison and premature-billing-notice findings are fixed and tested. Review threads may be resolved only after commit-specific evidence is posted.
+CodeRabbit's original undefined-comparison and premature-billing-notice findings are fixed and tested. Both threads have commit-specific replies and are resolved. Its subsequent review of `a5b2494` failed to publish four inline comments because GitHub was unavailable; that review is not counted as completed. The documentation coverage finding is addressed with contracts for the affected functions. Any findings from the retried review must still be assessed and verified.
 
 Cubic cloud review is unavailable because the monthly allowance was exceeded, 44,404 reviewed lines against a 40,000-line allowance. The authenticated CLI is also unavailable because its subscription is expired. Neither is a completed independent review.
 

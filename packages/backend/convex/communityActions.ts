@@ -24,6 +24,7 @@ import {
   DiscordRoleApplicationMismatch,
 } from "./lib/clerkDiscordRoles"
 
+/** Connect an application-bound Clerk grant, preserving a valid existing direct grant. */
 export const connectClerkLinkedRoles = action({
   args: {},
   returns: v.union(
@@ -93,6 +94,7 @@ const tokenSchema = z.object({
   scope: z.string(),
 })
 class RevokedDiscordGrant extends Error {}
+/** Require the direct-grant fallback's HTTPS callback and encrypted token storage. */
 function oauthConfig() {
   const clientId = discordApplicationConfig()
   const secret = backendEnv.DISCORD_CLIENT_SECRET
@@ -107,6 +109,7 @@ function oauthConfig() {
     throw new Error("Discord Linked Roles are not configured.")
   return { clientId, secret, redirect }
 }
+/** Exchange direct-grant credentials for a validated Linked Roles token response. */
 async function tokens(fields: Record<string, string>) {
   const config = oauthConfig()
   const response = await fetch("https://discord.com/api/v10/oauth2/token", {
@@ -137,6 +140,7 @@ async function tokens(fields: Record<string, string>) {
     throw new Error("Linked Roles permissions required.")
   return result
 }
+/** Revoke a direct Discord grant during cleanup without exposing its refresh token. */
 async function revokeGrant(refreshToken: string) {
   const config = oauthConfig()
   const response = await fetch(

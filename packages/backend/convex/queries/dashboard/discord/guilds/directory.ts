@@ -7,7 +7,7 @@ import {
   isFreshDiscordMembership,
 } from "../../../../lib/discordGuildMemberships"
 
-// Directory metadata is a last-known display, never permission to read configuration.
+/** Return same-account, nonrevoked display metadata without granting configuration access. */
 export const list = query({
   args: {},
   returns: v.object({

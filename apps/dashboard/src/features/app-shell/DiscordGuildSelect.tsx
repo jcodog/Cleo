@@ -25,6 +25,7 @@ type DiscordGuildOption = {
   iconUrl?: string
 }
 
+/** Keep guild identification visible with initials when Discord has no icon. */
 function GuildIcon({
   className = "size-8",
   guild,
@@ -59,6 +60,7 @@ function GuildIcon({
   )
 }
 
+/** Switch servers explicitly while retaining directory entries during verification. */
 export function DiscordGuildSelect() {
   const refresh = useQuery(api.communityRoles.refreshProgress)
   const verifying = refresh?.state === "pending"
@@ -85,6 +87,7 @@ export function DiscordGuildSelect() {
   )
   const isLoading = manageableGuilds === undefined || verifying
 
+  /** Open installation from the directory without changing the current server selection. */
   function handleAddGuild() {
     router.push("/dashboard/add-server")
   }
@@ -166,6 +169,7 @@ export function DiscordGuildSelect() {
   )
 }
 
+/** Preserve the active dashboard section when switching between guild routes. */
 function getGuildSwitchHref(
   pathname: string,
   nextDiscordGuildId: string

@@ -7,7 +7,7 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Button } from "@workspace/ui/components/button"
 const failure =
   "Discord verification failed. Start again from Discord with the account linked to Cleo."
-/** Discord's verification URL starts OAuth; its callback consumes the single-use state once. */
+/** Reuse Clerk after session restoration; consume direct-fallback state once if supplied. */
 export function LinkedRoleCallback({
   code,
   state,
@@ -83,6 +83,7 @@ export function LinkedRoleCallback({
     isAuthenticated,
     sessionId,
   ])
+  /** Request the additional Discord scope only after the user chooses to consent. */
   async function authorize() {
     setBusy(true)
     try {

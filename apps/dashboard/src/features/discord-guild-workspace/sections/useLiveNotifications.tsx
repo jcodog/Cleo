@@ -18,6 +18,7 @@ const cache = new LiveNotificationsDisplayCache(() =>
   typeof window === "undefined" ? undefined : window.sessionStorage
 )
 
+/** Bind live status to owner evidence and recover expired management authority explicitly. */
 export function useLiveNotifications(discordGuildId: string) {
   const { userId, sessionId } = useAuth()
   const client = useConvex()

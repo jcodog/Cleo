@@ -10,6 +10,7 @@ import { Button } from "@workspace/ui/components/button"
 
 export type DashboardDiscordSyncStatus = "idle" | "syncing" | "ready" | "error"
 
+/** Own synchronization by session and identity, independent of reactive progress renders. */
 export function DashboardDiscordHydrator({
   onStatusChange,
   retryToken = 0,

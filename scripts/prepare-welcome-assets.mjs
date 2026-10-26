@@ -17,6 +17,7 @@ import { setTimeout as delay } from "node:timers/promises"
 const require = createRequire(import.meta.url)
 const root = fileURLToPath(new URL("../", import.meta.url))
 
+/** Compare every expected byte so missing or corrupt files cannot pass as prepared. */
 export async function assetsMatch(output, files) {
   try {
     for (const [name, source] of files) {
@@ -30,6 +31,7 @@ export async function assetsMatch(output, files) {
   }
 }
 
+/** Retry transient Windows filesystem locks without discarding the staged source. */
 export async function renameWithRetry(source, destination, move = rename) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -48,6 +50,7 @@ export async function renameWithRetry(source, destination, move = rename) {
   }
 }
 
+/** Publish a complete allowed asset directory, retaining the old output until replacement. */
 export async function prepareWelcomeAssets(destination) {
   const output = path.resolve(destination)
   const allowed = [
