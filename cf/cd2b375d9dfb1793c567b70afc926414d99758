@@ -1,0 +1,151 @@
+apps/dashboard/src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell.tsx
+  s_ac0b9d2e3cf020::t_69e27a36342c6f 278
+  s_ac0b9d2e3cf020::t_329261fbfe49c9 17,58-61
+  s_ac0b9d2e3cf020::t_14ff07520eb62b 117-136,139,141
+apps/dashboard/src/features/app-shell/dashboardGuildSelection.test.ts
+  s_ac0b9d2e3cf020::t_0876c81231a0fa 56,64,66
+packages/backend/convex/communityIntegrations.test.ts
+  s_ac0b9d2e3cf020::t_f22529c0d016d9 139-142,173-217
+  s_ac0b9d2e3cf020::t_4a76a248037bf6 137-138,151,160,167,218-243,247
+  s_ac0b9d2e3cf020::t_442ad67a0a684b 134-136
+  s_ac0b9d2e3cf020::t_51d2a24e6b3b08 143-145,148-150
+  s_ac0b9d2e3cf020::t_bcc200391fc4c0 152-154,157-159
+  s_ac0b9d2e3cf020::t_ec39035349606f 161-166
+  s_ac0b9d2e3cf020::t_e4b4b41540f165 168-172
+  s_ac0b9d2e3cf020::t_533df9b6649b9c 244-246
+  s_ac0b9d2e3cf020::t_70e7500bd7e0de 248-249
+  s_e1782df49523a0::t_50692f049f9f9a 132-133,146-147,155-156
+apps/dashboard/src/features/dashboard/DiscordDashboardPageShell.tsx
+  s_ac0b9d2e3cf020::t_0876c81231a0fa 43-44,46,51,62,66-74
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_ac0b9d2e3cf020::t_0876c81231a0fa 39
+  s_ac0b9d2e3cf020::t_1951a6f20bc255 120,123
+apps/dashboard/src/features/discord-guild-workspace/sections/useLiveNotifications.test.ts
+  s_ac0b9d2e3cf020::t_04739ffca91e28 4,18,125-134,169-175
+packages/backend/convex/queries/dashboard/discord/guilds/directory.ts
+  s_ac0b9d2e3cf020::t_518e19bd14fece 1-95
+apps/dashboard/src/features/app-shell/dashboardGuildSelection.ts
+  s_ac0b9d2e3cf020::t_0876c81231a0fa 55-59
+apps/dashboard/tests/twitch/community.spec.ts
+  s_ac0b9d2e3cf020::t_5c683d592a18f6 44,53-57,133,237,283
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_ac0b9d2e3cf020::t_0876c81231a0fa 18-23,53-56,93-97,110,120
+packages/backend/convex/lib/clerkDiscordRoles.ts
+  s_ac0b9d2e3cf020::t_50a20448e1c61e 17,72-73
+  s_ac0b9d2e3cf020::t_725b0833e7b977 1-16,18-71,74-78
+packages/backend/convex/dbTables/communityIntegrations.ts
+  s_ac0b9d2e3cf020::t_725b0833e7b977 68
+packages/backend/convex/premiumPurchases.ts
+  s_ac0b9d2e3cf020::t_329261fbfe49c9 71-73
+  s_ac0b9d2e3cf020::t_0c1a75121f0c0f 77-79
+  s_ac0b9d2e3cf020::t_d8163b0fc8ab1d 44-58,74-76,80-82,84,93-110,122,129
+packages/backend/convex/_generated/dataModel.d.ts
+  s_ac0b9d2e3cf020::t_8608f2df293a86 1686,1702
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_ac0b9d2e3cf020::t_70a0fac66969a1 1-6,19-20,275-298,301-302
+  s_ac0b9d2e3cf020::t_e19bdc0c55afc7 303
+  s_ac0b9d2e3cf020::t_69e27a36342c6f 14-18,34-58,85-89,226-233,272-274,300,304-318
+  s_ac0b9d2e3cf020::t_5c683d592a18f6 65-70,138-143,254-255
+  s_ac0b9d2e3cf020::t_155409daa0bfa3 84
+  s_ac0b9d2e3cf020::t_77295385569c04 234
+  s_ac0b9d2e3cf020::t_56f9c831604442 271
+  s_ac0b9d2e3cf020::t_81e38d3fbba03e 299
+  s_ac0b9d2e3cf020::t_ec7a732dfd33f3 319-320
+apps/dashboard/tests/twitch/fixture.tsx
+  s_ac0b9d2e3cf020::t_69e27a36342c6f 208-210
+  s_ac0b9d2e3cf020::t_0ddee83d5aa229 21,341-343
+packages/backend/convex/communityActions.ts
+  s_ac0b9d2e3cf020::t_7c90a33506f6b3 46-70
+  s_ac0b9d2e3cf020::t_725b0833e7b977 21-45,71-87,317-335,337-340,351-352,359-362,408,452-455,473-486,497-498
+apps/dashboard/src/features/discord-guild-workspace/sections/LiveNotificationsSection.tsx
+  s_ac0b9d2e3cf020::t_d8163b0fc8ab1d 49,55-59
+apps/dashboard/src/features/discord-guild-workspace/sections/SettingsSection.tsx
+  s_ac0b9d2e3cf020::t_69e27a36342c6f 4-8,16
+  s_ac0b9d2e3cf020::t_0876c81231a0fa 12
+packages/backend/convex/queries/dashboard/discord/guilds/directory.test.ts
+  s_ac0b9d2e3cf020::t_0edb080c9e49e5 53-64
+  s_ac0b9d2e3cf020::t_8f9607828f3f18 1-52,65-108
+apps/dashboard/src/features/discord-guild-workspace/sections/useLiveNotifications.tsx
+  s_ac0b9d2e3cf020::t_d8163b0fc8ab1d 25-28,149-160
+apps/dashboard/tests/twitch/image-fixture.tsx
+  s_ac0b9d2e3cf020::t_50a20448e1c61e 2-4
+  s_ac0b9d2e3cf020::t_a7c3c9f03fcfb5 1,5
+apps/dashboard/tests/twitch/serve.mjs
+  s_ac0b9d2e3cf020::t_a7c3c9f03fcfb5 17-19,22-24,69-73
+  s_ac0b9d2e3cf020::t_70a0fac66969a1 55-68
+packages/backend/convex/_generated/api.d.ts
+  s_ac0b9d2e3cf020::t_8608f2df293a86 1604-1609,1776-1783,2231-2236,2451-2474,3857-3862,3877,3913
+packages/backend/convex/discordConnections.ts
+  s_ac0b9d2e3cf020::t_725b0833e7b977 42-61,68-84,169
+  s_ac0b9d2e3cf020::t_155409daa0bfa3 6,11,13-41
+  s_ac0b9d2e3cf020::t_d9e40357270a90 10,62-67
+apps/dashboard/src/features/community/LinkedRoleCallback.tsx
+  s_ac0b9d2e3cf020::t_0811b404a44f82 52,57
+  s_ac0b9d2e3cf020::t_602d6dd913c89e 4-5,7,22-33,36-39,55-56,58-72,75-111,113-150
+  s_ac0b9d2e3cf020::t_155409daa0bfa3 3
+  s_ac0b9d2e3cf020::t_f075d9a1189cf6 48
+apps/dashboard/src/features/app-shell/pwaNavigation.test.ts
+  s_ac0b9d2e3cf020::t_af241786a47355 39
+apps/dashboard/src/features/community/communitySettings.test.ts
+  s_ac0b9d2e3cf020::t_8f9607828f3f18 151-156,172-175,187-191
+  s_ac0b9d2e3cf020::t_f1e163bb9deb6d 192-194
+apps/dashboard/tests/twitch/clerk-fixture.ts
+  s_ac0b9d2e3cf020::t_5c683d592a18f6 4-12,27
+  s_ac0b9d2e3cf020::t_69e27a36342c6f 31-35
+  s_ac0b9d2e3cf020::t_9472c63ca7fd6f 3
+apps/dashboard/src/features/app-shell/DashboardDiscordHydrator.test.ts
+  s_ac0b9d2e3cf020::t_0edb080c9e49e5 1-185
+packages/backend/convex/lib/clerkDiscordRoles.test.ts
+  s_ac0b9d2e3cf020::t_8f9607828f3f18 1-14,20-26,32-100
+  s_ac0b9d2e3cf020::t_e105d9ec8defc4 15-19,27-30
+  s_ac0b9d2e3cf020::t_6e3fe1e694e54e 31
+apps/dashboard/src/features/app-shell/DiscordGuildSelect.tsx
+  s_ac0b9d2e3cf020::t_0876c81231a0fa 67-68,70,149-151,153
+apps/dashboard/src/features/community/PremiumPurchases.tsx
+  s_ac0b9d2e3cf020::t_1951a6f20bc255 56,130-133,161-164,196-199,201-204,209-210,220,222,234-236,260-269,272-323
+  s_ac0b9d2e3cf020::t_d8163b0fc8ab1d 8,39-44,49,67-125,142-144,175,179-181,186,190-192,248-259,324
+  s_ac0b9d2e3cf020::t_50a20448e1c61e 154-156
+  s_ac0b9d2e3cf020::t_963c20966fafaa 66
+  s_ac0b9d2e3cf020::t_41a543561af482 126
+  s_ac0b9d2e3cf020::t_d5008e96a90ec3 153
+  s_ac0b9d2e3cf020::t_74449ee58932bf 157
+  s_ac0b9d2e3cf020::t_1e7f30b49a8d95 247
+  s_ac0b9d2e3cf020::t_79a386030e041f 325
+apps/dashboard/src/features/app-shell/DashboardDiscordHydrator.tsx
+  s_ac0b9d2e3cf020::t_518e19bd14fece 3,25,33-40,44,48,51,56-61,63,65-66,70,79-80,84,95,98-107,116,120,127,132-134
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_ac0b9d2e3cf020::t_50a20448e1c61e 9
+  s_ac0b9d2e3cf020::t_1b6074efbe7ccd 1-7,10-136
+  s_ac0b9d2e3cf020::t_adff8409f136cc 8
+apps/dashboard/src/features/community/AccountRoles.tsx
+  s_ac0b9d2e3cf020::t_602d6dd913c89e 8,39-44
+apps/dashboard/src/features/discord-guild-workspace/sections/PremiumGuildSection.tsx
+  s_ac0b9d2e3cf020::t_d8163b0fc8ab1d 8-11
+  s_ac0b9d2e3cf020::t_b349c811a97714 7
+apps/dashboard/src/features/discord-guild-workspace/sections/LiveNotificationsSection.test.ts
+  s_ac0b9d2e3cf020::t_b6fcce414dda5e 411-412
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cfcd2b375d9dfb1793c567b70afc926414d99758",
+  "prompts": {},
+  "sessions": {
+    "s_ac0b9d2e3cf020": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17839-c494-7a93-8268-c01092562095",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_e1782df49523a0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1783b-2b44-7012-85f3-246374c33faf",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
