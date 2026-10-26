@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@clerk/nextjs"
-import { usePathname, redirect } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   IconHome,
   IconLogs,
@@ -80,8 +80,7 @@ export function DashboardShellClient({
     (state) => state.setSelectedDiscordGuildId
   )
   const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
-  const { activeDiscordGuildId, invalidRouteGuildId, safeDashboardPath } =
-    getDashboardGuildSelection({
+  const { activeDiscordGuildId } = getDashboardGuildSelection({
       manageableGuilds,
       routeDiscordGuildId,
       storedDiscordGuildId,
@@ -109,13 +108,6 @@ export function DashboardShellClient({
     storedDiscordGuildId,
   ])
 
-  if (invalidRouteGuildId) {
-    redirect(safeDashboardPath)
-  }
-
-  if (pathname === "/dashboard" && activeDiscordGuildId) {
-    redirect(`/dashboard/${activeDiscordGuildId}`)
-  }
 
   const discordNavSections: AppShellNavSection[] = [
     {
@@ -180,12 +172,12 @@ export function DashboardShellClient({
           disabled: !hasSelectedDiscordGuild,
         },
         {
-          title: "Settings",
-          href: discordGuildSectionHref("settings"),
-          icon: IconSettings,
+          title: "Premium Guild",
+          href: discordGuildSectionHref("premium"),
+          icon: IconSparkles,
           isActive:
             activeDiscordGuildId !== undefined &&
-            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/settings`),
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/premium`),
           disabled: !hasSelectedDiscordGuild,
         },
       ],
