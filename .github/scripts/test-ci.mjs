@@ -281,6 +281,7 @@ assert.notEqual(firstManual, firstPr)
 const directory = mkdtempSync(join(tmpdir(), "cleo-coverage-site-"))
 const reports = [
   "apps/dashboard",
+  "apps/mobile",
   "apps/landing",
   "apps/discord-bot",
   "apps/twitch-bot",

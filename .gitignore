@@ -30,6 +30,10 @@ apps/landing/next-env.d.ts
 out/
 build
 dist
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/expo-env.d.ts
 apps/discord-bot/src/services/welcome-assets/
 apps/discord-bot/src/services/welcome-assets-*/
 apps/dashboard/public/welcome-assets/

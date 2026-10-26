@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Cleo",
+    "slug": "cleo-mobile",
+    "scheme": "cleo",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "ios": { "bundleIdentifier": "uk.co.jconet.cleo", "supportsTablet": true },
+    "android": { "package": "uk.co.jconet.cleo" },
+    "plugins": ["expo-router", "expo-secure-store", "@clerk/expo"],
+    "experiments": { "typedRoutes": true }
+  }
+}

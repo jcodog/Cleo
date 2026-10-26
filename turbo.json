@@ -10,6 +10,8 @@
     "DISABLE_SYSTEM_FONTS_LOAD",
     "NODE_ENV",
     "NEXT_PUBLIC_CONVEX_URL",
+    "EXPO_PUBLIC_CONVEX_URL",
+    "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_SITE_URL",
     "VERCEL_ENV",
@@ -48,6 +50,11 @@
   ],
   "globalPassThroughEnv": ["VERCEL_URL"],
   "tasks": {
+    "@workspace/mobile#build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**"]
+    },
     "@workspace/discord-bot#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
