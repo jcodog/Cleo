@@ -1,0 +1,66 @@
+apps/dashboard/src/features/discord-guild-workspace/sections/useLiveNotifications.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 21
+scripts/prepare-welcome-assets.mjs
+  s_ac0b9d2e3cf020::t_248889cf43edb6 20,34,53
+apps/mobile/src/app/sso-callback.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 2
+apps/dashboard/src/features/app-shell/DiscordGuildSelect.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 28,63,90,172
+apps/dashboard/src/features/discord-guild-workspace/sections/LiveNotificationsSection.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 42,75,162,193
+apps/dashboard/src/features/app-shell/DashboardDiscordHydrator.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 13
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 37
+apps/mobile/src/lib/sessionState.ts
+  s_ac0b9d2e3cf020::t_248889cf43edb6 1,14
+apps/mobile/src/app/_layout.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 16
+apps/dashboard/src/features/discord-guild-workspace/sections/PremiumGuildSection.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 5
+apps/dashboard/src/features/community/PremiumPurchases.tsx
+  s_ac0b9d2e3cf020::t_bbf2870a237744 25
+  s_ac0b9d2e3cf020::t_248889cf43edb6 9
+apps/dashboard/src/features/community/LinkedRoleCallback.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 10,86
+apps/mobile/src/app/index.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 16,30,57
+apps/dashboard/src/features/community/AccountRoles.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 35
+apps/mobile/src/components/NativeGlass.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 15
+packages/backend/convex/lib/clerkDiscordRoles.ts
+  s_ac0b9d2e3cf020::t_248889cf43edb6 20-23
+packages/backend/convex/queries/dashboard/discord/guilds/directory.ts
+  s_ac0b9d2e3cf020::t_248889cf43edb6 10
+apps/dashboard/src/features/app-shell/dashboardGuildSelection.ts
+  s_ac0b9d2e3cf020::t_248889cf43edb6 12
+apps/dashboard/src/features/discord-guild-workspace/sections/SettingsSection.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 4
+packages/backend/convex/communityActions.ts
+  s_ac0b9d2e3cf020::t_248889cf43edb6 27,97,112,143
+apps/dashboard/src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell.tsx
+  s_ac0b9d2e3cf020::t_bbf2870a237744 51,156,196,222
+apps/dashboard/src/features/dashboard/DiscordDashboardPageShell.tsx
+  s_ac0b9d2e3cf020::t_bbf2870a237744 39,131,158,175,205,231
+apps/mobile/src/servers/Servers.tsx
+  s_ac0b9d2e3cf020::t_248889cf43edb6 50,62
+docs/pr-272-verification.md
+  s_ac0b9d2e3cf020::t_ae61ef80b7af25 31,35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bb15761d8140ba411496639710e7724d79962703",
+  "prompts": {},
+  "sessions": {
+    "s_ac0b9d2e3cf020": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17839-c494-7a93-8268-c01092562095",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
