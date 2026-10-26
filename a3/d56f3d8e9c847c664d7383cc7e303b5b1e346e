@@ -1,0 +1,42 @@
+packages/backend/convex/communityIntegrations.test.ts
+  s_ac0b9d2e3cf020::t_aaf3e73719bd8f 492-493
+  s_ac0b9d2e3cf020::t_6a99e678d92b73 494-495,504-510,522-570
+  s_ac0b9d2e3cf020::t_f837697d54a41a 496-503,511-521,571
+scripts/prepare-welcome-assets.test.mjs
+  s_ac0b9d2e3cf020::t_d57f9f51de22b6 58-86
+  s_ac0b9d2e3cf020::t_10ed8d2a1bb06a 57
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_ac0b9d2e3cf020::t_fd3ab2e92a08fd 110-111,119-120
+apps/mobile/src/tests/Servers.test.ts
+  s_ac0b9d2e3cf020::t_6a99e678d92b73 1-31,33-40,42-45,47-57,59-63,65-68,70-78,81,85-89,91-101
+  s_ac0b9d2e3cf020::t_c3061379390e2f 79-80,82,84
+  s_ac0b9d2e3cf020::t_afed115500dcff 32,41,46,58,64,69,83,90
+scripts/prepare-welcome-assets.mjs
+  s_ac0b9d2e3cf020::t_fd3ab2e92a08fd 29
+packages/backend/convex/communityActions.ts
+  s_ac0b9d2e3cf020::t_95d09134a8083d 474-504,515
+  s_ac0b9d2e3cf020::t_9c8f5952429ccb 456
+packages/backend/convex/discordConnections.ts
+  s_ac0b9d2e3cf020::t_95d09134a8083d 213
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_ac0b9d2e3cf020::t_d57f9f51de22b6 10-12,14-18,32,48,56-57,61-65,136-167
+  s_ac0b9d2e3cf020::t_32afef5dde878e 13
+apps/mobile/src/servers/Servers.tsx
+  s_ac0b9d2e3cf020::t_fd3ab2e92a08fd 75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a3d56f3d8e9c847c664d7383cc7e303b5b1e346e",
+  "prompts": {},
+  "sessions": {
+    "s_ac0b9d2e3cf020": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17839-c494-7a93-8268-c01092562095",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
