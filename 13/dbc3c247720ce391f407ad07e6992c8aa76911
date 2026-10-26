@@ -1,0 +1,25 @@
+scripts/assets/welcome-render-golden.json
+  s_ac0b9d2e3cf020::t_4c7af7ae49ad17 2-21
+apps/discord-bot/package.json
+  s_ac0b9d2e3cf020::t_de0047e7eb7f30 28
+docs/pr-272-verification.md
+  s_ac0b9d2e3cf020::t_de0047e7eb7f30 12,17
+bun.lock
+  s_ac0b9d2e3cf020::t_0d894d041007b8 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "13dbc3c247720ce391f407ad07e6992c8aa76911",
+  "prompts": {},
+  "sessions": {
+    "s_ac0b9d2e3cf020": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17839-c494-7a93-8268-c01092562095",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
