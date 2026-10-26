@@ -210,6 +210,7 @@ export const revoke = internalMutation({
         encryptedTokens: "",
         revokedAt: Date.now(),
         revision: current.revision + 1,
+        leaseUntil: 0,
       })
       await queueRoleSync(ctx, current.discordUserId)
     }

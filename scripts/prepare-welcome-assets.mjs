@@ -26,7 +26,7 @@ export async function assetsMatch(output, files) {
     }
     return true
   } catch (error) {
-    if (error.code === "ENOENT") return false
+    if (["ENOENT", "ENOTDIR"].includes(error.code)) return false
     throw error
   }
 }

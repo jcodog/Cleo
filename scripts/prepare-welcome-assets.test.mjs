@@ -54,3 +54,33 @@ test("Windows transient rename failures retry without deleting the prepared sour
     /Missing source/
   )
 })
+
+test("file-shaped output and nested directories are repairable mismatches", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "cleo-assets-shape-"))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const output = path.join(root, "output")
+  await writeFile(output, "not a directory")
+  assert.equal(
+    await assetsMatch(output, new Map([["font.woff", Buffer.from("font")]])),
+    false
+  )
+  await rm(output)
+  await mkdir(output)
+  await writeFile(path.join(output, "emoji"), "not a directory")
+  assert.equal(
+    await assetsMatch(
+      output,
+      new Map([["emoji/one.svg", Buffer.from("emoji")]])
+    ),
+    false
+  )
+})
+
+test("unexpected filesystem errors are reported instead of treated as absent assets", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "cleo-assets-error-"))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  await assert.rejects(
+    assetsMatch(root, new Map([[".", Buffer.from("file")]])),
+    { code: "EISDIR" }
+  )
+})

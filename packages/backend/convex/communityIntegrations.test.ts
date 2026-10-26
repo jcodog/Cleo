@@ -489,6 +489,86 @@ test("disabled community rollout makes periodic role bootstrap inert", async () 
   )
 })
 
+for (const mode of ["consent", "providerFailure", "replacement"] as const) {
+  test(`Clerk disconnect preserves authorization and revision fencing: ${mode}`, async (t) => {
+    const f = await fixture()
+    await f.t.mutation(internal.discordConnections.connectClerk, {
+      userId: f.userId,
+      discordUserId,
+      expiresAt: Date.now() + 3600000,
+    })
+    const before = await f.t.query(internal.discordConnections.connection, {
+      userId: f.userId,
+    })
+    assert.ok(before)
+    const originalFetch = globalThis.fetch
+    t.after(() => {
+      globalThis.fetch = originalFetch
+    })
+    let deletes = 0
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === "DELETE") {
+        deletes++
+        assert.fail("No remote deletion without a validated grant")
+      }
+      if (url.endsWith("/users/alice")) {
+        if (mode === "replacement")
+          await f.t.run((ctx) =>
+            ctx.db.patch(before._id, { revision: before.revision + 1 })
+          )
+        if (mode === "providerFailure")
+          return new Response("unavailable", { status: 503 })
+        return Response.json({
+          id: "alice",
+          external_accounts: [
+            { provider: "oauth_discord", provider_user_id: discordUserId },
+          ],
+        })
+      }
+      if (url.includes("oauth_access_tokens"))
+        return Response.json([{ token: "clerk-token" }])
+      assert.ok(url.endsWith("/oauth2/@me"))
+      return Response.json({
+        application: { id: "888888888888888888" },
+        user: { id: discordUserId },
+        scopes: ["identify"],
+        expires: new Date(Date.now() + 3600000).toISOString(),
+      })
+    }
+    await assert.rejects(
+      f.t.action(api.communityActions.disconnectLinkedRoles, {}),
+      /authenticated|signed in/i
+    )
+    assert.equal(
+      (
+        await f.t.query(internal.discordConnections.connection, {
+          userId: f.userId,
+        })
+      )?.revokedAt,
+      undefined
+    )
+    if (mode === "providerFailure")
+      await assert.rejects(
+        f.alice.action(api.communityActions.disconnectLinkedRoles, {}),
+        /unavailable/
+      )
+    else await f.alice.action(api.communityActions.disconnectLinkedRoles, {})
+    const after = await f.t.query(internal.discordConnections.connection, {
+      userId: f.userId,
+    })
+    assert.ok(after)
+    if (mode === "replacement") assert.equal(after.revokedAt, undefined)
+    else {
+      assert.ok(after.revokedAt)
+      assert.equal(after.leaseUntil, 0)
+      assert.equal(await f.alice.query(api.discordConnections.status, {}), null)
+    }
+    assert.equal(after.revision, before.revision + 1)
+    assert.equal(deletes, 0)
+  })
+}
+
 test("Linked Roles disconnect rejects busy leases, releases failed attempts and revokes on retry", async (t) => {
   const f = await fixture()
   const originalFetch = globalThis.fetch

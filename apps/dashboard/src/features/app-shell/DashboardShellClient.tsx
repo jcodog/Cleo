@@ -107,7 +107,8 @@ export function DashboardShellClient({
 
   useEffect(() => {
     if (
-      manageableGuilds !== undefined &&
+      isAuthenticated &&
+      directory?.status === "ready" &&
       !routeDiscordGuildId &&
       storedDiscordGuildId !== activeDiscordGuildId
     ) {
@@ -115,7 +116,8 @@ export function DashboardShellClient({
     }
   }, [
     activeDiscordGuildId,
-    manageableGuilds,
+    isAuthenticated,
+    directory?.status,
     setSelectedDiscordGuildId,
     storedDiscordGuildId,
     routeDiscordGuildId,

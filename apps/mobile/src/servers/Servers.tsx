@@ -72,7 +72,7 @@ function Directory() {
   )
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState("")
-  const [clock, setClock] = useState(0)
+  const [clock, setClock] = useState(() => Date.now())
   const lifecycle = useRef<AbortController | null>(null)
   const refresh = useCallback(
     async (signal: AbortSignal) => {

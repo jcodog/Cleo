@@ -453,10 +453,7 @@ export const disconnectLinkedRoles = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const { user, discord } = await ctx.runQuery(
-      internal.communityRoles.account,
-      {}
-    )
+    const { user } = await ctx.runQuery(internal.communityRoles.account, {})
     const connection = await ctx.runMutation(
       internal.discordConnections.lease,
       { userId: user._id }
@@ -474,20 +471,37 @@ export const disconnectLinkedRoles = action({
     }
     if (connection && !connection.revokedAt) {
       try {
-        const clerkToken =
-          connection.tokenSource === "clerk"
-            ? await clerkDiscordRoleToken(
-                user.clerkUserId,
-                discord.providerAccountId
-              )
-            : null
-        const result =
-          connection.tokenSource === "clerk"
-            ? { access_token: clerkToken?.accessToken ?? "", refresh_token: "" }
-            : tokenSchema.parse(
-                JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
-              )
-        if (clerkToken || connection.expiresAt > Date.now())
+        if (connection.tokenSource === "clerk") {
+          try {
+            const token = await clerkDiscordRoleToken(
+              user.clerkUserId,
+              connection.discordUserId
+            )
+            await discordJson(
+              `/users/@me/applications/${discordApplicationConfig()}/role-connection`,
+              token.accessToken,
+              { method: "DELETE" }
+            ).catch((error) => {
+              if (!(
+                error instanceof DiscordCapabilityError && error.status === 401
+              ))
+                throw error
+            })
+          } catch (error) {
+            if (!(error instanceof DiscordRoleConsentRequired)) throw error
+          } finally {
+            // Local disconnect cannot depend on retaining provider consent.
+            await ctx.runMutation(internal.discordConnections.revoke, {
+              userId: user._id,
+              expectedRevision: connection.revision,
+            })
+          }
+          return null
+        }
+        const result = tokenSchema.parse(
+          JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
+        )
+        if (connection.expiresAt > Date.now())
           await discordJson(
             `/users/@me/applications/${discordApplicationConfig()}/role-connection`,
             result.access_token,
@@ -498,8 +512,7 @@ export const disconnectLinkedRoles = action({
             ))
               throw error
           })
-        if (connection.tokenSource !== "clerk")
-          await revokeGrant(result.refresh_token)
+        await revokeGrant(result.refresh_token)
         await ctx.runMutation(internal.discordConnections.revoke, {
           userId: user._id,
           expectedRevision: connection.revision,

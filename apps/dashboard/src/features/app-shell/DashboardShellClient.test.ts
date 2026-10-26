@@ -7,6 +7,15 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 
 test("Twitch shell renders account settings navigation through the shared sidebar", async (t) => {
   let pathname = "/twitch"
+  let storedGuildId: string | undefined
+  let directory:
+    | {
+        status: string
+        guilds: { discordGuildId: string; lastOpenedAt?: number }[]
+      }
+    | undefined
+  const effects: (() => void)[] = []
+  const writes: (string | undefined)[] = []
   const previous = Object.getOwnPropertyDescriptor(globalThis, "React")
   Object.defineProperty(globalThis, "React", {
     configurable: true,
@@ -20,7 +29,7 @@ test("Twitch shell renders account settings navigation through the shared sideba
     exports: {
       ...React,
       useState: (value: unknown) => [value, () => {}],
-      useEffect: () => {},
+      useEffect: (effect: () => void) => effects.push(effect),
     },
   })
   t.mock.module("@clerk/nextjs", {
@@ -36,7 +45,7 @@ test("Twitch shell renders account settings navigation through the shared sideba
     exports: {
       useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
       usePreloadedQuery: () => [],
-      useQuery: () => undefined,
+      useQuery: () => directory,
     },
   })
   t.mock.module("./AppShell.tsx", { exports: { AppShell: "AppShell" } })
@@ -44,13 +53,16 @@ test("Twitch shell renders account settings navigation through the shared sideba
     exports: {
       useAppShellStore: (
         select: (state: {
-          selectedDiscordGuildId: undefined
-          setSelectedDiscordGuildId: () => void
+          selectedDiscordGuildId: string | undefined
+          setSelectedDiscordGuildId: (id: string | undefined) => void
         }) => unknown
       ) =>
         select({
-          selectedDiscordGuildId: undefined,
-          setSelectedDiscordGuildId: () => {},
+          selectedDiscordGuildId: storedGuildId,
+          setSelectedDiscordGuildId: (id) => {
+            writes.push(id)
+            storedGuildId = id
+          },
         }),
     },
   })
@@ -121,4 +133,36 @@ test("Twitch shell renders account settings navigation through the shared sideba
   )
   pathname = "/dashboard"
   assert.ok((shell().navSections[0]?.items.length ?? 0) > 0)
+  await t.test(
+    "stored guild survives directory loading and verification gaps until fresh reconciliation",
+    () => {
+      effects.length = 0
+      storedGuildId = "222222222222222222"
+      const settle = () => {
+        shell()
+        effects.splice(0).forEach((effect) => effect())
+      }
+      settle()
+      for (const status of ["pending", "unavailable", "expired"]) {
+        directory = { status, guilds: [] }
+        settle()
+        assert.equal(storedGuildId, "222222222222222222", status)
+      }
+      assert.deepEqual(writes, [])
+      directory = {
+        status: "ready",
+        guilds: [
+          { discordGuildId: "111111111111111111", lastOpenedAt: 100 },
+          { discordGuildId: "222222222222222222", lastOpenedAt: 10 },
+        ],
+      }
+      settle()
+      assert.equal(storedGuildId, "222222222222222222")
+      assert.deepEqual(writes, [])
+      directory = { status: "ready", guilds: [] }
+      settle()
+      assert.equal(storedGuildId, undefined)
+      assert.deepEqual(writes, [undefined])
+    }
+  )
 })
