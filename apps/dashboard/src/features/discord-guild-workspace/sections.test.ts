@@ -24,6 +24,7 @@ test("guild workspace sections are unique and all have labels", () => {
     "moderation",
     "support",
     "logs",
+    "premium",
     "settings",
   ])
   assert.equal(DISCORD_GUILD_SECTIONS.includes("modules" as never), false)
