@@ -1,0 +1,28 @@
+apps/mobile/src/tests/metroConfig.test.ts
+  s_ac0b9d2e3cf020::t_cf251b95f0fe89 1-6,11-17,19-37,39-68,72-89
+  s_ac0b9d2e3cf020::t_a2ea63d1374f34 7-10,18,69-71
+  s_ac0b9d2e3cf020::t_253827918e51e3 38
+apps/mobile/README.md
+  s_ac0b9d2e3cf020::t_0cd67be703f12a 21-22
+apps/mobile/metro.config.cjs
+  s_ac0b9d2e3cf020::t_cf251b95f0fe89 1-2
+  s_ac0b9d2e3cf020::t_a2ea63d1374f34 3-15
+.oxlintrc.json
+  s_ac0b9d2e3cf020::t_e3ba1d794ee4fb 118-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f04d3f1a266cd2bdab0477a14a54d5763218cbc",
+  "prompts": {},
+  "sessions": {
+    "s_ac0b9d2e3cf020": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17839-c494-7a93-8268-c01092562095",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
