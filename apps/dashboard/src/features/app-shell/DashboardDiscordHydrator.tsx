@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useState } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { useAction, useConvexAuth, useQuery } from "convex/react"
@@ -22,7 +22,7 @@ export function DashboardDiscordHydrator({
   const progress = useQuery(api.communityRoles.refreshProgress)
   const [refreshTick, setRefreshTick] = useState(0)
   const [failed, setFailed] = useState(false)
-  const { isLoaded, isSignedIn, userId } = useAuth()
+  const { isLoaded, isSignedIn, userId, sessionId } = useAuth()
   const { isLoading: isConvexAuthLoading, isAuthenticated } = useConvexAuth()
   const syncLinkedAccounts = useAction(
     api.actions.dashboard.account.syncLinkedAccounts.sync
@@ -30,36 +30,44 @@ export function DashboardDiscordHydrator({
   const syncDashboardGuilds = useAction(
     api.actions.dashboard.discord.guilds.syncDashboardGuilds.sync
   )
-  const activeSyncKey = useRef<string | null>(null)
+  const isDiscordPage =
+    pathname.startsWith("/dashboard") || pathname === "/onboarding"
+  const queriesReady = identity !== undefined && progress !== undefined
+  const discordUserId = identity?.providerAccountId ?? "unlinked"
+  const currentProgress = useEffectEvent(() => progress)
+  const reportStatus = useEffectEvent((status: DashboardDiscordSyncStatus) =>
+    onStatusChange?.(status)
+  )
 
   useEffect(() => {
     if (
-      (!pathname.startsWith("/dashboard") && pathname !== "/onboarding") ||
+      !isDiscordPage ||
       !isLoaded ||
       !isSignedIn ||
       !userId ||
+      !sessionId ||
       isConvexAuthLoading ||
       !isAuthenticated ||
-      identity === undefined ||
-      progress === undefined
+      !queriesReady
     ) {
       return
     }
 
-    const syncKey = `cleo:dashboard-discord-sync:${userId}:${identity?.providerAccountId ?? "unlinked"}`
-
-    if (activeSyncKey.current === syncKey) {
-      return
+    const syncKey = `cleo:dashboard-discord-sync:${userId}:${sessionId}:${discordUserId}`
+    let cachedAt = 0
+    try {
+      cachedAt = Number(sessionStorage.getItem(syncKey))
+    } catch {
+      /* Storage is optional. */
     }
-
-    const cachedAt = Number(sessionStorage.getItem(syncKey))
+    const observation = currentProgress()
     if (
-      progress?.state === "complete" &&
-      progress.observedAt === cachedAt &&
+      observation?.state === "complete" &&
+      observation.observedAt === cachedAt &&
       cachedAt > Date.now() - 300000 &&
       cachedAt <= Date.now()
     ) {
-      onStatusChange?.("ready")
+      reportStatus("ready")
       const timer = setTimeout(
         () => setRefreshTick((value) => value + 1),
         Math.max(1, cachedAt + 300000 - Date.now())
@@ -67,12 +75,13 @@ export function DashboardDiscordHydrator({
       return () => clearTimeout(timer)
     }
 
-    activeSyncKey.current = syncKey
     const controller = new AbortController()
-    onStatusChange?.("syncing")
+    let timer: ReturnType<typeof setTimeout> | undefined
+    reportStatus("syncing")
 
     void syncLinkedAccounts({})
       .then((result) => {
+        if (controller.signal.aborted) return
         if (result.status !== "ready") {
           throw new Error("Linked account synchronisation is unavailable.")
         }
@@ -83,12 +92,19 @@ export function DashboardDiscordHydrator({
         )
       })
       .then((result) => {
-        if (controller.signal.aborted) return
+        if (controller.signal.aborted || !result) return
         if (result.status === "ready") {
           setFailed(false)
-          sessionStorage.setItem(syncKey, String(result.verifiedAt))
-          onStatusChange?.("ready")
-          setRefreshTick((value) => value + 1)
+          try {
+            sessionStorage.setItem(syncKey, String(result.verifiedAt))
+          } catch {
+            /* Storage is optional. */
+          }
+          reportStatus("ready")
+          timer = setTimeout(
+            () => setRefreshTick((value) => value + 1),
+            Math.max(1000, result.verifiedAt + 300000 - Date.now())
+          )
           return
         }
 
@@ -96,27 +112,26 @@ export function DashboardDiscordHydrator({
       })
       .catch(() => {
         if (controller.signal.aborted) return
-        activeSyncKey.current = null
         setFailed(true)
-        onStatusChange?.("error")
+        reportStatus("error")
       })
     return () => {
       controller.abort()
-      activeSyncKey.current = null
+      clearTimeout(timer)
     }
   }, [
     isAuthenticated,
     isConvexAuthLoading,
     isLoaded,
     isSignedIn,
-    pathname,
-    onStatusChange,
+    isDiscordPage,
     retryToken,
     syncDashboardGuilds,
     syncLinkedAccounts,
     userId,
-    identity,
-    progress,
+    sessionId,
+    discordUserId,
+    queriesReady,
     refreshTick,
   ])
 

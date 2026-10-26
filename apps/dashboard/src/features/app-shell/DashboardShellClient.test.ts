@@ -36,6 +36,7 @@ test("Twitch shell renders account settings navigation through the shared sideba
     exports: {
       useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
       usePreloadedQuery: () => [],
+      useQuery: () => undefined,
     },
   })
   t.mock.module("./AppShell.tsx", { exports: { AppShell: "AppShell" } })
@@ -116,10 +117,8 @@ test("Twitch shell renders account settings navigation through the shared sideba
   // Routes remain stable during a temporary Discord membership verification gap.
   pathname = "/dashboard/999999999999999999"
   assert.ok(
-    shell().navSections[0]?.items.some(
-      (item) => item.title === "Premium Guild"
-    )
+    shell().navSections[0]?.items.some((item) => item.title === "Premium Guild")
   )
   pathname = "/dashboard"
-  assert.ok(shell().navSections[0]?.items.length > 0)
+  assert.ok((shell().navSections[0]?.items.length ?? 0) > 0)
 })

@@ -3,11 +3,85 @@ import {
   refreshTicket,
   guildRefreshLifecycle,
 } from "./lib/discordRefreshLifecycle"
-import { internalMutation, internalQuery } from "./_generated/server"
+import { internalMutation, internalQuery, query } from "./_generated/server"
 import { internal } from "./_generated/api"
 import { queueRoleSync } from "./lib/cleoRoleEligibility"
 import { roleConnectionDoc } from "./lib/communityValidators"
+import { currentDiscordAccount } from "./lib/discordGuildMemberships"
+import { requireCurrentUser } from "./lib/auth"
 const purpose = v.union(v.literal("install"), v.literal("roles"))
+export const status = query({
+  args: {},
+  returns: v.union(
+    v.null(),
+    v.object({
+      provider: v.union(v.literal("clerk"), v.literal("direct")),
+      metadataPublished: v.boolean(),
+    })
+  ),
+  handler: async (ctx) => {
+    const user = await requireCurrentUser(ctx)
+    const account = await currentDiscordAccount(ctx, user._id)
+    const row = await ctx.db
+      .query("discordRoleConnections")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .unique()
+    if (
+      !row ||
+      row.revokedAt !== undefined ||
+      row.discordUserId !== account?.providerAccountId
+    )
+      return null
+    return {
+      provider:
+        row.tokenSource === "clerk" ? ("clerk" as const) : ("direct" as const),
+      metadataPublished: row.publishedMetadata !== undefined,
+    }
+  },
+})
+export const connectClerk = internalMutation({
+  args: {
+    userId: v.id("users"),
+    discordUserId: v.string(),
+    expiresAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const account = await currentDiscordAccount(ctx, args.userId)
+    const user = await ctx.db.get(args.userId)
+    if (
+      !user ||
+      user.status === "disabled" ||
+      account?.providerAccountId !== args.discordUserId
+    )
+      throw new Error("Discord identity changed.")
+    const existing = await ctx.db
+      .query("discordRoleConnections")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique()
+    if (
+      existing?.tokenSource === "clerk" &&
+      existing.discordUserId === args.discordUserId &&
+      existing.revokedAt === undefined
+    )
+      return null
+    if (existing && (existing.leaseUntil ?? 0) > Date.now())
+      throw new Error("Linked Roles are updating. Try again shortly.")
+    const value = {
+      ...args,
+      tokenSource: "clerk" as const,
+      encryptedTokens: "",
+      publishedMetadata: undefined,
+      revokedAt: undefined,
+      leaseUntil: 0,
+      revision: (existing?.revision ?? 0) + 1,
+      updatedAt: Date.now(),
+    }
+    if (existing) await ctx.db.patch(existing._id, value)
+    else await ctx.db.insert("discordRoleConnections", value)
+    return null
+  },
+})
 export const begin = internalMutation({
   args: {
     userId: v.id("users"),
@@ -92,6 +166,7 @@ export const storeTokens = internalMutation({
       userId: args.userId,
       discordUserId: args.discordUserId,
       encryptedTokens: args.encryptedTokens,
+      tokenSource: undefined,
       publishedMetadata:
         args.expectedRevision === undefined
           ? undefined

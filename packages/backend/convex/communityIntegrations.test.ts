@@ -129,6 +129,124 @@ async function fixture() {
 const discordUserId = "111111111111111111"
 const discordGuildId = "333333333333333333"
 
+test("Clerk Linked Roles requires consent once, validates the application, publishes idempotently and disconnects without revoking Clerk", async (t) => {
+  const f = await fixture()
+  let scopes = ["identify"],
+    applicationId = "888888888888888888",
+    publications = 0,
+    removals = 0,
+    expectedAccessToken = "clerk-provider-token"
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url.endsWith("/users/alice"))
+      return Response.json({
+        id: "alice",
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: discordUserId },
+        ],
+      })
+    if (url.includes("oauth_access_tokens"))
+      return Response.json([{ token: "clerk-provider-token" }])
+    if (url.endsWith("/oauth2/@me"))
+      return Response.json({
+        application: { id: applicationId },
+        user: { id: discordUserId },
+        scopes,
+        expires: new Date(Date.now() + 3600000).toISOString(),
+      })
+    if (url.endsWith("/users/@me")) return Response.json({ id: discordUserId })
+    if (url.includes("/users/@me/guilds"))
+      return Response.json([{ id: discordGuildId, permissions: "8" }])
+    if (url.endsWith("/role-connection")) {
+      assert.equal(
+        new Headers(init?.headers).get("Authorization"),
+        `Bearer ${expectedAccessToken}`
+      )
+      if (init?.method === "PUT") {
+        publications++
+        assert.ok(JSON.parse(String(init.body)).metadata.community_manager_tier)
+      }
+      if (init?.method === "DELETE") removals++
+      return Response.json({})
+    }
+    assert.fail(`Unexpected provider call ${url}`)
+  }
+  assert.equal(
+    await f.alice.action(api.communityActions.connectClerkLinkedRoles, {}),
+    "consentRequired"
+  )
+  assert.equal(await f.alice.query(api.discordConnections.status, {}), null)
+  scopes = ["identify", "role_connections.write"]
+  assert.equal(
+    await f.alice.action(api.communityActions.connectClerkLinkedRoles, {}),
+    "ready"
+  )
+  assert.equal(publications, 1)
+  const row = await f.t.query(internal.discordConnections.connection, {
+    userId: f.userId,
+  })
+  assert.equal(row?.tokenSource, "clerk")
+  assert.equal(
+    row?.encryptedTokens,
+    "",
+    "Clerk access and refresh tokens are never stored in Convex"
+  )
+  assert.deepEqual(await f.alice.query(api.discordConnections.status, {}), {
+    provider: "clerk",
+    metadataPublished: true,
+  })
+  await f.alice.action(api.communityActions.connectClerkLinkedRoles, {})
+  assert.equal(
+    publications,
+    1,
+    "Repeated visits reuse consent and identical published metadata"
+  )
+  applicationId = "777777777777777777"
+  assert.equal(
+    await f.alice.action(api.communityActions.connectClerkLinkedRoles, {}),
+    "applicationMismatch"
+  )
+  assert.equal(publications, 1)
+  applicationId = "888888888888888888"
+  await f.alice.action(api.communityActions.disconnectLinkedRoles, {})
+  assert.equal(removals, 1)
+  assert.equal(await f.alice.query(api.discordConnections.status, {}), null)
+  const { encryptDiscordTokens } = await import("./lib/integrationSecurity")
+  expectedAccessToken = "existing-fallback-token"
+  await f.t.mutation(internal.discordConnections.storeTokens, {
+    userId: f.userId,
+    discordUserId,
+    encryptedTokens: encryptDiscordTokens(
+      JSON.stringify({
+        access_token: expectedAccessToken,
+        refresh_token: "existing-fallback-refresh",
+        expires_in: 3600,
+        scope: "identify role_connections.write",
+      })
+    ),
+    expiresAt: Date.now() + 3600000,
+  })
+  applicationId = "777777777777777777"
+  assert.equal(
+    await f.alice.action(api.communityActions.connectClerkLinkedRoles, {}),
+    "ready",
+    "An existing valid fallback grant must not request OAuth again"
+  )
+  assert.equal(
+    (await f.alice.query(api.discordConnections.status, {}))?.provider,
+    "direct"
+  )
+  assert.equal(publications, 2)
+  await assert.rejects(
+    f.t.action(api.communityActions.connectClerkLinkedRoles, {}),
+    /signed in/
+  )
+})
+
 function interactionSnowflake(timestamp: number): string {
   return ((BigInt(timestamp) - 1420070400000n) << 22n).toString()
 }

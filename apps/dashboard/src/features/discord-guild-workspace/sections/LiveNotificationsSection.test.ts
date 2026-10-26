@@ -408,8 +408,8 @@ test("live notification form fixes owner source, handles linking, destinations, 
     undefined
   )
   const beforeReload = reloads
-  elements(render()).find((node) => text(node) === "Retry provider check")!
-    .props.onClick!()
+  elements(render()).find((node) => text(node) === "Retry verification")!.props
+    .onClick!()
   assert.equal(reloads, beforeReload + 1)
   hookError = false
   const state = {

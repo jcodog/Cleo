@@ -148,6 +148,12 @@ test("moderation stays locked and purchase visibility starts private in actual d
     configured: true,
     canManageOwnBilling: true,
     communityPublishIdentity: false,
+    guildPremium: {
+      state: "expired",
+      capabilities: [],
+      validUntil: 0,
+      canPurchase: true,
+    },
     subscriptions: [],
   }
   const purchase = nodes(
@@ -163,6 +169,10 @@ test("moderation stays locked and purchase visibility starts private in actual d
       node.type === "button" && content(node).includes("Continue to Stripe")
   )
   assert.ok(checkout && !checkout.props.disabled)
+  assert.ok(purchase.some((node) => node.props.href === "/account/billing"))
+  assert.ok(
+    !purchase.some((node) => content(node) === "Manage my Stripe billing")
+  )
   await checkout.props.onClick?.()
   assert.deepEqual(calls.at(-1), {
     path: "premiumActions:checkout",
@@ -172,6 +182,14 @@ test("moderation stays locked and purchase visibility starts private in actual d
       displayRole: false,
     },
   })
+  slots = []
+  index = 0
+  view = undefined
+  const loading = nodes(PremiumPurchases({}))
+  assert.ok(
+    loading.some((node) => content(node).includes("Loading Premium details"))
+  )
+  assert.ok(!loading.some((node) => content(node).includes("unavailable")))
   slots = []
   index = 0
   view = {

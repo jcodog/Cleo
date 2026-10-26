@@ -18,6 +18,73 @@ import {
 import { cleoRoleMetadata } from "@workspace/shared/cleoRoleEligibility"
 import { refreshTicket } from "./lib/discordRefreshLifecycle"
 import { prepareCommunityRefresh } from "./lib/communityRefresh"
+import {
+  clerkDiscordRoleToken,
+  DiscordRoleConsentRequired,
+  DiscordRoleApplicationMismatch,
+} from "./lib/clerkDiscordRoles"
+
+export const connectClerkLinkedRoles = action({
+  args: {},
+  returns: v.union(
+    v.literal("ready"),
+    v.literal("consentRequired"),
+    v.literal("applicationMismatch")
+  ),
+  handler: async (ctx) => {
+    const { user, discord } = await ctx.runQuery(
+      internal.communityRoles.account,
+      {}
+    )
+    let token
+    try {
+      token = await clerkDiscordRoleToken(
+        user.clerkUserId,
+        discord.providerAccountId
+      )
+    } catch (error) {
+      if (
+        error instanceof DiscordRoleConsentRequired ||
+        error instanceof DiscordRoleApplicationMismatch
+      ) {
+        const existing = await ctx.runQuery(
+          internal.discordConnections.connection,
+          { userId: user._id }
+        )
+        if (
+          existing &&
+          existing.tokenSource !== "clerk" &&
+          existing.revokedAt === undefined &&
+          existing.discordUserId === discord.providerAccountId
+        ) {
+          await ctx.runAction(internal.communityActions.publishLinkedRoles, {
+            userId: user._id,
+          })
+          const refreshed = await ctx.runQuery(
+            internal.discordConnections.connection,
+            { userId: user._id }
+          )
+          if (refreshed && refreshed.revokedAt === undefined)
+            return "ready" as const
+        }
+      }
+      if (error instanceof DiscordRoleConsentRequired)
+        return "consentRequired" as const
+      if (error instanceof DiscordRoleApplicationMismatch)
+        return "applicationMismatch" as const
+      throw error
+    }
+    await ctx.runMutation(internal.discordConnections.connectClerk, {
+      userId: user._id,
+      discordUserId: discord.providerAccountId,
+      expiresAt: token.expiresAt,
+    })
+    await ctx.runAction(internal.communityActions.publishLinkedRoles, {
+      userId: user._id,
+    })
+    return "ready" as const
+  },
+})
 
 const tokenSchema = z.object({
   access_token: z.string(),
@@ -243,15 +310,34 @@ export const publishLinkedRoles = internalAction({
     }
     let revision = connection.revision
     try {
-      let result = tokenSchema.parse(
-        JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
-      )
       const currentAccount = await ctx.runQuery(
         internal.communityRoles.forDiscord,
         { discordUserId: connection.discordUserId }
       )
+      const clerkToken =
+        connection.tokenSource === "clerk" &&
+        currentAccount?.user._id === connection.userId
+          ? await clerkDiscordRoleToken(
+              currentAccount.user.clerkUserId,
+              connection.discordUserId
+            )
+          : null
+      let result =
+        connection.tokenSource === "clerk"
+          ? {
+              access_token: clerkToken?.accessToken ?? "",
+              refresh_token: "",
+              expires_in: 0,
+              scope: "identify role_connections.write",
+            }
+          : tokenSchema.parse(
+              JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
+            )
       if (currentAccount?.user._id !== connection.userId) {
-        if (connection.expiresAt > Date.now())
+        if (
+          connection.tokenSource !== "clerk" &&
+          connection.expiresAt > Date.now()
+        )
           await discordJson(
             `/users/@me/applications/${discordApplicationConfig()}/role-connection`,
             result.access_token,
@@ -262,14 +348,18 @@ export const publishLinkedRoles = internalAction({
             ))
               throw error
           })
-        await revokeGrant(result.refresh_token)
+        if (connection.tokenSource !== "clerk")
+          await revokeGrant(result.refresh_token)
         await ctx.runMutation(internal.discordConnections.revoke, {
           userId: args.userId,
           expectedRevision: revision,
         })
         return null
       }
-      if (connection.expiresAt < Date.now() + 60000) {
+      if (
+        connection.tokenSource !== "clerk" &&
+        connection.expiresAt < Date.now() + 60000
+      ) {
         result = await tokens({
           grant_type: "refresh_token",
           refresh_token: result.refresh_token,
@@ -315,6 +405,7 @@ export const publishLinkedRoles = internalAction({
     } catch (error) {
       if (
         error instanceof RevokedDiscordGrant ||
+        error instanceof DiscordRoleConsentRequired ||
         (error instanceof DiscordCapabilityError && error.status === 401)
       )
         await ctx.runMutation(internal.discordConnections.revoke, {
@@ -358,7 +449,10 @@ export const disconnectLinkedRoles = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const { user } = await ctx.runQuery(internal.communityRoles.account, {})
+    const { user, discord } = await ctx.runQuery(
+      internal.communityRoles.account,
+      {}
+    )
     const connection = await ctx.runMutation(
       internal.discordConnections.lease,
       { userId: user._id }
@@ -376,10 +470,20 @@ export const disconnectLinkedRoles = action({
     }
     if (connection && !connection.revokedAt) {
       try {
-        const result = tokenSchema.parse(
-          JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
-        )
-        if (connection.expiresAt > Date.now())
+        const clerkToken =
+          connection.tokenSource === "clerk"
+            ? await clerkDiscordRoleToken(
+                user.clerkUserId,
+                discord.providerAccountId
+              )
+            : null
+        const result =
+          connection.tokenSource === "clerk"
+            ? { access_token: clerkToken?.accessToken ?? "", refresh_token: "" }
+            : tokenSchema.parse(
+                JSON.parse(decryptDiscordTokens(connection.encryptedTokens))
+              )
+        if (clerkToken || connection.expiresAt > Date.now())
           await discordJson(
             `/users/@me/applications/${discordApplicationConfig()}/role-connection`,
             result.access_token,
@@ -390,7 +494,8 @@ export const disconnectLinkedRoles = action({
             ))
               throw error
           })
-        await revokeGrant(result.refresh_token)
+        if (connection.tokenSource !== "clerk")
+          await revokeGrant(result.refresh_token)
         await ctx.runMutation(internal.discordConnections.revoke, {
           userId: user._id,
           expectedRevision: connection.revision,

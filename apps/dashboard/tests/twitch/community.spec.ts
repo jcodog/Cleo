@@ -41,7 +41,7 @@ test("Linked Roles is a responsive FAQ without account controls or eligibility d
   ).not.toBeVisible()
 })
 
-test("a verification link opened directly from Discord starts OAuth once", async ({
+test("a verification link requests Clerk consent only after an explicit click", async ({
   page,
 }) => {
   const urls: string[] = []
@@ -50,6 +50,11 @@ test("a verification link opened directly from Discord starts OAuth once", async
     await route.fulfill({ body: "Discord authorization fixture" })
   })
   await page.goto("/discord/linked-role?community")
+  await expect(
+    page.getByRole("button", { name: "Allow Discord Linked Roles" })
+  ).toBeVisible()
+  expect(urls).toHaveLength(0)
+  await page.getByRole("button", { name: "Allow Discord Linked Roles" }).click()
   await expect(page).toHaveURL(/https:\/\/discord.com\/oauth2\/authorize/)
   expect(urls).toHaveLength(1)
 })
@@ -125,7 +130,7 @@ test("dashboard hydration resumes pending checkpoints, replaces historical ready
     .poll(() =>
       page.evaluate(() =>
         sessionStorage.getItem(
-          "cleo:dashboard-discord-sync:fixture-clerk:111111111111111111"
+          "cleo:dashboard-discord-sync:fixture-clerk:fixture-session:111111111111111111"
         )
       )
     )
@@ -229,7 +234,7 @@ for (const result of ["success", "wrongAccount", "denied"] as const)
 test("purchase recognition preferences are independent and default off", async ({
   page,
 }) => {
-  await page.goto("/account/billing?community")
+  await page.goto("/dashboard/333333333333333333/premium?community")
   const announce = page.getByRole("switch", {
       name: "Announce support",
       exact: true,
@@ -275,7 +280,7 @@ for (const failure of [false, true])
     page,
   }) => {
     await page.goto(
-      `/account/billing?community${failure ? "&failConsent" : ""}`
+      `/dashboard/333333333333333333/premium?community${failure ? "&failConsent" : ""}`
     )
     const consent = page.getByRole("switch", {
       name: "Community identity consent",

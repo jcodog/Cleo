@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import * as React from "react"
+import { getFunctionName } from "convex/server"
 
 test("live authority is freshly verified while query updates remain reactive and failures support targeted retry", async (t) => {
   const slots: unknown[] = []
@@ -14,6 +15,7 @@ test("live authority is freshly verified while query updates remain reactive and
   let update = () => {}
   let watches = 0
   let verifies = 0
+  let recoveries = 0
   let userId = "user-one"
   let ownerKey = "owner-one"
   let nextStatus = "ready"
@@ -120,7 +122,16 @@ test("live authority is freshly verified while query updates remain reactive and
     },
   })
   t.mock.module("convex/react", {
-    exports: { useConvex: () => client, useAction: () => verify },
+    exports: {
+      useConvex: () => client,
+      useAction: (reference: Parameters<typeof getFunctionName>[0]) =>
+        getFunctionName(reference) === "liveNotificationActions:get"
+          ? verify
+          : async () => {
+              recoveries++
+              return { status: "ready" }
+            },
+    },
   })
   t.mock.module("@clerk/nextjs", {
     exports: { useAuth: () => ({ userId, sessionId: "session" }) },
@@ -155,6 +166,13 @@ test("live authority is freshly verified while query updates remain reactive and
   queryFailure = true
   update()
   assert.equal(Render().error, true)
+  Render().reload()
+  await flush()
+  assert.equal(
+    recoveries,
+    1,
+    "An expired permission projection retries guild verification"
+  )
   queryFailure = false
   update()
   Render()

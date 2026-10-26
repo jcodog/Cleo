@@ -5,6 +5,7 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Button } from "@workspace/ui/components/button"
 import { Switch } from "@workspace/ui/components/switch"
 import { Field, FieldLabel } from "@workspace/ui/components/field"
+import Link from "next/link"
 export function PremiumPurchases({
   discordGuildId,
 }: {
@@ -35,21 +36,24 @@ export function PremiumPurchases({
       setBusy(false)
     }
   }
+  if (view === undefined)
+    return (
+      <p role="status" className="py-6 text-sm text-muted-foreground">
+        Loading Premium details…
+      </p>
+    )
   return (
     <section className="w-full min-w-0 space-y-9">
       <header className="space-y-3 border-b pb-7">
-        <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
-          {discordGuildId ? "Cleo for communities" : "Cleo account"}
-        </p>
         <h2 className="font-heading text-2xl font-medium tracking-tight">
-          {discordGuildId ? "Premium Guild" : "My billing"}
+          {discordGuildId ? "Server subscription" : "My billing"}
         </h2>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           {discordGuildId
             ? "Premium is attached to this community, not to its owner's account. Supporting a community never changes ownership or grants server permissions."
             : "Manage your own purchases and billing preferences, including after you leave a community."}
         </p>
-        {!view?.configured ? (
+        {view !== undefined && !view.configured ? (
           <p role="status" className="text-sm text-muted-foreground">
             Test-mode purchasing is unavailable until billing is configured.
             Live charging is not enabled.
@@ -59,10 +63,74 @@ export function PremiumPurchases({
 
       {discordGuildId ? (
         <>
+          {view.guildPremium ? (
+            <section className="space-y-4" aria-label="Premium entitlement">
+              <dl className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <dt className="text-sm text-muted-foreground">
+                    Premium status
+                  </dt>
+                  <dd className="mt-1 font-medium capitalize">
+                    {view.guildPremium.capabilities.length === 0
+                      ? "No active Premium"
+                      : view.guildPremium.state === "grace"
+                        ? "Payment grace period"
+                        : view.guildPremium.state}
+                  </dd>
+                </div>
+                {view.guildPremium.capabilities.length > 0 ? (
+                  <div>
+                    <dt className="text-sm text-muted-foreground">
+                      Coverage until
+                    </dt>
+                    <dd className="mt-1 font-medium">
+                      {new Date(
+                        view.guildPremium.validUntil
+                      ).toLocaleDateString()}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+              <ul className="divide-y border-y text-sm">
+                {[
+                  [
+                    "guild.welcome.premium-style",
+                    "Premium welcome card styles",
+                  ],
+                  [
+                    "guild.twitch.premium-style",
+                    "Premium Twitch notification styles",
+                  ],
+                ].map(([capability, label]) => (
+                  <li
+                    key={capability}
+                    className="flex items-center justify-between gap-4 py-3"
+                  >
+                    <span>{label}</span>
+                    <span className="text-muted-foreground">
+                      {capability &&
+                      view.guildPremium?.capabilities.includes(capability)
+                        ? "Available"
+                        : "Requires Premium"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {!view.guildPremium.canPurchase ? (
+                <p className="text-sm text-muted-foreground">
+                  Purchasing requires the server owner or an Administrator in an
+                  independent server with Cleo installed.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
           <div className="grid items-start gap-10 border-b pb-9 md:grid-cols-2">
             <section className="space-y-4" aria-labelledby="guild-upgrade">
               <div className="space-y-2">
-                <h3 id="guild-upgrade" className="font-heading text-lg font-medium">
+                <h3
+                  id="guild-upgrade"
+                  className="font-heading text-lg font-medium"
+                >
                   Support this community
                 </h3>
                 <p className="text-sm leading-6 text-muted-foreground">
@@ -71,7 +139,9 @@ export function PremiumPurchases({
                 </p>
               </div>
               <Button
-                disabled={busy || !view?.configured}
+                disabled={
+                  busy || !view.configured || !view.guildPremium?.canPurchase
+                }
                 onClick={() =>
                   perform(() =>
                     checkout({ discordGuildId, announce, displayRole })
@@ -80,10 +150,18 @@ export function PremiumPurchases({
               >
                 Continue to Stripe Checkout
               </Button>
+              {view.configured ? (
+                <p className="text-xs text-muted-foreground">
+                  Checkout runs in Stripe test mode.
+                </p>
+              ) : null}
             </section>
             <section className="space-y-5" aria-labelledby="guild-visibility">
               <div className="space-y-2">
-                <h3 id="guild-visibility" className="font-heading text-lg font-medium">
+                <h3
+                  id="guild-visibility"
+                  className="font-heading text-lg font-medium"
+                >
                   Your recognition choices
                 </h3>
                 <p className="text-sm leading-6 text-muted-foreground">
@@ -94,29 +172,42 @@ export function PremiumPurchases({
               <Field orientation="horizontal">
                 <Switch
                   checked={announce}
+                  id="premium-announce"
                   onCheckedChange={setAnnounce}
                   aria-label="Announce support"
                 />
-                <FieldLabel>Announce that I supported this community</FieldLabel>
+                <FieldLabel htmlFor="premium-announce">
+                  Announce that I supported this community
+                </FieldLabel>
               </Field>
               <Field orientation="horizontal">
                 <Switch
                   checked={displayRole}
+                  id="premium-supporter"
                   onCheckedChange={setDisplayRole}
                   aria-label="Display Supporter role"
                 />
-                <FieldLabel>Display my Premium Supporter role</FieldLabel>
+                <FieldLabel htmlFor="premium-supporter">
+                  Display my Premium Supporter role
+                </FieldLabel>
               </Field>
             </section>
           </div>
-          <section className="space-y-4 border-b pb-9" aria-labelledby="guild-consent">
+          <section
+            className="space-y-4 border-b pb-9"
+            aria-labelledby="guild-consent"
+          >
             <div className="space-y-2">
-              <h3 id="guild-consent" className="font-heading text-lg font-medium">
+              <h3
+                id="guild-consent"
+                className="font-heading text-lg font-medium"
+              >
                 Community publication preferences
               </h3>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                 A purchase announcement also requires consent to identify this
-                community publicly. This is independent of the buyer's own consent.
+                community publicly. This is independent of the buyer's own
+                consent.
               </p>
             </div>
             <Field orientation="horizontal">
@@ -126,8 +217,9 @@ export function PremiumPurchases({
                 }
                 onCheckedChange={setPublishIdentity}
                 aria-label="Community identity consent"
+                id="premium-community-consent"
               />
-              <FieldLabel>
+              <FieldLabel htmlFor="premium-community-consent">
                 Allow the community's identity in public upgrade announcements
               </FieldLabel>
             </Field>
@@ -139,7 +231,9 @@ export function PremiumPurchases({
                   communityConsent({
                     discordGuildId,
                     publishIdentity:
-                      publishIdentity ?? view?.communityPublishIdentity ?? false,
+                      publishIdentity ??
+                      view?.communityPublishIdentity ??
+                      false,
                   })
                 )
               }
@@ -150,67 +244,85 @@ export function PremiumPurchases({
         </>
       ) : null}
 
-      <section className="space-y-5" aria-labelledby="personal-billing">
-        <div className="space-y-2">
-          <h3 id="personal-billing" className="font-heading text-lg font-medium">
-            Your subscriptions
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Billing management belongs to the purchaser, even if their
-            permissions in a server change.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          disabled={busy || !view?.canManageOwnBilling || !view?.configured}
-          onClick={() => perform(() => portal({}))}
-        >
-          Manage my Stripe billing
-        </Button>
-        {view?.subscriptions.map((purchase) => (
-          <div className="space-y-4 border-t pt-5" key={purchase.id}>
-            <p className="text-sm font-medium">
-              {purchase.testMode ? "Test subscription" : "Community subscription"}
-              {" · "}
-              {purchase.active ? "Active paid coverage" : "Inactive coverage"}
+      {discordGuildId ? (
+        <p className="text-sm text-muted-foreground">
+          The purchaser manages payment methods and subscriptions in{" "}
+          <Link
+            href="/account/billing"
+            className="text-primary underline underline-offset-4"
+          >
+            My billing
+          </Link>
+          .
+        </p>
+      ) : (
+        <section className="space-y-5" aria-labelledby="personal-billing">
+          <div className="space-y-2">
+            <h3
+              id="personal-billing"
+              className="font-heading text-lg font-medium"
+            >
+              Your subscriptions
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Billing management belongs to the purchaser, even if their
+              permissions in a server change.
             </p>
-            <Field orientation="horizontal">
-              <Switch
-                aria-label="Purchase announcement consent"
-                checked={purchase.announce}
-                disabled={busy}
-                onCheckedChange={(value) =>
-                  perform(() =>
-                    preferences({
-                      activationId: purchase.id,
-                      announce: value,
-                      displayRole: purchase.displayRole,
-                    })
-                  )
-                }
-              />
-              <FieldLabel>Public announcement consent</FieldLabel>
-            </Field>
-            <Field orientation="horizontal">
-              <Switch
-                aria-label="Supporter role visibility"
-                checked={purchase.displayRole}
-                disabled={busy}
-                onCheckedChange={(value) =>
-                  perform(() =>
-                    preferences({
-                      activationId: purchase.id,
-                      announce: purchase.announce,
-                      displayRole: value,
-                    })
-                  )
-                }
-              />
-              <FieldLabel>Supporter role visibility</FieldLabel>
-            </Field>
           </div>
-        ))}
-      </section>
+          <Button
+            variant="outline"
+            disabled={busy || !view?.canManageOwnBilling || !view?.configured}
+            onClick={() => perform(() => portal({}))}
+          >
+            Manage my Stripe billing
+          </Button>
+          {view?.subscriptions.map((purchase) => (
+            <div className="space-y-4 border-t pt-5" key={purchase.id}>
+              <p className="text-sm font-medium">
+                {purchase.testMode
+                  ? "Test subscription"
+                  : "Community subscription"}
+                {" · "}
+                {purchase.active ? "Active paid coverage" : "Inactive coverage"}
+              </p>
+              <Field orientation="horizontal">
+                <Switch
+                  aria-label="Purchase announcement consent"
+                  checked={purchase.announce}
+                  disabled={busy}
+                  onCheckedChange={(value) =>
+                    perform(() =>
+                      preferences({
+                        activationId: purchase.id,
+                        announce: value,
+                        displayRole: purchase.displayRole,
+                      })
+                    )
+                  }
+                />
+                <FieldLabel>Public announcement consent</FieldLabel>
+              </Field>
+              <Field orientation="horizontal">
+                <Switch
+                  aria-label="Supporter role visibility"
+                  checked={purchase.displayRole}
+                  disabled={busy}
+                  onCheckedChange={(value) =>
+                    perform(() =>
+                      preferences({
+                        activationId: purchase.id,
+                        announce: purchase.announce,
+                        displayRole: value,
+                      })
+                    )
+                  }
+                />
+                <FieldLabel>Supporter role visibility</FieldLabel>
+              </Field>
+            </div>
+          ))}
+        </section>
+      )}
       {notice ? (
         <p role="status" className="text-sm">
           {notice}

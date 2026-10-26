@@ -22,6 +22,10 @@ export function useLiveNotifications(discordGuildId: string) {
   const { userId, sessionId } = useAuth()
   const client = useConvex()
   const verify = useAction(api.liveNotificationActions.get)
+  const syncGuilds = useAction(
+    api.actions.dashboard.discord.guilds.syncDashboardGuilds.sync
+  )
+  const [recovering, setRecovering] = useState(false)
   const watcher = useMemo(() => {
     // Restart the subscription when the Clerk identity changes.
     const identity = userId && sessionId
@@ -142,6 +146,17 @@ export function useLiveNotifications(discordGuildId: string) {
     view,
     error,
     displayKey: key,
-    reload: () => setReloadCount((value) => value + 1),
+    recovering,
+    reload: () => {
+      if (snapshot !== projectionUnavailable) {
+        setReloadCount((value) => value + 1)
+        return
+      }
+      if (recovering) return
+      setRecovering(true)
+      void syncGuilds({})
+        .finally(() => setRecovering(false))
+        .catch(() => undefined)
+    },
   }
 }

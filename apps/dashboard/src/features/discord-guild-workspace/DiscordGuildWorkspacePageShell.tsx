@@ -14,6 +14,7 @@ import {
   useConvexAuth,
   useMutation,
   usePreloadedQuery,
+  useQuery,
 } from "convex/react"
 
 import { getConvexAuthHydrationResult } from "@/features/app-shell/convexAuthHydration"
@@ -54,6 +55,10 @@ export function DiscordGuildWorkspacePageShell({
   const { sessionId } = useAuth()
   const { isAuthenticated, isLoading } = useConvexAuth()
   const liveOverviewResult = usePreloadedQuery(preloadedOverview)
+  const directory = useQuery(
+    api.queries.dashboard.discord.guilds.directory.list,
+    isAuthenticated ? {} : "skip"
+  )
 
   const [initialClerkSessionId] = useState(sessionId)
   const [initialOverviewResult] = useState(liveOverviewResult)
@@ -109,11 +114,31 @@ export function DiscordGuildWorkspacePageShell({
   }
 
   if (overviewResult.status === "forbidden") {
+    const state = directory?.status ?? "pending"
+    const titles = {
+      pending: "Checking Discord permissions",
+      expired: "Verification expired",
+      unavailable: "Verification unavailable",
+      missingDiscord: "Connect Discord",
+      ready: "Access not available",
+    }
+    const descriptions = {
+      pending:
+        "Discord is verifying management permissions. Stay on this page while the check completes. Server tools remain restricted.",
+      expired:
+        "Your management evidence has expired. Server tools remain restricted until Discord verification succeeds.",
+      unavailable:
+        "Discord verification is temporarily unavailable. Retry verification from the dashboard notice. Server tools remain restricted.",
+      missingDiscord:
+        "Connect your Discord identity in your Cleo account before opening this server.",
+      ready:
+        "Your signed-in Discord identity does not have management access for this server.",
+    }
     return (
       <WorkspaceState
-        description="Your signed-in Discord identity does not have verified management access for this server."
+        description={descriptions[state]}
         icon={IconAlertTriangle}
-        title="Access Not Available"
+        title={titles[state]}
       />
     )
   }
@@ -250,6 +275,6 @@ function WorkspaceSection({
     case "premium":
       return <PremiumGuildSection overview={overview} />
     case "settings":
-      return <SettingsSection overview={overview} />
+      return <SettingsSection discordGuildId={overview.discordGuildId} />
   }
 }

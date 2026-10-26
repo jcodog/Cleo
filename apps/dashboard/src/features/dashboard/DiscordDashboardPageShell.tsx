@@ -40,16 +40,15 @@ export function DiscordDashboardPageShell() {
   const refresh = useQuery(api.communityRoles.refreshProgress)
   const { isLoading: isConvexAuthLoading } = useConvexAuth()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
-  const manageableGuilds = useQuery(
-    api.queries.dashboard.discord.guilds.manageable.list
+  const directory = useQuery(
+    api.queries.dashboard.discord.guilds.directory.list
   )
+  const manageableGuilds = directory?.guilds
   const servers = useMemo(() => {
     const guildsByDiscordId = new Map<string, ManageableGuild>()
 
     for (const guild of manageableGuilds ?? EMPTY_MANAGEABLE_GUILDS) {
-      if (isServerOpenable(guild)) {
-        guildsByDiscordId.set(guild.discordGuildId, guild)
-      }
+      guildsByDiscordId.set(guild.discordGuildId, guild)
     }
 
     return Array.from(guildsByDiscordId.values()).sort((left, right) =>
@@ -60,11 +59,19 @@ export function DiscordDashboardPageShell() {
   const isLoading =
     isConvexAuthLoading ||
     currentUser === undefined ||
-    manageableGuilds === undefined ||
-    refresh?.state === "pending"
+    manageableGuilds === undefined
 
   return (
     <DashboardFrame>
+      {directory && directory.status !== "ready" ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {directory.status === "pending" || refresh?.state === "pending"
+            ? "Verifying Discord permissions. Your server directory stays here while we check."
+            : directory.status === "missingDiscord"
+              ? "Connect Discord in your account to find your servers."
+              : "Discord verification needs refreshing. Listed servers reflect your last verified access. Server tools remain restricted until verification succeeds."}
+        </p>
+      ) : null}
       {isLoading ? (
         <ServerListSkeleton />
       ) : (
@@ -213,13 +220,6 @@ function GuildAvatar({
     <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-medium">
       {guild.name.slice(0, 1).toUpperCase()}
     </span>
-  )
-}
-
-function isServerOpenable(guild: ManageableGuild) {
-  return (
-    guild.botJoinedAt !== undefined ||
-    guild.botInstallationVerifiedAt !== undefined
   )
 }
 

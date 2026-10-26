@@ -52,9 +52,11 @@ export function getDashboardGuildSelection({
   }, undefined)
   const activeDiscordGuildId = routeGuildIsManageable
     ? routeDiscordGuildId
-    : storedGuildIsManageable
-      ? storedDiscordGuildId
-      : mostRecentlyOpenedGuild?.discordGuildId
+    : routeDiscordGuildId !== undefined
+      ? undefined
+      : storedGuildIsManageable
+        ? storedDiscordGuildId
+        : mostRecentlyOpenedGuild?.discordGuildId
 
   return {
     activeDiscordGuildId,

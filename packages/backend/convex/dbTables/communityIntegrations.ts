@@ -65,6 +65,7 @@ export const discordRoleConnections = defineTable({
   userId: v.id("users"),
   discordUserId: v.string(),
   encryptedTokens: v.string(),
+  tokenSource: v.optional(v.literal("clerk")),
   publishedMetadata: v.optional(v.string()),
   expiresAt: v.number(),
   revision: v.number(),

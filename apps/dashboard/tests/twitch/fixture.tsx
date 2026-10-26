@@ -18,6 +18,7 @@ import { ChatTimers } from "../../src/features/twitch/ChatTimers"
 import { TwitchWorkspace } from "../../src/features/twitch/TwitchWorkspace"
 import Link, { usePathname } from "./navigation-fixture"
 import { editedTimerCursor } from "@workspace/shared/twitchTimers"
+import { ThemeProvider } from "../../src/components/providers/theme-provider"
 import {
   CommunityFixture,
   communityFixtureMode,
@@ -204,6 +205,9 @@ client.action = async (reference, args) =>
   communityWrite(getFunctionName(reference), args, () =>
     listeners.forEach((callback) => callback())
   )
+window.addEventListener("fixture-update", () =>
+  listeners.forEach((callback) => callback())
+)
 window.addEventListener("timer-fixture", (event) => {
   if (!(event instanceof CustomEvent)) return
   const detail: unknown = event.detail
@@ -334,6 +338,8 @@ const root = document.getElementById("root")
 if (!root) throw new Error("Missing browser fixture root")
 createRoot(root).render(
   <ConvexProviderWithAuth client={client} useAuth={useFixtureAuth}>
-    <Fixture />
+    <ThemeProvider>
+      <Fixture />
+    </ThemeProvider>
   </ConvexProviderWithAuth>
 )

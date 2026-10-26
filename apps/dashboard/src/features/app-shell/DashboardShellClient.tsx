@@ -15,7 +15,12 @@ import {
   IconClock,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import { type Preloaded, useConvexAuth, usePreloadedQuery } from "convex/react"
+import {
+  type Preloaded,
+  useConvexAuth,
+  usePreloadedQuery,
+  useQuery,
+} from "convex/react"
 
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { AppShell } from "@/features/app-shell/AppShell"
@@ -45,6 +50,10 @@ export function DashboardShellClient({
   const { isAuthenticated, isLoading } = useConvexAuth()
   const liveStaffAccess = usePreloadedQuery(preloadedStaffAccess)
   const liveManageableGuilds = usePreloadedQuery(preloadedManageableGuilds)
+  const directory = useQuery(
+    api.queries.dashboard.discord.guilds.directory.list,
+    isAuthenticated ? {} : "skip"
+  )
 
   const [initialClerkSessionId] = useState(sessionId)
   const [initialStaffAccess] = useState(liveStaffAccess)
@@ -81,10 +90,11 @@ export function DashboardShellClient({
   )
   const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
   const { activeDiscordGuildId } = getDashboardGuildSelection({
-      manageableGuilds,
-      routeDiscordGuildId,
-      storedDiscordGuildId,
-    })
+    manageableGuilds:
+      isAuthenticated && directory ? directory.guilds : manageableGuilds,
+    routeDiscordGuildId,
+    storedDiscordGuildId,
+  })
   const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
   const discordOverviewHref = activeDiscordGuildId
     ? `/dashboard/${activeDiscordGuildId}`
@@ -97,6 +107,7 @@ export function DashboardShellClient({
   useEffect(() => {
     if (
       manageableGuilds !== undefined &&
+      !routeDiscordGuildId &&
       storedDiscordGuildId !== activeDiscordGuildId
     ) {
       setSelectedDiscordGuildId(activeDiscordGuildId)
@@ -106,8 +117,8 @@ export function DashboardShellClient({
     manageableGuilds,
     setSelectedDiscordGuildId,
     storedDiscordGuildId,
+    routeDiscordGuildId,
   ])
-
 
   const discordNavSections: AppShellNavSection[] = [
     {

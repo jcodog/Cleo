@@ -53,7 +53,7 @@ test("falls back to the most recently opened manageable guild", () => {
   )
 })
 
-test("rejects an unmanaged route guild and falls back safely", () => {
+test("an absent deep link never silently selects another server", () => {
   assert.deepEqual(
     getDashboardGuildSelection({
       manageableGuilds,
@@ -61,9 +61,9 @@ test("rejects an unmanaged route guild and falls back safely", () => {
       storedDiscordGuildId: "111111111111111111",
     }),
     {
-      activeDiscordGuildId: "111111111111111111",
+      activeDiscordGuildId: undefined,
       invalidRouteGuildId: "999999999999999999",
-      safeDashboardPath: "/dashboard/111111111111111111",
+      safeDashboardPath: "/dashboard",
     }
   )
 })

@@ -5,6 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@workspace/ui/components/accordion"
+import Link from "next/link"
 const questions = [
   [
     "What are Linked Roles?",
@@ -35,6 +36,12 @@ export function AccountRoles() {
   return (
     <div className="max-w-2xl space-y-8">
       <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+        <Link
+          href="/discord/linked-role"
+          className="font-medium text-primary underline underline-offset-4"
+        >
+          Verify Discord Linked Roles
+        </Link>
         <p>
           Show your connection to Cleo and the communities you support through
           Discord Linked Roles.

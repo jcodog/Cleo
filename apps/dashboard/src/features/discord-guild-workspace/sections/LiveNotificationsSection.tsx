@@ -46,14 +46,17 @@ export function LiveNotificationsSection({
   overview: GuildOverview
   isBotLeft: boolean
 }) {
-  const { view, error, displayKey, reload } = useLiveNotifications(
+  const { view, error, displayKey, reload, recovering } = useLiveNotifications(
     overview.discordGuildId
   )
   if (error)
     return (
       <div role="alert" className="flex flex-wrap items-center gap-3">
-        Connection verification is temporarily unavailable. Try again later.
-        <Button onClick={reload}>Retry provider check</Button>
+        Server or provider verification is unavailable. This does not confirm a
+        live notification delivery failure.
+        <Button onClick={reload} disabled={recovering}>
+          {recovering ? "Verifying server…" : "Retry verification"}
+        </Button>
       </div>
     )
   if (!view) return <Skeleton className="h-48 w-full max-w-3xl" />
