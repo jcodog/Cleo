@@ -28,13 +28,31 @@ The directory contains last-known server metadata, with a separate verification 
 
 ## Codemagic and Sideloadly on Windows
 
-The operator builds the IPA remotely with Codemagic and signs it on Windows with Sideloadly and a free Apple ID. This workflow does not require an EAS project, paid Apple membership or App Store Connect. Remote compilation and device verification are handled by the operator.
+The root [`codemagic.yaml`](../../codemagic.yaml) defines the manual `ios-development-unsigned` workflow. It builds on Codemagic's Mac mini M2 with Xcode 27.1, Node 24.15.0 and the exact Bun version in the root `packageManager` field. It requires no EAS signing, paid Apple membership or App Store Connect.
 
-The existing Codemagic workflow must install the pinned Bun dependencies from the repository root, then run Expo prebuild and CocoaPods in `apps/mobile`. Build the generated `Cleo` workspace and scheme with Xcode's **Debug** configuration, `-sdk iphoneos`, `-destination 'generic/platform=iOS'` and code signing disabled. Preserve `expo-dev-client` in that build. Package the resulting device `.app` inside `Payload/` at the root of the IPA. A simulator `.app` cannot be installed on an iPhone.
+In the existing Codemagic application, use the repository root as the configuration location. Create an environment group named `cleo_mobile_development` with these two values:
 
-Configure `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` and `EXPO_PUBLIC_CONVEX_URL` for the same development environment in Codemagic and in the local `.env.local`. These values are public app configuration. Never supply Apple credentials or backend secrets as Expo public variables.
+| Variable                            | Value                                                       |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | The development instance's `pk_test_...` publishable key    |
+| `EXPO_PUBLIC_CONVEX_URL`            | The HTTPS URL of the matching development Convex deployment |
 
-1. Download the device IPA from the existing Codemagic workflow.
+Use the same values in `apps/mobile/.env.local` for Metro on Windows. They are public app configuration and are embedded in JavaScript. Never add Clerk secrets, provider tokens, Apple credentials or deployment keys. The native build script rejects a production Clerk key. Enable Clerk Native API and register `uk.co.jconet.cleo` and the `cleo://sso-callback` return URL as required by that instance. The new backend directory query must be available in the development deployment.
+
+Select **Start new build**, branch `fix/dashboard-navigation-premium-guild`, and workflow **Cleo iPhone development IPA for Sideloadly**. No automatic build trigger or store publishing is configured. No Apple signing integration, team ID, certificate or provisioning profile is needed.
+
+The workflow installs locked dependencies from the monorepo root and checks Expo compatibility. It then runs [`scripts/build-mobile-ios-unsigned.sh`](../../scripts/build-mobile-ios-unsigned.sh) through the mobile package script. That script:
+
+1. Runs Expo iOS prebuild without reinstalling JavaScript dependencies, then `pod install --repo-update` in `apps/mobile/ios`.
+2. Checks that CocoaPods included `expo-dev-launcher`, then builds the `Cleo` workspace and scheme in **Debug**, with `-sdk iphoneos`, `-destination 'generic/platform=iOS'`, arm64 and code signing disabled.
+3. Rejects simulator platforms, non-arm64 executables, provisioning profiles or a signed app. It checks the Mach-O platform as well as the app plist, since arm64 alone does not distinguish device and simulator builds.
+4. Packages `Payload/Cleo.app` into `apps/mobile/build/ios/artifacts/Cleo-development-unsigned.ipa`, tests the ZIP, and writes a SHA-256 checksum. Codemagic collects the IPA, checksum and toolchain/CocoaPods/Xcode logs as downloadable artifacts, including logs on failed builds.
+
+Debug preserves Expo Dev Client and its Metro connection screen. JavaScript can be loaded from the Windows development server; an embedded offline JavaScript bundle is not required. The remote Mac's Metro address is not baked into the IPA. Native modules and app capabilities still require a new remote build.
+
+### Install on Windows
+
+1. After a successful Codemagic run, download `Cleo-development-unsigned.ipa` from that run's artifacts. If the run fails, inspect its logs; an IPA from a previous run does not validate the current commit.
 2. Load it in Sideloadly on Windows, connect the iPhone and sign/install with your Apple ID. Keep the same bundle identifier and Apple ID for subsequent installs. The configured bundle identifier is `uk.co.jconet.cleo`.
 3. Trust the developer profile and enable Developer Mode on the iPhone when requested.
 4. Run `bun run --filter @workspace/mobile dev` on Windows. Open the Metro QR link in the installed Cleo development client. Both devices must reach Metro over the local network. Allow its port through the Windows firewall where needed.
@@ -60,7 +78,7 @@ bun run --filter @workspace/mobile build
 
 ## Device verification status
 
-Local validation covers JavaScript bundles, compatible dependencies and tests at the native/provider boundaries. No Codemagic build was submitted or inspected here, and no physical iPhone test was performed. The operator owns the existing remote build and Sideloadly installation workflow.
+Local validation covers the official Codemagic JSON schema, Bash syntax and workflow contracts, Expo compatibility, JavaScript bundles and native/provider tests. This does not compile Xcode code. No Codemagic build has been submitted or inspected here, and no physical iPhone test has been performed. The operator must run the workflow, install its device IPA through Sideloadly and exercise the sign-in and session-restoration checklist above.
 
 ## References
 
@@ -73,4 +91,6 @@ Local validation covers JavaScript bundles, compatible dependencies and tests at
 - [Clerk SSO hook](https://clerk.com/docs/reference/expo/native-hooks/use-sso)
 - [Convex with Clerk](https://docs.convex.dev/auth/clerk)
 - [Codemagic unsigned native builds](https://docs.codemagic.io/yaml-quick-start/first-signed-build/)
+- [Codemagic Xcode 27.1 image](https://docs.codemagic.io/specs-macos/xcode-27-1/)
+- [Codemagic YAML validation](https://docs.codemagic.io/yaml-basic-configuration/yaml-getting-started/#validating-codemagicyaml-locally)
 - [Sideloadly installation and free-account limits](https://sideloadly.io/faq)

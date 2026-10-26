@@ -12,7 +12,8 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "test:ci": "bun .github/scripts/test-ci.mjs && bun .github/scripts/test-dashboard-pwa.mjs && bun run test:assets",
+    "test:ci": "bun .github/scripts/test-ci.mjs && bun .github/scripts/test-dashboard-pwa.mjs && bun run test:mobile:build-config && bun run test:assets",
+    "test:mobile:build-config": "bun .github/scripts/test-mobile-build.mjs",
     "test:assets": "node --test scripts/prepare-welcome-assets.test.mjs",
     "test:coverage": "turbo test:coverage"
   },

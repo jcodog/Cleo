@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://codemagic.io/codemagic-schema.json
+workflows:
+  ios-development-unsigned:
+    name: Cleo iPhone development IPA for Sideloadly
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      node: 24.15.0
+      xcode: "27.1"
+      cocoapods: default
+      groups:
+        - cleo_mobile_development
+      vars:
+        CI: "true"
+        EXPO_NO_TELEMETRY: "1"
+    scripts:
+      - name: Install the repository's pinned Bun
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          BUN_VERSION="$(node -p "require('./package.json').packageManager.replace(/^bun@/, '')")"
+          export BUN_INSTALL="$HOME/.bun"
+          curl --fail --silent --show-error --location https://bun.sh/install -o "$TMPDIR/cleo-install-bun.sh"
+          bash "$TMPDIR/cleo-install-bun.sh" "bun-v$BUN_VERSION"
+          export PATH="$HOME/.bun/bin:$PATH"
+          printf 'PATH=%s\n' "$PATH" >> "$CM_ENV"
+          test "$(bun --version)" = "$BUN_VERSION"
+      - name: Install locked monorepo dependencies
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          bun install --frozen-lockfile
+          bun run --filter @workspace/mobile check:expo
+      - name: Compile and package the unsigned iPhone development client
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          bun run --filter @workspace/mobile build:ios:unsigned
+    artifacts:
+      - apps/mobile/build/ios/artifacts/*.ipa
+      - apps/mobile/build/ios/artifacts/*.sha256
+      - apps/mobile/build/ios/artifacts/*.log
