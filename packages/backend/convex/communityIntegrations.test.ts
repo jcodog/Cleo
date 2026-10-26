@@ -489,7 +489,12 @@ test("disabled community rollout makes periodic role bootstrap inert", async () 
   )
 })
 
-for (const mode of ["consent", "providerFailure", "replacement"] as const) {
+for (const mode of [
+  "consent",
+  "providerFailure",
+  "applicationMismatch",
+  "replacement",
+] as const) {
   test(`Clerk disconnect preserves authorization and revision fencing: ${mode}`, async (t) => {
     const f = await fixture()
     await f.t.mutation(internal.discordConnections.connectClerk, {
@@ -530,7 +535,12 @@ for (const mode of ["consent", "providerFailure", "replacement"] as const) {
         return Response.json([{ token: "clerk-token" }])
       assert.ok(url.endsWith("/oauth2/@me"))
       return Response.json({
-        application: { id: "888888888888888888" },
+        application: {
+          id:
+            mode === "applicationMismatch"
+              ? "777777777777777777"
+              : "888888888888888888",
+        },
         user: { id: discordUserId },
         scopes: ["identify"],
         expires: new Date(Date.now() + 3600000).toISOString(),

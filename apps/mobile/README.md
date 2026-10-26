@@ -39,7 +39,7 @@ In the existing Codemagic application, use the repository root as the configurat
 
 Use the same values in `apps/mobile/.env.local` for Metro on Windows. They are public app configuration and are embedded in JavaScript. Never add Clerk secrets, provider tokens, Apple credentials or deployment keys. The native build script rejects a production Clerk key. Enable Clerk Native API and register `uk.co.jconet.cleo` and the `cleo://sso-callback` return URL as required by that instance. The new backend directory query must be available in the development deployment.
 
-Select **Start new build**, branch `fix/dashboard-navigation-premium-guild`, and workflow **Cleo iPhone development IPA for Sideloadly**. No automatic build trigger or store publishing is configured. No Apple signing integration, team ID, certificate or provisioning profile is needed.
+Select **Start new build**, the branch and commit being verified, and workflow **Cleo iPhone development IPA for Sideloadly**. For PR #272, use its existing `fix/dashboard-navigation-premium-guild` branch and confirm the run's commit matches the PR HEAD. No automatic build trigger or store publishing is configured. No Apple signing integration, team ID, certificate or provisioning profile is needed.
 
 The workflow installs locked dependencies from the monorepo root and checks Expo compatibility. It then runs [`scripts/build-mobile-ios-unsigned.sh`](../../scripts/build-mobile-ios-unsigned.sh) through the mobile package script. That script:
 

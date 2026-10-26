@@ -488,7 +488,11 @@ export const disconnectLinkedRoles = action({
                 throw error
             })
           } catch (error) {
-            if (!(error instanceof DiscordRoleConsentRequired)) throw error
+            if (!(
+              error instanceof DiscordRoleConsentRequired ||
+              error instanceof DiscordRoleApplicationMismatch
+            ))
+              throw error
           } finally {
             // Local disconnect cannot depend on retaining provider consent.
             await ctx.runMutation(internal.discordConnections.revoke, {
