@@ -1,0 +1,65 @@
+apps/dashboard/src/app/(app)/dashboard/page.tsx
+  s_87dee764425e1a::t_ee3104336f2f4b 5
+  s_87dee764425e1a::t_7b5f0cc3d43670 14-16
+apps/dashboard/src/features/dashboard/loadDashboardEntrySnapshot.ts
+  s_87dee764425e1a::t_7b5f0cc3d43670 9-13,15-17
+  s_87dee764425e1a::t_ee3104336f2f4b 1-8,14,18
+apps/dashboard/src/features/dashboard/DashboardEntry.tsx
+  s_87dee764425e1a::t_5d3dfa9f5d2370 11-12,28
+  s_87dee764425e1a::t_7b5f0cc3d43670 34,44-46
+  s_87dee764425e1a::t_192572ab1146df 14-19,22-24,32-33,35-36,76-77,79-95,97-104
+  s_87dee764425e1a::t_ee3104336f2f4b 43,47-48,67-68
+  s_87dee764425e1a::t_c60aa5edf5fdd7 13
+apps/dashboard/src/features/dashboard/DashboardEntry.test.ts
+  s_87dee764425e1a::t_7cafb8de04546d 18,34,71,73,100-103,105-106,108-112,115-119,121-123
+  s_87dee764425e1a::t_11c41e68bbfb18 104,107,113-114,120
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_87dee764425e1a::t_7cafb8de04546d 16,243-244
+apps/dashboard/tests/twitch/navigation-fixture.tsx
+  s_87dee764425e1a::t_7cafb8de04546d 12-14
+apps/dashboard/src/features/auth/appLayout.test.ts
+  s_87dee764425e1a::t_476daf89cf2064 80
+  s_87dee764425e1a::t_6cd8d8ea093891 18,34,64-65,67,105-108,110-115
+  s_87dee764425e1a::t_224b8de153e026 66,109
+apps/dashboard/src/features/auth/rejectedConvexSession.test.ts
+  s_87dee764425e1a::t_7b5f0cc3d43670 6-31
+  s_87dee764425e1a::t_a15bee7ecf91fb 1-5,32-33
+apps/dashboard/tests/twitch/session.spec.ts
+  s_87dee764425e1a::t_7cafb8de04546d 1-4,6-18,25,30-37,39-48,50-63,65-69,71-72
+  s_87dee764425e1a::t_15f5005d1d4e97 19-24,26-29
+  s_87dee764425e1a::t_aaa3261419ab4f 5,38,49,64,70
+apps/dashboard/src/features/auth/SessionRecovery.tsx
+  s_87dee764425e1a::t_6cd8d8ea093891 1-10,12-20,31-38,40-47,49-51,53-56,69-72
+  s_87dee764425e1a::t_7cafb8de04546d 57-62,64-68
+  s_87dee764425e1a::t_13ef4b231127e8 11,21-24
+  s_87dee764425e1a::t_063b89d0c60c7f 25-30
+  s_87dee764425e1a::t_8290eab58d0dbf 39,48,52,63
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_87dee764425e1a::t_192572ab1146df 19-24
+apps/dashboard/tests/twitch/clerk-fixture.ts
+  s_87dee764425e1a::t_7cafb8de04546d 30-41
+  s_87dee764425e1a::t_15f5005d1d4e97 28-29
+  s_87dee764425e1a::t_827338d061f58e 42
+apps/dashboard/src/features/auth/rejectedConvexSession.ts
+  s_87dee764425e1a::t_476daf89cf2064 1-7,9-17
+  s_87dee764425e1a::t_75c9fecd352ba2 8
+apps/dashboard/src/app/(app)/layout.tsx
+  s_87dee764425e1a::t_476daf89cf2064 10-12,33-40,49-50,52-58
+  s_87dee764425e1a::t_cdd1eb508569c3 51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b060f21d7ebe773c51b163684588ff008efc15a",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
