@@ -1,0 +1,87 @@
+apps/dashboard/.env.example
+  s_87dee764425e1a::t_0af3d19f431676 13-17
+apps/dashboard/src/features/community/communitySettings.test.ts
+  s_87dee764425e1a::t_ca83ad1fa04047 71-87,186
+  s_87dee764425e1a::t_81630ae1551a18 221
+apps/dashboard/src/app/(app)/dashboard/[discordGuildId]/checkout/page.tsx
+  s_87dee764425e1a::t_e1eebfc2c1c17f 1-17
+  s_87dee764425e1a::t_b125767c7814b6 18-39
+packages/backend/.env.example
+  s_87dee764425e1a::t_0af3d19f431676 1-10,14-32
+  s_87dee764425e1a::t_07e1f8703fc71c 11-13
+packages/backend/convex/premiumPurchases.ts
+  s_87dee764425e1a::t_a6518627ea3c1c 44-51,92,103-116,144,150,309,341-349
+packages/backend/convex/premiumActions.ts
+  s_87dee764425e1a::t_0adf388e5a3feb 184-220,365-366
+  s_87dee764425e1a::t_0b9e76ece46b07 19-34,69-74,96-99,112-121,126-165,167-168,178-183,226-235,242,260-339,461-462,480-481,519-529
+  s_87dee764425e1a::t_825933324c811c 166
+  s_87dee764425e1a::t_4a6c985ab28f73 582
+packages/backend/convex/lib/stripeCheckout.ts
+  s_87dee764425e1a::t_f07cfe9b1136cf 1-49
+  s_87dee764425e1a::t_5531e66c527cfb 50-66
+packages/backend/convex/communityIntegrations.test.ts
+  s_87dee764425e1a::t_c098abe7598e6c 21,35-72,830,841-849,880-881,925-927,932,937-1002,1007-1113,1303,1342-1350,1373-1388,1392,1444-1448,1450,1476-1497,1511-1535
+  s_87dee764425e1a::t_8bd662343ead5d 1003-1006
+apps/dashboard/tests/twitch/checkout.spec.ts
+  s_87dee764425e1a::t_1e39a763f5b3b9 4-18,20-22,27-32,34-48,50-55,59-61,64-69,71-81,89-91,98-100,102-104,107-109,114-116,120-122,125-127,133-135,143-145,148-150
+  s_87dee764425e1a::t_5f843bb04b1037 1-3,19,23-26,33,49,56-58,62-63,70,82-88,92-97,101,105-106,110-113,117-119,123-124,128-132,136-142,146-147,151-154
+  s_87dee764425e1a::t_cababae4861d1f 155-169
+docs/community-integrations.md
+  s_87dee764425e1a::t_e48dd72e2ee344 217-220,223-225,228-233,235
+apps/dashboard/tests/twitch/serve.mjs
+  s_87dee764425e1a::t_fa5274f280337d 12-17,22-29
+packages/backend/convex/dbTables/communityIntegrations.ts
+  s_87dee764425e1a::t_f68c3778f87c4f 117
+packages/backend/convex/lib/stripeCommunity.ts
+  s_87dee764425e1a::t_f68c3778f87c4f 33
+apps/dashboard/tests/twitch/community.spec.ts
+  s_87dee764425e1a::t_fa5274f280337d 287,294,296-309,313,316-329
+docs/stripe-checkout-rollout.md
+  s_87dee764425e1a::t_16dc67758e0dac 1-15,17,26-54,66-112
+  s_87dee764425e1a::t_07e1f8703fc71c 16,18-25,55-58,62-65
+  s_87dee764425e1a::t_a263026e95885a 59-61
+packages/env/src/dashboard.ts
+  s_87dee764425e1a::t_9ce469f7082a09 15,30-31
+turbo.json
+  s_87dee764425e1a::t_9ce469f7082a09 39-40
+apps/dashboard/tests/twitch/stripe-fixture.tsx
+  s_87dee764425e1a::t_fa5274f280337d 1-28
+  s_87dee764425e1a::t_fc22bb8a0ac10b 29-60
+apps/dashboard/src/features/community/PremiumPurchases.tsx
+  s_87dee764425e1a::t_855799956eb3f5 4-7,18-32,36,45-74,97-106,199-200,205-208,210,212-214,216-246,248-250,256-258,260,277-278,289-290,299-304
+  s_87dee764425e1a::t_1e39a763f5b3b9 247,259
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_87dee764425e1a::t_1e39a763f5b3b9 11,80-82,230-260,302,304,309-313
+apps/dashboard/src/features/community/PremiumCheckout.tsx
+  s_87dee764425e1a::t_825933324c811c 18,316,326-327
+  s_87dee764425e1a::t_deda317145ea58 8-13,23-34,40-50,52-55,57-63,66-73,75-76,80-95,97-102,107-122,129,131-134,144-145,151-157,165-168,171-178,180-191,193-196,199-206,208-222,224-232,235-250,252-261,263-266,269-292,294-302,309-315,317-325,328-334,336,341-343,345-348,351-356,362-365,368-371,373-377,380-388,392-410
+  s_87dee764425e1a::t_7e0ee4a7faccb4 1-7,14-17,20-22,35-37,39,51,56,64-65,96,103-106,123-128,130,135-143,146-150,158-164,169-170,179,192,197-198,207,223,233-234,251,262,267-268,293,303-308,335,344,349-350,366-367,372,378-379,389-391,411-414
+  s_87dee764425e1a::t_342b6cf56ced60 19,38,74,77-79,337-340,357-361
+  s_87dee764425e1a::t_6d3e84f342563d 415
+packages/env/src/backend.ts
+  s_87dee764425e1a::t_f68c3778f87c4f 18
+apps/dashboard/package.json
+  s_87dee764425e1a::t_df4149cb1c9d58 24-25
+bun.lock
+  s_87dee764425e1a::t_88035b01d0d8de 29-30,974-976,1876-1877,1964-1965,2330-2331,2580-2581
+packages/backend/convex/_generated/api.d.ts
+  s_87dee764425e1a::t_e1b35238031a2b 2198-2203,2208-2227,2262-2266,7474-7495,7499
+packages/backend/convex/_generated/dataModel.d.ts
+  s_87dee764425e1a::t_aafcc99c681c0e 2851
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae09ed40060befa381b6de8f1992c0adc3ac4bd1",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
