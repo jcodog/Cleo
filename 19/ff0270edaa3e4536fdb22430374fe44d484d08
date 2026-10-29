@@ -1,0 +1,21 @@
+apps/dashboard/.env.example
+  s_87dee764425e1a::t_b803d7f57ac88e 13-17
+packages/backend/.env.example
+  s_87dee764425e1a::t_b803d7f57ac88e 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "19ff0270edaa3e4536fdb22430374fe44d484d08",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
