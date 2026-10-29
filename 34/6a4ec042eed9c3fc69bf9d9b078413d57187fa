@@ -1,0 +1,32 @@
+apps/mobile/metro.config.cjs
+  s_38a6d62369b4e3::t_2b57e585354955 2-3,7-19,23
+apps/mobile/src/tests/metroConfig.test.ts
+  s_38a6d62369b4e3::t_fe345c8f7e2b9e 96,100-101,118,121-122
+  s_38a6d62369b4e3::t_ced2009f7c1bef 5,11-15,33,36-38,95,97-99,102-110,112-117,119-120,123-126,128-141,143-150,152-156
+  s_38a6d62369b4e3::t_4ff78326ca09df 111
+  s_38a6d62369b4e3::t_1757cd3b197e87 127
+  s_38a6d62369b4e3::t_a73cf5156ebc31 142
+  s_38a6d62369b4e3::t_54f23d9a83cc6f 151
+  s_38a6d62369b4e3::t_d5a70ec918e906 157
+.github/scripts/test-ci.mjs
+  s_38a6d62369b4e3::t_f5995e5ffa14d4 50
+  s_38a6d62369b4e3::t_ced2009f7c1bef 15-49,51-57
+turbo.json
+  s_38a6d62369b4e3::t_2b57e585354955 12,52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "346a4ec042eed9c3fc69bf9d9b078413d57187fa",
+  "prompts": {},
+  "sessions": {
+    "s_38a6d62369b4e3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187a6-c222-74f2-a7f6-f0b096328a24",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
