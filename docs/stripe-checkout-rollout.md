@@ -58,11 +58,27 @@ HTTPS localhost return origin and new dedicated endpoint signing secret. The
 dashboard has a test publishable key. `STRIPE_TEST_CHECKOUT_ENABLED` remains
 false. Default sandbox Portal configuration `bpc_1UVzOcE1e1YdqDQQVzDremJy` is
 active with invoice history, payment-method updates and end-of-period cancellation.
-A signed no-op probe currently returns HTTP 400, including when invoking
-the deployed webhook action directly; this must be resolved before enabling
-checkout. The local and handler HTTP clocks agree, and the stored secret has no
-masking or whitespace. No real sandbox payment, wallet authorisation, redirect
-or Stripe-originated webhook delivery has been verified by the mocked tests.
+After the approved local integration preview reached the existing development
+watcher, the signed no-op HTTP probe returned **204**. The earlier deployed action
+had rejected the probe; no signature checks were weakened. This proves the
+configured handler accepts a correctly signed request, not that Stripe has
+delivered a subscription lifecycle event. No real sandbox payment, wallet
+authorisation, redirect or Stripe-originated billing delivery is verified yet.
+
+## Maintainer checkpoint
+
+Further testing stopped at the maintainer's request on 29 October. PR #283 remains
+a draft. Keep the test checkout gate disabled until acceptance resumes.
+
+The maintainer subsequently clarified that Cleo's official server may itself
+receive Premium, may be the notification destination, and should use an existing
+free code. The current code still excludes that server from checkout and does
+not support that free-code flow. This requirement is **not implemented**.
+Revise the purchase guard separately from independent-community qualification,
+and verify zero-cost subscription evidence without granting paid-supporter
+recognition from a free invoice. Current connected live-account lookups found no
+active promotion codes or coupons; locate the intended offer before creating or
+changing anything. Live charging remains under JCN-242.
 
 ## Payment and entitlement boundaries
 
