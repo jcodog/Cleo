@@ -1,0 +1,38 @@
+README.md
+  s_87dee764425e1a::t_bcc07ba341b64c 190,196
+  s_87dee764425e1a::t_fdca999f4aafc2 197
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_87dee764425e1a::t_0ee1e573df038e 94-96
+  s_87dee764425e1a::t_bcc07ba341b64c 97-100
+CONTRIBUTING.md
+  s_87dee764425e1a::t_bcc07ba341b64c 65,71
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_87dee764425e1a::t_0ee1e573df038e 65-68,197-201
+  s_87dee764425e1a::t_bcc07ba341b64c 11-12,43,72,74,77,193-196,202-205
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_87dee764425e1a::t_0ee1e573df038e 144-146,148-160
+  s_87dee764425e1a::t_5f423509453249 147,161-162
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_87dee764425e1a::t_5f423509453249 55,69
+package.json
+  s_87dee764425e1a::t_bcc07ba341b64c 8,10
+apps/dashboard/src/features/dashboard/DiscordDashboardPageShell.tsx
+  s_87dee764425e1a::t_bcc07ba341b64c 79,88
+  s_87dee764425e1a::t_0ee1e573df038e 80-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b020b256918dd0e4dc1cfa5c363feb8517beab50",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
