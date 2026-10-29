@@ -1,0 +1,60 @@
+apps/dashboard/src/features/app-shell/AppTopbar.tsx
+  s_87dee764425e1a::t_49226720ba76c2 48-52,110-111
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_87dee764425e1a::t_49226720ba76c2 16-18,249-284,327-329
+  s_87dee764425e1a::t_311fc986745af1 331
+apps/dashboard/src/features/account/AccountConnections.tsx
+  s_87dee764425e1a::t_2b74fb1efb28d1 1-80
+  s_87dee764425e1a::t_fee72975ce4715 81-318
+apps/dashboard/src/features/twitch/linking.ts
+  s_87dee764425e1a::t_2b74fb1efb28d1 59-60,63-67
+packages/backend/convex/accountBilling.ts
+  s_87dee764425e1a::t_634c1462ba1a93 1-37
+  s_87dee764425e1a::t_a221b114cfe554 38-90
+apps/dashboard/src/features/community/LinkedRolesDialog.tsx
+  s_87dee764425e1a::t_2b74fb1efb28d1 18,20-24,27-40
+  s_87dee764425e1a::t_86372e248c122d 41-42
+apps/dashboard/src/app/(app)/account/billing/page.tsx
+  s_87dee764425e1a::t_634c1462ba1a93 2,5
+packages/backend/convex/accountBilling.test.ts
+  s_87dee764425e1a::t_ebf6d4a8d46f49 1-82
+apps/dashboard/src/app/(app)/account/connections/page.tsx
+  s_87dee764425e1a::t_2b74fb1efb28d1 1-7
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_87dee764425e1a::t_634c1462ba1a93 1-57
+  s_87dee764425e1a::t_aabcf0882addba 58-231
+apps/dashboard/src/features/app-shell/routes.test.ts
+  s_87dee764425e1a::t_ebf6d4a8d46f49 38-43
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_87dee764425e1a::t_7ca9a10a91d94b 108,136-141
+packages/backend/convex/premiumActions.ts
+  s_87dee764425e1a::t_ebf6d4a8d46f49 156
+apps/dashboard/src/features/app-shell/routes.ts
+  s_87dee764425e1a::t_49226720ba76c2 6,9-10
+packages/backend/convex/accountBillingActions.ts
+  s_87dee764425e1a::t_634c1462ba1a93 1-26
+  s_87dee764425e1a::t_477bee7f1d80c9 27-60
+apps/dashboard/src/features/account/AccountProfile.tsx
+  s_87dee764425e1a::t_ebf6d4a8d46f49 7-28
+  s_87dee764425e1a::t_49226720ba76c2 1-6,29
+apps/dashboard/src/app/(app)/account/[[...account]]/page.tsx
+  s_87dee764425e1a::t_49226720ba76c2 1-9
+packages/backend/convex/_generated/api.d.ts
+  s_87dee764425e1a::t_ac60564c7b4cb2 23-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7525b3322851521a837245a4b5ae5ebf8368812f",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
