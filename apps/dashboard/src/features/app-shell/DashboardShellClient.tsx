@@ -91,6 +91,13 @@ export function DashboardShellClient({
   const setSelectedDiscordGuildId = useAppShellStore(
     (state) => state.setSelectedDiscordGuildId
   )
+  const selectionClerkUserId = useAppShellStore(
+    (state) => state.selectionClerkUserId
+  )
+  useEffect(() => {
+    if (userId && selectionClerkUserId && selectionClerkUserId !== userId)
+      setSelectedDiscordGuildId(undefined, userId)
+  }, [selectionClerkUserId, setSelectedDiscordGuildId, userId])
   const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
   const { activeDiscordGuildId } = getDashboardGuildSelection({
     manageableGuilds:

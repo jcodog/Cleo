@@ -52,7 +52,7 @@ const directoryGuilds = [
   },
 ]
 let directory = {
-  clerkUserId: "fixture-clerk",
+  clerkUserId: "fixture-clerk" as string | null,
   status: "ready",
   guilds: directoryGuilds,
 }
@@ -66,7 +66,7 @@ if (params.has("pendingDirectory")) directory.status = "pending"
 window.addEventListener("directory-fixture", (event) => {
   if (!(event instanceof CustomEvent)) return
   directory = {
-    clerkUserId: "fixture-clerk",
+    clerkUserId: event.detail.unavailableAccount ? null : "fixture-clerk",
     status: event.detail.status,
     guilds: event.detail.removed ? directoryGuilds.slice(1) : directoryGuilds,
   }

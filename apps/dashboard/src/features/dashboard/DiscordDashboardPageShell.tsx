@@ -76,6 +76,16 @@ export function DiscordDashboardPageShell() {
     currentUser === undefined ||
     manageableGuilds === undefined
 
+  if (!isConvexAuthLoading && directory?.clerkUserId === null)
+    return (
+      <DashboardFrame>
+        <p role="alert" className="text-sm text-muted-foreground">
+          This account cannot load the server directory. Check your account
+          status or sign in again.
+        </p>
+      </DashboardFrame>
+    )
+
   return (
     <DashboardFrame>
       {directory && directory.status !== "ready" ? (

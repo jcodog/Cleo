@@ -5,9 +5,9 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev --ui=tui --filter=!@workspace/mobile",
+    "dev": "NODE_USE_SYSTEM_CA=1 turbo dev --ui=tui --filter=!@workspace/mobile",
     "dev:mobile": "bun run --filter @workspace/mobile dev",
-    "dev:all": "turbo dev --ui=tui",
+    "dev:all": "NODE_USE_SYSTEM_CA=1 turbo dev --ui=tui",
     "lint": "turbo lint && bun run lint:javascript",
     "lint:ci": "bun run lint",
     "lint:production": "turbo lint --filter=!@workspace/mobile && bun run lint:javascript",

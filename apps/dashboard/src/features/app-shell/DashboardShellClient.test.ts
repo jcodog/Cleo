@@ -8,6 +8,8 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 test("Twitch shell renders account settings navigation through the shared sidebar", async (t) => {
   let pathname = "/twitch"
   let storedGuildId: string | undefined
+  let userId: string | undefined = "user"
+  let selectionClerkUserId = "user"
   let directory:
     | {
         clerkUserId: string
@@ -38,7 +40,7 @@ test("Twitch shell renders account settings navigation through the shared sideba
     },
   })
   t.mock.module("@clerk/nextjs", {
-    exports: { useAuth: () => ({ sessionId: "session", userId: "user" }) },
+    exports: { useAuth: () => ({ sessionId: "session", userId }) },
   })
   t.mock.module("next/navigation", {
     exports: {
@@ -60,15 +62,19 @@ test("Twitch shell renders account settings navigation through the shared sideba
         select: (state: {
           selectionClerkUserId: string
           selectedDiscordGuildId: string | undefined
-          setSelectedDiscordGuildId: (id: string | undefined) => void
+          setSelectedDiscordGuildId: (
+            id: string | undefined,
+            owner: string
+          ) => void
         }) => unknown
       ) =>
         select({
-          selectionClerkUserId: "user",
+          selectionClerkUserId,
           selectedDiscordGuildId: storedGuildId,
-          setSelectedDiscordGuildId: (id) => {
+          setSelectedDiscordGuildId: (id, owner) => {
             writes.push(id)
             storedGuildId = id
+            selectionClerkUserId = owner
           },
         }),
     },
@@ -184,6 +190,19 @@ test("Twitch shell renders account settings navigation through the shared sideba
       settle()
       assert.equal(storedGuildId, undefined)
       assert.deepEqual(writes, [undefined])
+      directory = undefined
+      storedGuildId = "222222222222222222"
+      userId = undefined
+      settle()
+      assert.equal(
+        storedGuildId,
+        "222222222222222222",
+        "unfinished Clerk hydration preserves selection"
+      )
+      userId = "second-account"
+      settle()
+      assert.equal(storedGuildId, undefined)
+      assert.equal(selectionClerkUserId, "second-account")
     }
   )
 })

@@ -187,11 +187,13 @@ This keeps feedback focused and avoids starting unrelated applications and servi
 
 ### Run the whole development stack
 
-When you intentionally need the complete monorepo development graph, run:
+For the web, bot and backend development stack, run:
 
 ```bash
 bun run dev
 ```
+
+Mobile starts separately with `bun run dev:mobile`. Use `bun run dev:all` only when you intentionally need every workspace. The web development commands enable Node's system certificate trust while retaining the Turbo terminal UI.
 
 The root script uses Turborepo and may start multiple workspace development processes. It is supported and useful for integration work, but it is not necessary for every focused change.
 

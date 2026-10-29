@@ -141,6 +141,25 @@ test("legacy Settings leads to Premium without a Server Access presentation", as
   ).toBeVisible()
 })
 
+test("a resolved unavailable account shows an error instead of an indefinite directory skeleton", async ({
+  page,
+}) => {
+  await page.goto("/dashboard/servers?community&navigation")
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: { status: "unavailable", unavailableAccount: true },
+      })
+    )
+  )
+  await expect(page.getByRole("alert")).toHaveText(
+    /This account cannot load the server directory/
+  )
+  await expect(
+    page.getByRole("link").filter({ hasText: "Cleo community" })
+  ).toHaveCount(0)
+})
+
 test("already-consented Linked Roles does not start OAuth again", async ({
   page,
 }) => {
