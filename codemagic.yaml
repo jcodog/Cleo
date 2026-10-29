@@ -6,7 +6,7 @@ workflows:
     max_build_duration: 120
     environment:
       node: 24.15.0
-      xcode: "27.1"
+      xcode: edge
       cocoapods: default
       groups:
         - cleo_mobile_development
