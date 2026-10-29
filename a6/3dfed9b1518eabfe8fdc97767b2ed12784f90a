@@ -1,0 +1,124 @@
+apps/dashboard/src/components/stores/app-shell-store.ts
+  s_3b79ce5b51d2a2::t_6db3f03a8a5daf 8-12,19-22,28
+apps/dashboard/src/features/app-shell/DiscordGuildSelect.tsx
+  s_3b79ce5b51d2a2::t_d7cd09289cc098 3-4,67,77-80,149-152,166-167
+  s_87dee764425e1a::t_2321ec3648e5f7 114-116
+  s_87dee764425e1a::t_8891e91e9f32a5 75-76,88-91,117-118
+apps/dashboard/src/features/app-shell/dashboardGuildSelection.test.ts
+  s_3b79ce5b51d2a2::t_2b842952c881f9 66,99
+AGENTS.md
+  s_87dee764425e1a::t_d95f29e6577832 155-156
+apps/dashboard/src/features/dashboard/DashboardEntry.test.ts
+  s_3b79ce5b51d2a2::t_7e611f9d491c02 1-8,10-17,19-24,26-29,31-35,37-42,45-46,48-52,54-55,57-59,62-66,68-91,93-99
+  s_87dee764425e1a::t_2910ac7402b53a 18
+  s_87dee764425e1a::t_dde1c11dc45315 9,25,30,36,43-44,47,53,56,60-61,67,92
+apps/dashboard/src/app/(app)/dashboard/page.tsx
+  s_3b79ce5b51d2a2::t_6db3f03a8a5daf 4,13
+apps/dashboard/src/features/community/AccountRoles.tsx
+  s_3b79ce5b51d2a2::t_d7cd09289cc098 34
+packages/backend/convex/_generated/api.d.ts
+  s_87dee764425e1a::t_1c49aafc11c5f4 2457
+apps/dashboard/src/features/app-shell/AppPlatformSelector.tsx
+  s_3b79ce5b51d2a2::t_d7cd09289cc098 3-4,26,37-39
+  s_87dee764425e1a::t_e9b5287c2c3667 30-36
+apps/dashboard/src/features/dashboard/DiscordDashboardPageShell.tsx
+  s_87dee764425e1a::t_8891e91e9f32a5 61-64,229-231,233-235
+  s_87dee764425e1a::t_2321ec3648e5f7 36,104,107,228,232,236
+  s_3b79ce5b51d2a2::t_d7cd09289cc098 4,8,45,52,68-72,113-128,130,133,144-146,148-149,169
+  s_87dee764425e1a::t_e15d8c8eabe6df 3,44,53,73,150,216,254-255,258,264
+apps/dashboard/src/features/app-shell/routes.test.ts
+  s_3b79ce5b51d2a2::t_3c24af15a9cefa 12
+apps/dashboard/tests/twitch/workspace.spec.ts
+  s_87dee764425e1a::t_2910ac7402b53a 442
+apps/dashboard/tests/twitch/community.spec.ts
+  s_87dee764425e1a::t_8891e91e9f32a5 47-52,56-58,60-63,72-73
+  s_87dee764425e1a::t_0bd55f71aa7385 69-71
+  s_87dee764425e1a::t_f15dd5424ff5f9 45-46,53-55,59,64-68,74-80
+  s_3b79ce5b51d2a2::t_3c24af15a9cefa 7-12,14,28
+packages/backend/convex/queries/dashboard/discord/guilds/directory.ts
+  s_3b79ce5b51d2a2::t_6db3f03a8a5daf 14,37,39-42,44,97
+  s_3b79ce5b51d2a2::t_b1a9efd8ff8bda 43
+packages/backend/convex/queries/dashboard/discord/guilds/manageable.test.ts
+  s_87dee764425e1a::t_8891e91e9f32a5 10-11,97-103
+apps/dashboard/src/features/app-shell/routes.ts
+  s_3b79ce5b51d2a2::t_6db3f03a8a5daf 3
+apps/dashboard/src/features/community/LinkedRolesDialog.tsx
+  s_3b79ce5b51d2a2::t_d480bfb27f0d61 1-9,11-14,16-19,21-41
+  s_3b79ce5b51d2a2::t_d6b4716c43af9e 10
+  s_3b79ce5b51d2a2::t_bce4f10f434ad5 15
+  s_3b79ce5b51d2a2::t_09cc53dd354414 20
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_87dee764425e1a::t_e9b5287c2c3667 16,43,51,59-61,63-65
+  s_3b79ce5b51d2a2::t_2b842952c881f9 15,54-56,58,69,323-324
+  s_3b79ce5b51d2a2::t_b112356a23a5de 57
+  s_87dee764425e1a::t_ea111e436d0100 62
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_87dee764425e1a::t_0bd55f71aa7385 98-100
+  s_87dee764425e1a::t_8891e91e9f32a5 105-107,298-309
+  s_87dee764425e1a::t_2321ec3648e5f7 296-297,310-311
+  s_3b79ce5b51d2a2::t_3c24af15a9cefa 97,101
+  s_3b79ce5b51d2a2::t_d7cd09289cc098 50,86-89,110,114,118,120,125,129-130
+  s_87dee764425e1a::t_9592c35397f535 122
+apps/dashboard/src/features/dashboard/DashboardEntry.tsx
+  s_3b79ce5b51d2a2::t_6db3f03a8a5daf 1-49,51,53-67
+  s_3b79ce5b51d2a2::t_4b48d329c5fc7a 50
+  s_3b79ce5b51d2a2::t_75f56eed5945d7 52
+apps/dashboard/tests/twitch/navigation-fixture.tsx
+  s_3b79ce5b51d2a2::t_2b842952c881f9 12-15
+apps/dashboard/src/features/app-shell/AppTopbar.tsx
+  s_3b79ce5b51d2a2::t_d7cd09289cc098 3-4,23,31-40,42-44,46,48
+  s_3b79ce5b51d2a2::t_83cfc6a1022528 30
+  s_3b79ce5b51d2a2::t_85af588a036008 41
+  s_3b79ce5b51d2a2::t_afb8e22b0770c2 45
+  s_3b79ce5b51d2a2::t_aded16479ba549 47
+  s_3b79ce5b51d2a2::t_3716bf2c6677a4 49
+apps/dashboard/tests/twitch/fixture.tsx
+  s_87dee764425e1a::t_e9b5287c2c3667 121-126,128
+  s_87dee764425e1a::t_508c04cf327ece 94-100
+  s_87dee764425e1a::t_ba6ce129309333 127
+apps/dashboard/src/features/app-shell/AppSidebar.tsx
+  s_3b79ce5b51d2a2::t_d7cd09289cc098 1,62
+apps/dashboard/src/features/app-shell/dashboardGuildSelection.ts
+  s_3b79ce5b51d2a2::t_6db3f03a8a5daf 70
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_87dee764425e1a::t_0bd55f71aa7385 15,18-19,168-170,172-175,177
+  s_3b79ce5b51d2a2::t_2b842952c881f9 13,41,61,67,108,159,165,183
+  s_87dee764425e1a::t_f15dd5424ff5f9 143
+  s_87dee764425e1a::t_8891e91e9f32a5 144-147
+  s_87dee764425e1a::t_e394ca0fef596c 16-17,171,176
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_87dee764425e1a::t_e9b5287c2c3667 3-4,6-15,17-32
+  s_3b79ce5b51d2a2::t_2b842952c881f9 41,102
+  s_87dee764425e1a::t_253ad074eca563 5
+  s_87dee764425e1a::t_b7f79a07c786c2 16
+apps/dashboard/src/app/(app)/account/roles/page.tsx
+  s_3b79ce5b51d2a2::t_2b842952c881f9 2-3,6
+apps/dashboard/src/app/(app)/dashboard/servers/page.tsx
+  s_3b79ce5b51d2a2::t_6db3f03a8a5daf 1-9
+turbo.json
+  s_87dee764425e1a::t_36c38e9caa01ec 52-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a63dfed9b1518eabfe8fdc97767b2ed12784f90a",
+  "prompts": {},
+  "sessions": {
+    "s_3b79ce5b51d2a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18876-e069-75e1-90f4-af922fad99e4",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
