@@ -153,7 +153,7 @@ export const portal = action({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
-    stripeCommunityConfig(true)
+    stripeCommunityConfig()
     const context = await ctx.runQuery(
       internal.premiumPurchases.billingUser,
       {}

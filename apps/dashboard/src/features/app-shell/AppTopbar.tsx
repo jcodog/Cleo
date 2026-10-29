@@ -45,7 +45,11 @@ export function AppTopbar({
             ) : null}
           </nav>
         ) : (
-          <p className="truncate text-sm font-medium">CleoAI Dashboard</p>
+          <p className="truncate text-sm font-medium">
+            {pathname.startsWith("/account")
+              ? "Account settings"
+              : "CleoAI Dashboard"}
+          </p>
         )}
       </div>
 
@@ -103,6 +107,8 @@ export function StaffUserButton({
 
   return (
     <UserButton
+      userProfileMode="navigation"
+      userProfileUrl="/account"
       appearance={{
         elements: {
           userButtonPopoverActionButton__signOut: { display: "none" },

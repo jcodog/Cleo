@@ -35,6 +35,12 @@ test("staff routes use the staff app shell area", () => {
   assert.equal(getAppShellAreaFromPathname("/dashboard"), "discord")
 })
 
+test("profile, connection, security and billing routes use the dedicated account shell", () => {
+  for (const path of ["/account", "/account/connections", "/account/security", "/account/billing"])
+    assert.equal(getAppShellAreaFromPathname(path), "account")
+  assert.equal(getAppShellAreaFromPathname("/accounting"), "discord")
+})
+
 test("release navigation exposes Discord and Twitch without Kick", () => {
   assert.deepEqual(RELEASE_PLATFORMS, ["discord", "twitch"])
   assert.equal(RELEASE_PLATFORMS.includes("kick" as never), false)
