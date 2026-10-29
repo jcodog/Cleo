@@ -1,0 +1,19 @@
+.github/scripts/test-mobile-build.mjs
+  s_38a6d62369b4e3::t_9eb001a8792929 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ef7c5428246e5dd004bcf4cfa9eac62aa7393b5",
+  "prompts": {},
+  "sessions": {
+    "s_38a6d62369b4e3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187a6-c222-74f2-a7f6-f0b096328a24",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
