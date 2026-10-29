@@ -12,6 +12,49 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("../../", import.meta.url))
+const turbo = JSON.parse(readFileSync(join(root, "turbo.json"), "utf8"))
+assert.ok(
+  turbo.globalEnv.includes("NODE_OPTIONS"),
+  "Node runtime flags must affect task hashes"
+)
+assert.ok(!turbo.globalPassThroughEnv.includes("NODE_OPTIONS"))
+for (const name of ["VERCEL_URL", "NODE_EXTRA_CA_CERTS"])
+  assert.ok(
+    turbo.globalPassThroughEnv.includes(name),
+    `${name} must remain available`
+  )
+
+/** Compare the real task graph without executing workspace tests or using cached successes. */
+function testTaskHashes(nodeOptions) {
+  const result = spawnSync(process.execPath, ["run", "test", "--dry=json"], {
+    cwd: root,
+    env: { ...process.env, NODE_OPTIONS: nodeOptions },
+    encoding: "utf8",
+    timeout: 30000,
+    maxBuffer: 8 * 1024 * 1024,
+  })
+  assert.ifError(result.error)
+  assert.equal(result.status, 0, result.stderr)
+  const { tasks } = JSON.parse(result.stdout)
+  assert.ok(tasks.some((task) => task.taskId === "@workspace/dashboard#test"))
+  return Object.fromEntries(tasks.map((task) => [task.taskId, task.hash]))
+}
+const unfilteredHashes = testTaskHashes("")
+const filteredHashes = testTaskHashes(
+  "--test-name-pattern=cache-contract-fixture"
+)
+assert.deepEqual(
+  filteredHashes,
+  testTaskHashes("--test-name-pattern=cache-contract-fixture")
+)
+assert.deepEqual(unfilteredHashes, testTaskHashes(""))
+for (const [task, hash] of Object.entries(unfilteredHashes))
+  assert.notEqual(
+    hash,
+    filteredHashes[task],
+    `${task}: filtered and unfiltered tests must not share cached results`
+  )
+
 const cubic = Bun.YAML.parse(readFileSync(join(root, "cubic.yaml"), "utf8"))
 assert.equal(cubic.reviews.enabled, true)
 assert.equal(cubic.reviews.incremental_commits, true)
@@ -139,6 +182,7 @@ await import("./test-discord-workflow.mjs")
 await import("./test-production-security.mjs")
 await import("./test-production-policy.mjs")
 await import("./test-production-workflow.mjs")
+await import("./test-coordinated-release.mjs")
 const archiveGuard = spawnSync(
   "bash",
   [".github/scripts/test-discord-archive-guard.sh"],
@@ -293,8 +337,8 @@ const reports = [
 ]
 const builder = join(root, ".github/scripts/build-coverage-site.mjs")
 /** Run the real coverage builder in the disposable fixture and capture its outcome. */
-const build = () =>
-  spawnSync("node", [builder], {
+const build = (args = []) =>
+  spawnSync("node", [builder, ...args], {
     cwd: directory,
     env: {
       ...process.env,
@@ -467,6 +511,23 @@ try {
   assert.equal(
     readFileSync(join(directory, "coverage-site/index.html"), "utf8"),
     index
+  )
+  rmSync(empty, { recursive: true })
+  writeFileSync(empty, validXml)
+  rmSync(join(directory, "coverage/apps/mobile"), { recursive: true })
+  const production = build(["--production"])
+  assert.equal(production.status, 0, production.stderr)
+  const productionIndex = readFileSync(
+    join(directory, "coverage-site/index.html"),
+    "utf8"
+  )
+  assert.ok(!productionIndex.includes("./apps/mobile/index.html"))
+  for (const report of reports.filter((path) => path !== "apps/mobile"))
+    assert.ok(productionIndex.includes(`./${report}/index.html`))
+  assert.equal(
+    build().status,
+    1,
+    "Full coverage still requires the mobile report"
   )
 } finally {
   rmSync(directory, { recursive: true, force: true })

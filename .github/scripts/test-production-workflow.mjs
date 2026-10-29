@@ -65,6 +65,9 @@ function requireReleaseWiring(candidate) {
         "backend",
         "discord",
         "twitch",
+        "backend_base",
+        "discord_base",
+        "twitch_base",
       ].map((name) => [name, `\${{ steps.plan.outputs.${name} }}`])
     )
   )
@@ -461,6 +464,9 @@ function graph({
         sha: mainSha,
         source_run: "10",
         source_attempt: "1",
+        backend_base: mainSha,
+        discord_base: mainSha,
+        twitch_base: mainSha,
       },
       gate: {
         enabled: String(

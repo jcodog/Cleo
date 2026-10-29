@@ -1,5 +1,12 @@
 # Production release gating
 
+The current release contract and one-time enablement steps are in
+[the production operator checklist](production-release-operator-checklist.md).
+The sections below describe the original bot/backend coordinator and its historical
+validation. The current coordinator also stages and promotes Vercel, verifies live
+backend code, and fails held or partial release results. Expo export validation now
+runs in a separate native-mobile workflow.
+
 JCN-206 coordinates Convex, Discord and Twitch production promotion. The four
 parallel regression jobs and the required aggregate check are unchanged. Coverage
 thresholds, nine workspace reports, browser/PWA checks, welcome rendering, Linux

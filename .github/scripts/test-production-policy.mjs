@@ -283,6 +283,8 @@ function fixture({
       }
     }
     if (path === "branches/main") return { commit: { sha: main } }
+    if (path === `commits/${sha}`)
+      return { sha, commit: { verification: { verified: true } } }
     if (/^deployments\/\d+$/.test(path))
       return records.find((record) => record.id === Number(path.split("/")[1]))
     if (path.startsWith("deployments?")) {
@@ -939,6 +941,7 @@ try {
       else if (path.endsWith("/actions/workflows/${workflowId}")) data = fixture.workflow
       else if (path.endsWith("/jobs")) data = { jobs: fixture.jobs, total_count: fixture.jobs.length }
       else if (path.endsWith("/branches/main")) data = { commit: { sha: fixture.sha } }
+      else if (path.includes("/commits/")) data = { sha: fixture.sha, commit: { verification: { verified: true } } }
       else if (path.endsWith("/deployments")) data = []
       else throw new Error("Unexpected GitHub fixture request")
       return Response.json(data)
@@ -1077,6 +1080,7 @@ try {
               RECEIPT_STATE: state,
               GITHUB_EVENT_PATH: eventPath,
               GITHUB_STEP_SUMMARY: summaryPath,
+              GITHUB_OUTPUT: outputPath,
               GH_TOKEN: "receipt-fixture",
               POLICY_TEST_STATE: statePath,
               POLICY_LOST_RESPONSE: String(responseLost),

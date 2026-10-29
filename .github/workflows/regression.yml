@@ -42,14 +42,14 @@ jobs:
 
       - name: Validate CI contracts and production operations scripts
         run: |
-          bun run test:ci
+          bun run test:ci:production
           bash .github/scripts/test-operations.sh
 
       - name: Typecheck workspace
-        run: bun run typecheck
+        run: bun run typecheck:production
 
       - name: Lint workspace with zero warnings
-        run: bun run lint:ci
+        run: bun run lint:production
 
   web-verification:
     name: Web verification
@@ -86,14 +86,6 @@ jobs:
           bun run --filter @workspace/landing build
           bun run --filter @workspace/dashboard build
           bun run --filter @workspace/dashboard test:pwa:build
-
-      - name: Verify Expo compatibility and export native bundles
-        env:
-          EXPO_PUBLIC_CONVEX_URL: https://build-only.convex.cloud
-          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
-        run: |
-          bun run --filter @workspace/mobile check:expo
-          bun run --filter @workspace/mobile build
 
       - name: Install welcome verification browsers
         working-directory: apps/dashboard
@@ -155,7 +147,7 @@ jobs:
       - name: Run workspace tests with coverage
         run: |
           set -o pipefail
-          bun run test:coverage 2>&1 | tee "$RUNNER_TEMP/coverage-test.log"
+          bun run test:coverage:production 2>&1 | tee "$RUNNER_TEMP/coverage-test.log"
 
       - name: Upload failed coverage output
         if: failure()
@@ -170,7 +162,7 @@ jobs:
       - name: Verify reports and build browsable coverage site
         env:
           COVERAGE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: node .github/scripts/build-coverage-site.mjs
+        run: node .github/scripts/build-coverage-site.mjs --production
 
       - name: Upload Cobertura artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -181,7 +173,6 @@ jobs:
           path: |
             coverage/apps/dashboard/cobertura-coverage.xml
             coverage/apps/landing/cobertura-coverage.xml
-            coverage/apps/mobile/cobertura-coverage.xml
             coverage/apps/discord-bot/cobertura-coverage.xml
             coverage/apps/twitch-bot/cobertura-coverage.xml
             coverage/packages/backend/cobertura-coverage.xml
