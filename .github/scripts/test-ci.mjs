@@ -12,6 +12,49 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("../../", import.meta.url))
+const turbo = JSON.parse(readFileSync(join(root, "turbo.json"), "utf8"))
+assert.ok(
+  turbo.globalEnv.includes("NODE_OPTIONS"),
+  "Node runtime flags must affect task hashes"
+)
+assert.ok(!turbo.globalPassThroughEnv.includes("NODE_OPTIONS"))
+for (const name of ["VERCEL_URL", "NODE_EXTRA_CA_CERTS"])
+  assert.ok(
+    turbo.globalPassThroughEnv.includes(name),
+    `${name} must remain available`
+  )
+
+/** Compare the real task graph without executing workspace tests or using cached successes. */
+function testTaskHashes(nodeOptions) {
+  const result = spawnSync(process.execPath, ["run", "test", "--dry=json"], {
+    cwd: root,
+    env: { ...process.env, NODE_OPTIONS: nodeOptions },
+    encoding: "utf8",
+    timeout: 30000,
+    maxBuffer: 8 * 1024 * 1024,
+  })
+  assert.ifError(result.error)
+  assert.equal(result.status, 0, result.stderr)
+  const { tasks } = JSON.parse(result.stdout)
+  assert.ok(tasks.some((task) => task.taskId === "@workspace/dashboard#test"))
+  return Object.fromEntries(tasks.map((task) => [task.taskId, task.hash]))
+}
+const unfilteredHashes = testTaskHashes("")
+const filteredHashes = testTaskHashes(
+  "--test-name-pattern=cache-contract-fixture"
+)
+assert.deepEqual(
+  filteredHashes,
+  testTaskHashes("--test-name-pattern=cache-contract-fixture")
+)
+assert.deepEqual(unfilteredHashes, testTaskHashes(""))
+for (const [task, hash] of Object.entries(unfilteredHashes))
+  assert.notEqual(
+    hash,
+    filteredHashes[task],
+    `${task}: filtered and unfiltered tests must not share cached results`
+  )
+
 const cubic = Bun.YAML.parse(readFileSync(join(root, "cubic.yaml"), "utf8"))
 assert.equal(cubic.reviews.enabled, true)
 assert.equal(cubic.reviews.incremental_commits, true)

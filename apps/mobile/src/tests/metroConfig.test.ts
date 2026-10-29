@@ -2,14 +2,17 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { test } from "node:test"
 import { runInNewContext } from "node:vm"
-import { join } from "node:path"
-import { tmpdir } from "node:os"
+import { posix, win32 } from "node:path"
 
 /** Load the real config with a controlled host and Expo defaults, without starting Metro. */
 function configure(
   platform: string,
   defaultBlockList: RegExp | RegExp[] = [/__tests__/],
-  versions = { node: "24.15.0", v8: "13.6.233", bun: "" }
+  versions = { node: "24.15.0", v8: "13.6.233", bun: "" },
+  host: { home: string; env: Record<string, string | undefined> } = {
+    home: platform === "win32" ? "C:\\Users\\alice" : "/home/alice",
+    env: {},
+  }
 ) {
   const source = readFileSync(
     new URL("../../metro.config.cjs", import.meta.url),
@@ -27,11 +30,12 @@ function configure(
   let created = ""
   runInNewContext(source, {
     __dirname: "mobile",
-    process: { platform, versions },
+    process: { platform, versions, env: host.env },
     module,
     require: (name: string) => {
-      if (name === "node:path") return { join }
-      if (name === "node:os") return { tmpdir }
+      if (name === "node:path") return platform === "win32" ? win32 : posix
+      if (name === "node:os")
+        return { homedir: () => host.home, tmpdir: () => "/shared-tmp" }
       if (name === "node:fs")
         return {
           mkdirSync: (directory: string, options: { recursive: boolean }) => {
@@ -86,6 +90,69 @@ test("Windows Metro excludes foreign Sharp store directories before reaching the
   )
   assert.deepEqual(config.watchFolders, ["workspace"])
   assert.equal(config.resolver.unstable_enablePackageExports, true)
+})
+
+test("Metro file-map caches use platform-specific per-user locations", () => {
+  const cases: [string, string, string][] = [
+    ["win32", "C:\\Users\\alice", "C:\\Users\\alice\\AppData\\Local"],
+    ["darwin", "/Users/alice", "/Users/alice/Library/Caches"],
+    ["linux", "/home/alice", "/home/alice/.cache"],
+  ]
+  for (const [platform, home, root] of cases) {
+    const paths = platform === "win32" ? win32 : posix
+    const cache = configure(platform, undefined, undefined, { home, env: {} })
+      .config.fileMapCacheDirectory
+    assert.equal(
+      cache,
+      paths.join(root, "cleo-metro-file-map", platform, "24.15.0-13.6.233-node")
+    )
+    const other = configure(platform, undefined, undefined, {
+      home: home.replace("alice", "bob"),
+      env: {},
+    }).config.fileMapCacheDirectory
+    assert.notEqual(cache, other)
+  }
+})
+
+test("Metro honors absolute user-cache overrides and ignores relative locations", () => {
+  const cases: [string, string, string][] = [
+    ["win32", "LOCALAPPDATA", "D:\\Users\\alice\\Cache"],
+    ["linux", "XDG_CACHE_HOME", "/cache/alice"],
+  ]
+  for (const [platform, name, override] of cases) {
+    const home = platform === "win32" ? "C:\\Users\\alice" : "/home/alice"
+    const paths = platform === "win32" ? win32 : posix
+    const cache = configure(platform, undefined, undefined, {
+      home,
+      env: { [name]: override },
+    }).config.fileMapCacheDirectory
+    assert.equal(
+      cache,
+      paths.join(
+        override,
+        "cleo-metro-file-map",
+        platform,
+        "24.15.0-13.6.233-node"
+      )
+    )
+    for (const relative of ["", "shared-cache"])
+      assert.equal(
+        configure(platform, undefined, undefined, {
+          home,
+          env: { [name]: relative },
+        }).config.fileMapCacheDirectory,
+        configure(platform, undefined, undefined, { home, env: {} }).config
+          .fileMapCacheDirectory
+      )
+  }
+  assert.equal(
+    configure("darwin", undefined, undefined, {
+      home: "/Users/alice",
+      env: { XDG_CACHE_HOME: "/other-cache", LOCALAPPDATA: "/other-local" },
+    }).config.fileMapCacheDirectory,
+    configure("darwin", undefined, undefined, { home: "/Users/alice", env: {} })
+      .config.fileMapCacheDirectory
+  )
 })
 
 test("Metro file-map caches are isolated by platform and serialization runtime", () => {
