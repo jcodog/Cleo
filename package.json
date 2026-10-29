@@ -5,17 +5,21 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev --ui=tui",
+    "dev": "bun scripts/dev.mjs",
     "lint": "turbo lint && bun run lint:javascript",
     "lint:ci": "bun run lint",
+    "lint:production": "turbo lint --filter=!@workspace/mobile && bun run lint:javascript",
     "lint:javascript": "bun scripts/lint-javascript.mjs",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
+    "typecheck:production": "turbo typecheck --filter=!@workspace/mobile",
     "test": "turbo test",
     "test:ci": "bun .github/scripts/test-ci.mjs && bun .github/scripts/test-dashboard-pwa.mjs && bun run test:mobile:build-config && bun run test:assets",
+    "test:ci:production": "bun .github/scripts/test-ci.mjs && bun .github/scripts/test-dashboard-pwa.mjs && bun run test:assets",
     "test:mobile:build-config": "bun .github/scripts/test-mobile-build.mjs",
     "test:assets": "node --test scripts/prepare-welcome-assets.test.mjs",
-    "test:coverage": "turbo test:coverage"
+    "test:coverage": "turbo test:coverage",
+    "test:coverage:production": "turbo test:coverage --filter=!@workspace/mobile"
   },
   "devDependencies": {
     "@fontsource/geist": "5.3.0",

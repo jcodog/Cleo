@@ -17,7 +17,10 @@ const reports = [
   { name: "Logger", path: "packages/logger" },
   { name: "Shared", path: "packages/shared" },
   { name: "UI", path: "packages/ui" },
-]
+].filter(
+  (report) =>
+    !process.argv.includes("--production") || report.path !== "apps/mobile"
+)
 
 const sourceRoot = path.resolve("coverage")
 const outputRoot = path.resolve("coverage-site")

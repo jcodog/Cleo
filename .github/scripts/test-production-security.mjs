@@ -19,7 +19,7 @@ const workflow = Bun.YAML.parse(
 )
 /** Enforce credential boundaries on actual YAML at every inheritance level, including aliases. */
 function requireCredentialIsolation(candidate) {
-  const keys = ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY"]
+  const keys = ["GH_TOKEN", "GITHUB_TOKEN", "CONVEX_DEPLOY_KEY", "VERCEL_TOKEN"]
   for (const key of keys)
     assert.equal(candidate.env?.[key], undefined, `workflow: ${key}`)
   for (const [id, job] of Object.entries(candidate.jobs)) {
@@ -32,6 +32,10 @@ function requireCredentialIsolation(candidate) {
         "Use only explicit policy GH_TOKEN"
       )
       if (step.env?.GH_TOKEN) assert.match(step.run, /production-policy\.mjs/)
+      if (step.env?.VERCEL_TOKEN) {
+        assert.match(step.run, /production-policy\.mjs/)
+        assert.match(step.run, / web-(stage|promote)$/)
+      }
       if (step.env?.CONVEX_DEPLOY_KEY)
         assert.match(step.run, /bun run --filter @workspace\/backend deploy/)
       if (/\bbun\s+(?:ci|install)\b|\bbuild\b/.test(step.run ?? ""))
@@ -165,6 +169,8 @@ exit "$CONTROLLER_STATUS"
       const result = run(rollout, {
         EVENT_NAME: event,
         AUTO_PROMOTION_ENABLED: flag,
+        COORDINATED_RELEASE_ENABLED: "true",
+        INPUT_OPERATION: "deploy",
       })
       assert.equal(result.status, 0, result.stderr)
       const enabled = event !== "workflow_run" || flag.toLowerCase() === "true"
@@ -178,6 +184,16 @@ exit "$CONTROLLER_STATUS"
   const restoredCondition = workflow.jobs["discord-activate"].steps.find(
     (step) => step.id === "restored_commands"
   ).if
+  for (const flag of ["", "false", "yes", " true", "true", "TRUE"]) {
+    const result = run(rollout, {
+      EVENT_NAME: "workflow_run",
+      INPUT_OPERATION: "deploy",
+      AUTO_PROMOTION_ENABLED: "true",
+      COORDINATED_RELEASE_ENABLED: flag,
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(result.output, `enabled=${flag.toLowerCase() === "true"}\n`)
+  }
   for (const completed of ["", "true"]) {
     assert.equal(
       evaluate(

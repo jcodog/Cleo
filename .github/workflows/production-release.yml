@@ -54,6 +54,7 @@ concurrency:
 
 env:
   AUTO_PROMOTION_ENABLED: ${{ vars.CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED }}
+  COORDINATED_RELEASE_ENABLED: ${{ vars.CLEO_COORDINATED_RELEASE_ENABLED }}
   INPUT_OPERATION: ${{ inputs.operation || 'deploy' }}
   INPUT_SHA: ${{ inputs.sha }}
   INPUT_RUN_ID: ${{ inputs.run_id }}
@@ -62,7 +63,7 @@ env:
 
 jobs:
   rollout:
-    name: Hold automatic production until operator enablement
+    name: Resolve production enablement
     if: github.repository == 'jcodog/Cleo' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -75,6 +76,10 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           enabled=true
+          if [[ "$INPUT_OPERATION" == deploy && "${COORDINATED_RELEASE_ENABLED,,}" != true ]]; then
+            enabled=false
+            echo 'HELD: coordinated release setup has not been approved. No production action is eligible.' >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [[ "$EVENT_NAME" == workflow_run && "${AUTO_PROMOTION_ENABLED,,}" != true ]]; then
             enabled=false
             echo 'Automatic production promotion is disabled. No Convex, runtime activation or command registration will run. Complete the controlled rollout and intentionally set CLEO_PRODUCTION_AUTO_PROMOTION_ENABLED=true to enable it.' >> "$GITHUB_STEP_SUMMARY"
@@ -150,6 +155,9 @@ jobs:
       backend: ${{ steps.plan.outputs.backend }}
       discord: ${{ steps.plan.outputs.discord }}
       twitch: ${{ steps.plan.outputs.twitch }}
+      backend_base: ${{ steps.plan.outputs.backend_base }}
+      discord_base: ${{ steps.plan.outputs.discord_base }}
+      twitch_base: ${{ steps.plan.outputs.twitch_base }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
@@ -352,16 +360,69 @@ jobs:
             [[ "$TWITCH_REQUIRED" != true || "$TWITCH_ENABLED" == true ]]
           fi
 
+  web-stage:
+    name: Stage immutable production web builds without serving traffic
+    needs: [control, authorise, packages-ready]
+    if: >-
+      !cancelled() && needs.authorise.result == 'success' &&
+      needs.packages-ready.result == 'success' &&
+      inputs.operation != 'validate' && inputs.operation != 'rollback'
+    environment: vercel-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+    outputs:
+      dashboard: ${{ steps.stage.outputs.dashboard }}
+      landing: ${{ steps.stage.outputs.landing }}
+    env:
+      RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+      SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
+      SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
+      VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+      VERCEL_DASHBOARD_PROJECT_ID: ${{ vars.VERCEL_DASHBOARD_PROJECT_ID }}
+      VERCEL_LANDING_PROJECT_ID: ${{ vars.VERCEL_LANDING_PROJECT_ID }}
+    steps:
+      - name: Require protected web enablement
+        env:
+          DEPLOY_ENABLED: ${{ vars.CLEO_VERCEL_DEPLOY_ENABLED }}
+        run: test "${DEPLOY_ENABLED,,}" = true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24.15.0"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.control.outputs.artifact }}
+          path: ${{ runner.temp }}/production-policy
+          digest-mismatch: error
+      - name: Verify trusted control file checksum
+        env:
+          POLICY_DIGEST: ${{ needs.control.outputs.digest }}
+        run: |
+          [[ "$POLICY_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -
+      - name: Stage both projects at the authenticated source SHA
+        id: stage
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" web-stage
+
   backend:
     name: Authorised backend barrier and single Convex deployment
-    needs: [control, authorise, packages-ready]
+    needs: [control, authorise, packages-ready, web-stage]
     if: >-
       !cancelled() && needs.control.result == 'success' &&
       needs.authorise.result == 'success' && needs.packages-ready.result == 'success' &&
+      needs.web-stage.result == 'success' &&
       inputs.operation != 'validate' && inputs.operation != 'rollback'
     environment: discord-production
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      backend: ${{ steps.health.outputs.backend }}
     permissions:
       contents: read
       actions: read
@@ -371,6 +432,9 @@ jobs:
       SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
       SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
       COMPONENT: backend
+      CONVEX_PRODUCTION_URL: ${{ vars.CONVEX_PRODUCTION_URL }}
+      BACKEND_BASE_SHA: ${{ needs.authorise.outputs.backend_base }}
+      EXPECTED_BACKEND_SHA: ${{ needs.authorise.outputs.backend == 'true' && needs.authorise.outputs.sha || needs.authorise.outputs.backend_base }}
     steps:
       - name: Download trusted control file from this coordinator run
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -402,6 +466,13 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
           bun ci
+      - name: Verify backend baseline or explicit first-release authorisation
+        env:
+          BACKEND_BOOTSTRAP_SHA: ${{ vars.CLEO_BACKEND_BOOTSTRAP_SHA }}
+        run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" backend-preflight
+      - name: Stamp the authenticated backend revision
+        if: needs.authorise.outputs.backend == 'true'
+        run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" stamp-backend
       - name: Claim durable backend receipt
         id: claim
         if: needs.authorise.outputs.backend == 'true'
@@ -421,6 +492,11 @@ jobs:
             exit 1
           fi
           CONVEX_DEPLOY_KEY="$CONVEX_DEPLOY_KEY" bun run --filter @workspace/backend deploy
+      - name: Verify deployed backend code and database health
+        id: health
+        env:
+          BACKEND_APPLIED: ${{ steps.claim.outputs.apply }}
+        run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" backend-health
       - name: Confirm durable backend success
         if: needs.authorise.outputs.backend == 'true' && steps.claim.outputs.apply == 'true'
         env:
@@ -444,6 +520,8 @@ jobs:
     environment: discord-production
     runs-on: cleo-prod
     timeout-minutes: 10
+    outputs:
+      discord: ${{ steps.receipt.outputs.discord }}
     permissions:
       contents: read
       actions: read
@@ -661,6 +739,7 @@ jobs:
             echo "$metadata"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Finalise confirmed discord activate receipt
+        id: receipt
         if: >-
           !cancelled() && steps.runtime.outputs.completed == 'true' && (
             (steps.runtime.outcome == 'success' && steps.commands.outputs.completed == 'true' && (
@@ -688,6 +767,8 @@ jobs:
     environment: twitch-production
     runs-on: cleo-prod
     timeout-minutes: 10
+    outputs:
+      twitch: ${{ steps.receipt.outputs.twitch }}
     permissions:
       contents: read
       actions: read
@@ -758,6 +839,7 @@ jobs:
           fi
           exit "$result"
       - name: Finalise confirmed twitch activate receipt
+        id: receipt
         if: >-
           !cancelled() && steps.runtime.outputs.completed == 'true'
         env:
@@ -765,6 +847,122 @@ jobs:
           RECEIPT_ID: ${{ steps.claim.outputs.receipt }}
           RECEIPT_STATE: ${{ job.status }}
         run: '/usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" complete'
+
+  discord-current:
+    name: Verify unchanged Discord without restarting
+    needs: [authorise, backend]
+    if: >-
+      !cancelled() && needs.backend.result == 'success' &&
+      needs.authorise.outputs.discord == 'false'
+    environment: discord-production
+    runs-on: cleo-prod
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Verify active release against confirmed receipt
+        env:
+          EXPECTED_SHA: ${{ needs.authorise.outputs.discord_base }}
+        run: |
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$(readlink -f /srv/cleo/discord-bot/current)" = "/srv/cleo/discord-bot/releases/$EXPECTED_SHA"
+          state="$(/usr/local/libexec/cleo/read-discord-deployment-state /srv/cleo/discord-bot/shared/deployment-state.env)"
+          test "${state%%$'\n'*}" = "$EXPECTED_SHA"
+          for probe in 1 2 3; do
+            systemctl is-active --quiet cleo-discord.service
+            sleep 2
+          done
+          echo "Discord already-current at $EXPECTED_SHA. No activation performed." >> "$GITHUB_STEP_SUMMARY"
+
+  twitch-current:
+    name: Verify unchanged Twitch without restarting
+    needs: [authorise, backend]
+    if: >-
+      !cancelled() && needs.backend.result == 'success' &&
+      needs.authorise.outputs.twitch == 'false'
+    environment: twitch-production
+    runs-on: cleo-prod
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Verify current release and live process readiness
+        env:
+          EXPECTED_SHA: ${{ needs.authorise.outputs.twitch_base }}
+        run: |
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$(readlink -f /srv/cleo/twitch-bot/current)" = "/srv/cleo/twitch-bot/releases/$EXPECTED_SHA"
+          systemctl is-active --quiet cleo-twitch.service
+          pid="$(systemctl show --property MainPID --value cleo-twitch.service)"
+          sudo -n -u cleo /usr/local/libexec/cleo/twitch/check-twitch-readiness "$pid" 1
+          echo "Twitch already-current at $EXPECTED_SHA. No activation performed." >> "$GITHUB_STEP_SUMMARY"
+
+  web-promote:
+    name: Promote and verify production web after backend and runtimes
+    needs:
+      [
+        control,
+        authorise,
+        web-stage,
+        backend,
+        discord-activate,
+        twitch-activate,
+        discord-current,
+        twitch-current,
+      ]
+    if: >-
+      !cancelled() && needs.authorise.result == 'success' &&
+      needs.web-stage.result == 'success' && needs.backend.result == 'success' &&
+      ((needs.authorise.outputs.discord == 'true' && needs.discord-activate.result == 'success') ||
+       (needs.authorise.outputs.discord == 'false' && needs.discord-current.result == 'success')) &&
+      ((needs.authorise.outputs.twitch == 'true' && needs.twitch-activate.result == 'success') ||
+       (needs.authorise.outputs.twitch == 'false' && needs.twitch-current.result == 'success'))
+    environment: vercel-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+    outputs:
+      dashboard: ${{ steps.promote.outputs.dashboard }}
+      landing: ${{ steps.promote.outputs.landing }}
+    env:
+      RELEASE_SHA: ${{ needs.authorise.outputs.sha }}
+      SOURCE_RUN_ID: ${{ needs.authorise.outputs.source_run }}
+      SOURCE_ATTEMPT: ${{ needs.authorise.outputs.source_attempt }}
+      STAGED_DASHBOARD: ${{ needs.web-stage.outputs.dashboard }}
+      STAGED_LANDING: ${{ needs.web-stage.outputs.landing }}
+      VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+      VERCEL_DASHBOARD_PROJECT_ID: ${{ vars.VERCEL_DASHBOARD_PROJECT_ID }}
+      VERCEL_LANDING_PROJECT_ID: ${{ vars.VERCEL_LANDING_PROJECT_ID }}
+      CONVEX_PRODUCTION_URL: ${{ vars.CONVEX_PRODUCTION_URL }}
+      BACKEND_VERIFIED_SHA: ${{ needs.authorise.outputs.backend == 'true' && needs.authorise.outputs.sha || needs.authorise.outputs.backend_base }}
+      DISCORD_VERIFIED_SHA: ${{ needs.authorise.outputs.discord == 'true' && needs.authorise.outputs.sha || needs.authorise.outputs.discord_base }}
+      TWITCH_VERIFIED_SHA: ${{ needs.authorise.outputs.twitch == 'true' && needs.authorise.outputs.sha || needs.authorise.outputs.twitch_base }}
+    steps:
+      - name: Recheck protected web enablement
+        env:
+          DEPLOY_ENABLED: ${{ vars.CLEO_VERCEL_DEPLOY_ENABLED }}
+        run: test "${DEPLOY_ENABLED,,}" = true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24.15.0"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.control.outputs.artifact }}
+          path: ${{ runner.temp }}/production-policy
+          digest-mismatch: error
+      - name: Verify trusted control file checksum
+        env:
+          POLICY_DIGEST: ${{ needs.control.outputs.digest }}
+        run: |
+          [[ "$POLICY_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          echo "$POLICY_DIGEST  $RUNNER_TEMP/production-policy/production-policy.mjs" | sha256sum -c -
+      - name: Promote exact artifacts and confirm provider current versions
+        id: promote
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node "$RUNNER_TEMP/production-policy/production-policy.mjs" web-promote
 
   discord-rollback:
     name: Roll back Discord production
@@ -994,3 +1192,41 @@ jobs:
           RECEIPT_STATE: ${{ job.status }}
           RELEASE_SHA: ${{ steps.claim.outputs.sha }}
         run: '/usr/local/libexec/cleo/twitch/node "$RUNNER_TEMP/production-policy/production-policy.mjs" complete'
+
+  release-result:
+    name: Production release result
+    needs:
+      [
+        rollout,
+        control,
+        authorise,
+        discord-package,
+        twitch-package,
+        packages-ready,
+        web-stage,
+        backend,
+        discord-activate,
+        twitch-activate,
+        discord-current,
+        twitch-current,
+        web-promote,
+        discord-rollback,
+        twitch-rollback,
+      ]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+      - name: Require a complete release or explicit successful validation/recovery
+        env:
+          RELEASE_NEEDS: ${{ toJSON(needs) }}
+        run: node .github/scripts/production-policy.mjs report

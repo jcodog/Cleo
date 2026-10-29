@@ -2,11 +2,14 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { test } from "node:test"
 import { runInNewContext } from "node:vm"
+import { join } from "node:path"
+import { tmpdir } from "node:os"
 
 /** Load the real config with a controlled host and Expo defaults, without starting Metro. */
 function configure(
   platform: string,
-  defaultBlockList: RegExp | RegExp[] = [/__tests__/]
+  defaultBlockList: RegExp | RegExp[] = [/__tests__/],
+  versions = { node: "24.15.0", v8: "13.6.233", bun: "" }
 ) {
   const source = readFileSync(
     new URL("../../metro.config.cjs", import.meta.url),
@@ -14,22 +17,34 @@ function configure(
   )
   const defaults = {
     watchFolders: ["workspace"],
+    fileMapCacheDirectory: "expo-default",
     resolver: {
       blockList: defaultBlockList,
       unstable_enablePackageExports: true,
     },
   }
   const module = { exports: defaults }
+  let created = ""
   runInNewContext(source, {
     __dirname: "mobile",
-    process: { platform },
+    process: { platform, versions },
     module,
     require: (name: string) => {
+      if (name === "node:path") return { join }
+      if (name === "node:os") return { tmpdir }
+      if (name === "node:fs")
+        return {
+          mkdirSync: (directory: string, options: { recursive: boolean }) => {
+            assert.equal(options.recursive, true)
+            created = directory
+          },
+        }
       assert.equal(name, "expo/metro-config")
       return { getDefaultConfig: () => defaults }
     },
   })
   const config = module.exports
+  assert.equal(created, config.fileMapCacheDirectory)
   const patterns = Array.isArray(config.resolver.blockList)
     ? config.resolver.blockList
     : [config.resolver.blockList]
@@ -71,6 +86,22 @@ test("Windows Metro excludes foreign Sharp store directories before reaching the
   )
   assert.deepEqual(config.watchFolders, ["workspace"])
   assert.equal(config.resolver.unstable_enablePackageExports, true)
+})
+
+test("Metro file-map caches are isolated by platform and serialization runtime", () => {
+  const current = configure("win32").config.fileMapCacheDirectory
+  assert.notEqual(current, "expo-default")
+  assert.equal(current, configure("win32").config.fileMapCacheDirectory)
+  for (const versions of [
+    { node: "26.0.0", v8: "14.0", bun: "" },
+    { node: "24.15.0", v8: "13.7", bun: "" },
+    { node: "24.15.0", v8: "13.6.233", bun: "1.3.14" },
+  ])
+    assert.notEqual(
+      current,
+      configure("win32", undefined, versions).config.fileMapCacheDirectory
+    )
+  assert.notEqual(current, configure("linux").config.fileMapCacheDirectory)
 })
 
 test("macOS and Linux retain Expo's original package visibility", () => {

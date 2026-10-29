@@ -3177,6 +3177,14 @@ export declare const api: {
       };
     };
   };
+  releaseHealth: {
+    read: FunctionReference<
+      "query",
+      "public",
+      {},
+      { healthy: boolean; sha: string | null }
+    >;
+  };
   twitchChat: {
     status: FunctionReference<
       "query",

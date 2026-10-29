@@ -139,6 +139,7 @@ await import("./test-discord-workflow.mjs")
 await import("./test-production-security.mjs")
 await import("./test-production-policy.mjs")
 await import("./test-production-workflow.mjs")
+await import("./test-coordinated-release.mjs")
 const archiveGuard = spawnSync(
   "bash",
   [".github/scripts/test-discord-archive-guard.sh"],
@@ -293,8 +294,8 @@ const reports = [
 ]
 const builder = join(root, ".github/scripts/build-coverage-site.mjs")
 /** Run the real coverage builder in the disposable fixture and capture its outcome. */
-const build = () =>
-  spawnSync("node", [builder], {
+const build = (args = []) =>
+  spawnSync("node", [builder, ...args], {
     cwd: directory,
     env: {
       ...process.env,
@@ -467,6 +468,23 @@ try {
   assert.equal(
     readFileSync(join(directory, "coverage-site/index.html"), "utf8"),
     index
+  )
+  rmSync(empty, { recursive: true })
+  writeFileSync(empty, validXml)
+  rmSync(join(directory, "coverage/apps/mobile"), { recursive: true })
+  const production = build(["--production"])
+  assert.equal(production.status, 0, production.stderr)
+  const productionIndex = readFileSync(
+    join(directory, "coverage-site/index.html"),
+    "utf8"
+  )
+  assert.ok(!productionIndex.includes("./apps/mobile/index.html"))
+  for (const report of reports.filter((path) => path !== "apps/mobile"))
+    assert.ok(productionIndex.includes(`./${report}/index.html`))
+  assert.equal(
+    build().status,
+    1,
+    "Full coverage still requires the mobile report"
   )
 } finally {
   rmSync(directory, { recursive: true, force: true })
