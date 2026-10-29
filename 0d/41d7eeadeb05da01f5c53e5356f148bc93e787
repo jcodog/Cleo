@@ -1,0 +1,19 @@
+codemagic.yaml
+  s_38a6d62369b4e3::t_46e8c48d1cc1c8 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0d41d7eeadeb05da01f5c53e5356f148bc93e787",
+  "prompts": {},
+  "sessions": {
+    "s_38a6d62369b4e3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187a6-c222-74f2-a7f6-f0b096328a24",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
