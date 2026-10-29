@@ -30,7 +30,7 @@ export async function stripeRequest(
     method: fields ? "POST" : "GET",
     headers: {
       Authorization: `Bearer ${stripeCommunityConfig()}`,
-      "Stripe-Version": "2025-03-31.basil",
+      "Stripe-Version": "2026-09-30.endive",
       ...(fields
         ? { "Content-Type": "application/x-www-form-urlencoded" }
         : {}),

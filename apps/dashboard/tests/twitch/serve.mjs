@@ -9,11 +9,24 @@ const bundle = await build({
   target: "browser",
   format: "iife",
   jsx: { runtime: "automatic" },
-  define: { "process.env": JSON.stringify({ NODE_ENV: "development" }) },
+  define: {
+    "process.env": JSON.stringify({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_fixture",
+    }),
+  },
   plugins: [
     {
       name: "isolated-twitch-providers",
       setup(build) {
+        build.onResolve(
+          {
+            filter: /^@stripe\/(?:react-stripe-js\/checkout|stripe-js\/pure)$/,
+          },
+          () => ({
+            path: path.join(root, "tests/twitch/stripe-fixture.tsx"),
+          })
+        )
         build.onResolve({ filter: /^next\/image$/ }, () => ({
           path: path.join(root, "tests/twitch/image-fixture.tsx"),
         }))

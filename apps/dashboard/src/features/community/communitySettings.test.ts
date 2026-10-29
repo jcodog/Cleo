@@ -68,6 +68,23 @@ test("moderation stays locked and purchase visibility starts private in actual d
     },
   })
   t.mock.module("next/link", { defaultExport: "a" })
+  t.mock.module("@clerk/nextjs", {
+    exports: {
+      useAuth: () => ({
+        isLoaded: true,
+        userId: "fixture-user",
+        sessionId: "fixture-session",
+      }),
+    },
+  })
+  t.mock.module("@workspace/env/dashboard", {
+    exports: {
+      dashboardEnv: { NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_fixture" },
+    },
+  })
+  t.mock.module("./PremiumCheckout.tsx", {
+    exports: { PremiumCheckout: () => null },
+  })
   for (const [module, names] of [
     ["button", ["Button"]],
     ["switch", ["Switch"]],
@@ -166,7 +183,7 @@ test("moderation stays locked and purchase visibility starts private in actual d
   )
   const checkout = purchase.find(
     (node) =>
-      node.type === "button" && content(node).includes("Continue to Stripe")
+      node.type === "button" && content(node).includes("Continue to checkout")
   )
   assert.ok(checkout && !checkout.props.disabled)
   assert.ok(purchase.some((node) => node.props.href === "/account/billing"))
@@ -201,7 +218,7 @@ test("moderation stays locked and purchase visibility starts private in actual d
   assert.equal(
     nodes(PremiumPurchases({ discordGuildId: "333333333333333333" })).find(
       (node) =>
-        node.type === "button" && content(node).includes("Continue to Stripe")
+        node.type === "button" && content(node).includes("Continue to checkout")
     )?.props.disabled,
     true
   )

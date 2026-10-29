@@ -18,6 +18,7 @@ process.env.STRIPE_SECRET_KEY = "sk_test_fixture"
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_fixture"
 process.env.STRIPE_GUILD_PREMIUM_PRICE_ID = "price_premium"
 process.env.STRIPE_TEST_CHECKOUT_ENABLED = "true"
+process.env.STRIPE_EXPECTED_ACCOUNT_ID = "acct_cleo_test"
 process.env.CLEO_DASHBOARD_ORIGIN = "https://dashboard.example"
 process.env.CLERK_SECRET_KEY = "fixture-clerk-key"
 process.env.DISCORD_BOT_TOKEN = "fixture-bot-token"
@@ -31,6 +32,44 @@ process.env.DISCORD_APPLICATION_PUBLIC_KEY = webhookKeys.publicKey
   .export({ type: "spki", format: "der" })
   .subarray(-32)
   .toString("hex")
+
+function checkoutFixture(id: string, expiresAt: number, status = "open") {
+  return {
+    id,
+    customer: "cus_alice",
+    livemode: false,
+    mode: "subscription",
+    ui_mode: "elements",
+    status,
+    payment_status: "unpaid",
+    client_secret: `${id}_secret_fixture`,
+    expires_at: expiresAt,
+  }
+}
+function catalogueFixture(url: string) {
+  if (url === "https://api.stripe.com/v1/account")
+    return Response.json({ id: "acct_cleo_test" })
+  if (url === "https://api.stripe.com/v1/prices/price_premium?expand[]=product")
+    return Response.json({
+      id: "price_premium",
+      active: true,
+      livemode: false,
+      type: "recurring",
+      currency: "gbp",
+      unit_amount: 499,
+      recurring: {
+        interval: "month",
+        interval_count: 1,
+        usage_type: "licensed",
+      },
+      product: {
+        id: "prod_premium",
+        name: "Cleo Server Premium",
+        active: true,
+      },
+    })
+  return undefined
+}
 const modules = {
   "./_generated/server.js": () => import("./_generated/server.js"),
   "./moderationPolicies.ts": () => import("./moderationPolicies"),
@@ -788,6 +827,7 @@ test("Checkout retries definitive validation failures and fences uncertain concu
   })
   let mode: "invalid" | "outage" | "stalled" | "conflict" = "invalid"
   const keys: string[] = []
+  let sessionExpiry = 0
   let started: () => void = () => {},
     finish: () => void = () => {}
   const began = new Promise<void>((resolve) => {
@@ -798,6 +838,15 @@ test("Checkout retries definitive validation failures and fences uncertain concu
   })
   globalThis.fetch = async (input, init) => {
     const url = String(input)
+    const catalogue = catalogueFixture(url)
+    if (catalogue) return catalogue
+    if (url.endsWith("/checkout/sessions/cs_concurrent"))
+      return Response.json(checkoutFixture("cs_concurrent", sessionExpiry))
+    if (url.endsWith("/checkout/sessions/cs_concurrent/line_items"))
+      return Response.json({
+        data: [{ price: { id: "price_premium" } }],
+        has_more: false,
+      })
     if (url.startsWith("https://api.clerk.com/"))
       return Response.json([{ token: "fixture-oauth" }])
     if (url.endsWith("/users/@me")) return Response.json({ id: discordUserId })
@@ -828,11 +877,8 @@ test("Checkout retries definitive validation failures and fences uncertain concu
       )
     started()
     await waiting
-    return Response.json({
-      id: "cs_concurrent",
-      url: "https://checkout.stripe.com/concurrent",
-      expires_at: Number(fields.get("expires_at")),
-    })
+    sessionExpiry = Number(fields.get("expires_at"))
+    return Response.json(checkoutFixture("cs_concurrent", sessionExpiry))
   }
   const args = { discordGuildId, announce: false, displayRole: false }
   await assert.rejects(f.alice.action(api.premiumActions.checkout, args), /400/)
@@ -876,15 +922,193 @@ test("Checkout retries definitive validation failures and fences uncertain concu
     undefined
   )
   finish()
-  assert.equal(await first, "https://checkout.stripe.com/concurrent")
-  assert.equal(
+  const created = await first
+  assert.equal(created.clientSecret, "cs_concurrent_secret_fixture")
+  assert.deepEqual(
     await f.alice.action(api.premiumActions.checkout, {
       ...args,
       announce: true,
     }),
-    "https://checkout.stripe.com/concurrent"
+    created
   )
   assert.equal(keys.length, 4)
+})
+
+test("Checkout rejects an unexpected Stripe account and unapproved or live Prices before reserving a purchase", async (t) => {
+  const f = await fixture()
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  let mode = "account"
+  globalThis.fetch = async (input) => {
+    const url = String(input)
+    if (url.startsWith("https://api.clerk.com/"))
+      return Response.json([{ token: "fixture-oauth" }])
+    if (url.endsWith("/users/@me")) return Response.json({ id: discordUserId })
+    if (url.includes("/users/@me/guilds"))
+      return Response.json([{ id: discordGuildId, permissions: "8" }])
+    if (new URL(url).pathname === `/api/v10/guilds/${discordGuildId}`)
+      return Response.json({
+        id: discordGuildId,
+        owner_id: "444444444444444444",
+        name: "Test",
+      })
+    if (url.endsWith("/account"))
+      return Response.json({
+        id: mode === "account" ? "acct_other_business" : "acct_cleo_test",
+      })
+    const catalogue = catalogueFixture(url)
+    if (catalogue) {
+      const price = await catalogue.json()
+      if (mode === "live") price.livemode = true
+      if (mode === "inactive") price.active = false
+      if (mode === "product") price.product.id = "prod_other_business"
+      if (mode === "usage") price.recurring.usage_type = "metered"
+      return Response.json(price)
+    }
+    throw new Error("No Stripe mutations should occur")
+  }
+  for (mode of ["account", "live", "inactive", "product", "usage"])
+    await assert.rejects(
+      f.alice.action(api.premiumActions.checkout, {
+        discordGuildId,
+        announce: false,
+        displayRole: false,
+      })
+    )
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.query("premiumCheckouts").collect()),
+    []
+  )
+})
+
+test("purchasers retain receipt and cancellation control after losing guild access, without changing entitlement or owner", async (t) => {
+  const f = await fixture()
+  const reservation = await f.t.mutation(internal.premiumPurchases.reserve, {
+    userId: f.userId,
+    discordUserId,
+    discordGuildId,
+    purchaserKind: "administrator",
+    announce: false,
+    displayRole: false,
+    key: "receipt-reservation",
+  })
+  const expiry = Math.floor(reservation.expiresAt / 1000)
+  await f.t.mutation(internal.premiumPurchases.checkoutCreated, {
+    key: reservation.key,
+    sessionId: "cs_test_owned",
+    expiresAt: expiry * 1000,
+  })
+  assert.deepEqual(
+    (await f.alice.query(api.premiumPurchases.view, { discordGuildId }))
+      .pendingCheckout,
+    {
+      sessionId: "cs_test_owned",
+      announce: false,
+      displayRole: false,
+    }
+  )
+  assert.equal(
+    (await f.bob.query(api.premiumPurchases.view, {})).pendingCheckout,
+    null
+  )
+  await f.t.run((ctx) => ctx.db.delete(f.membershipId))
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  let state = "open",
+    customer = "cus_alice",
+    failExpiry = true,
+    requests = 0
+  globalThis.fetch = async (input, init) => {
+    requests++
+    const url = String(input)
+    if (url.endsWith("/cs_test_owned/expire")) {
+      assert.equal(
+        new Headers(init?.headers).get("Idempotency-Key"),
+        "cleo-expire:cs_test_owned"
+      )
+      if (failExpiry) throw new Error("uncertain expiration")
+      state = "expired"
+      return Response.json({ id: "cs_test_owned", status: state })
+    }
+    assert.ok(url.endsWith("/checkout/sessions/cs_test_owned"))
+    return Response.json({
+      ...checkoutFixture("cs_test_owned", expiry, state),
+      customer,
+    })
+  }
+  const args = { discordGuildId, sessionId: "cs_test_owned" }
+  await assert.rejects(
+    f.bob.action(api.premiumActions.checkoutStatus, args),
+    /does not belong/
+  )
+  await assert.rejects(
+    f.alice.action(api.premiumActions.checkoutStatus, {
+      ...args,
+      discordGuildId: "555555555555555555",
+    }),
+    /does not belong/
+  )
+  assert.equal(requests, 0)
+  customer = "cus_someone_else"
+  await assert.rejects(
+    f.alice.action(api.premiumActions.checkoutStatus, args),
+    /identity mismatch/
+  )
+  customer = "cus_alice"
+  assert.deepEqual(
+    await f.alice.action(api.premiumActions.checkoutStatus, args),
+    {
+      status: "open",
+      paymentStatus: "unpaid",
+      guildName: "Private community",
+    }
+  )
+  await assert.rejects(
+    f.alice.action(api.premiumActions.cancelCheckout, args),
+    /uncertain expiration/
+  )
+  assert.equal(
+    (
+      await f.t.query(internal.premiumPurchases.checkoutByKey, {
+        key: reservation.key,
+      })
+    )?.closedAt,
+    undefined
+  )
+  state = "complete"
+  assert.equal(
+    await f.alice.action(api.premiumActions.cancelCheckout, args),
+    "complete"
+  )
+  state = "open"
+  failExpiry = false
+  assert.equal(
+    await f.alice.action(api.premiumActions.cancelCheckout, args),
+    "expired"
+  )
+  assert.equal(
+    await f.alice.action(api.premiumActions.cancelCheckout, args),
+    "expired"
+  )
+  assert.ok(
+    (
+      await f.t.query(internal.premiumPurchases.checkoutByKey, {
+        key: reservation.key,
+      })
+    )?.closedAt
+  )
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.query("guildSubscriptions").collect()),
+    []
+  )
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(f.guildId)))?.ownerDiscordId,
+    "444444444444444444"
+  )
 })
 
 test("Stripe reconciliation releases failures, acknowledges unmanaged webhooks and serializes concurrent work", async (t) => {
@@ -1076,7 +1300,7 @@ test("Stripe reconciliation releases failures, acknowledges unmanaged webhooks a
   )
 })
 
-test("test-mode hosted Checkout verifies fresh Administrator permission and signed Basil invoices reconcile real payment evidence", async () => {
+test("test-mode Elements Checkout verifies fresh Administrator permission and signed Endive invoices reconcile real payment evidence", async () => {
   const f = await fixture(),
     original = globalThis.fetch
   const now = Math.floor(Date.now() / 1000),
@@ -1115,6 +1339,15 @@ test("test-mode hosted Checkout verifies fresh Administrator permission and sign
   }
   globalThis.fetch = async (input, init) => {
     const url = String(input)
+    const catalogue = catalogueFixture(url)
+    if (catalogue) return catalogue
+    if (url.endsWith("/checkout/sessions/cs_fixture"))
+      return Response.json(checkoutFixture("cs_fixture", end))
+    if (url.endsWith("/checkout/sessions/cs_fixture/line_items"))
+      return Response.json({
+        data: [{ price: { id: "price_premium" } }],
+        has_more: false,
+      })
     if (
       url.startsWith("https://api.clerk.com/") &&
       url.includes("oauth_access_tokens")
@@ -1137,14 +1370,26 @@ test("test-mode hosted Checkout verifies fresh Administrator permission and sign
       key = fields.get("subscription_data[metadata][cleo_checkout]") ?? ""
       assert.equal(fields.get("customer"), "cus_alice")
       assert.equal(fields.get("line_items[0][price]"), "price_premium")
+      assert.equal(fields.get("ui_mode"), "elements")
+      assert.equal(
+        fields.get("return_url"),
+        `https://dashboard.example/dashboard/${discordGuildId}/checkout?session_id={CHECKOUT_SESSION_ID}`
+      )
+      assert.equal(fields.has("success_url"), false)
+      assert.equal(
+        [...fields.keys()].some((field) =>
+          field.startsWith("payment_method_types")
+        ),
+        false
+      )
+      assert.equal(
+        new Headers(init?.headers).get("Stripe-Version"),
+        "2026-09-30.endive"
+      )
       assert.ok(
         new Headers(init?.headers).get("Idempotency-Key")?.includes(key)
       )
-      return Response.json({
-        id: "cs_fixture",
-        url: "https://checkout.stripe.com/fixture",
-        expires_at: end,
-      })
+      return Response.json(checkoutFixture("cs_fixture", end))
     }
     if (url.endsWith("/subscriptions/sub_fixture"))
       return Response.json({
@@ -1196,13 +1441,13 @@ test("test-mode hosted Checkout verifies fresh Administrator permission and sign
   }
   try {
     const purchase = { discordGuildId, announce: false, displayRole: false }
-    assert.equal(
+    const session = await f.alice.action(api.premiumActions.checkout, purchase)
+    assert.equal(session.clientSecret, "cs_fixture_secret_fixture")
+    assert.equal(session.offer.unitAmount, 499)
+    assert.equal(session.offer.currency, "gbp")
+    assert.deepEqual(
       await f.alice.action(api.premiumActions.checkout, purchase),
-      "https://checkout.stripe.com/fixture"
-    )
-    assert.equal(
-      await f.alice.action(api.premiumActions.checkout, purchase),
-      "https://checkout.stripe.com/fixture"
+      session
     )
     assert.equal(checkoutPosts, 1)
     assert.equal(
@@ -1228,6 +1473,28 @@ test("test-mode hosted Checkout verifies fresh Administrator permission and sign
         .length,
       1
     )
+    // A delayed older invoice must reconcile the current Stripe snapshot instead.
+    assert.equal(
+      await webhook("evt_delayed_invoice", "invoice.paid", {
+        ...invoice,
+        id: "in_old",
+      }),
+      true
+    )
+    for (const type of [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded",
+      "checkout.session.async_payment_failed",
+    ])
+      assert.equal(
+        await webhook(`evt_${type}`, type, { subscription: "sub_fixture" }),
+        true
+      )
+    assert.equal(
+      (await f.alice.query(api.premiumPurchases.view, {})).subscriptions[0]
+        ?.active,
+      true
+    )
     refunded = true
     assert.equal(
       await webhook("evt_refund", "charge.refunded", {
@@ -1236,6 +1503,31 @@ test("test-mode hosted Checkout verifies fresh Administrator permission and sign
       }),
       true
     )
+    assert.equal(
+      (await f.alice.query(api.premiumPurchases.view, {})).subscriptions[0]
+        ?.active,
+      false
+    )
+    assert.equal(
+      await webhook("evt_fraud", "radar.early_fraud_warning.created", {
+        id: "issfr_fixture",
+        charge: "ch_fixture",
+        payment_intent: "pi_fixture",
+      }),
+      true
+    )
+    refunded = false
+    for (const type of ["invoice.paid", "charge.dispute.closed"])
+      assert.equal(
+        await webhook(
+          `evt_reordered_${type}`,
+          type,
+          type === "invoice.paid"
+            ? invoice
+            : { id: "dp_fixture", charge: "ch_fixture" }
+        ),
+        true
+      )
     assert.equal(
       (await f.alice.query(api.premiumPurchases.view, {})).subscriptions[0]
         ?.active,

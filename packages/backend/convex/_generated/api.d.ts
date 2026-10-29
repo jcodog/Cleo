@@ -2195,11 +2195,36 @@ export declare const api: {
     };
   };
   premiumActions: {
+    cancelCheckout: FunctionReference<
+      "action",
+      "public",
+      { discordGuildId: string; sessionId: string },
+      "expired" | "complete"
+    >;
     checkout: FunctionReference<
       "action",
       "public",
       { announce: boolean; discordGuildId: string; displayRole: boolean },
-      string
+      {
+        clientSecret: string;
+        expiresAt: number;
+        offer: {
+          currency: string;
+          email: string;
+          guildName: string;
+          interval: "day" | "week" | "month" | "year";
+          intervalCount: number;
+          name: string;
+          unitAmount: number;
+        };
+        sessionId: string;
+      }
+    >;
+    checkoutStatus: FunctionReference<
+      "action",
+      "public",
+      { discordGuildId: string; sessionId: string },
+      { guildName: string; paymentStatus: string; status: string }
     >;
     portal: FunctionReference<"action", "public", {}, string>;
     setCommunityConsent: FunctionReference<
@@ -2233,6 +2258,11 @@ export declare const api: {
           capabilities: Array<string>;
           state: "active" | "trial" | "grace" | "expired" | "revoked";
           validUntil: number;
+        };
+        pendingCheckout: null | {
+          announce: boolean;
+          displayRole: boolean;
+          sessionId?: string;
         };
         subscriptions: Array<{
           active: boolean;
@@ -7440,10 +7470,32 @@ export declare const internal: {
         userId: Id<"users">;
       } | null
     >;
+    checkoutBySession: FunctionReference<
+      "query",
+      "internal",
+      { sessionId: string },
+      {
+        _creationTime: number;
+        _id: Id<"premiumCheckouts">;
+        announce: boolean;
+        closedAt?: number;
+        createdAt: number;
+        creationStartedAt?: number;
+        discordUserId: string;
+        displayRole: boolean;
+        expiresAt: number;
+        guildId: Id<"guilds">;
+        key: string;
+        purchaserKind: "owner" | "administrator";
+        sessionId?: string;
+        url?: string;
+        userId: Id<"users">;
+      } | null
+    >;
     checkoutCreated: FunctionReference<
       "mutation",
       "internal",
-      { expiresAt: number; key: string; sessionId: string; url: string },
+      { expiresAt: number; key: string; sessionId: string; url?: string },
       null
     >;
     closeCheckout: FunctionReference<

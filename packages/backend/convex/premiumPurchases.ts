@@ -41,6 +41,14 @@ export const view = query({
     configured: v.boolean(),
     canManageOwnBilling: v.boolean(),
     communityPublishIdentity: v.union(v.boolean(), v.null()),
+    pendingCheckout: v.union(
+      v.null(),
+      v.object({
+        sessionId: v.optional(v.string()),
+        announce: v.boolean(),
+        displayRole: v.boolean(),
+      })
+    ),
     guildPremium: v.union(
       v.null(),
       v.object({
@@ -81,6 +89,7 @@ export const view = query({
           .withIndex("by_user", (q) => q.eq("userId", user._id))
           .take(100)
     let communityPublishIdentity: boolean | null = null
+    let pendingCheckout = null
     let guildPremium = null
     if (args.discordGuildId) {
       const guild = await ctx.db
@@ -91,6 +100,20 @@ export const view = query({
         .unique()
       if (guild) {
         const membership = await requireDiscordGuildManager(ctx, guild._id)
+        const reservation = await ctx.db
+          .query("premiumCheckouts")
+          .withIndex("by_guild", (q) => q.eq("guildId", guild._id))
+          .order("desc")
+          .first()
+        if (
+          reservation?.closedAt === undefined &&
+          reservation?.userId === user._id
+        )
+          pendingCheckout = {
+            sessionId: reservation.sessionId,
+            announce: reservation.announce,
+            displayRole: reservation.displayRole,
+          }
         const access = await getGuildAccess(ctx, guild)
         let administrator = false
         try {
@@ -118,11 +141,13 @@ export const view = query({
       }
     }
     return {
+      pendingCheckout,
       communityPublishIdentity,
       guildPremium,
       configured:
         backendEnv.STRIPE_TEST_CHECKOUT_ENABLED === "true" &&
         !!backendEnv.STRIPE_SECRET_KEY?.startsWith("sk_test_") &&
+        !!backendEnv.STRIPE_EXPECTED_ACCOUNT_ID &&
         !!backendEnv.STRIPE_GUILD_PREMIUM_PRICE_ID &&
         !!backendEnv.CLEO_DASHBOARD_ORIGIN,
       canManageOwnBilling: !!customer,
@@ -281,7 +306,7 @@ export const checkoutCreated = internalMutation({
   args: {
     key: v.string(),
     sessionId: v.string(),
-    url: v.string(),
+    url: v.optional(v.string()),
     expiresAt: v.number(),
   },
   returns: v.null(),
@@ -311,6 +336,15 @@ export const checkoutByKey = internalQuery({
     ctx.db
       .query("premiumCheckouts")
       .withIndex("by_key", (q) => q.eq("key", args.key))
+      .unique(),
+})
+export const checkoutBySession = internalQuery({
+  args: { sessionId: v.string() },
+  returns: v.union(checkoutDoc, v.null()),
+  handler: (ctx, args) =>
+    ctx.db
+      .query("premiumCheckouts")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
       .unique(),
 })
 export const closeCheckout = internalMutation({

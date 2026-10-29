@@ -21,6 +21,8 @@
   "dependencies": {
     "@clerk/nextjs": "^7.9.22",
     "@clerk/ui": "^1.42.1",
+    "@stripe/react-stripe-js": "^7.0.1",
+    "@stripe/stripe-js": "^10.2.0",
     "@tabler/icons-react": "^3.50.0",
     "@workspace/backend": "workspace:*",
     "@workspace/env": "workspace:*",

@@ -2848,6 +2848,7 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_guild: ["guildId", "_creationTime"];
       by_key: ["key", "_creationTime"];
+      by_session: ["sessionId", "_creationTime"];
       by_user_open: ["userId", "closedAt", "_creationTime"];
     };
     searchIndexes: {};

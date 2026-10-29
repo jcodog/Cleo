@@ -15,6 +15,7 @@ export const backendEnv = createEnv({
     CLERK_WEBHOOK_SECRET: optionalString,
 
     STRIPE_SECRET_KEY: optionalString,
+    STRIPE_EXPECTED_ACCOUNT_ID: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,
     STRIPE_GUILD_PREMIUM_PRICE_ID: optionalString,
     STRIPE_TEST_CHECKOUT_ENABLED: optionalString,
