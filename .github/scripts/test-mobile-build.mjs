@@ -10,7 +10,7 @@ const build = workflow.workflows["ios-development-unsigned"]
 const manifest = JSON.parse(readFileSync(new URL("package.json", root), "utf8"))
 assert.equal(build.instance_type, "mac_mini_m2")
 assert.equal(build.environment.node, manifest.engines.node)
-assert.equal(build.environment.xcode, "27.1")
+assert.equal(build.environment.xcode, "edge")
 assert.deepEqual(build.environment.groups, ["cleo_mobile_development"])
 assert.equal(
   build.triggering,
