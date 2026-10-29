@@ -1,0 +1,31 @@
+docs/dashboard-billing-handoff.md
+  s_87dee764425e1a::t_7487234cf92434 1-102
+apps/dashboard/AGENTS.md
+  s_2f4eeec2f7c41d::t_46f8a2fd064de7 3
+docs/stripe-checkout-rollout.md
+  s_87dee764425e1a::t_2c3f5595c6366b 61-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6995ef72ae42e65795c8a08a83f4d64f935cf935",
+  "prompts": {},
+  "sessions": {
+    "s_2f4eeec2f7c41d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ef73-8029-7de2-9c2f-1d4a2f5d9bcc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
