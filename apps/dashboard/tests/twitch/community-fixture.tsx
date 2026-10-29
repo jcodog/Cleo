@@ -13,6 +13,7 @@ import { LinkedRoleTesting } from "../../src/features/staff/LinkedRoleTesting"
 import { DashboardDiscordHydrator } from "../../src/features/app-shell/DashboardDiscordHydrator"
 import { DashboardShellClient } from "../../src/features/app-shell/DashboardShellClient"
 import { DashboardEntry } from "../../src/features/dashboard/DashboardEntry"
+import { SessionRecovery } from "../../src/features/auth/SessionRecovery"
 import { useAppShellStore } from "../../src/components/stores/app-shell-store"
 import { DiscordDashboardPageShell } from "../../src/features/dashboard/DiscordDashboardPageShell"
 import { SettingsSection } from "../../src/features/discord-guild-workspace/sections/SettingsSection"
@@ -239,6 +240,8 @@ export function CommunityFixture() {
     },
     () => JSON.stringify(calls)
   )
+  if (params.has("sessionRecovery"))
+    return <SessionRecovery returnTo="/dashboard/333333333333333333/welcome" />
   if (params.has("navigation"))
     return (
       <>

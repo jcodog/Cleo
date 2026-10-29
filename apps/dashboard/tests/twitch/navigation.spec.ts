@@ -16,7 +16,12 @@ test("entry waits for verification, empty accounts open the directory, and serve
   page,
 }) => {
   await page.goto("/dashboard?community&navigation&pendingDirectory")
-  await expect(page.getByText("Checking your Discord servers…")).toBeVisible()
+  await expect(
+    page.getByRole("status", { name: "Loading server workspace" })
+  ).toContainText("Verifying server access")
+  await expect(
+    page.getByRole("link", { name: "View all servers", exact: true })
+  ).toHaveCount(0)
   await expect(page).toHaveURL(/pendingDirectory/)
   await page.goto("/dashboard?community&navigation&emptyDirectory")
   await expect(page).toHaveURL(/\/dashboard\/servers$/)

@@ -25,8 +25,22 @@ export const useAuth = () => ({
   isSignedIn: true,
   userId: "fixture-clerk",
   sessionId: "fixture-session",
+  getToken: async (options: unknown) => {
+    window.dispatchEvent(new CustomEvent("token-fixture", { detail: options }))
+    if (new URLSearchParams(location.search).has("failSession"))
+      throw new Error("Session unavailable")
+    return "fixture-session-token"
+  },
 })
-export const useClerk = () => ({ openUserProfile() {} })
+export const useClerk = () => ({
+  openUserProfile() {},
+  signOut(options: unknown) {
+    window.dispatchEvent(
+      new CustomEvent("signout-fixture", { detail: options })
+    )
+    return Promise.resolve()
+  },
+})
 export const useReverification = (callback: unknown) => callback
 export const UserButton = Object.assign(() => null, {
   MenuItems: () => null,
