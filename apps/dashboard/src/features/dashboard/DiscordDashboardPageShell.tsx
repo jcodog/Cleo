@@ -1,9 +1,11 @@
 "use client"
 
-import { useMemo, type ReactNode } from "react"
+import { useAuth } from "@clerk/nextjs"
+import { useMemo, useState, type ReactNode } from "react"
 import { IconPlus, IconServer } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
+import { Input } from "@workspace/ui/components/input"
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
 
@@ -31,6 +33,7 @@ type ManageableGuild = {
   botInstallationVerifiedAt?: number
   lastOpenedAt?: number
   lastSyncedAt?: number
+  verified?: boolean
 }
 
 const EMPTY_MANAGEABLE_GUILDS: ManageableGuild[] = []
@@ -38,13 +41,16 @@ const EMPTY_MANAGEABLE_GUILDS: ManageableGuild[] = []
 /** List deduplicated, openable guilds from authorized queries without inventing missing membership data. */
 /** Present last-known servers with verification notices instead of redirecting on expiry. */
 export function DiscordDashboardPageShell() {
+  const { userId } = useAuth()
+  const [search, setSearch] = useState("")
   const refresh = useQuery(api.communityRoles.refreshProgress)
   const { isLoading: isConvexAuthLoading } = useConvexAuth()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
   const directory = useQuery(
     api.queries.dashboard.discord.guilds.directory.list
   )
-  const manageableGuilds = directory?.guilds
+  const manageableGuilds =
+    directory?.clerkUserId === userId ? directory?.guilds : undefined
   const servers = useMemo(() => {
     const guildsByDiscordId = new Map<string, ManageableGuild>()
 
@@ -52,10 +58,18 @@ export function DiscordDashboardPageShell() {
       guildsByDiscordId.set(guild.discordGuildId, guild)
     }
 
-    return Array.from(guildsByDiscordId.values()).sort((left, right) =>
-      left.name.localeCompare(right.name)
+    return Array.from(guildsByDiscordId.values()).sort(
+      (left, right) =>
+        (right.lastOpenedAt ?? 0) - (left.lastOpenedAt ?? 0) ||
+        left.name.localeCompare(right.name)
     )
   }, [manageableGuilds])
+
+  const filteredServers = servers.filter((guild) =>
+    `${guild.name} ${guild.discordGuildId}`
+      .toLocaleLowerCase()
+      .includes(search.trim().toLocaleLowerCase())
+  )
 
   const isLoading =
     isConvexAuthLoading ||
@@ -87,21 +101,36 @@ export function DiscordDashboardPageShell() {
                   className="font-heading text-base font-medium"
                   id="servers-heading"
                 >
-                  Servers
+                  Your servers
                 </h2>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Discord servers this account can manage in Cleo.
+                  Recently opened servers appear first.
                 </p>
               </div>
               <Badge variant="outline">{servers.length}</Badge>
             </header>
             <div className="space-y-5">
-              {servers.length > 0 ? (
+              <div className="max-w-md space-y-2">
+                <label htmlFor="server-search" className="text-sm font-medium">
+                  Find a server
+                </label>
+                <Input
+                  id="server-search"
+                  type="search"
+                  placeholder="Search by name or Discord ID"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </div>
+              <p role="status" className="text-xs text-muted-foreground">
+                {filteredServers.length} of {servers.length} servers
+              </p>
+              {filteredServers.length > 0 ? (
                 <div className="min-w-0 border-y">
-                  {servers.map((guild, index) => (
+                  {filteredServers.map((guild, index) => (
                     <ServerRow
                       guild={guild}
-                      isLast={index === servers.length - 1}
+                      isLast={index === filteredServers.length - 1}
                       key={guild.discordGuildId}
                     />
                   ))}
@@ -112,10 +141,13 @@ export function DiscordDashboardPageShell() {
                     <EmptyMedia variant="icon">
                       <IconServer aria-hidden />
                     </EmptyMedia>
-                    <EmptyTitle>No servers</EmptyTitle>
+                    <EmptyTitle>
+                      {search ? "No matching servers" : "No servers yet"}
+                    </EmptyTitle>
                     <EmptyDescription>
-                      Cleo did not find a Discord server where the bot is
-                      present and this account has Manage Server access.
+                      {search
+                        ? "Try another server name or Discord ID."
+                        : "Cleo did not find a Discord server where the bot is present and this account has Manage Server access."}
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -134,9 +166,7 @@ function DashboardFrame({ children }: { children: ReactNode }) {
     <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
       <header className="flex flex-col gap-2 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="font-heading text-2xl font-medium">
-            Discord Dashboard
-          </h1>
+          <h1 className="font-heading text-2xl font-medium">Servers</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Manage Discord servers where Cleo is present and your account has
             server management access.
@@ -183,7 +213,7 @@ function ServerRow({
   return (
     <Link
       className={cn(
-        "flex min-w-0 items-center justify-between gap-3 p-3 hover:bg-muted/50",
+        "group flex min-w-0 items-center justify-between gap-4 px-2 py-5 outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring sm:px-4",
         !isLast && "border-b"
       )}
       href={`/dashboard/${guild.discordGuildId}`}
@@ -195,6 +225,15 @@ function ServerRow({
           <p className="truncate text-xs text-muted-foreground">
             {formatServerMeta(guild)}
           </p>
+          {guild.verified === false ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Permissions need verification
+            </p>
+          ) : guild.lastOpenedAt !== undefined ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Last opened {new Date(guild.lastOpenedAt).toLocaleDateString()}
+            </p>
+          ) : null}
         </div>
       </div>
       <span className="shrink-0 text-xs text-muted-foreground">Open</span>
@@ -212,17 +251,17 @@ function GuildAvatar({
     return (
       <Image
         alt=""
-        className="size-9 shrink-0 rounded-md object-cover"
-        height={36}
+        className="size-11 shrink-0 rounded-md object-cover"
+        height={44}
         src={guild.iconUrl}
         unoptimized
-        width={36}
+        width={44}
       />
     )
   }
 
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-medium">
+    <span className="flex size-11 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-medium">
       {guild.name.slice(0, 1).toUpperCase()}
     </span>
   )

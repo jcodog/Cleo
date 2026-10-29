@@ -49,7 +49,11 @@
     "CONVEX_URL",
     "PORT"
   ],
-  "globalPassThroughEnv": ["VERCEL_URL", "NODE_EXTRA_CA_CERTS"],
+  "globalPassThroughEnv": [
+    "VERCEL_URL",
+    "NODE_EXTRA_CA_CERTS",
+    "NODE_USE_SYSTEM_CA"
+  ],
   "tasks": {
     "@workspace/mobile#build": {
       "dependsOn": ["^build"],

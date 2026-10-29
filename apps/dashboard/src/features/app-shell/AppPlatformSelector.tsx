@@ -1,5 +1,7 @@
 "use client"
 
+import { useAuth } from "@clerk/nextjs"
+
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "convex/react"
@@ -21,11 +23,20 @@ import { getDashboardGuildSelection } from "./dashboardGuildSelection"
 import { RELEASE_PLATFORMS } from "./routes"
 
 export function AppPlatformSelector() {
+  const { userId } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
   const { state, isMobile, setOpenMobile } = useSidebar()
-  const guilds = useQuery(api.queries.dashboard.discord.guilds.manageable.list)
-  const storedDiscordGuildId = useAppShellStore((s) => s.selectedDiscordGuildId)
+  const directory = useQuery(
+    api.queries.dashboard.discord.guilds.directory.list
+  )
+  const guilds =
+    directory?.clerkUserId === userId && directory?.status === "ready"
+      ? directory.guilds.filter((guild) => guild.verified)
+      : undefined
+  const storedDiscordGuildId = useAppShellStore((s) =>
+    s.selectionClerkUserId === userId ? s.selectedDiscordGuildId : undefined
+  )
   const { safeDashboardPath } = getDashboardGuildSelection({
     manageableGuilds: guilds,
     routeDiscordGuildId: undefined,

@@ -4,11 +4,14 @@ test("Linked Roles is a responsive FAQ without account controls or eligibility d
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 })
-  await page.goto("/account/roles?community")
+  await page.goto("/dashboard/servers?community&navigation")
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click()
+  await page.getByRole("button", { name: "Linked Roles", exact: true }).click()
+  await expect(page.getByRole("dialog").last()).toContainText(
+    "Discord Linked Roles"
+  )
   await expect(
-    page.getByText(
-      "Show your connection to Cleo and the communities you support through Discord Linked Roles."
-    )
+    page.getByText("Claim and manage your Linked Roles inside Discord.")
   ).toBeVisible()
   const questions = page.locator('[data-slot="accordion-trigger"]')
   await expect(questions).toHaveCount(6)
@@ -22,7 +25,7 @@ test("Linked Roles is a responsive FAQ without account controls or eligibility d
   ).toBeVisible()
   await expect(
     page.getByRole("button", {
-      name: /Refresh verification|Connect Discord|Disconnect|Add Cleo/,
+      name: /Refresh verification|Connect Discord|Disconnect|Add Cleo|Verify Discord Linked Roles/,
     })
   ).toHaveCount(0)
   await expect(page.locator("dl")).toHaveCount(0)
@@ -39,6 +42,42 @@ test("Linked Roles is a responsive FAQ without account controls or eligibility d
   await expect(
     page.getByText(/do not grant ownership, staff status or permissions/)
   ).not.toBeVisible()
+  const beforeClose = page.url()
+  await page.keyboard.press("Escape")
+  await expect(
+    page.getByRole("dialog").filter({ hasText: "Discord Linked Roles" })
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: "Linked Roles", exact: true })
+  ).toBeFocused()
+  expect(page.url()).toBe(beforeClose)
+})
+
+test("Linked Roles traps keyboard focus and leaves browser history intact", async ({
+  page,
+}) => {
+  await page.goto("/dashboard/servers?community&navigation")
+  const trigger = page.getByRole("button", {
+    name: "Linked Roles",
+    exact: true,
+  })
+  await trigger.click()
+  const dialog = page.getByRole("dialog")
+  await expect(dialog).toBeVisible()
+  for (let index = 0; index < 12; index++) {
+    await page.keyboard.press("Tab")
+    await expect
+      .poll(() =>
+        dialog.evaluate((node) => node.contains(document.activeElement))
+      )
+      .toBe(true)
+  }
+  await page.keyboard.press("Escape")
+  await expect(trigger).toBeFocused()
+  await page.getByRole("link", { name: /Cleo community/ }).click()
+  await page.goBack()
+  await expect(page).toHaveURL(/\/dashboard\/servers/)
+  await expect(dialog).toHaveCount(0)
 })
 
 test("a verification link requests Clerk consent only after an explicit click", async ({

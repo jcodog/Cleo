@@ -12,6 +12,8 @@ import { DiscordAddServerPageShell } from "../../src/features/add-server/Discord
 import { LinkedRoleTesting } from "../../src/features/staff/LinkedRoleTesting"
 import { DashboardDiscordHydrator } from "../../src/features/app-shell/DashboardDiscordHydrator"
 import { DashboardShellClient } from "../../src/features/app-shell/DashboardShellClient"
+import { DashboardEntry } from "../../src/features/dashboard/DashboardEntry"
+import { useAppShellStore } from "../../src/components/stores/app-shell-store"
 import { DiscordDashboardPageShell } from "../../src/features/dashboard/DiscordDashboardPageShell"
 import { SettingsSection } from "../../src/features/discord-guild-workspace/sections/SettingsSection"
 import { api } from "@workspace/backend/convex/_generated/api.js"
@@ -38,6 +40,7 @@ const directoryGuilds = [
     verified: true,
     verifiedAt,
     memberCount: 240,
+    lastOpenedAt: 100,
   },
   {
     discordGuildId: "444444444444444444",
@@ -45,12 +48,25 @@ const directoryGuilds = [
     verified: true,
     verifiedAt,
     memberCount: 72,
+    lastOpenedAt: 200,
   },
 ]
-let directory = { status: "ready", guilds: directoryGuilds }
+let directory = {
+  clerkUserId: "fixture-clerk",
+  status: "ready",
+  guilds: directoryGuilds,
+}
+if (params.has("savedServer"))
+  useAppShellStore.setState({
+    selectionClerkUserId: "fixture-clerk",
+    selectedDiscordGuildId: params.get("savedServer") ?? undefined,
+  })
+if (params.has("emptyDirectory")) directory.guilds = []
+if (params.has("pendingDirectory")) directory.status = "pending"
 window.addEventListener("directory-fixture", (event) => {
   if (!(event instanceof CustomEvent)) return
   directory = {
+    clerkUserId: "fixture-clerk",
     status: event.detail.status,
     guilds: event.detail.removed ? directoryGuilds.slice(1) : directoryGuilds,
   }
@@ -304,6 +320,8 @@ function NavigationFixture() {
       <div className="w-full min-w-0">
         <DashboardDiscordHydrator />
         {pathname === "/dashboard" ? (
+          <DashboardEntry />
+        ) : pathname === "/dashboard/servers" ? (
           <DiscordDashboardPageShell />
         ) : pathname === "/account/billing" ? (
           <PremiumPurchases />

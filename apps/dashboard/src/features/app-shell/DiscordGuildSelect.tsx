@@ -1,5 +1,7 @@
 "use client"
 
+import { useAuth } from "@clerk/nextjs"
+
 import { IconChevronDown, IconPlus, IconServer } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { cn } from "@workspace/ui/lib/utils"
@@ -62,6 +64,7 @@ function GuildIcon({
 
 /** Switch servers explicitly while retaining directory entries during verification. */
 export function DiscordGuildSelect() {
+  const { userId } = useAuth()
   const refresh = useQuery(api.communityRoles.refreshProgress)
   const verifying = refresh?.state === "pending"
   const router = useRouter()
@@ -69,9 +72,12 @@ export function DiscordGuildSelect() {
   const directory = useQuery(
     api.queries.dashboard.discord.guilds.directory.list
   )
-  const manageableGuilds = directory?.guilds
-  const storedDiscordGuildId = useAppShellStore(
-    (state) => state.selectedDiscordGuildId
+  const manageableGuilds =
+    directory?.clerkUserId === userId ? directory?.guilds : undefined
+  const storedDiscordGuildId = useAppShellStore((state) =>
+    state.selectionClerkUserId === userId
+      ? state.selectedDiscordGuildId
+      : undefined
   )
   const setSelectedDiscordGuildId = useAppShellStore(
     (state) => state.setSelectedDiscordGuildId
@@ -79,7 +85,10 @@ export function DiscordGuildSelect() {
   const isDiscordRoute =
     pathname === "/dashboard" || pathname.startsWith("/dashboard/")
   const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
-  const selectedDiscordGuildId = routeDiscordGuildId ?? storedDiscordGuildId
+  const selectedDiscordGuildId =
+    pathname === "/dashboard/servers"
+      ? undefined
+      : (routeDiscordGuildId ?? storedDiscordGuildId)
 
   const guildOptions = manageableGuilds ?? []
   const selectedGuild = guildOptions.find(
@@ -102,9 +111,11 @@ export function DiscordGuildSelect() {
       ? verifying
         ? "Verifying servers"
         : "Loading servers"
-      : guildOptions.length > 0
-        ? "Select a server"
-        : "No servers")
+      : pathname === "/dashboard/servers"
+        ? "All servers"
+        : guildOptions.length > 0
+          ? "Select a server"
+          : "No servers")
 
   return (
     <div className="flex flex-col gap-1.5 px-1 pt-1 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
@@ -135,6 +146,10 @@ export function DiscordGuildSelect() {
         />
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => router.push("/dashboard/servers")}>
+              <IconServer aria-hidden />
+              View all servers
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleAddGuild}>
               <IconPlus aria-hidden />
               Add Server
@@ -148,7 +163,8 @@ export function DiscordGuildSelect() {
                   <DropdownMenuItem
                     key={guild.discordGuildId}
                     onClick={() => {
-                      setSelectedDiscordGuildId(guild.discordGuildId)
+                      if (userId)
+                        setSelectedDiscordGuildId(guild.discordGuildId, userId)
                       const href = getGuildSwitchHref(
                         pathname,
                         guild.discordGuildId

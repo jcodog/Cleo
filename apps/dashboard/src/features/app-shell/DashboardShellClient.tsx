@@ -47,7 +47,7 @@ export function DashboardShellClient({
   preloadedStaffAccess: Preloaded<typeof api.queries.dashboard.staff.access.get>
 }) {
   const pathname = usePathname()
-  const { sessionId } = useAuth()
+  const { sessionId, userId } = useAuth()
   const { isAuthenticated, isLoading } = useConvexAuth()
   const liveStaffAccess = usePreloadedQuery(preloadedStaffAccess)
   const liveManageableGuilds = usePreloadedQuery(preloadedManageableGuilds)
@@ -83,8 +83,10 @@ export function DashboardShellClient({
 
   const currentArea = getAppShellAreaFromPathname(pathname)
   const staffEntry = getStaffTopbarEntry(currentArea, staffAccess)
-  const storedDiscordGuildId = useAppShellStore(
-    (state) => state.selectedDiscordGuildId
+  const storedDiscordGuildId = useAppShellStore((state) =>
+    state.selectionClerkUserId === userId
+      ? state.selectedDiscordGuildId
+      : undefined
   )
   const setSelectedDiscordGuildId = useAppShellStore(
     (state) => state.setSelectedDiscordGuildId
@@ -92,30 +94,40 @@ export function DashboardShellClient({
   const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
   const { activeDiscordGuildId } = getDashboardGuildSelection({
     manageableGuilds:
-      isAuthenticated && directory ? directory.guilds : manageableGuilds,
+      isAuthenticated && directory && directory.clerkUserId === userId
+        ? directory.status === "ready"
+          ? directory.guilds.filter((guild) => guild.verified)
+          : directory.guilds
+        : manageableGuilds,
     routeDiscordGuildId,
     storedDiscordGuildId,
   })
-  const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
+  const hasSelectedDiscordGuild = Boolean(
+    routeDiscordGuildId && activeDiscordGuildId
+  )
   const discordOverviewHref = activeDiscordGuildId
     ? `/dashboard/${activeDiscordGuildId}`
-    : "/dashboard"
+    : "/dashboard/servers"
   const discordGuildSectionHref = (section: string) =>
     activeDiscordGuildId
       ? `/dashboard/${activeDiscordGuildId}/${section}`
-      : "/dashboard"
+      : "/dashboard/servers"
 
   useEffect(() => {
     if (
+      userId &&
       isAuthenticated &&
+      directory?.clerkUserId === userId &&
       directory?.status === "ready" &&
-      !routeDiscordGuildId &&
+      (!routeDiscordGuildId || activeDiscordGuildId === routeDiscordGuildId) &&
       storedDiscordGuildId !== activeDiscordGuildId
     ) {
-      setSelectedDiscordGuildId(activeDiscordGuildId)
+      setSelectedDiscordGuildId(activeDiscordGuildId, userId)
     }
   }, [
     activeDiscordGuildId,
+    userId,
+    directory?.clerkUserId,
     isAuthenticated,
     directory?.status,
     setSelectedDiscordGuildId,
@@ -273,12 +285,6 @@ export function DashboardShellClient({
         {
           items: [
             {
-              title: "Linked Roles",
-              href: "/account/roles",
-              icon: IconShield,
-              isActive: pathname === "/account/roles",
-            },
-            {
               title: "My billing",
               href: "/account/billing",
               icon: IconSettings,
@@ -287,7 +293,22 @@ export function DashboardShellClient({
           ],
         },
       ]}
-      navSections={platformNavSections[currentArea]}
+      navSections={
+        currentArea === "discord" && pathname === "/dashboard/servers"
+          ? [
+              {
+                items: [
+                  {
+                    title: "Servers",
+                    href: "/dashboard/servers",
+                    icon: IconHome,
+                    isActive: true,
+                  },
+                ],
+              },
+            ]
+          : platformNavSections[currentArea]
+      }
       showDiscordGuildSelect={currentArea === "discord"}
       showPlatformSelector={
         currentArea === "discord" || currentArea === "twitch"

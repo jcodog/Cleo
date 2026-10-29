@@ -439,7 +439,7 @@ test("platform selection preserves a valid guild, collapses to the opposite plat
   })
   await page.goto("/twitch?staleGuild")
   await page.getByRole("button", { name: "Discord", exact: true }).click()
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/dashboard\/servers$/)
 })
 test("timer messages validate, reorder with keyboard controls, save and retain locked configuration", async ({
   page,

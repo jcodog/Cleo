@@ -2454,6 +2454,7 @@ export declare const api: {
               "public",
               {},
               {
+                clerkUserId: string | null;
                 guilds: Array<{
                   discordGuildId: string;
                   iconUrl?: string;

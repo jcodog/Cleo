@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { UserButton, useClerk } from "@clerk/nextjs"
 import { IconHome, IconLogout, IconShieldLock } from "@tabler/icons-react"
@@ -18,13 +20,33 @@ export function AppTopbar({
 }: {
   staffEntry?: StaffTopbarEntry | null
 }) {
+  const pathname = usePathname()
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur">
       <SidebarTrigger />
       <Separator orientation="vertical" className="my-auto h-5" />
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">CleoAI Dashboard</p>
+        {pathname.startsWith("/dashboard") ? (
+          <nav aria-label="Breadcrumb" className="text-sm">
+            <Link
+              href="/dashboard/servers"
+              aria-current={
+                pathname === "/dashboard/servers" ? "page" : undefined
+              }
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Servers
+            </Link>
+            {pathname !== "/dashboard/servers" && pathname !== "/dashboard" ? (
+              <span className="ml-2 text-muted-foreground" aria-hidden>
+                /
+              </span>
+            ) : null}
+          </nav>
+        ) : (
+          <p className="truncate text-sm font-medium">CleoAI Dashboard</p>
+        )}
       </div>
 
       <MountedUserButton staffEntry={staffEntry} />

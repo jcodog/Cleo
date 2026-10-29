@@ -9,6 +9,7 @@ import {
 
 test("dashboard route parser only infers actual Discord guild workspace IDs", () => {
   assert.equal(getRouteDiscordGuildId("/dashboard"), undefined)
+  assert.equal(getRouteDiscordGuildId("/dashboard/servers"), undefined)
   assert.equal(getRouteDiscordGuildId("/dashboard/add-server"), undefined)
   assert.equal(getRouteDiscordGuildId("/dashboard/staff"), undefined)
   assert.equal(

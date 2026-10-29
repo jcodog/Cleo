@@ -152,7 +152,8 @@ This uses the root Turborepo development script and may start multiple workspace
 ### Review workflow
 
 - Run focused tests while developing, then the relevant full validation before pushing.
-- Before the final signed commit, prefer authenticated Cubic CLI branch review and an available independent local model review. Use read-only controls and report unavailable tools, authentication or quota limits.
+- Cubic local reviews are strictly manual and maintainer-initiated because they consume the maintainer's ChatGPT subscription allowance. Never invoke, retry, resume or queue Cubic through CLI, MCP, scripts, integrations or subagents. Previous approval does not authorise another review. Existing saved review output may be inspected without triggering a review.
+- Before the final signed commit, review the diff locally and run relevant validation. Do not invoke other paid or quota-consuming external review services without explicit authorisation. When ready, report: "Ready for optional maintainer-initiated Cubic review."
 - Keep cloud Cubic focused on implementation and critical configuration; CodeRabbit reviews implementation and tests.
 - Let automatic incremental reviews handle new commits. Avoid repeated manual full-PR requests. Cubic reads configuration from the default branch, so PR configuration changes take effect only after merge.
 - Reproduce reviewer findings, fix valid issues and reply with commit-specific evidence before resolving threads. Report only reviews or formal approvals that were actually submitted; automated reviewing does not enable automatic GitHub approval.

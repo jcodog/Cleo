@@ -67,6 +67,6 @@ export function getDashboardGuildSelection({
         : undefined,
     safeDashboardPath: activeDiscordGuildId
       ? `/dashboard/${activeDiscordGuildId}`
-      : "/dashboard",
+      : "/dashboard/servers",
   }
 }

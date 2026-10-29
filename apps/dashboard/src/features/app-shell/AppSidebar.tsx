@@ -1,3 +1,4 @@
+import { LinkedRolesDialog } from "@/features/community/LinkedRolesDialog"
 import {
   Sidebar,
   SidebarContent,
@@ -58,6 +59,7 @@ export function AppSidebar({
 
       {footerNavSections.length > 0 ? (
         <SidebarFooter>
+          <LinkedRolesDialog />
           <AppSidebarNav navSections={footerNavSections} />
         </SidebarFooter>
       ) : null}
