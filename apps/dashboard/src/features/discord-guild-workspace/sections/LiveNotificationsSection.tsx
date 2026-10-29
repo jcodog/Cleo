@@ -39,6 +39,7 @@ import { SaveStatus } from "../components/workspace-ui"
 import { getErrorMessage } from "../lib/format"
 import type { GuildOverview, SaveState } from "../types"
 
+/** Show verification recovery before exposing a server's live-notification controls. */
 export function LiveNotificationsSection({
   overview,
   isBotLeft,
@@ -46,14 +47,17 @@ export function LiveNotificationsSection({
   overview: GuildOverview
   isBotLeft: boolean
 }) {
-  const { view, error, displayKey, reload } = useLiveNotifications(
+  const { view, error, displayKey, reload, recovering } = useLiveNotifications(
     overview.discordGuildId
   )
   if (error)
     return (
       <div role="alert" className="flex flex-wrap items-center gap-3">
-        Connection verification is temporarily unavailable. Try again later.
-        <Button onClick={reload}>Retry provider check</Button>
+        Server or provider verification is unavailable. This does not confirm a
+        live notification delivery failure.
+        <Button onClick={reload} disabled={recovering}>
+          {recovering ? "Verifying server…" : "Retry verification"}
+        </Button>
       </div>
     )
   if (!view) return <Skeleton className="h-48 w-full max-w-3xl" />
@@ -68,6 +72,7 @@ export function LiveNotificationsSection({
   )
 }
 
+/** Keep unsaved destination choices separate from the last confirmed configuration. */
 function LiveNotificationsForm({
   discordGuildId,
   isBotLeft,
@@ -154,6 +159,7 @@ function LiveNotificationsForm({
     setSaveState("idle")
     setError(null)
   }
+  /** Save either validated draft fields or the persisted destination during lifecycle retries. */
   async function persist(
     nextEnabled: boolean,
     useDraft: boolean,
@@ -184,6 +190,7 @@ function LiveNotificationsForm({
       setError(getErrorMessage(failure))
     }
   }
+  /** Submit changed settings without turning a form submission into page navigation. */
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (dirty) await persist(enabled, true)

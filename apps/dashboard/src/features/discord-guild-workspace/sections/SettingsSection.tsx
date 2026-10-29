@@ -1,42 +1,23 @@
-import { PremiumPurchases } from "@/features/community/PremiumPurchases"
-import { BotStatusFields, OverviewField } from "../components/workspace-ui"
-import type { GuildOverview } from "../types"
+import Link from "next/link"
 
-/** Present verified management access and persisted bot-presence timestamps without editing them. */
+/** Legacy route only; the sidebar no longer links to an empty Settings page. */
+/** Preserve legacy Settings links while directing billing to the dedicated Premium page. */
 export function SettingsSection({
-  isBotLeft,
-  overview,
+  discordGuildId,
 }: {
-  isBotLeft: boolean
-  overview: GuildOverview
+  discordGuildId: string
 }) {
   return (
-    <section
-      className="max-w-2xl min-w-0 space-y-5"
-      aria-labelledby="server-access-heading"
-    >
-      <header className="space-y-2">
-        <h2
-          className="font-heading text-base font-medium"
-          id="server-access-heading"
-        >
-          Server access
-        </h2>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Current Cleo presence and your verified management access.
-        </p>
-      </header>
-      <div className="space-y-5">
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <OverviewField label="Server" value={overview.name} />
-          <OverviewField
-            label="Management access"
-            value={overview.membership.isOwner ? "Owner" : "Manager"}
-          />
-          <BotStatusFields isBotLeft={isBotLeft} overview={overview} />
-        </dl>
-      </div>
-      <PremiumPurchases discordGuildId={overview.discordGuildId} />
+    <section className="max-w-xl space-y-3 text-sm">
+      <p className="text-muted-foreground">
+        Premium Guild has moved to its own section.
+      </p>
+      <Link
+        className="font-medium text-primary underline-offset-4 hover:underline"
+        href={`/dashboard/${discordGuildId}/premium`}
+      >
+        Open Premium Guild
+      </Link>
     </section>
   )
 }

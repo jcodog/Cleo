@@ -1601,6 +1601,12 @@ export declare const api: {
   };
   communityActions: {
     beginLinkedRoles: FunctionReference<"action", "public", {}, string>;
+    connectClerkLinkedRoles: FunctionReference<
+      "action",
+      "public",
+      {},
+      "ready" | "consentRequired" | "applicationMismatch"
+    >;
     disconnectLinkedRoles: FunctionReference<"action", "public", {}, null>;
     finishLinkedRoles: FunctionReference<
       "action",
@@ -1765,6 +1771,14 @@ export declare const api: {
         worker: string;
       },
       boolean
+    >;
+  };
+  discordConnections: {
+    status: FunctionReference<
+      "query",
+      "public",
+      {},
+      null | { metadataPublished: boolean; provider: "clerk" | "direct" }
     >;
   };
   liveNotificationActions: {
@@ -2214,6 +2228,12 @@ export declare const api: {
         canManageOwnBilling: boolean;
         communityPublishIdentity: boolean | null;
         configured: boolean;
+        guildPremium: null | {
+          canPurchase: boolean;
+          capabilities: Array<string>;
+          state: "active" | "trial" | "grace" | "expired" | "revoked";
+          validUntil: number;
+        };
         subscriptions: Array<{
           active: boolean;
           announce: boolean;
@@ -2426,6 +2446,30 @@ export declare const api: {
                 staffMetricsTracked?: boolean;
                 updatedAt: number;
               } | null
+            >;
+          };
+          directory: {
+            list: FunctionReference<
+              "query",
+              "public",
+              {},
+              {
+                guilds: Array<{
+                  discordGuildId: string;
+                  iconUrl?: string;
+                  lastOpenedAt?: number;
+                  memberCount?: number;
+                  name: string;
+                  verified: boolean;
+                  verifiedAt?: number;
+                }>;
+                status:
+                  | "ready"
+                  | "pending"
+                  | "expired"
+                  | "unavailable"
+                  | "missingDiscord";
+              }
             >;
           };
           manageable: {
@@ -3810,6 +3854,12 @@ export declare const internal: {
       },
       null
     >;
+    connectClerk: FunctionReference<
+      "mutation",
+      "internal",
+      { discordUserId: string; expiresAt: number; userId: Id<"users"> },
+      null
+    >;
     connection: FunctionReference<
       "query",
       "internal",
@@ -3824,6 +3874,7 @@ export declare const internal: {
         publishedMetadata?: string;
         revision: number;
         revokedAt?: number;
+        tokenSource?: "clerk";
         updatedAt: number;
         userId: Id<"users">;
       } | null
@@ -3859,6 +3910,7 @@ export declare const internal: {
         publishedMetadata?: string;
         revision: number;
         revokedAt?: number;
+        tokenSource?: "clerk";
         updatedAt: number;
         userId: Id<"users">;
       } | null

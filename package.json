@@ -12,7 +12,9 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "test:ci": "bun .github/scripts/test-ci.mjs && bun .github/scripts/test-dashboard-pwa.mjs",
+    "test:ci": "bun .github/scripts/test-ci.mjs && bun .github/scripts/test-dashboard-pwa.mjs && bun run test:mobile:build-config && bun run test:assets",
+    "test:mobile:build-config": "bun .github/scripts/test-mobile-build.mjs",
+    "test:assets": "node --test scripts/prepare-welcome-assets.test.mjs",
     "test:coverage": "turbo test:coverage"
   },
   "devDependencies": {
@@ -27,7 +29,7 @@
     "prettier": "catalog:",
     "prettier-plugin-tailwindcss": "catalog:",
     "tsx": "catalog:",
-    "turbo": "^2.11.9",
+    "turbo": "^2.11.10",
     "typescript": "catalog:"
   },
   "engines": {
@@ -39,14 +41,14 @@
       "packages/*"
     ],
     "catalog": {
-      "@next/eslint-plugin-next": "^16.4.2",
+      "@next/eslint-plugin-next": "^16.4.3",
       "@tailwindcss/postcss": "^4.3.3",
-      "@turbo/gen": "^2.11.9",
+      "@turbo/gen": "^2.11.10",
       "@types/node": "^26.6.5",
       "@types/react": "^19.3.0",
       "@types/react-dom": "^19.3.0",
       "eslint-plugin-react-hooks": "^7.1.1",
-      "eslint-plugin-turbo": "^2.11.9",
+      "eslint-plugin-turbo": "^2.11.10",
       "prettier": "^3.9.10",
       "prettier-plugin-tailwindcss": "^0.8.1",
       "tailwindcss": "^4.3.3",

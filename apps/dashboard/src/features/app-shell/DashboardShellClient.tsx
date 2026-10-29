@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@clerk/nextjs"
-import { usePathname, redirect } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   IconHome,
   IconLogs,
@@ -15,7 +15,12 @@ import {
   IconClock,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import { type Preloaded, useConvexAuth, usePreloadedQuery } from "convex/react"
+import {
+  type Preloaded,
+  useConvexAuth,
+  usePreloadedQuery,
+  useQuery,
+} from "convex/react"
 
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { AppShell } from "@/features/app-shell/AppShell"
@@ -29,6 +34,7 @@ import {
 import { getStaffTopbarEntry } from "@/features/app-shell/staffAccess"
 import type { AppShellNavSection } from "@/features/app-shell/types"
 
+/** Derive navigation from the current route and display directory without refresh redirects. */
 export function DashboardShellClient({
   children,
   preloadedManageableGuilds,
@@ -45,6 +51,10 @@ export function DashboardShellClient({
   const { isAuthenticated, isLoading } = useConvexAuth()
   const liveStaffAccess = usePreloadedQuery(preloadedStaffAccess)
   const liveManageableGuilds = usePreloadedQuery(preloadedManageableGuilds)
+  const directory = useQuery(
+    api.queries.dashboard.discord.guilds.directory.list,
+    isAuthenticated ? {} : "skip"
+  )
 
   const [initialClerkSessionId] = useState(sessionId)
   const [initialStaffAccess] = useState(liveStaffAccess)
@@ -80,12 +90,12 @@ export function DashboardShellClient({
     (state) => state.setSelectedDiscordGuildId
   )
   const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
-  const { activeDiscordGuildId, invalidRouteGuildId, safeDashboardPath } =
-    getDashboardGuildSelection({
-      manageableGuilds,
-      routeDiscordGuildId,
-      storedDiscordGuildId,
-    })
+  const { activeDiscordGuildId } = getDashboardGuildSelection({
+    manageableGuilds:
+      isAuthenticated && directory ? directory.guilds : manageableGuilds,
+    routeDiscordGuildId,
+    storedDiscordGuildId,
+  })
   const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
   const discordOverviewHref = activeDiscordGuildId
     ? `/dashboard/${activeDiscordGuildId}`
@@ -97,25 +107,21 @@ export function DashboardShellClient({
 
   useEffect(() => {
     if (
-      manageableGuilds !== undefined &&
+      isAuthenticated &&
+      directory?.status === "ready" &&
+      !routeDiscordGuildId &&
       storedDiscordGuildId !== activeDiscordGuildId
     ) {
       setSelectedDiscordGuildId(activeDiscordGuildId)
     }
   }, [
     activeDiscordGuildId,
-    manageableGuilds,
+    isAuthenticated,
+    directory?.status,
     setSelectedDiscordGuildId,
     storedDiscordGuildId,
+    routeDiscordGuildId,
   ])
-
-  if (invalidRouteGuildId) {
-    redirect(safeDashboardPath)
-  }
-
-  if (pathname === "/dashboard" && activeDiscordGuildId) {
-    redirect(`/dashboard/${activeDiscordGuildId}`)
-  }
 
   const discordNavSections: AppShellNavSection[] = [
     {
@@ -180,12 +186,12 @@ export function DashboardShellClient({
           disabled: !hasSelectedDiscordGuild,
         },
         {
-          title: "Settings",
-          href: discordGuildSectionHref("settings"),
-          icon: IconSettings,
+          title: "Premium Guild",
+          href: discordGuildSectionHref("premium"),
+          icon: IconSparkles,
           isActive:
             activeDiscordGuildId !== undefined &&
-            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/settings`),
+            pathname.startsWith(`/dashboard/${activeDiscordGuildId}/premium`),
           disabled: !hasSelectedDiscordGuild,
         },
       ],

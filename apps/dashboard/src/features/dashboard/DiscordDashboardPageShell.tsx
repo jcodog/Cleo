@@ -36,20 +36,20 @@ type ManageableGuild = {
 const EMPTY_MANAGEABLE_GUILDS: ManageableGuild[] = []
 
 /** List deduplicated, openable guilds from authorized queries without inventing missing membership data. */
+/** Present last-known servers with verification notices instead of redirecting on expiry. */
 export function DiscordDashboardPageShell() {
   const refresh = useQuery(api.communityRoles.refreshProgress)
   const { isLoading: isConvexAuthLoading } = useConvexAuth()
   const currentUser = useQuery(api.queries.dashboard.account.currentUser.get)
-  const manageableGuilds = useQuery(
-    api.queries.dashboard.discord.guilds.manageable.list
+  const directory = useQuery(
+    api.queries.dashboard.discord.guilds.directory.list
   )
+  const manageableGuilds = directory?.guilds
   const servers = useMemo(() => {
     const guildsByDiscordId = new Map<string, ManageableGuild>()
 
     for (const guild of manageableGuilds ?? EMPTY_MANAGEABLE_GUILDS) {
-      if (isServerOpenable(guild)) {
-        guildsByDiscordId.set(guild.discordGuildId, guild)
-      }
+      guildsByDiscordId.set(guild.discordGuildId, guild)
     }
 
     return Array.from(guildsByDiscordId.values()).sort((left, right) =>
@@ -60,11 +60,19 @@ export function DiscordDashboardPageShell() {
   const isLoading =
     isConvexAuthLoading ||
     currentUser === undefined ||
-    manageableGuilds === undefined ||
-    refresh?.state === "pending"
+    manageableGuilds === undefined
 
   return (
     <DashboardFrame>
+      {directory && directory.status !== "ready" ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {directory.status === "pending" || refresh?.state === "pending"
+            ? "Verifying Discord permissions. Your server directory stays here while we check."
+            : directory.status === "missingDiscord"
+              ? "Connect Discord in your account to find your servers."
+              : "Discord verification needs refreshing. Listed servers reflect your last verified access. Server tools remain restricted until verification succeeds."}
+        </p>
+      ) : null}
       {isLoading ? (
         <ServerListSkeleton />
       ) : (
@@ -120,6 +128,7 @@ export function DiscordDashboardPageShell() {
   )
 }
 
+/** Keep the dashboard title and installation entry available in every directory state. */
 function DashboardFrame({ children }: { children: ReactNode }) {
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
@@ -146,6 +155,7 @@ function DashboardFrame({ children }: { children: ReactNode }) {
   )
 }
 
+/** Reserve directory space until the initial query resolves, without an empty-state flash. */
 function ServerListSkeleton() {
   return (
     <div className="min-w-0 space-y-5">
@@ -162,6 +172,7 @@ function ServerListSkeleton() {
   )
 }
 
+/** Link directly to the row's guild so stale saved selection cannot change the destination. */
 function ServerRow({
   guild,
   isLast,
@@ -191,6 +202,7 @@ function ServerRow({
   )
 }
 
+/** Use decorative server artwork with a stable initial fallback when no icon exists. */
 function GuildAvatar({
   guild,
 }: {
@@ -216,13 +228,7 @@ function GuildAvatar({
   )
 }
 
-function isServerOpenable(guild: ManageableGuild) {
-  return (
-    guild.botJoinedAt !== undefined ||
-    guild.botInstallationVerifiedAt !== undefined
-  )
-}
-
+/** Omit unknown counts and fall back to the real Discord ID rather than invented totals. */
 function formatServerMeta(guild: ManageableGuild) {
   const parts = [
     guild.memberCount !== undefined

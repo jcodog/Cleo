@@ -1683,6 +1683,7 @@ export type DataModel = {
       publishedMetadata?: string;
       revision: number;
       revokedAt?: number;
+      tokenSource?: "clerk";
       updatedAt: number;
       userId: Id<"users">;
       _id: Id<"discordRoleConnections">;
@@ -1698,6 +1699,7 @@ export type DataModel = {
       | "publishedMetadata"
       | "revision"
       | "revokedAt"
+      | "tokenSource"
       | "updatedAt"
       | "userId";
     indexes: {

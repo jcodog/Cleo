@@ -9,6 +9,7 @@ export type DashboardGuildSelection = {
   safeDashboardPath: string
 }
 
+/** Honor a guild deep link without substituting a different stored or recent server. */
 export function getDashboardGuildSelection({
   manageableGuilds,
   routeDiscordGuildId,
@@ -52,9 +53,11 @@ export function getDashboardGuildSelection({
   }, undefined)
   const activeDiscordGuildId = routeGuildIsManageable
     ? routeDiscordGuildId
-    : storedGuildIsManageable
-      ? storedDiscordGuildId
-      : mostRecentlyOpenedGuild?.discordGuildId
+    : routeDiscordGuildId !== undefined
+      ? undefined
+      : storedGuildIsManageable
+        ? storedDiscordGuildId
+        : mostRecentlyOpenedGuild?.discordGuildId
 
   return {
     activeDiscordGuildId,

@@ -41,6 +41,21 @@ export const view = query({
     configured: v.boolean(),
     canManageOwnBilling: v.boolean(),
     communityPublishIdentity: v.union(v.boolean(), v.null()),
+    guildPremium: v.union(
+      v.null(),
+      v.object({
+        state: v.union(
+          v.literal("active"),
+          v.literal("trial"),
+          v.literal("grace"),
+          v.literal("expired"),
+          v.literal("revoked")
+        ),
+        capabilities: v.array(v.string()),
+        validUntil: v.number(),
+        canPurchase: v.boolean(),
+      })
+    ),
     subscriptions: v.array(
       v.object({
         id: v.id("paidCommunityActivations"),
@@ -53,15 +68,20 @@ export const view = query({
   }),
   handler: async (ctx, args) => {
     const user = await requireCurrentUser(ctx)
-    const customer = await ctx.db
-      .query("billingCustomers")
-      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
-      .unique()
-    const paid = await ctx.db
-      .query("paidCommunityActivations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .take(100)
+    const customer = args.discordGuildId
+      ? null
+      : await ctx.db
+          .query("billingCustomers")
+          .withIndex("by_user_id", (q) => q.eq("userId", user._id))
+          .unique()
+    const paid = args.discordGuildId
+      ? []
+      : await ctx.db
+          .query("paidCommunityActivations")
+          .withIndex("by_user", (q) => q.eq("userId", user._id))
+          .take(100)
     let communityPublishIdentity: boolean | null = null
+    let guildPremium = null
     if (args.discordGuildId) {
       const guild = await ctx.db
         .query("guilds")
@@ -70,7 +90,24 @@ export const view = query({
         )
         .unique()
       if (guild) {
-        await requireDiscordGuildManager(ctx, guild._id)
+        const membership = await requireDiscordGuildManager(ctx, guild._id)
+        const access = await getGuildAccess(ctx, guild)
+        let administrator = false
+        try {
+          administrator = (BigInt(membership.permissions ?? "0") & 8n) !== 0n
+        } catch {
+          /* Invalid permissions cannot purchase. */
+        }
+        guildPremium = {
+          state: access.state,
+          capabilities: access.capabilities,
+          validUntil: access.validUntil,
+          canPurchase:
+            guild.botLeftAt === undefined &&
+            !!backendEnv.CLEO_OFFICIAL_GUILD_ID &&
+            guild.discordGuildId !== backendEnv.CLEO_OFFICIAL_GUILD_ID &&
+            (membership.isOwner === true || administrator),
+        }
         communityPublishIdentity =
           (
             await ctx.db
@@ -82,13 +119,14 @@ export const view = query({
     }
     return {
       communityPublishIdentity,
+      guildPremium,
       configured:
         backendEnv.STRIPE_TEST_CHECKOUT_ENABLED === "true" &&
         !!backendEnv.STRIPE_SECRET_KEY?.startsWith("sk_test_") &&
         !!backendEnv.STRIPE_GUILD_PREMIUM_PRICE_ID &&
         !!backendEnv.CLEO_DASHBOARD_ORIGIN,
       canManageOwnBilling: !!customer,
-      subscriptions: paid.map((p) => ({
+      subscriptions: (args.discordGuildId ? [] : paid).map((p) => ({
         id: p._id,
         announce: p.announce,
         displayRole: p.displayRole,

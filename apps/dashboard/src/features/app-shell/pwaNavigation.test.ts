@@ -36,6 +36,7 @@ test("actual dashboard navigation uses in-scope Next links without new-window ta
   t.mock.module("convex/react", {
     exports: {
       useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+      useQuery: () => undefined,
       usePreloadedQuery: (query: { _name: string }) =>
         query._name === "guilds"
           ? [{ discordGuildId: "123" }]

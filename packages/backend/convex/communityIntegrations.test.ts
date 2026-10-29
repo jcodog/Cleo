@@ -129,6 +129,124 @@ async function fixture() {
 const discordUserId = "111111111111111111"
 const discordGuildId = "333333333333333333"
 
+test("Clerk Linked Roles requires consent once, validates the application, publishes idempotently and disconnects without revoking Clerk", async (t) => {
+  const f = await fixture()
+  let scopes = ["identify"],
+    applicationId = "888888888888888888",
+    publications = 0,
+    removals = 0,
+    expectedAccessToken = "clerk-provider-token"
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url.endsWith("/users/alice"))
+      return Response.json({
+        id: "alice",
+        external_accounts: [
+          { provider: "oauth_discord", provider_user_id: discordUserId },
+        ],
+      })
+    if (url.includes("oauth_access_tokens"))
+      return Response.json([{ token: "clerk-provider-token" }])
+    if (url.endsWith("/oauth2/@me"))
+      return Response.json({
+        application: { id: applicationId },
+        user: { id: discordUserId },
+        scopes,
+        expires: new Date(Date.now() + 3600000).toISOString(),
+      })
+    if (url.endsWith("/users/@me")) return Response.json({ id: discordUserId })
+    if (url.includes("/users/@me/guilds"))
+      return Response.json([{ id: discordGuildId, permissions: "8" }])
+    if (url.endsWith("/role-connection")) {
+      assert.equal(
+        new Headers(init?.headers).get("Authorization"),
+        `Bearer ${expectedAccessToken}`
+      )
+      if (init?.method === "PUT") {
+        publications++
+        assert.ok(JSON.parse(String(init.body)).metadata.community_manager_tier)
+      }
+      if (init?.method === "DELETE") removals++
+      return Response.json({})
+    }
+    assert.fail(`Unexpected provider call ${url}`)
+  }
+  assert.equal(
+    await f.alice.action(api.communityActions.connectClerkLinkedRoles, {}),
+    "consentRequired"
+  )
+  assert.equal(await f.alice.query(api.discordConnections.status, {}), null)
+  scopes = ["identify", "role_connections.write"]
+  assert.equal(
+    await f.alice.action(api.communityActions.connectClerkLinkedRoles, {}),
+    "ready"
+  )
+  assert.equal(publications, 1)
+  const row = await f.t.query(internal.discordConnections.connection, {
+    userId: f.userId,
+  })
+  assert.equal(row?.tokenSource, "clerk")
+  assert.equal(
+    row?.encryptedTokens,
+    "",
+    "Clerk access and refresh tokens are never stored in Convex"
+  )
+  assert.deepEqual(await f.alice.query(api.discordConnections.status, {}), {
+    provider: "clerk",
+    metadataPublished: true,
+  })
+  await f.alice.action(api.communityActions.connectClerkLinkedRoles, {})
+  assert.equal(
+    publications,
+    1,
+    "Repeated visits reuse consent and identical published metadata"
+  )
+  applicationId = "777777777777777777"
+  assert.equal(
+    await f.alice.action(api.communityActions.connectClerkLinkedRoles, {}),
+    "applicationMismatch"
+  )
+  assert.equal(publications, 1)
+  applicationId = "888888888888888888"
+  await f.alice.action(api.communityActions.disconnectLinkedRoles, {})
+  assert.equal(removals, 1)
+  assert.equal(await f.alice.query(api.discordConnections.status, {}), null)
+  const { encryptDiscordTokens } = await import("./lib/integrationSecurity")
+  expectedAccessToken = "existing-fallback-token"
+  await f.t.mutation(internal.discordConnections.storeTokens, {
+    userId: f.userId,
+    discordUserId,
+    encryptedTokens: encryptDiscordTokens(
+      JSON.stringify({
+        access_token: expectedAccessToken,
+        refresh_token: "existing-fallback-refresh",
+        expires_in: 3600,
+        scope: "identify role_connections.write",
+      })
+    ),
+    expiresAt: Date.now() + 3600000,
+  })
+  applicationId = "777777777777777777"
+  assert.equal(
+    await f.alice.action(api.communityActions.connectClerkLinkedRoles, {}),
+    "ready",
+    "An existing valid fallback grant must not request OAuth again"
+  )
+  assert.equal(
+    (await f.alice.query(api.discordConnections.status, {}))?.provider,
+    "direct"
+  )
+  assert.equal(publications, 2)
+  await assert.rejects(
+    f.t.action(api.communityActions.connectClerkLinkedRoles, {}),
+    /signed in/
+  )
+})
+
 function interactionSnowflake(timestamp: number): string {
   return ((BigInt(timestamp) - 1420070400000n) << 22n).toString()
 }
@@ -370,6 +488,96 @@ test("disabled community rollout makes periodic role bootstrap inert", async () 
     []
   )
 })
+
+for (const mode of [
+  "consent",
+  "providerFailure",
+  "applicationMismatch",
+  "replacement",
+] as const) {
+  test(`Clerk disconnect preserves authorization and revision fencing: ${mode}`, async (t) => {
+    const f = await fixture()
+    await f.t.mutation(internal.discordConnections.connectClerk, {
+      userId: f.userId,
+      discordUserId,
+      expiresAt: Date.now() + 3600000,
+    })
+    const before = await f.t.query(internal.discordConnections.connection, {
+      userId: f.userId,
+    })
+    assert.ok(before)
+    const originalFetch = globalThis.fetch
+    t.after(() => {
+      globalThis.fetch = originalFetch
+    })
+    let deletes = 0
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === "DELETE") {
+        deletes++
+        assert.fail("No remote deletion without a validated grant")
+      }
+      if (url.endsWith("/users/alice")) {
+        if (mode === "replacement")
+          await f.t.run((ctx) =>
+            ctx.db.patch(before._id, { revision: before.revision + 1 })
+          )
+        if (mode === "providerFailure")
+          return new Response("unavailable", { status: 503 })
+        return Response.json({
+          id: "alice",
+          external_accounts: [
+            { provider: "oauth_discord", provider_user_id: discordUserId },
+          ],
+        })
+      }
+      if (url.includes("oauth_access_tokens"))
+        return Response.json([{ token: "clerk-token" }])
+      assert.ok(url.endsWith("/oauth2/@me"))
+      return Response.json({
+        application: {
+          id:
+            mode === "applicationMismatch"
+              ? "777777777777777777"
+              : "888888888888888888",
+        },
+        user: { id: discordUserId },
+        scopes: ["identify"],
+        expires: new Date(Date.now() + 3600000).toISOString(),
+      })
+    }
+    await assert.rejects(
+      f.t.action(api.communityActions.disconnectLinkedRoles, {}),
+      /authenticated|signed in/i
+    )
+    assert.equal(
+      (
+        await f.t.query(internal.discordConnections.connection, {
+          userId: f.userId,
+        })
+      )?.revokedAt,
+      undefined
+    )
+    if (mode === "providerFailure")
+      await assert.rejects(
+        f.alice.action(api.communityActions.disconnectLinkedRoles, {}),
+        /unavailable/
+      )
+    else await f.alice.action(api.communityActions.disconnectLinkedRoles, {})
+    const after = await f.t.query(internal.discordConnections.connection, {
+      userId: f.userId,
+    })
+    assert.ok(after)
+    if (mode === "replacement") assert.equal(after.revokedAt, undefined)
+    else {
+      assert.ok(after.revokedAt)
+      assert.equal(after.leaseUntil, 0)
+      assert.equal(await f.alice.query(api.discordConnections.status, {}), null)
+    }
+    assert.equal(after.revision, before.revision + 1)
+    assert.equal(deletes, 0)
+  })
+}
 
 test("Linked Roles disconnect rejects busy leases, releases failed attempts and revokes on retry", async (t) => {
   const f = await fixture()

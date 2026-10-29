@@ -1,9 +1,7 @@
 "use client"
 
-import { useEffect } from "react"
 import { IconChevronDown, IconPlus, IconServer } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
-import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
 import { cn } from "@workspace/ui/lib/utils"
 import { useQuery } from "convex/react"
 import Image from "next/image"
@@ -22,12 +20,12 @@ import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { getRouteDiscordGuildId } from "@/features/app-shell/routes"
 
 type DiscordGuildOption = {
-  guildId: Id<"guilds">
   discordGuildId: string
   name: string
   iconUrl?: string
 }
 
+/** Keep guild identification visible with initials when Discord has no icon. */
 function GuildIcon({
   className = "size-8",
   guild,
@@ -62,14 +60,16 @@ function GuildIcon({
   )
 }
 
+/** Switch servers explicitly while retaining directory entries during verification. */
 export function DiscordGuildSelect() {
   const refresh = useQuery(api.communityRoles.refreshProgress)
   const verifying = refresh?.state === "pending"
   const router = useRouter()
   const pathname = usePathname()
-  const manageableGuilds = useQuery(
-    api.queries.dashboard.discord.guilds.manageable.list
+  const directory = useQuery(
+    api.queries.dashboard.discord.guilds.directory.list
   )
+  const manageableGuilds = directory?.guilds
   const storedDiscordGuildId = useAppShellStore(
     (state) => state.selectedDiscordGuildId
   )
@@ -87,25 +87,7 @@ export function DiscordGuildSelect() {
   )
   const isLoading = manageableGuilds === undefined || verifying
 
-  useEffect(() => {
-    if (verifying || !manageableGuilds || !selectedDiscordGuildId) {
-      return
-    }
-
-    if (
-      !manageableGuilds.some(
-        (guild) => guild.discordGuildId === selectedDiscordGuildId
-      )
-    ) {
-      setSelectedDiscordGuildId(undefined)
-    }
-  }, [
-    manageableGuilds,
-    selectedDiscordGuildId,
-    setSelectedDiscordGuildId,
-    verifying,
-  ])
-
+  /** Open installation from the directory without changing the current server selection. */
   function handleAddGuild() {
     router.push("/dashboard/add-server")
   }
@@ -167,9 +149,11 @@ export function DiscordGuildSelect() {
                     key={guild.discordGuildId}
                     onClick={() => {
                       setSelectedDiscordGuildId(guild.discordGuildId)
-                      router.push(
-                        getGuildSwitchHref(pathname, guild.discordGuildId)
+                      const href = getGuildSwitchHref(
+                        pathname,
+                        guild.discordGuildId
                       )
+                      if (href !== pathname) router.push(href)
                     }}
                   >
                     <GuildIcon className="size-5" guild={guild} />
@@ -185,6 +169,7 @@ export function DiscordGuildSelect() {
   )
 }
 
+/** Preserve the active dashboard section when switching between guild routes. */
 function getGuildSwitchHref(
   pathname: string,
   nextDiscordGuildId: string

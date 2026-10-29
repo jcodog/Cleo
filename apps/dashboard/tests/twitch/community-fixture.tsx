@@ -1,4 +1,9 @@
-import React, { StrictMode, useState, useSyncExternalStore } from "react"
+import React, {
+  StrictMode,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react"
 import { resolveCleoRoleEligibility } from "@workspace/shared/cleoRoleEligibility"
 import { AccountRoles } from "../../src/features/community/AccountRoles"
 import { LinkedRoleCallback } from "../../src/features/community/LinkedRoleCallback"
@@ -6,6 +11,13 @@ import { PremiumPurchases } from "../../src/features/community/PremiumPurchases"
 import { DiscordAddServerPageShell } from "../../src/features/add-server/DiscordAddServerPageShell"
 import { LinkedRoleTesting } from "../../src/features/staff/LinkedRoleTesting"
 import { DashboardDiscordHydrator } from "../../src/features/app-shell/DashboardDiscordHydrator"
+import { DashboardShellClient } from "../../src/features/app-shell/DashboardShellClient"
+import { DiscordDashboardPageShell } from "../../src/features/dashboard/DiscordDashboardPageShell"
+import { SettingsSection } from "../../src/features/discord-guild-workspace/sections/SettingsSection"
+import { api } from "@workspace/backend/convex/_generated/api.js"
+import { usePathname } from "./navigation-fixture"
+import { preloadQuery } from "convex/nextjs"
+import type { Preloaded } from "convex/react"
 
 const params = new URLSearchParams(location.search)
 export const communityFixtureMode = params.has("community")
@@ -19,12 +31,43 @@ let progress: {
   observedAt: number
 } | null = null
 const discordIdentity = { providerAccountId: "111111111111111111" }
+const directoryGuilds = [
+  {
+    discordGuildId: "333333333333333333",
+    name: "Cleo community",
+    verified: true,
+    verifiedAt,
+    memberCount: 240,
+  },
+  {
+    discordGuildId: "444444444444444444",
+    name: "Second server",
+    verified: true,
+    verifiedAt,
+    memberCount: 72,
+  },
+]
+let directory = { status: "ready", guilds: directoryGuilds }
+window.addEventListener("directory-fixture", (event) => {
+  if (!(event instanceof CustomEvent)) return
+  directory = {
+    status: event.detail.status,
+    guilds: event.detail.removed ? directoryGuilds.slice(1) : directoryGuilds,
+  }
+  window.dispatchEvent(new Event("fixture-update"))
+})
 let testGrant: { roles: string[]; expiresAt: number; reason: string } | null =
   null
 let purchaseView = {
   configured: true,
   canManageOwnBilling: true,
   communityPublishIdentity: false,
+  guildPremium: {
+    state: "expired",
+    capabilities: [],
+    validUntil: 0,
+    canPurchase: true,
+  },
   subscriptions: params.has("existing")
     ? [
         {
@@ -38,6 +81,12 @@ let purchaseView = {
     : [],
 }
 export function communityQuery(path: string) {
+  if (path === "discordConnections:status") return null
+  if (path === "queries/dashboard/discord/guilds/directory:list")
+    return directory
+  if (path === "queries/dashboard/discord/guilds/manageable:list")
+    return directory.status === "ready" ? directory.guilds : []
+  if (path === "queries/dashboard/staff/access:get") return null
   if (path === "queries/dashboard/account/discordIdentity:get")
     return discordIdentity
   if (path === "communityRoles:refreshProgress") return progress
@@ -86,6 +135,12 @@ export async function communityWrite(
   }
   if (path === "communityActions:beginLinkedRoles")
     return "https://discord.com/oauth2/authorize?client_id=fixture&state=fixture-state"
+  if (path === "communityActions:connectClerkLinkedRoles")
+    return params.has("consented")
+      ? "ready"
+      : params.has("appMismatch")
+        ? "applicationMismatch"
+        : "consentRequired"
   if (path === "communityActions:installAccount")
     return "https://discord.com/oauth2/authorize?integration_type=1&scope=applications.commands"
   if (path === "actions/dashboard/discord/install/listInstallableGuilds:list") {
@@ -168,6 +223,15 @@ export function CommunityFixture() {
     },
     () => JSON.stringify(calls)
   )
+  if (params.has("navigation"))
+    return (
+      <>
+        <NavigationFixture />
+        <output hidden data-testid="community-calls">
+          {operations}
+        </output>
+      </>
+    )
   return (
     <main>
       <StrictMode>
@@ -187,6 +251,8 @@ export function CommunityFixture() {
           <AccountRoles />
         )}
         {location.pathname === "/account/billing" ? (
+          <PremiumPurchases />
+        ) : location.pathname.endsWith("/premium") ? (
           <PremiumPurchases discordGuildId="333333333333333333" />
         ) : null}
       </StrictMode>
@@ -200,5 +266,55 @@ export function CommunityFixture() {
         {JSON.stringify(purchaseView)}
       </output>
     </main>
+  )
+}
+
+function NavigationFixture() {
+  const pathname = usePathname()
+  const guildId = pathname.split("/")[2]
+  const [preloads, setPreloads] = useState<{
+    guilds: Preloaded<
+      typeof api.queries.dashboard.discord.guilds.manageable.list
+    >
+    staff: Preloaded<typeof api.queries.dashboard.staff.access.get>
+  }>()
+  useEffect(() => {
+    let active = true
+    const options = { url: location.origin, skipConvexDeploymentUrlCheck: true }
+    void Promise.all([
+      preloadQuery(
+        api.queries.dashboard.discord.guilds.manageable.list,
+        {},
+        options
+      ),
+      preloadQuery(api.queries.dashboard.staff.access.get, {}, options),
+    ]).then(([guilds, staff]) => {
+      if (active) setPreloads({ guilds, staff })
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+  if (!preloads) return <p>Loading fixture</p>
+  return (
+    <DashboardShellClient
+      preloadedManageableGuilds={preloads.guilds}
+      preloadedStaffAccess={preloads.staff}
+    >
+      <div className="w-full min-w-0">
+        <DashboardDiscordHydrator />
+        {pathname === "/dashboard" ? (
+          <DiscordDashboardPageShell />
+        ) : pathname === "/account/billing" ? (
+          <PremiumPurchases />
+        ) : pathname.endsWith("/premium") ? (
+          <PremiumPurchases key={guildId} discordGuildId={guildId} />
+        ) : pathname.endsWith("/settings") ? (
+          <SettingsSection discordGuildId={guildId ?? ""} />
+        ) : (
+          <h1>Server overview</h1>
+        )}
+      </div>
+    </DashboardShellClient>
   )
 }

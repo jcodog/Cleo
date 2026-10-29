@@ -14,6 +14,7 @@ import {
   useConvexAuth,
   useMutation,
   usePreloadedQuery,
+  useQuery,
 } from "convex/react"
 
 import { getConvexAuthHydrationResult } from "@/features/app-shell/convexAuthHydration"
@@ -30,6 +31,7 @@ import { LogsSection } from "./sections/LogsSection"
 import { ModerationSection } from "./sections/ModerationSection"
 import { OverviewSection } from "./sections/OverviewSection"
 import { SettingsSection } from "./sections/SettingsSection"
+import { PremiumGuildSection } from "./sections/PremiumGuildSection"
 import { SupportSection } from "./sections/SupportSection"
 import { WelcomeSection } from "./sections/WelcomeSection"
 import { LiveNotificationsSection } from "./sections/LiveNotificationsSection"
@@ -46,6 +48,7 @@ type DiscordGuildWorkspacePageShellProps = {
   section?: DiscordGuildSection
 }
 
+/** Gate protected server sections on backend authority without bouncing a guild deep link. */
 export function DiscordGuildWorkspacePageShell({
   preloadedOverview,
   section = "overview",
@@ -53,6 +56,10 @@ export function DiscordGuildWorkspacePageShell({
   const { sessionId } = useAuth()
   const { isAuthenticated, isLoading } = useConvexAuth()
   const liveOverviewResult = usePreloadedQuery(preloadedOverview)
+  const directory = useQuery(
+    api.queries.dashboard.discord.guilds.directory.list,
+    isAuthenticated ? {} : "skip"
+  )
 
   const [initialClerkSessionId] = useState(sessionId)
   const [initialOverviewResult] = useState(liveOverviewResult)
@@ -108,11 +115,31 @@ export function DiscordGuildWorkspacePageShell({
   }
 
   if (overviewResult.status === "forbidden") {
+    const state = directory?.status ?? "pending"
+    const titles = {
+      pending: "Checking Discord permissions",
+      expired: "Verification expired",
+      unavailable: "Verification unavailable",
+      missingDiscord: "Connect Discord",
+      ready: "Access not available",
+    }
+    const descriptions = {
+      pending:
+        "Discord is verifying management permissions. Stay on this page while the check completes. Server tools remain restricted.",
+      expired:
+        "Your management evidence has expired. Server tools remain restricted until Discord verification succeeds.",
+      unavailable:
+        "Discord verification is temporarily unavailable. Retry verification from the dashboard notice. Server tools remain restricted.",
+      missingDiscord:
+        "Connect your Discord identity in your Cleo account before opening this server.",
+      ready:
+        "Your signed-in Discord identity does not have management access for this server.",
+    }
     return (
       <WorkspaceState
-        description="Your signed-in Discord identity does not have verified management access for this server."
+        description={descriptions[state]}
         icon={IconAlertTriangle}
-        title="Access Not Available"
+        title={titles[state]}
       />
     )
   }
@@ -126,6 +153,7 @@ export function DiscordGuildWorkspacePageShell({
   )
 }
 
+/** Retain the selected server context and warn when its bot installation has ended. */
 function WorkspaceReadyView({
   isBotLeft,
   overview,
@@ -165,6 +193,7 @@ function WorkspaceReadyView({
   )
 }
 
+/** Identify the current guild and section independently of the sidebar's saved selection. */
 function WorkspaceHeader({
   isBotLeft,
   overview,
@@ -190,6 +219,7 @@ function WorkspaceHeader({
   )
 }
 
+/** Key section state by guild so drafts cannot carry into a different server. */
 function WorkspaceSection({
   isBotLeft,
   overview,
@@ -246,7 +276,9 @@ function WorkspaceSection({
           overview={overview}
         />
       )
+    case "premium":
+      return <PremiumGuildSection overview={overview} />
     case "settings":
-      return <SettingsSection isBotLeft={isBotLeft} overview={overview} />
+      return <SettingsSection discordGuildId={overview.discordGuildId} />
   }
 }

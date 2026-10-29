@@ -14,9 +14,14 @@ const bundle = await build({
     {
       name: "isolated-twitch-providers",
       setup(build) {
+        build.onResolve({ filter: /^next\/image$/ }, () => ({
+          path: path.join(root, "tests/twitch/image-fixture.tsx"),
+        }))
         build.onResolve({ filter: /^\.\/routes$/ }, (args) => {
           if (args.importer.endsWith("AppPlatformSelector.tsx"))
-            return { path: path.join(root, "tests/twitch/routes-release-fixture.ts") }
+            return {
+              path: path.join(root, "tests/twitch/routes-release-fixture.ts"),
+            }
         })
         build.onResolve({ filter: /^next\/(?:link|navigation)$/ }, () => ({
           path: path.join(root, "tests/twitch/navigation-fixture.tsx"),
@@ -47,6 +52,25 @@ serve({
   port: 4319,
   fetch: async (request) => {
     const url = new URL(request.url)
+    if (url.pathname === "/api/query") {
+      const { path: queryPath } = await request.json()
+      if (
+        ![
+          "queries/dashboard/discord/guilds/manageable:list",
+          "queries/dashboard/staff/access:get",
+        ].includes(queryPath)
+      )
+        return new Response("Unknown fixture query", { status: 400 })
+      return Response.json({
+        status: "success",
+        value: queryPath.includes("manageable") ? [] : null,
+      })
+    }
+    if (url.pathname === "/favicon-32x32.png")
+      return new Response(
+        await readFile(path.join(root, "public/favicon-32x32.png")),
+        { headers: { "content-type": "image/png" } }
+      )
     if (url.pathname === "/fixture.js")
       return new Response(javascript, {
         headers: { "content-type": "application/javascript" },

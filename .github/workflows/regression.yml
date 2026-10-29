@@ -87,6 +87,14 @@ jobs:
           bun run --filter @workspace/dashboard build
           bun run --filter @workspace/dashboard test:pwa:build
 
+      - name: Verify Expo compatibility and export native bundles
+        env:
+          EXPO_PUBLIC_CONVEX_URL: https://build-only.convex.cloud
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+        run: |
+          bun run --filter @workspace/mobile check:expo
+          bun run --filter @workspace/mobile build
+
       - name: Install welcome verification browsers
         working-directory: apps/dashboard
         run: bunx --no-install playwright install --with-deps chromium firefox
@@ -173,6 +181,7 @@ jobs:
           path: |
             coverage/apps/dashboard/cobertura-coverage.xml
             coverage/apps/landing/cobertura-coverage.xml
+            coverage/apps/mobile/cobertura-coverage.xml
             coverage/apps/discord-bot/cobertura-coverage.xml
             coverage/apps/twitch-bot/cobertura-coverage.xml
             coverage/packages/backend/cobertura-coverage.xml
