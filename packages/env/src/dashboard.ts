@@ -11,7 +11,10 @@ export const dashboardEnv = createEnv({
   },
   clientPrefix: "NEXT_PUBLIC_",
   client: {
+    // Frontend build target. Preview must use the matching development backend.
     NEXT_PUBLIC_CONVEX_URL: optionalUrl,
+    // Elements only. Billing history must remain readable without checkout.
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
     NEXT_PUBLIC_APP_URL: optionalUrl,
     NEXT_PUBLIC_SITE_URL: optionalUrl,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
@@ -26,6 +29,8 @@ export const dashboardEnv = createEnv({
     VERCEL_URL: process.env.VERCEL_URL,
     VERCEL_ENV: process.env.VERCEL_ENV,
     NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:

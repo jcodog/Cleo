@@ -1,8 +1,16 @@
 "use client"
 
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { UserButton, useClerk } from "@clerk/nextjs"
-import { IconHome, IconLogout, IconShieldLock } from "@tabler/icons-react"
+import {
+  IconArrowLeft,
+  IconCreditCard,
+  IconHome,
+  IconLogout,
+  IconShieldLock,
+} from "@tabler/icons-react"
 
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 import { Separator } from "@workspace/ui/components/separator"
@@ -15,16 +23,48 @@ import {
 
 export function AppTopbar({
   staffEntry = null,
+  showSidebar = true,
 }: {
   staffEntry?: StaffTopbarEntry | null
+  showSidebar?: boolean
 }) {
+  const pathname = usePathname()
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur">
-      <SidebarTrigger />
-      <Separator orientation="vertical" className="my-auto h-5" />
+      {showSidebar ? (
+        <>
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="my-auto h-5" />
+        </>
+      ) : null}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">CleoAI Dashboard</p>
+        {pathname.startsWith("/dashboard") ? (
+          <nav aria-label="Breadcrumb" className="text-sm">
+            <Link
+              href="/dashboard/servers"
+              aria-current={
+                pathname === "/dashboard/servers" ? "page" : undefined
+              }
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Servers
+            </Link>
+          </nav>
+        ) : pathname.startsWith("/account") || pathname === "/billing" ? (
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            <IconArrowLeft aria-hidden size={16} /> Back to dashboard
+          </Link>
+        ) : (
+          <p className="truncate text-sm font-medium">
+            {pathname.startsWith("/account")
+              ? "Account settings"
+              : "CleoAI Dashboard"}
+          </p>
+        )}
       </div>
 
       <MountedUserButton staffEntry={staffEntry} />
@@ -81,6 +121,8 @@ export function StaffUserButton({
 
   return (
     <UserButton
+      userProfileMode="navigation"
+      userProfileUrl="/account"
       appearance={{
         elements: {
           userButtonPopoverActionButton__signOut: { display: "none" },
@@ -89,6 +131,18 @@ export function StaffUserButton({
       showName
     >
       <UserButton.MenuItems>
+        <UserButton.Link
+          href="/billing"
+          label="Billing"
+          labelIcon={<IconCreditCard aria-hidden size={16} />}
+        />
+        {staffLink?.href !== "/dashboard" ? (
+          <UserButton.Link
+            href="/dashboard"
+            label="Cleo Dashboard"
+            labelIcon={<IconHome aria-hidden size={16} />}
+          />
+        ) : null}
         {staffLink ? (
           <UserButton.Link
             href={staffLink.href}

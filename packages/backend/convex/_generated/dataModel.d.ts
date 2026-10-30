@@ -53,6 +53,41 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  billingCatalogueOperations: {
+    document: {
+      accountId: string;
+      completedAt?: number;
+      createdAt: number;
+      key: string;
+      leaseUntil: number;
+      request: string;
+      result?: string;
+      userId: Id<"users">;
+      worker: string;
+      _id: Id<"billingCatalogueOperations">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "accountId"
+      | "completedAt"
+      | "createdAt"
+      | "key"
+      | "leaseUntil"
+      | "request"
+      | "result"
+      | "userId"
+      | "worker";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_created: ["createdAt", "_creationTime"];
+      by_user_key: ["userId", "key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   billingCustomers: {
     document: {
       clerkUserId: string;
@@ -2848,6 +2883,7 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_guild: ["guildId", "_creationTime"];
       by_key: ["key", "_creationTime"];
+      by_session: ["sessionId", "_creationTime"];
       by_user_open: ["userId", "closedAt", "_creationTime"];
     };
     searchIndexes: {};

@@ -10,15 +10,22 @@ export const backendEnv = createEnv({
     CONVEX_DEPLOYMENT: optionalString,
     CONVEX_URL: optionalUrl,
 
+    // Hosted Convex settings are deployment scoped, independent of local files.
     CLERK_JWT_ISSUER_DOMAIN: optionalUrl,
     CLERK_SECRET_KEY: optionalString,
     CLERK_WEBHOOK_SECRET: optionalString,
 
+    // Optional at process startup for non-billing features. Financial actions
+    // enforce test mode, expected account and capability-specific prerequisites.
     STRIPE_SECRET_KEY: optionalString,
+    STRIPE_EXPECTED_ACCOUNT_ID: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,
     STRIPE_GUILD_PREMIUM_PRICE_ID: optionalString,
     STRIPE_TEST_CHECKOUT_ENABLED: optionalString,
+    STRIPE_CATALOGUE_MANAGER_IDS: optionalString,
+    STRIPE_CATALOGUE_WRITES_ENABLED: optionalString,
     CLEO_DASHBOARD_ORIGIN: optionalUrl,
+    CLEO_DASHBOARD_ALLOWED_ORIGINS: optionalString,
     CLEO_OFFICIAL_GUILD_ID: optionalString,
     CLEO_MANAGED_ROLE_IDS: optionalString,
     CLEO_COMMUNITY_UPGRADES_CHANNEL_ID: optionalString,

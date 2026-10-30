@@ -5,7 +5,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@workspace/ui/components/accordion"
-import Link from "next/link"
 const questions = [
   [
     "What are Linked Roles?",
@@ -32,26 +31,10 @@ const questions = [
     "Disconnecting your Discord verification or losing the required installation, permissions, subscription or consent removes the corresponding eligibility. Other roles remain independent. Premium Supporter recognition is optional.",
   ],
 ] as const
-/** Explain native Linked Roles eligibility and link to explicit Discord verification. */
+/** Explain roles claimed through Discord without starting dashboard verification. */
 export function AccountRoles() {
   return (
     <div className="max-w-2xl space-y-8">
-      <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-        <Link
-          href="/discord/linked-role"
-          className="font-medium text-primary underline underline-offset-4"
-        >
-          Verify Discord Linked Roles
-        </Link>
-        <p>
-          Show your connection to Cleo and the communities you support through
-          Discord Linked Roles.
-        </p>
-        <p>
-          Open the Cleo server in Discord, choose a Linked Role and complete
-          verification when Discord asks.
-        </p>
-      </div>
       <section aria-labelledby="linked-roles-faq">
         <h2
           id="linked-roles-faq"

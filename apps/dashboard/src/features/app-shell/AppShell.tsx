@@ -11,7 +11,17 @@ export function AppShell({
   showDiscordGuildSelect,
   showPlatformSelector,
   staffEntry,
+  hideSidebar = false,
 }: AppShellProps) {
+  if (hideSidebar)
+    return (
+      <main className="flex min-h-svh w-full flex-col">
+        <AppTopbar staffEntry={staffEntry} showSidebar={false} />
+        <section id="dashboard-page" className="flex flex-1 p-3 sm:p-6">
+          {children}
+        </section>
+      </main>
+    )
   return (
     <SidebarProvider>
       <AppSidebar

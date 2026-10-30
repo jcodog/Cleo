@@ -20,6 +20,68 @@ import type { GenericId as Id } from "convex/values";
  * ```
  */
 export declare const api: {
+  accountBilling: {
+    overview: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        canManageBilling: boolean;
+        clerkUserId: string;
+        configuration: {
+          catalogueWritesEnabled: boolean;
+          checkoutEnabled: boolean;
+          missing: Array<string>;
+          returnOrigin: string | null;
+          stripeMode: string;
+        };
+        hasMore: boolean;
+        subscriptions: Array<{
+          cancelAtPeriodEnd: boolean;
+          endsAt: number;
+          guildName: string | null;
+          id: Id<"guildSubscriptions">;
+          paymentFailedAt?: number;
+          priceId: string;
+          recognition: null | {
+            announce: boolean;
+            displayRole: boolean;
+            id: Id<"paidCommunityActivations">;
+            testMode: boolean;
+          };
+          reconciledAt: number;
+          startsAt: number;
+          status:
+            | "active"
+            | "trialing"
+            | "past_due"
+            | "canceled"
+            | "unpaid"
+            | "incomplete"
+            | "incomplete_expired"
+            | "paused"
+            | "expired"
+            | "revoked";
+          stripeSubscriptionId: string;
+        }>;
+      }
+    >;
+  };
+  accountBillingActions: {
+    prices: FunctionReference<
+      "action",
+      "public",
+      {},
+      Array<{
+        amount: number | null;
+        currency: string;
+        id: string;
+        interval: string | null;
+        intervalCount: number;
+        name: string;
+      }>
+    >;
+  };
   actions: {
     bot: {
       discord: {
@@ -1599,6 +1661,186 @@ export declare const api: {
       };
     };
   };
+  billingCatalogue: {
+    access: FunctionReference<
+      "query",
+      "public",
+      {},
+      { canRead: boolean; canWrite: boolean }
+    >;
+    history: FunctionReference<
+      "query",
+      "public",
+      {},
+      Array<{
+        completedAt?: number;
+        createdAt: number;
+        key: string;
+        request: string;
+      }>
+    >;
+  };
+  billingCatalogueActions: {
+    change: FunctionReference<
+      "action",
+      "public",
+      {
+        confirmation: string;
+        key: string;
+        request: string;
+        sessionToken: string;
+      },
+      string
+    >;
+    detail: FunctionReference<
+      "action",
+      "public",
+      { cursor?: string; productId: string },
+      {
+        next: string | null;
+        prices: Array<{
+          active: boolean;
+          amount: number | null;
+          approved: boolean;
+          currency: string;
+          id: string;
+          interval: string | null;
+          intervalCount: number;
+        }>;
+        product: {
+          active: boolean;
+          defaultPrice: string | null;
+          description: string | null;
+          id: string;
+          name: string;
+        };
+      }
+    >;
+    list: FunctionReference<
+      "action",
+      "public",
+      { cursor?: string },
+      {
+        accountId: string;
+        next: string | null;
+        products: Array<{
+          active: boolean;
+          defaultPrice: string | null;
+          description: string | null;
+          id: string;
+          name: string;
+        }>;
+      }
+    >;
+  };
+  billingPortalActions: {
+    beginSetup: FunctionReference<
+      "action",
+      "public",
+      { key: string; returnOrigin?: string },
+      { clientSecret: string; id: string; returnUrl: string }
+    >;
+    cancelSetup: FunctionReference<
+      "action",
+      "public",
+      { setupIntentId: string },
+      null
+    >;
+    completeSetup: FunctionReference<
+      "action",
+      "public",
+      { setupIntentId: string },
+      "saved" | "processing"
+    >;
+    makeDefault: FunctionReference<
+      "action",
+      "public",
+      { key: string; paymentMethodId: string },
+      null
+    >;
+    profile: FunctionReference<
+      "action",
+      "public",
+      {},
+      {
+        clerkUserId: string;
+        customer: null | {
+          address: {
+            city: string;
+            country: string;
+            line1: string;
+            line2: string;
+            postalCode: string;
+            state: string;
+          };
+          defaultMethodId: string | null;
+          email: string;
+          name: string;
+        };
+        hasMoreInvoices: boolean;
+        hasMoreMethods: boolean;
+        hasMoreSubscriptions: boolean;
+        invoices: Array<{
+          amount: number;
+          createdAt: number;
+          currency: string;
+          id: string;
+          number: string | null;
+          pdf: string | null;
+          status: string;
+          url: string | null;
+        }>;
+        methods: Array<{
+          brand: string | null;
+          expiryMonth: number | null;
+          expiryYear: number | null;
+          id: string;
+          label: string;
+          last4: string | null;
+          manageable: boolean;
+          type: string;
+        }>;
+        subscriptions: Array<{
+          cancelAtPeriodEnd: boolean;
+          id: string;
+          items: Array<{
+            amount: number | null;
+            currency: string;
+            interval: string | null;
+            intervalCount: number;
+            name: string;
+            quantity: number;
+          }>;
+          periodEnd: number | null;
+          status: string;
+        }>;
+      }
+    >;
+    removeMethod: FunctionReference<
+      "action",
+      "public",
+      { key: string; paymentMethodId: string },
+      null
+    >;
+    updateDetails: FunctionReference<
+      "action",
+      "public",
+      {
+        address: {
+          city: string;
+          country: string;
+          line1: string;
+          line2: string;
+          postalCode: string;
+          state: string;
+        };
+        email: string;
+        key: string;
+        name: string;
+      },
+      null
+    >;
+  };
   communityActions: {
     beginLinkedRoles: FunctionReference<"action", "public", {}, string>;
     connectClerkLinkedRoles: FunctionReference<
@@ -2195,13 +2437,55 @@ export declare const api: {
     };
   };
   premiumActions: {
+    cancelCheckout: FunctionReference<
+      "action",
+      "public",
+      { discordGuildId: string; sessionId: string },
+      "expired" | "complete"
+    >;
     checkout: FunctionReference<
       "action",
       "public",
       { announce: boolean; discordGuildId: string; displayRole: boolean },
+      {
+        clientSecret: string;
+        expiresAt: number;
+        offer: {
+          currency: string;
+          email: string;
+          guildName: string;
+          interval: "day" | "week" | "month" | "year";
+          intervalCount: number;
+          name: string;
+          unitAmount: number;
+        };
+        sessionId: string;
+      }
+    >;
+    checkoutStatus: FunctionReference<
+      "action",
+      "public",
+      { discordGuildId: string; sessionId: string },
+      { guildName: string; paymentStatus: string; status: string }
+    >;
+    offer: FunctionReference<
+      "action",
+      "public",
+      { discordGuildId: string },
+      null | {
+        currency: string;
+        interval: "day" | "week" | "month" | "year";
+        intervalCount: number;
+        name: string;
+        unitAmount: number;
+      }
+    >;
+    portal: FunctionReference<
+      "action",
+      "public",
+      { returnOrigin?: string },
       string
     >;
-    portal: FunctionReference<"action", "public", {}, string>;
     setCommunityConsent: FunctionReference<
       "action",
       "public",
@@ -2231,8 +2515,15 @@ export declare const api: {
         guildPremium: null | {
           canPurchase: boolean;
           capabilities: Array<string>;
+          iconUrl?: string;
+          name: string;
           state: "active" | "trial" | "grace" | "expired" | "revoked";
           validUntil: number;
+        };
+        pendingCheckout: null | {
+          announce: boolean;
+          displayRole: boolean;
+          sessionId?: string;
         };
         subscriptions: Array<{
           active: boolean;
@@ -2454,6 +2745,7 @@ export declare const api: {
               "public",
               {},
               {
+                clerkUserId: string | null;
                 guilds: Array<{
                   discordGuildId: string;
                   iconUrl?: string;
@@ -3498,6 +3790,37 @@ export declare const api: {
  * ```
  */
 export declare const internal: {
+  billingCatalogue: {
+    authority: FunctionReference<
+      "query",
+      "internal",
+      { write: boolean },
+      { clerkUserId: string; sessionId: string }
+    >;
+    claim: FunctionReference<
+      "mutation",
+      "internal",
+      { accountId: string; key: string; request: string; worker: string },
+      null | string
+    >;
+    complete: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        key: string;
+        mapping?: { priceId: string; productId: string };
+        result: string;
+        worker: string;
+      },
+      null
+    >;
+    mappings: FunctionReference<
+      "query",
+      "internal",
+      {},
+      Array<{ priceId: string; productId: string }>
+    >;
+  };
   communityActions: {
     publishLinkedRoles: FunctionReference<
       "action",
@@ -7440,10 +7763,32 @@ export declare const internal: {
         userId: Id<"users">;
       } | null
     >;
+    checkoutBySession: FunctionReference<
+      "query",
+      "internal",
+      { sessionId: string },
+      {
+        _creationTime: number;
+        _id: Id<"premiumCheckouts">;
+        announce: boolean;
+        closedAt?: number;
+        createdAt: number;
+        creationStartedAt?: number;
+        discordUserId: string;
+        displayRole: boolean;
+        expiresAt: number;
+        guildId: Id<"guilds">;
+        key: string;
+        purchaserKind: "owner" | "administrator";
+        sessionId?: string;
+        url?: string;
+        userId: Id<"users">;
+      } | null
+    >;
     checkoutCreated: FunctionReference<
       "mutation",
       "internal",
-      { expiresAt: number; key: string; sessionId: string; url: string },
+      { expiresAt: number; key: string; sessionId: string; url?: string },
       null
     >;
     closeCheckout: FunctionReference<

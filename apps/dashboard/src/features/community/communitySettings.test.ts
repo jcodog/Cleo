@@ -32,6 +32,7 @@ test("moderation stays locked and purchase visibility starts private in actual d
     health: "Release locked",
   }
   const calls: { path: string; args: unknown }[] = []
+  const effects: (() => void)[] = []
   t.mock.module("react", {
     exports: {
       ...React,
@@ -47,7 +48,9 @@ test("moderation stays locked and purchase visibility starts private in actual d
         ]
       },
       useRef: (value: unknown) => ({ current: value }),
-      useEffect: () => {},
+      useEffect: (effect: () => void) => {
+        effects.push(effect)
+      },
     },
   })
   t.mock.module("convex/react", {
@@ -62,12 +65,38 @@ test("moderation stays locked and purchase visibility starts private in actual d
       useAction:
         (reference: Parameters<typeof getFunctionName>[0]) =>
         async (args: unknown) => {
+          if (getFunctionName(reference) === "premiumActions:offer")
+            return {
+              name: "Cleo Server Premium",
+              currency: "gbp",
+              unitAmount: 499,
+              interval: "month",
+              intervalCount: 1,
+            }
           calls.push({ path: getFunctionName(reference), args })
           return "https://checkout.stripe.com/fixture"
         },
     },
   })
   t.mock.module("next/link", { defaultExport: "a" })
+  t.mock.module("next/image", { defaultExport: "img" })
+  t.mock.module("@clerk/nextjs", {
+    exports: {
+      useAuth: () => ({
+        isLoaded: true,
+        userId: "fixture-user",
+        sessionId: "fixture-session",
+      }),
+    },
+  })
+  t.mock.module("@workspace/env/dashboard", {
+    exports: {
+      dashboardEnv: { NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_fixture" },
+    },
+  })
+  t.mock.module("./PremiumCheckout.tsx", {
+    exports: { PremiumCheckout: () => null },
+  })
   for (const [module, names] of [
     ["button", ["Button"]],
     ["switch", ["Switch"]],
@@ -156,6 +185,20 @@ test("moderation stays locked and purchase visibility starts private in actual d
     },
     subscriptions: [],
   }
+  effects.length = 0
+  const initialPurchase = nodes(
+    PremiumPurchases({ discordGuildId: "333333333333333333" })
+  )
+  assert.equal(
+    initialPurchase.find(
+      (node) =>
+        node.type === "button" && content(node).includes("Continue to checkout")
+    )?.props.disabled,
+    true
+  )
+  effects.splice(0).forEach((effect) => effect())
+  await Promise.resolve()
+  index = 0
   const purchase = nodes(
     PremiumPurchases({ discordGuildId: "333333333333333333" })
   )
@@ -166,10 +209,10 @@ test("moderation stays locked and purchase visibility starts private in actual d
   )
   const checkout = purchase.find(
     (node) =>
-      node.type === "button" && content(node).includes("Continue to Stripe")
+      node.type === "button" && content(node).includes("Continue to checkout")
   )
   assert.ok(checkout && !checkout.props.disabled)
-  assert.ok(purchase.some((node) => node.props.href === "/account/billing"))
+  assert.ok(purchase.some((node) => node.props.href === "/billing"))
   assert.ok(
     !purchase.some((node) => content(node) === "Manage my Stripe billing")
   )
@@ -201,7 +244,7 @@ test("moderation stays locked and purchase visibility starts private in actual d
   assert.equal(
     nodes(PremiumPurchases({ discordGuildId: "333333333333333333" })).find(
       (node) =>
-        node.type === "button" && content(node).includes("Continue to Stripe")
+        node.type === "button" && content(node).includes("Continue to checkout")
     )?.props.disabled,
     true
   )

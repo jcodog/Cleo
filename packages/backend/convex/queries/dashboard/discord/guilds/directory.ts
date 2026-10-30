@@ -11,6 +11,7 @@ import {
 export const list = query({
   args: {},
   returns: v.object({
+    clerkUserId: v.union(v.string(), v.null()),
     status: v.union(
       v.literal("ready"),
       v.literal("pending"),
@@ -33,9 +34,14 @@ export const list = query({
   handler: async (ctx) => {
     const user = await getCurrentUser(ctx)
     if (!user || user.status === "disabled")
-      return { status: "unavailable" as const, guilds: [] }
+      return { status: "unavailable" as const, guilds: [], clerkUserId: null }
     const account = await currentDiscordAccount(ctx, user._id)
-    if (!account) return { status: "missingDiscord" as const, guilds: [] }
+    if (!account)
+      return {
+        status: "missingDiscord" as const,
+        guilds: [],
+        clerkUserId: user.clerkUserId,
+      }
     const refresh = await discordGuildRefresh(ctx, account.providerAccountId)
     const memberships = await ctx.db
       .query("discordGuildMemberships")
@@ -88,6 +94,7 @@ export const list = query({
             ? ("expired" as const)
             : ("ready" as const)
     return {
+      clerkUserId: user.clerkUserId,
       status,
       guilds: guilds.sort((a, b) => a.name.localeCompare(b.name)),
     }

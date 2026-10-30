@@ -63,7 +63,7 @@ test("an absent deep link never silently selects another server", () => {
     {
       activeDiscordGuildId: undefined,
       invalidRouteGuildId: "999999999999999999",
-      safeDashboardPath: "/dashboard",
+      safeDashboardPath: "/dashboard/servers",
     }
   )
 })
@@ -96,7 +96,7 @@ test("does not invent a default when no guild has ever been opened", () => {
     {
       activeDiscordGuildId: undefined,
       invalidRouteGuildId: undefined,
-      safeDashboardPath: "/dashboard",
+      safeDashboardPath: "/dashboard/servers",
     }
   )
 })

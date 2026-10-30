@@ -7,6 +7,8 @@ import { api } from "../../../../_generated/api"
 import schema from "../../../../schema"
 
 const modules = {
+  "./queries/dashboard/discord/guilds/directory.ts": () =>
+    import("./directory"),
   "./_generated/server.js": () => import("../../../../_generated/server.js"),
   "./mutations/dashboard/discord/guilds/markOpened.ts": () =>
     import("../../../../mutations/dashboard/discord/guilds/markOpened"),
@@ -91,6 +93,13 @@ test("guild recency belongs to each manager's verified membership", async (t) =>
   const secondGuilds = await convex
     .withIdentity({ subject: secondClerkUserId })
     .query(api.queries.dashboard.discord.guilds.manageable.list, {})
+
+  const directory = await convex
+    .withIdentity({ subject: firstClerkUserId })
+    .query(api.queries.dashboard.discord.guilds.directory.list, {})
+  assert.equal(directory.clerkUserId, firstClerkUserId)
+  assert.equal(directory.guilds[0]?.lastOpenedAt, 100)
+  assert.equal(directory.guilds[0]?.verified, true)
 
   assert.equal(firstGuilds[0]?.lastOpenedAt, 100)
   assert.equal(secondGuilds[0]?.lastOpenedAt, 200)
