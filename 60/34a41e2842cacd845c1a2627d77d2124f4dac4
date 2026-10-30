@@ -1,0 +1,251 @@
+packages/backend/.env.example
+  s_87dee764425e1a::t_2195206a99d8f4 29-32
+apps/dashboard/src/app/(app)/account/billing/page.tsx
+  s_87dee764425e1a::t_c1c3cd47abf6a9 1-5
+packages/backend/convex/lib/billingOrigin.ts
+  s_87dee764425e1a::t_79ffe7e64224d9 25-27
+  s_87dee764425e1a::t_28f34c3ab9c0be 1-24,28-35
+apps/dashboard/src/features/account/AccountProfile.tsx
+  s_87dee764425e1a::t_27f870a7014814 18-21,23
+  s_87dee764425e1a::t_c1c3cd47abf6a9 24,43,47
+  s_87dee764425e1a::t_a7c9eafade7321 45
+  s_87dee764425e1a::t_bb1229311e795f 22
+apps/dashboard/src/app/(app)/billing/page.tsx
+  s_87dee764425e1a::t_c1c3cd47abf6a9 1-9
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_87dee764425e1a::t_922faa9114c956 12-16,34,36-37,42-72,74-94,96-112,115-116,118,120,125,145,152,155-156,162-164,168,177-196,198-204,212,224,413-419,421-423
+  s_87dee764425e1a::t_bc970bb2eb24e2 146,213,412
+  s_87dee764425e1a::t_5b66ddc6d70cb4 214-223,225-277,279-411
+  s_87dee764425e1a::t_c96ac1fea22f2f 205-208,210-211
+  s_87dee764425e1a::t_9b52dc932f8060 26-27,136
+packages/backend/convex/accountBilling.ts
+  s_87dee764425e1a::t_75107c9e42ce73 25,78
+apps/dashboard/tests/twitch/stripe-fixture.tsx
+  s_87dee764425e1a::t_c4ab8583d13cd2 5-6,21-27,29-31
+  s_87dee764425e1a::t_bfa2936efd2b5f 34,36-53,59-70,73-78,81,83-84
+  s_87dee764425e1a::t_731767f6bd637d 28,32-33
+  s_87dee764425e1a::t_59a867f668f0f2 35,54-58,71-72,79-80,82
+apps/dashboard/src/features/app-shell/routes.test.ts
+  s_87dee764425e1a::t_922faa9114c956 39-43,45
+  s_87dee764425e1a::t_79356abbc88169 44
+docs/stripe-checkout-rollout.md
+  s_87dee764425e1a::t_08bce5b075bd9d 14,16,35,151
+packages/backend/convex/billingPortalActions.ts
+  s_87dee764425e1a::t_75107c9e42ce73 9-22,24,85-90,97-105,107,110-111,119-121,133-135,137-140,144-147,201-204,206-212,214-216,218-221,224-226
+  s_87dee764425e1a::t_6e72b2965f579f 152-153,158-166,168,174-177,187
+  s_87dee764425e1a::t_0aa4dc5e43b78c 284,293-320
+  s_87dee764425e1a::t_6716680bf8a983 362-364,366,377-382
+  s_87dee764425e1a::t_6def69ab41a23b 1-4,6-8,25-81,83-84,91,93-96,108-109,112-118,122-129,131-132,148-149,151,169-173,178-183,186,188,190-196,198-199,227-231,233-235,237-239,241-248,250-283,285-292,321-361,367,369-376,383-399,401-414,417-429,431-436
+  s_87dee764425e1a::t_28f34c3ab9c0be 5,232,240
+  s_87dee764425e1a::t_2d5fa35d70ad97 155-157
+  s_87dee764425e1a::t_0b851cd1a5a0ae 154
+  s_87dee764425e1a::t_50f472601f03e7 23,82,92,106,130,136,141-143,150,167,184-185,189,197,200,205,213,217,222-223,236,249,365,368,400,415-416,430
+docs/screenshots/billing-portal-2026-10-30/README.md
+  s_87dee764425e1a::t_b554f12fa88c70 23-28
+  s_87dee764425e1a::t_1e56ad86231503 1-22,29-46
+packages/backend/convex/lib/communityDiscord.test.ts
+  s_87dee764425e1a::t_5b66ddc6d70cb4 20-32
+  s_87dee764425e1a::t_1e77c4ba2e6440 1-19,33-34
+apps/dashboard/src/features/app-shell/AppTopbar.tsx
+  s_87dee764425e1a::t_c1c3cd47abf6a9 7-11,13,54-60,134-138
+  s_87dee764425e1a::t_f150419c24918c 12
+packages/backend/convex/lib/billingPortalModels.ts
+  s_87dee764425e1a::t_6def69ab41a23b 1-10,12-18,20-28,30-38,56,59-63,72,76-92,94-103,105,151-164,171-177,179-192,194
+  s_87dee764425e1a::t_6e72b2965f579f 29,39-50,53-55,93
+  s_87dee764425e1a::t_a7c9eafade7321 57-58,73-75
+  s_87dee764425e1a::t_75107c9e42ce73 64-68,70-71,106-117,119,121-141,145-147,149-150
+  s_87dee764425e1a::t_9b52dc932f8060 165-170
+  s_87dee764425e1a::t_84437f48819e89 11
+  s_87dee764425e1a::t_b96c6cd1ff8e47 19
+  s_87dee764425e1a::t_9cfc1b27e58b64 51-52
+  s_87dee764425e1a::t_3910d4ff9e513d 69
+  s_87dee764425e1a::t_41d29cc1bca136 104
+  s_87dee764425e1a::t_09b639d70a9ce9 118
+  s_87dee764425e1a::t_799e38ea72758c 120
+  s_87dee764425e1a::t_b4ce571f875ffa 142-144
+  s_87dee764425e1a::t_c786be71c5a9a7 148
+  s_87dee764425e1a::t_411ed1d11ed189 178
+  s_87dee764425e1a::t_7464b9452ec71c 193
+scripts/check-dashboard-backend.mjs
+  s_87dee764425e1a::t_9b52dc932f8060 6
+docs/account-billing-environments.md
+  s_87dee764425e1a::t_2195206a99d8f4 39-41,120,157-190,212-214
+  s_87dee764425e1a::t_7657a62372aa9f 17
+apps/dashboard/src/features/billing/PaymentForms.tsx
+  s_87dee764425e1a::t_0b851cd1a5a0ae 312,323-324,329-330
+  s_87dee764425e1a::t_731767f6bd637d 35
+  s_87dee764425e1a::t_b95ff51e8294cd 34,36,44-56,146-148,273-275
+  s_87dee764425e1a::t_274eb5602c3a4e 3,12,37-43,57-59,89,142,240,269
+  s_87dee764425e1a::t_0aa4dc5e43b78c 1-2,4-8,10-11,13-24,26-33,60-67,69-73,76-81,83-88,90-109,111-112,114-123,125-127,130-141,143-145,149-157,159-178,180-199,201-202,204-206,208-232,234-239,241,243-244,246-255,261-268,270-272,276-284,286-295,300-311,313-320,331-342,344-351,353-360,373,375-376,378-380,382-397
+  s_87dee764425e1a::t_b554f12fa88c70 257-260
+  s_87dee764425e1a::t_2d5fa35d70ad97 296-299,325-328
+  s_87dee764425e1a::t_a7c9eafade7321 361-368,371-372
+  s_87dee764425e1a::t_62669e07bc9ee4 9
+  s_87dee764425e1a::t_6b1275104e53d4 25
+  s_87dee764425e1a::t_d8f0cce4a0d536 68
+  s_87dee764425e1a::t_8158aacd8279c2 74-75
+  s_87dee764425e1a::t_7c7f84c0695a07 82
+  s_87dee764425e1a::t_8934efa01005da 110
+  s_87dee764425e1a::t_a30ad1ab2e7c71 113
+  s_87dee764425e1a::t_866df984eb8d1b 124
+  s_87dee764425e1a::t_f46afdbb2e1e7c 128-129
+  s_87dee764425e1a::t_43422878ec9afc 158
+  s_87dee764425e1a::t_53d5d6171854e2 179
+  s_87dee764425e1a::t_1517fc60aaf09e 200
+  s_87dee764425e1a::t_8606585f36227a 203
+  s_87dee764425e1a::t_7bb80e3bf25d2b 207
+  s_87dee764425e1a::t_60f7d69ca5d236 233
+  s_87dee764425e1a::t_f532f8c61df3cc 242
+  s_87dee764425e1a::t_7e98b0edc0987f 245
+  s_87dee764425e1a::t_a25721e95772bb 256
+  s_87dee764425e1a::t_fa0d90e4023898 285
+  s_87dee764425e1a::t_b897804be3e184 321-322
+  s_87dee764425e1a::t_ddd959f567701f 343
+  s_87dee764425e1a::t_213fd8bfb14c34 352
+  s_87dee764425e1a::t_8b19e8a427ac00 369-370
+  s_87dee764425e1a::t_7149943a9147af 374
+  s_87dee764425e1a::t_66bc9ede7b7049 377
+  s_87dee764425e1a::t_dd3df7a833d629 381
+apps/dashboard/src/features/app-shell/routes.ts
+  s_87dee764425e1a::t_c1c3cd47abf6a9 9-13
+packages/backend/convex/premiumActions.ts
+  s_87dee764425e1a::t_28f34c3ab9c0be 21,271,273,285
+packages/env/src/backend.ts
+  s_87dee764425e1a::t_28f34c3ab9c0be 28
+apps/dashboard/tests/twitch/billing-fixture.ts
+  s_87dee764425e1a::t_bfa2936efd2b5f 98
+  s_87dee764425e1a::t_79ffe7e64224d9 1-13,15,17-28,30-38,40-48,50-61,64-80,85-93,95-97,99-108,110,112-116,131-145,147-150
+  s_87dee764425e1a::t_185979c7619333 117,127-130
+  s_87dee764425e1a::t_1713f5c0c5992a 118-126
+  s_87dee764425e1a::t_d799d50db18000 14,16,29,39,49,62-63,81-84,94,109,111,146
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_87dee764425e1a::t_79ffe7e64224d9 12,128,180-183,483
+packages/backend/convex/accountBilling.test.ts
+  s_87dee764425e1a::t_922faa9114c956 150
+apps/dashboard/tests/twitch/billing-portal.spec.ts
+  s_87dee764425e1a::t_2d5fa35d70ad97 9-11,14-19,21-26,28-36,41-43,45-47,49-52,54-56,61-63,65-67,73-75,77-82,85-87,92-97,102-107,110-120,125-127,130-132,134-139
+  s_87dee764425e1a::t_502f5271d478a0 1-8,12-13,20,27,37-40,44,48,53,57-60,64,68-72,76,83-84,88-91,98-101,108-109,121-124,128-129,133,140-142
+  s_87dee764425e1a::t_1713f5c0c5992a 144-146,150-155,158-160
+  s_87dee764425e1a::t_731767f6bd637d 164,168-170,174-177
+  s_87dee764425e1a::t_c4ab8583d13cd2 165-167,171-173
+  s_87dee764425e1a::t_185979c7619333 143,147-149,156-157,161-163
+packages/backend/convex/lib/communityDiscord.ts
+  s_87dee764425e1a::t_5b66ddc6d70cb4 4-17,63
+docs/dashboard-billing-handoff.md
+  s_87dee764425e1a::t_7657a62372aa9f 68
+  s_87dee764425e1a::t_86ab73223e62b1 30-33
+  s_87dee764425e1a::t_cee0f62a4370af 3-29,34-48,88-90,92
+  s_87dee764425e1a::t_08bce5b075bd9d 203
+packages/backend/convex/actions/dashboard/discord/lib/dashboardGuildSync.ts
+  s_87dee764425e1a::t_c3c703419d26f0 161-164
+  s_87dee764425e1a::t_5b66ddc6d70cb4 6-9
+apps/dashboard/tests/twitch/serve.mjs
+  s_87dee764425e1a::t_79ffe7e64224d9 24
+scripts/check-dashboard-backend.test.mjs
+  s_87dee764425e1a::t_9b52dc932f8060 35
+apps/dashboard/src/features/billing/PaymentDetails.tsx
+  s_87dee764425e1a::t_c96ac1fea22f2f 80,88,391-393,395-396
+  s_87dee764425e1a::t_9b52dc932f8060 239-250
+  s_87dee764425e1a::t_2d5fa35d70ad97 216,411-415
+  s_87dee764425e1a::t_8c29c117ac5f1d 1-10,12-20,22-27,29-34,37-40,42-45,47-51,53-57,59-62,64-66,68-78,81-87,89-95,97-108,110-118,120,122-146,148-168,170-178,184-186,217-218,236-237,257,310,314,319-322,324-325,327,329-337,340-348,350-351,353-366,368-370,372,374-389,397-404,407,422,424-425,427,429-451,454-457,459-467,469-473,475-482,484-487,489,491-493,495-497,499-501,503-515,517-518,520-527,531,533-534,536-541,543-551,553-554,556-558,560-562
+  s_87dee764425e1a::t_75a93d101dbb5c 46
+  s_87dee764425e1a::t_bfa2936efd2b5f 35-36
+  s_87dee764425e1a::t_28f34c3ab9c0be 96,119,121,323,328
+  s_87dee764425e1a::t_67bcbcf1b90a79 11
+  s_87dee764425e1a::t_97cdc455d70361 21
+  s_87dee764425e1a::t_e7e0db257b27c1 28
+  s_87dee764425e1a::t_5889f2ddcf6a2c 41
+  s_87dee764425e1a::t_a06f914b8e124c 52
+  s_87dee764425e1a::t_f0621603a851e9 58
+  s_87dee764425e1a::t_3a17311d6b6be1 63
+  s_87dee764425e1a::t_d8c0eea4b6e1d8 67
+  s_87dee764425e1a::t_a394242bafe054 79
+  s_87dee764425e1a::t_ed703054b94ba0 109
+  s_87dee764425e1a::t_8ec0676305dde6 147
+  s_87dee764425e1a::t_5e9676aef4c584 169
+  s_87dee764425e1a::t_400aee93f2e486 179-183
+  s_87dee764425e1a::t_12427d20ee8961 187-189,213-215
+  s_87dee764425e1a::t_247de7eaec2391 219-221,233-235
+  s_87dee764425e1a::t_f0ad44bdb0a4db 238
+  s_87dee764425e1a::t_99c9c12c893fb4 251-256
+  s_87dee764425e1a::t_2628f10f08838c 258-260,307-309
+  s_87dee764425e1a::t_e17000cac6a41d 311-313
+  s_87dee764425e1a::t_acd5681507a637 315-318
+  s_87dee764425e1a::t_1a3136ae9604ba 326
+  s_87dee764425e1a::t_5aca5be8a0e8b9 338-339
+  s_87dee764425e1a::t_f9388d28058890 349
+  s_87dee764425e1a::t_d6150ebda59b0c 352
+  s_87dee764425e1a::t_95dd609631ad1a 367
+  s_87dee764425e1a::t_2f855692bf729c 371
+  s_87dee764425e1a::t_3ab75fbcdf7b16 373
+  s_87dee764425e1a::t_6c03b3760427c1 390
+  s_87dee764425e1a::t_2572188853309f 394
+  s_87dee764425e1a::t_57d8944ea5d31b 405-406
+  s_87dee764425e1a::t_89e101cfebb963 408-410
+  s_87dee764425e1a::t_d7cd574f0f9a60 416-421
+  s_87dee764425e1a::t_51f730c06c5cc4 423
+  s_87dee764425e1a::t_5adb2d621ec775 426
+  s_87dee764425e1a::t_f94ec633eb61af 428
+  s_87dee764425e1a::t_5582e2ea5d0416 452-453
+  s_87dee764425e1a::t_1f5ab60c4b9d9c 458
+  s_87dee764425e1a::t_cfa07620eb9d05 468
+  s_87dee764425e1a::t_16b326e8403d8d 474
+  s_87dee764425e1a::t_59fc23aef176a8 483
+  s_87dee764425e1a::t_e0c2ab9a10fcc0 488
+  s_87dee764425e1a::t_4346e615692106 490
+  s_87dee764425e1a::t_cb77cef6d2a8ab 494
+  s_87dee764425e1a::t_4d788b08c2dd06 498
+  s_87dee764425e1a::t_7289d8e1182618 502
+  s_87dee764425e1a::t_bc55ee1e239c2c 516
+  s_87dee764425e1a::t_3d974a20df9c3a 519
+  s_87dee764425e1a::t_4c420a2380c594 528-530
+  s_87dee764425e1a::t_1d5e6f005ec073 532
+  s_87dee764425e1a::t_8e76049dda2bc7 535
+  s_87dee764425e1a::t_cdfd43516f730a 542
+  s_87dee764425e1a::t_fb3251f2254da3 552
+  s_87dee764425e1a::t_f0a91efc9ac890 555
+  s_87dee764425e1a::t_60e71f6142545a 559
+  s_87dee764425e1a::t_4855da3a0f9d7c 190-212,222-232,261-306
+apps/dashboard/next.config.mjs
+  s_87dee764425e1a::t_6716680bf8a983 3-5
+apps/dashboard/src/features/community/communitySettings.test.ts
+  s_87dee764425e1a::t_922faa9114c956 215
+packages/backend/convex/billingPortalActions.test.ts
+  s_87dee764425e1a::t_5b66ddc6d70cb4 1-550
+apps/dashboard/src/features/account/AccountProfile.test.ts
+  s_87dee764425e1a::t_36d1d2f63b9b27 17-18,51,54-55,57
+apps/dashboard/src/features/app-shell/AppTopbar.test.ts
+  s_05b54a7b7a3af8::t_2fe358befde69d 90,92-94,118,121
+apps/dashboard/src/features/community/PremiumCheckout.tsx
+  s_05b54a7b7a3af8::t_b81435f0f4498e 229,425
+apps/dashboard/src/features/community/PremiumPurchases.tsx
+  s_05b54a7b7a3af8::t_d8ead670c28bcd 279,433
+apps/dashboard/tests/twitch/account-catalogue.spec.ts
+  s_87dee764425e1a::t_2f008816417b12 12,140,145
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_05b54a7b7a3af8::t_f3e295c44896d8 67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6034a41e2842cacd845c1a2627d77d2124f4dac4",
+  "prompts": {},
+  "sessions": {
+    "s_05b54a7b7a3af8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18df9-eb0b-76c0-a083-d26df47c75e4",
+        "model": "unknown"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
