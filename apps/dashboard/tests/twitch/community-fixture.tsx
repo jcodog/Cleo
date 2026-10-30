@@ -8,6 +8,7 @@ import { resolveCleoRoleEligibility } from "@workspace/shared/cleoRoleEligibilit
 import { AccountRoles } from "../../src/features/community/AccountRoles"
 import { LinkedRoleCallback } from "../../src/features/community/LinkedRoleCallback"
 import { PremiumPurchases } from "../../src/features/community/PremiumPurchases"
+import { CheckoutReturn } from "../../src/features/community/PremiumCheckout"
 import { DiscordAddServerPageShell } from "../../src/features/add-server/DiscordAddServerPageShell"
 import { LinkedRoleTesting } from "../../src/features/staff/LinkedRoleTesting"
 import { DashboardDiscordHydrator } from "../../src/features/app-shell/DashboardDiscordHydrator"
@@ -76,6 +77,9 @@ window.addEventListener("directory-fixture", (event) => {
 let testGrant: { roles: string[]; expiresAt: number; reason: string } | null =
   null
 let purchaseView = {
+  pendingCheckout: params.has("pendingCheckout")
+    ? { sessionId: "cs_test_fixture", announce: true, displayRole: false }
+    : null,
   configured: true,
   canManageOwnBilling: true,
   communityPublishIdentity: false,
@@ -223,8 +227,37 @@ export async function communityWrite(
       communityPublishIdentity: (args as { publishIdentity: boolean })
         .publishIdentity,
     }
-  } else if (path !== "premiumActions:checkout")
-    throw new Error(`Unexpected community operation ${path}`)
+  } else if (path === "premiumActions:checkout") {
+    return {
+      sessionId: "cs_test_fixture",
+      clientSecret: "cs_test_fixture_secret_fixture",
+      expiresAt: params.has("expiredCheckout")
+        ? Date.now() - 1
+        : Date.now() + 1800000,
+      offer: {
+        name: "Cleo Server Premium",
+        guildName: "Premium Guild",
+        email: "alice@example.com",
+        unitAmount: 499,
+        currency: "gbp",
+        interval: "month",
+        intervalCount: 1,
+      },
+    }
+  } else if (path === "premiumActions:checkoutStatus") {
+    if (params.has("statusError")) throw new Error("Status unavailable")
+    return {
+      status: params.has("expiredCheckout") ? "expired" : "complete",
+      paymentStatus: params.has("asyncPayment") ? "unpaid" : "paid",
+      guildName: "Premium Guild",
+    }
+  } else if (path === "premiumActions:cancelCheckout") {
+    if (params.has("cancelError")) throw new Error("Expiration uncertain")
+    if (params.has("completeRace")) return "complete"
+    purchaseView = { ...purchaseView, pendingCheckout: null }
+    notify()
+    return "expired"
+  } else throw new Error(`Unexpected community operation ${path}`)
   notify()
   observers.forEach((callback) => callback())
   return null
@@ -266,13 +299,18 @@ export function CommunityFixture() {
             state={params.get("state") ?? undefined}
             error={params.get("error") ?? undefined}
           />
-        ) : (
+        ) : location.pathname.startsWith("/account/roles") ? (
           <AccountRoles />
-        )}
+        ) : null}
         {location.pathname === "/account/billing" ? (
           <PremiumPurchases />
         ) : location.pathname.endsWith("/premium") ? (
           <PremiumPurchases discordGuildId="333333333333333333" />
+        ) : location.pathname.endsWith("/checkout") ? (
+          <CheckoutReturn
+            discordGuildId="333333333333333333"
+            sessionId="cs_test_fixture"
+          />
         ) : null}
       </StrictMode>
       <button onClick={() => setRevision((value) => value + 1)}>

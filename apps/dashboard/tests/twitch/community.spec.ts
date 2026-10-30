@@ -284,31 +284,49 @@ test("purchase recognition preferences are independent and default off", async (
     })
   await expect(announce).not.toBeChecked()
   await expect(role).not.toBeChecked()
-  await page
-    .getByRole("button", { name: "Continue to Stripe Checkout" })
-    .click()
+  await page.getByRole("button", { name: "Continue to checkout" }).click()
   await expect.poll(async () => (await calls(page)).length).toBe(1)
   expect((await calls(page))[0]!.args).toEqual({
     discordGuildId: "333333333333333333",
     announce: false,
     displayRole: false,
   })
+  await page.getByRole("button", { name: "Cancel checkout" }).click()
   await announce.click()
-  await page
-    .getByRole("button", { name: "Continue to Stripe Checkout" })
-    .click()
-  await expect.poll(async () => (await calls(page)).length).toBe(2)
-  expect((await calls(page))[1]!.args).toMatchObject({
+  await page.getByRole("button", { name: "Continue to checkout" }).click()
+  await expect
+    .poll(
+      async () =>
+        (await calls(page)).filter(
+          (call) => call.path === "premiumActions:checkout"
+        ).length
+    )
+    .toBe(2)
+  expect(
+    (await calls(page)).filter(
+      (call) => call.path === "premiumActions:checkout"
+    )[1]!.args
+  ).toMatchObject({
     announce: true,
     displayRole: false,
   })
+  await page.getByRole("button", { name: "Cancel checkout" }).click()
   await announce.click()
   await role.click()
-  await page
-    .getByRole("button", { name: "Continue to Stripe Checkout" })
-    .click()
-  await expect.poll(async () => (await calls(page)).length).toBe(3)
-  expect((await calls(page))[2]!.args).toMatchObject({
+  await page.getByRole("button", { name: "Continue to checkout" }).click()
+  await expect
+    .poll(
+      async () =>
+        (await calls(page)).filter(
+          (call) => call.path === "premiumActions:checkout"
+        ).length
+    )
+    .toBe(3)
+  expect(
+    (await calls(page)).filter(
+      (call) => call.path === "premiumActions:checkout"
+    )[2]!.args
+  ).toMatchObject({
     announce: false,
     displayRole: true,
   })

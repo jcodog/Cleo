@@ -16,6 +16,22 @@ import {
   StripeRequestError,
 } from "./lib/stripeCommunity"
 import { verifyStripeSignature } from "./lib/integrationSecurity"
+import { approvedCheckoutPrice, checkoutSession } from "./lib/stripeCheckout"
+
+const offerValue = v.object({
+  name: v.string(),
+  unitAmount: v.number(),
+  currency: v.string(),
+  interval: v.union(
+    v.literal("day"),
+    v.literal("week"),
+    v.literal("month"),
+    v.literal("year")
+  ),
+  intervalCount: v.number(),
+  guildName: v.string(),
+  email: v.string(),
+})
 
 async function purchaseAuthority(ctx: ActionCtx, discordGuildId: string) {
   if (!/^\d{17,20}$/.test(discordGuildId))
@@ -50,7 +66,12 @@ export const checkout = action({
     announce: v.boolean(),
     displayRole: v.boolean(),
   },
-  returns: v.string(),
+  returns: v.object({
+    clientSecret: v.string(),
+    sessionId: v.string(),
+    expiresAt: v.number(),
+    offer: offerValue,
+  }),
   handler: async (ctx, args) => {
     stripeCommunityConfig(true)
     const account = await purchaseAuthority(ctx, args.discordGuildId)
@@ -72,6 +93,10 @@ export const checkout = action({
       origin.hash
     )
       throw new Error("Billing return origin is not configured.")
+    const price = await approvedCheckoutPrice(
+      context.price.stripePriceId,
+      context.price.stripeProductId
+    )
     const reservation = await ctx.runMutation(
       internal.premiumPurchases.reserve,
       {
@@ -82,22 +107,65 @@ export const checkout = action({
         key: randomUUID(),
       }
     )
-    if (reservation.url) return reservation.url
     const customerId =
       context.customer?.stripeCustomerId ??
-      z
-        .object({ id: z.string() })
-        .parse(
-          await stripeRequest(
-            "/customers",
-            { "metadata[cleo_user]": account.user._id },
-            `cleo-customer:${account.user._id}`
-          )
-        ).id
+      z.object({ id: z.string() }).parse(
+        await stripeRequest(
+          "/customers",
+          {
+            "metadata[cleo_user]": account.user._id,
+            email: account.user.email,
+          },
+          `cleo-customer:${account.user._id}`
+        )
+      ).id
     await ctx.runMutation(
       internal.mutations.internal.guildBilling.associateCustomer,
       { clerkUserId: account.user.clerkUserId, stripeCustomerId: customerId }
     )
+    if (reservation.sessionId) {
+      const session = checkoutSession.parse(
+        await stripeRequest(
+          `/checkout/sessions/${encodeURIComponent(reservation.sessionId)}`
+        )
+      )
+      if (
+        session.id !== reservation.sessionId ||
+        session.customer !== customerId ||
+        session.status !== "open" ||
+        !session.client_secret ||
+        session.expires_at * 1000 <= Date.now()
+      )
+        throw new Error(
+          "This checkout is no longer payable. Check My billing before trying again."
+        )
+      const lines = z
+        .object({
+          data: z
+            .array(z.object({ price: z.object({ id: z.string() }) }))
+            .length(1),
+          has_more: z.literal(false),
+        })
+        .parse(
+          await stripeRequest(
+            `/checkout/sessions/${encodeURIComponent(session.id)}/line_items`
+          )
+        )
+      if (lines.data[0]?.price.id !== context.price.stripePriceId)
+        throw new Error(
+          "The reserved checkout uses a different price. Cancel it before starting again."
+        )
+      return {
+        clientSecret: session.client_secret,
+        sessionId: session.id,
+        expiresAt: session.expires_at * 1000,
+        offer: {
+          ...price,
+          guildName: context.guild.name,
+          email: account.user.email,
+        },
+      }
+    }
     // Recheck immediately before the external Checkout creation, after reserving and resolving the customer.
     const fresh = await purchaseAuthority(ctx, args.discordGuildId)
     if (fresh.purchaserKind !== reservation.purchaserKind)
@@ -107,53 +175,71 @@ export const checkout = action({
     await ctx.runMutation(internal.premiumPurchases.beginCheckout, {
       key: reservation.key,
     })
-    const session = z
-      .object({ id: z.string(), url: z.string().url(), expires_at: z.number() })
-      .parse(
-        await stripeRequest(
-          "/checkout/sessions",
-          {
-            customer: customerId,
-            mode: "subscription",
-            "line_items[0][price]": context.price.stripePriceId,
-            "line_items[0][quantity]": "1",
-            "subscription_data[metadata][cleo_checkout]": reservation.key,
-            "metadata[cleo_checkout]": reservation.key,
-            success_url: `${origin.origin}/account/billing?checkout=returned`,
-            cancel_url: `${origin.origin}/account/billing`,
-            expires_at: String(Math.floor(reservation.expiresAt / 1000)),
-          },
-          `cleo-checkout:${reservation.key}`
-        ).catch(async (error) => {
-          // A validation rejection created no session. Timeouts, conflicts and
-          // idempotency errors remain fenced until provider reconciliation.
-          if (
-            error instanceof StripeRequestError &&
-            error.status === 400 &&
-            error.type === "invalid_request_error"
-          )
-            await ctx.runMutation(internal.premiumPurchases.closeCheckout, {
-              key: reservation.key,
-            })
-          throw error
-        })
-      )
-    if (new URL(session.url).hostname !== "checkout.stripe.com")
-      throw new Error("Unexpected Stripe Checkout location.")
+    const session = checkoutSession.parse(
+      await stripeRequest(
+        "/checkout/sessions",
+        {
+          customer: customerId,
+          mode: "subscription",
+          ui_mode: "elements",
+          integration_identifier: `cleo_elements_${reservation.key
+            .replaceAll("-", "")
+            .slice(0, 8)
+            .split("")
+            .map((character) =>
+              String.fromCharCode(97 + parseInt(character, 16))
+            )
+            .join("")}`,
+          "line_items[0][price]": context.price.stripePriceId,
+          "line_items[0][quantity]": "1",
+          "subscription_data[metadata][cleo_checkout]": reservation.key,
+          "metadata[cleo_checkout]": reservation.key,
+          return_url: `${origin.origin}/dashboard/${args.discordGuildId}/checkout?session_id={CHECKOUT_SESSION_ID}`,
+          expires_at: String(Math.floor(reservation.expiresAt / 1000)),
+        },
+        `cleo-checkout:${reservation.key}`
+      ).catch(async (error) => {
+        // A validation rejection created no session. Timeouts, conflicts and
+        // idempotency errors remain fenced until provider reconciliation.
+        if (
+          error instanceof StripeRequestError &&
+          error.status === 400 &&
+          error.type === "invalid_request_error"
+        )
+          await ctx.runMutation(internal.premiumPurchases.closeCheckout, {
+            key: reservation.key,
+          })
+        throw error
+      })
+    )
+    if (
+      session.customer !== customerId ||
+      session.status !== "open" ||
+      !session.client_secret
+    )
+      throw new Error("Stripe did not return a payable test Checkout Session.")
     await ctx.runMutation(internal.premiumPurchases.checkoutCreated, {
       key: reservation.key,
       sessionId: session.id,
-      url: session.url,
       expiresAt: session.expires_at * 1000,
     })
-    return session.url
+    return {
+      clientSecret: session.client_secret,
+      sessionId: session.id,
+      expiresAt: session.expires_at * 1000,
+      offer: {
+        ...price,
+        guildName: context.guild.name,
+        email: account.user.email,
+      },
+    }
   },
 })
 export const portal = action({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
-    stripeCommunityConfig(true)
+    stripeCommunityConfig()
     const context = await ctx.runQuery(
       internal.premiumPurchases.billingUser,
       {}
@@ -169,6 +255,86 @@ export const portal = action({
     if (new URL(session.url).hostname !== "billing.stripe.com")
       throw new Error("Unexpected Stripe billing location.")
     return session.url
+  },
+})
+
+async function purchaserCheckout(
+  ctx: ActionCtx,
+  args: { discordGuildId: string; sessionId: string }
+) {
+  stripeCommunityConfig(true)
+  const billing = await ctx.runQuery(internal.premiumPurchases.billingUser, {})
+  const reservation = await ctx.runQuery(
+    internal.premiumPurchases.checkoutBySession,
+    { sessionId: args.sessionId }
+  )
+  const context = await ctx.runQuery(internal.premiumPurchases.context, {
+    userId: billing.user._id,
+    discordGuildId: args.discordGuildId,
+  })
+  if (
+    !reservation ||
+    reservation.userId !== billing.user._id ||
+    reservation.guildId !== context.guild?._id ||
+    !billing.customer
+  )
+    throw new Error(
+      "This checkout does not belong to your billing account and community."
+    )
+  const session = checkoutSession.parse(
+    await stripeRequest(
+      `/checkout/sessions/${encodeURIComponent(args.sessionId)}`
+    )
+  )
+  if (
+    session.id !== args.sessionId ||
+    session.customer !== billing.customer.stripeCustomerId
+  )
+    throw new Error("Checkout customer identity mismatch.")
+  return { reservation, session, guildName: context.guild.name }
+}
+
+export const checkoutStatus = action({
+  args: { discordGuildId: v.string(), sessionId: v.string() },
+  returns: v.object({
+    status: v.string(),
+    paymentStatus: v.string(),
+    guildName: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const { session, guildName } = await purchaserCheckout(ctx, args)
+    return {
+      status: session.status,
+      paymentStatus: session.payment_status,
+      guildName,
+    }
+  },
+})
+
+/** Close the Stripe session before releasing the reservation, including races with confirmation. */
+export const cancelCheckout = action({
+  args: { discordGuildId: v.string(), sessionId: v.string() },
+  returns: v.union(v.literal("expired"), v.literal("complete")),
+  handler: async (ctx, args) => {
+    const { reservation, session } = await purchaserCheckout(ctx, args)
+    if (session.status === "complete") return "complete" as const
+    if (session.status === "open") {
+      const expired = z
+        .object({ id: z.string(), status: z.literal("expired") })
+        .parse(
+          await stripeRequest(
+            `/checkout/sessions/${encodeURIComponent(session.id)}/expire`,
+            {},
+            `cleo-expire:${session.id}`
+          )
+        )
+      if (expired.id !== session.id)
+        throw new Error("Checkout identity mismatch.")
+    }
+    await ctx.runMutation(internal.premiumPurchases.closeCheckout, {
+      key: reservation.key,
+    })
+    return "expired" as const
   },
 })
 export const setCommunityConsent = action({
@@ -196,8 +362,8 @@ export const recoverCheckout = internalAction({
     )
     if (!reservation || reservation.closedAt !== undefined) return null
     if (!reservation.sessionId) {
-      // The URL is returned only after persistence. An abandoned reservation without a
-      // persisted session cannot have exposed a payable Checkout URL to the user.
+      // The client secret is returned only after persistence. An abandoned reservation
+      // without a persisted session cannot have exposed a payable form to the user.
       if (reservation.expiresAt + 60000 < Date.now())
         await ctx.runMutation(internal.premiumPurchases.closeCheckout, {
           key: args.key,
@@ -292,7 +458,8 @@ export const webhook = internalAction({
       subscriptionId = z.object({ id: z.string() }).parse(event.data.object).id
     else if (
       event.type === "checkout.session.completed" ||
-      event.type === "checkout.session.async_payment_succeeded"
+      event.type === "checkout.session.async_payment_succeeded" ||
+      event.type === "checkout.session.async_payment_failed"
     )
       subscriptionId =
         z
@@ -310,7 +477,8 @@ export const webhook = internalAction({
     } else if (
       event.type === "charge.refunded" ||
       event.type === "charge.dispute.created" ||
-      event.type === "charge.dispute.closed"
+      event.type === "charge.dispute.closed" ||
+      event.type === "radar.early_fraud_warning.created"
     ) {
       const object = z
         .object({
@@ -348,6 +516,17 @@ export const webhook = internalAction({
         return true
       }
       revoked = true
+    } else if (event.type === "checkout.session.expired") {
+      const session = z.object({ id: z.string() }).parse(event.data.object)
+      const reservation = await ctx.runQuery(
+        internal.premiumPurchases.checkoutBySession,
+        { sessionId: session.id }
+      )
+      if (reservation)
+        await ctx.runMutation(internal.premiumPurchases.closeCheckout, {
+          key: reservation.key,
+        })
+      return true
     } else return true
     if (!subscriptionId) return true
     await ctx.runAction(internal.premiumActions.reconcile, {
@@ -400,7 +579,7 @@ export const reconcile = internalAction({
           }
         | undefined
       let paymentReversed = false
-      const invoiceId = args.paidInvoiceId ?? subscription.latest_invoice
+      const invoiceId = subscription.latest_invoice ?? args.paidInvoiceId
       if (invoiceId) {
         const invoice = stripeInvoice.parse(
           await stripeRequest(

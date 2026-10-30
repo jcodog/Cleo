@@ -114,6 +114,7 @@ export const premiumCheckouts = defineTable({
 })
   .index("by_guild", ["guildId"])
   .index("by_key", ["key"])
+  .index("by_session", ["sessionId"])
   .index("by_user_open", ["userId", "closedAt"])
 export const paidCommunityActivations = defineTable({
   subscriptionId: v.string(),

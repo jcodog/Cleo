@@ -1,6 +1,10 @@
 "use client"
 import { useAction, useMutation, useQuery } from "convex/react"
 import { useState } from "react"
+import { useAuth } from "@clerk/nextjs"
+import type { FunctionReturnType } from "convex/server"
+import { dashboardEnv } from "@workspace/env/dashboard"
+import { PremiumCheckout } from "./PremiumCheckout"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Button } from "@workspace/ui/components/button"
 import { Switch } from "@workspace/ui/components/switch"
@@ -12,8 +16,24 @@ export function PremiumPurchases({
 }: {
   discordGuildId?: string
 }) {
+  const { isLoaded, userId, sessionId } = useAuth()
+  if (!isLoaded || !userId) return <p role="status">Loading billing account…</p>
+  return (
+    <PremiumPurchasesContent
+      key={`${userId}:${sessionId}:${discordGuildId ?? "personal"}`}
+      discordGuildId={discordGuildId}
+    />
+  )
+}
+
+function PremiumPurchasesContent({
+  discordGuildId,
+}: {
+  discordGuildId?: string
+}) {
   const view = useQuery(api.premiumPurchases.view, { discordGuildId })
   const checkout = useAction(api.premiumActions.checkout)
+  const cancelCheckout = useAction(api.premiumActions.cancelCheckout)
   const portal = useAction(api.premiumActions.portal)
   const communityConsent = useAction(api.premiumActions.setCommunityConsent)
   const preferences = useMutation(api.premiumPurchases.preferences)
@@ -22,6 +42,36 @@ export function PremiumPurchases({
   const [publishIdentity, setPublishIdentity] = useState<boolean | null>(null)
   const [notice, setNotice] = useState("")
   const [busy, setBusy] = useState(false)
+  const [session, setSession] = useState<FunctionReturnType<
+    typeof api.premiumActions.checkout
+  > | null>(null)
+  const checkoutAnnounce = view?.pendingCheckout?.announce ?? announce
+  const checkoutDisplayRole = view?.pendingCheckout?.displayRole ?? displayRole
+  const paymentFormConfigured =
+    dashboardEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_test_") ===
+    true
+  async function beginCheckout() {
+    if (!discordGuildId || busy) return
+    setBusy(true)
+    setNotice("")
+    try {
+      setSession(
+        await checkout({
+          discordGuildId,
+          announce: checkoutAnnounce,
+          displayRole: checkoutDisplayRole,
+        })
+      )
+    } catch (failure) {
+      setNotice(
+        failure instanceof Error
+          ? failure.message
+          : "Checkout is unavailable. Try again."
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
   /** Report billing progress and provider failures without clearing saved preferences. */
   async function perform(operation: () => Promise<unknown>) {
     setBusy(true)
@@ -43,6 +93,16 @@ export function PremiumPurchases({
       <p role="status" className="py-6 text-sm text-muted-foreground">
         Loading Premium details…
       </p>
+    )
+  if (session && discordGuildId)
+    return (
+      <PremiumCheckout
+        session={session}
+        discordGuildId={discordGuildId}
+        announce={checkoutAnnounce}
+        displayRole={checkoutDisplayRole}
+        onCancel={() => setSession(null)}
+      />
     )
   return (
     <section className="w-full min-w-0 space-y-9">
@@ -136,25 +196,66 @@ export function PremiumPurchases({
                   Support this community
                 </h3>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Checkout is hosted by Stripe. A paid plan does not transfer
-                  ownership or management permissions.
+                  Review your plan and pay securely in Cleo. A paid plan does
+                  not transfer ownership or management permissions.
                 </p>
               </div>
               <Button
                 disabled={
-                  busy || !view.configured || !view.guildPremium?.canPurchase
+                  busy ||
+                  !view.configured ||
+                  !paymentFormConfigured ||
+                  !view.guildPremium?.canPurchase
                 }
-                onClick={() =>
-                  perform(() =>
-                    checkout({ discordGuildId, announce, displayRole })
-                  )
-                }
+                onClick={beginCheckout}
               >
-                Continue to Stripe Checkout
+                {view.pendingCheckout
+                  ? "Resume checkout"
+                  : "Continue to checkout"}
               </Button>
+              {view.pendingCheckout?.sessionId ? (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (
+                      !discordGuildId ||
+                      !view.pendingCheckout?.sessionId ||
+                      busy
+                    )
+                      return
+                    setBusy(true)
+                    setNotice("")
+                    try {
+                      const result = await cancelCheckout({
+                        discordGuildId,
+                        sessionId: view.pendingCheckout.sessionId,
+                      })
+                      setNotice(
+                        result === "complete"
+                          ? "This checkout has completed. Check My billing for its payment status."
+                          : "Checkout cancelled."
+                      )
+                    } catch {
+                      setNotice(
+                        "We could not cancel this checkout. Check My billing before starting another payment."
+                      )
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                >
+                  Cancel existing checkout
+                </Button>
+              ) : null}
               {view.configured ? (
                 <p className="text-xs text-muted-foreground">
                   Checkout runs in Stripe test mode.
+                </p>
+              ) : null}
+              {view.configured && !paymentFormConfigured ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                  Secure test payments are not configured for this dashboard.
                 </p>
               ) : null}
             </section>
@@ -173,7 +274,8 @@ export function PremiumPurchases({
               </div>
               <Field orientation="horizontal">
                 <Switch
-                  checked={announce}
+                  checked={checkoutAnnounce}
+                  disabled={!!view.pendingCheckout}
                   id="premium-announce"
                   onCheckedChange={setAnnounce}
                   aria-label="Announce support"
@@ -184,7 +286,8 @@ export function PremiumPurchases({
               </Field>
               <Field orientation="horizontal">
                 <Switch
-                  checked={displayRole}
+                  checked={checkoutDisplayRole}
+                  disabled={!!view.pendingCheckout}
                   id="premium-supporter"
                   onCheckedChange={setDisplayRole}
                   aria-label="Display Supporter role"
@@ -193,6 +296,12 @@ export function PremiumPurchases({
                   Display my Premium Supporter role
                 </FieldLabel>
               </Field>
+              {view.pendingCheckout ? (
+                <p className="text-xs text-muted-foreground">
+                  Your existing checkout keeps these choices. Cancel it to
+                  change them.
+                </p>
+              ) : null}
             </section>
           </div>
           <section
