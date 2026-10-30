@@ -1,0 +1,149 @@
+turbo.json
+  s_87dee764425e1a::t_833c034f23ed2b 44-45
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_87dee764425e1a::t_0aa738d1adf0e3 479,484,488
+  s_87dee764425e1a::t_d428f1e37c0f8d 489-490
+  s_87dee764425e1a::t_d1721943cc33c9 92-95
+  s_87dee764425e1a::t_ab3912f1d17df0 11-13,111-113,115-137,139,141-142,178-185,188-198,202-209,211-220,222-229,233,243-246,481-483,485-486
+  s_87dee764425e1a::t_80a72f316d3554 90,234-241
+  s_87dee764425e1a::t_e3d2ddaba386e4 357-361
+  s_87dee764425e1a::t_0643dd8a0e1d83 114
+  s_87dee764425e1a::t_2109a1e237bd50 138
+  s_87dee764425e1a::t_5860b5d3b7ac7c 140
+  s_87dee764425e1a::t_25a3ce3fadb494 186-187
+  s_87dee764425e1a::t_d4f74e638970a3 199-201
+  s_87dee764425e1a::t_df16b5db5ecb47 210
+  s_87dee764425e1a::t_dfd6a34fa0295a 221
+  s_87dee764425e1a::t_8b73f774cde443 230-232
+  s_87dee764425e1a::t_4901e66dc3cc3d 478
+  s_87dee764425e1a::t_142af1f38ad610 480
+packages/backend/convex/dbTables/billingCatalogue.ts
+  s_87dee764425e1a::t_9ea979b265d337 1-13
+  s_87dee764425e1a::t_3f4290e5d3676f 14-16
+apps/dashboard/src/features/account/AccountConnections.tsx
+  s_87dee764425e1a::t_80a72f316d3554 29,118-119,176-181
+packages/backend/convex/communityIntegrations.test.ts
+  s_87dee764425e1a::t_cac4c10011d552 172-174,179-183,189,207,212-213
+  s_87dee764425e1a::t_b9595835715bf8 171,175-178,184-188,190-206,208-211
+  s_87dee764425e1a::t_3f4290e5d3676f 214-218,220-245,276-277
+  s_87dee764425e1a::t_2584ca2f6ca26c 247-248,252,256-257,261
+  s_87dee764425e1a::t_d428f1e37c0f8d 246,249-251,253-255,258-260,262-275
+  s_87dee764425e1a::t_fef5d96ab1fc3a 219
+packages/backend/convex/premiumPurchases.ts
+  s_87dee764425e1a::t_3f4290e5d3676f 55-56,127-130,215-216
+apps/dashboard/tests/twitch/account-catalogue.spec.ts
+  s_87dee764425e1a::t_d1721943cc33c9 119,121-127,129
+  s_87dee764425e1a::t_d428f1e37c0f8d 105-107
+  s_87dee764425e1a::t_ab3912f1d17df0 1-3,7-8,10-27,29-45,47-49,51-68,70-97,99-101,103-104,108-116,118,130-132,134-150
+  s_87dee764425e1a::t_0f43fc60d158e4 4-6,120
+  s_87dee764425e1a::t_c5aaaa432acfa9 9,28,46,50,69,98,102,117,128,133
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_87dee764425e1a::t_28f8aeea8d967f 8,139
+apps/dashboard/src/features/community/communitySettings.test.ts
+  s_87dee764425e1a::t_b81c53439cd63d 35,51-53,68-75,188-189,192-193,195-198,200-201
+  s_87dee764425e1a::t_d19c00527b465a 82,190-191
+  s_87dee764425e1a::t_5eb1bdbac27b87 194
+  s_87dee764425e1a::t_37265a4f047c0f 199
+apps/dashboard/tests/twitch/serve.mjs
+  s_87dee764425e1a::t_79b9a78d73b617 63-66,73,114
+  s_87dee764425e1a::t_de578b77b85d79 67-72,115-123,126
+docs/screenshots/dashboard-billing-2026-10-30/README.md
+  s_87dee764425e1a::t_206e59a360cb7f 1-21
+apps/dashboard/src/app/(app)/staff/billing/products/page.tsx
+  s_87dee764425e1a::t_4a475cad2957fa 1-6
+apps/dashboard/src/features/staff/BillingProducts.tsx
+  s_87dee764425e1a::t_4a475cad2957fa 1-7,9-11,19-21,30-34,39-41,48-52,57-58,60-61,78-88,91-92,94,103-104,117,561
+  s_87dee764425e1a::t_5bb2ff9f60b45e 59,77
+  s_87dee764425e1a::t_28f8aeea8d967f 8,232
+  s_87dee764425e1a::t_80a72f316d3554 12-18,22-29,35-38,42-47,53-56,62-76,89-90,93,95-102,105-116,118-231,233-560
+apps/dashboard/src/app/(app)/account/error.tsx
+  s_87dee764425e1a::t_fef5d96ab1fc3a 1-5,18
+  s_87dee764425e1a::t_80a72f316d3554 6-17
+apps/dashboard/src/features/community/formatStripeAmount.test.ts
+  s_87dee764425e1a::t_28f8aeea8d967f 1-11
+apps/dashboard/src/features/discord-guild-workspace/sections/PremiumGuildSection.tsx
+  s_87dee764425e1a::t_b81c53439cd63d 12
+apps/dashboard/tests/twitch/clerk-fixture.ts
+  s_87dee764425e1a::t_ab3912f1d17df0 2-3,7-10,21,26-27,29-30
+  s_87dee764425e1a::t_dac82d870ed21f 28
+packages/backend/convex/billingCatalogue.test.ts
+  s_87dee764425e1a::t_937b6b5cae1189 263,265-267,269-288,290-313,317-319,322-325,331-334,337-338,343-346,349-363,365-381,383-404,406,409-413
+  s_87dee764425e1a::t_5c5aff85978513 1,3-7,12-24,39,44-46,51-52,61,74-76,118-124,132,170,172,176-177,187,191-192,215,234-235,240-241,260,414
+  s_87dee764425e1a::t_3f4290e5d3676f 8-11,25-38,40-43,47-50,53-60,62-73,77-117,125-131,133-169,171,173-175,178-186,188-190,193-214,216-233,236-239,242-259
+  s_87dee764425e1a::t_62cfd2a3094b56 2,261-262,264,268,289,314-316,320-321,326-330,335-336,339-342,347-348,364,382,405,407-408
+packages/backend/convex/schema.ts
+  s_87dee764425e1a::t_9ea979b265d337 2,75
+packages/backend/convex/lib/billingCatalogueModels.ts
+  s_87dee764425e1a::t_937b6b5cae1189 83-85
+  s_87dee764425e1a::t_07a59ada077910 1-6,18,35-38,55-56,90
+  s_87dee764425e1a::t_3f4290e5d3676f 7-17,19-34,39-54,57-81,86-89
+  s_87dee764425e1a::t_70ffe3768648da 82
+packages/backend/.env.example
+  s_87dee764425e1a::t_b0108e2fe25995 27-28,31-36
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_87dee764425e1a::t_4a475cad2957fa 251-256
+docs/dashboard-billing-handoff.md
+  s_87dee764425e1a::t_206e59a360cb7f 48-63
+  s_87dee764425e1a::t_dfe98bacfd88b6 16-47
+apps/dashboard/tests/twitch/checkout.spec.ts
+  s_87dee764425e1a::t_d428f1e37c0f8d 4-18
+  s_87dee764425e1a::t_5039b03527fbae 19
+  s_87dee764425e1a::t_80a72f316d3554 88-94,190-192
+apps/dashboard/src/app/(app)/staff/billing/products/[productId]/page.tsx
+  s_87dee764425e1a::t_4a475cad2957fa 1-2,8-11
+  s_87dee764425e1a::t_80a72f316d3554 3-7
+apps/dashboard/src/features/community/PremiumCheckout.tsx
+  s_87dee764425e1a::t_e3d2ddaba386e4 382-384,393-395
+  s_87dee764425e1a::t_f8109c251e860b 49,314,318,328,336,340,385-387,396-397,411-422
+packages/env/src/backend.ts
+  s_87dee764425e1a::t_9ea979b265d337 22-23
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_87dee764425e1a::t_d428f1e37c0f8d 57,79,145
+packages/backend/convex/premiumActions.ts
+  s_87dee764425e1a::t_3f4290e5d3676f 6,52,61-78,81-92
+  s_87dee764425e1a::t_e43d5b57247000 79-80
+packages/backend/convex/communityRecovery.test.ts
+  s_87dee764425e1a::t_bc46ccfd3ab54a 190
+  s_87dee764425e1a::t_d428f1e37c0f8d 196-199
+  s_87dee764425e1a::t_a7ba93cb267b4c 141-143,146-148,153-155,158-162,164,172-173,177,179-180,182,195,200,202-204,208-211,217
+  s_87dee764425e1a::t_c5783a9a4e1053 144-145,149-152,156-157,163,165-171,174-176,178,181,183-189,191-194,201,205-207,212-216,218-219
+packages/backend/convex/billingCatalogueActions.ts
+  s_87dee764425e1a::t_3f4290e5d3676f 11-16,18-40,42-47,49-52,57-63,67-71,75-90,95-99,102-105,107-114,116-118,122-141,145-150,154-155,157-158,161-174,176-181,187-193,196-200,202-210,214-237,240-244,246-258,260-261,263-269,274,276-284,291-296
+  s_87dee764425e1a::t_07a59ada077910 1-10,17,41,48,53-56,64-66,72-74,91-94,100-101,106,115,119-121,142-144,151-153,156,159-160,175,182-186,194-195,201,211-213,238-239,245,259,262,275,285-290,297-299
+  s_87dee764425e1a::t_937b6b5cae1189 270-273
+packages/backend/convex/billingCatalogue.ts
+  s_87dee764425e1a::t_5bb2ff9f60b45e 28,30
+  s_87dee764425e1a::t_9ea979b265d337 1-2,10-13,22-27,42-51,56-58,62,69-71,78-80,94-95,99,104,119-122,131-133,150,171,177-181,191,204-205
+  s_87dee764425e1a::t_3f4290e5d3676f 3-9,14-21,29,31-41,52-55,59-61,63-68,72-77,81-93,96-98,100-103,105-118,123-130,134-149,151-170,172-176,182-190,192-203
+apps/dashboard/src/features/community/PremiumPurchases.tsx
+  s_87dee764425e1a::t_80a72f316d3554 3,13,43-61,137-157,160-166,168,227-228,240,243-244,246-247,249-257,264-265,274-286
+  s_87dee764425e1a::t_791fa74d1aa705 14,248
+  s_87dee764425e1a::t_b81c53439cd63d 18,21,29,36,39,136,158
+  s_87dee764425e1a::t_f6d755ea5b0710 135
+  s_87dee764425e1a::t_275ff41cbfd2c3 159
+apps/dashboard/src/features/community/formatStripeAmount.ts
+  s_87dee764425e1a::t_d428f1e37c0f8d 2-6,8-15
+  s_87dee764425e1a::t_28f8aeea8d967f 1,7,16-17
+docs/stripe-checkout-rollout.md
+  s_87dee764425e1a::t_dfe98bacfd88b6 35-37,69,71-73,75-117
+packages/backend/convex/_generated/api.d.ts
+  s_87dee764425e1a::t_7a7b1c2a3009f0 1656-1727,2355-2366,2397-2398,3672-3702
+packages/backend/convex/_generated/dataModel.d.ts
+  s_87dee764425e1a::t_2738aa0dc79c9b 52-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e14b6d8063447e7526d7c4a6f7252dcfcc00b2aa",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
