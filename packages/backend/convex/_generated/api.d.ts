@@ -20,6 +20,60 @@ import type { GenericId as Id } from "convex/values";
  * ```
  */
 export declare const api: {
+  accountBilling: {
+    overview: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        canManageBilling: boolean;
+        clerkUserId: string;
+        hasMore: boolean;
+        subscriptions: Array<{
+          cancelAtPeriodEnd: boolean;
+          endsAt: number;
+          guildName: string | null;
+          id: Id<"guildSubscriptions">;
+          paymentFailedAt?: number;
+          priceId: string;
+          recognition: null | {
+            announce: boolean;
+            displayRole: boolean;
+            id: Id<"paidCommunityActivations">;
+            testMode: boolean;
+          };
+          reconciledAt: number;
+          startsAt: number;
+          status:
+            | "active"
+            | "trialing"
+            | "past_due"
+            | "canceled"
+            | "unpaid"
+            | "incomplete"
+            | "incomplete_expired"
+            | "paused"
+            | "expired"
+            | "revoked";
+        }>;
+      }
+    >;
+  };
+  accountBillingActions: {
+    prices: FunctionReference<
+      "action",
+      "public",
+      {},
+      Array<{
+        amount: number | null;
+        currency: string;
+        id: string;
+        interval: string | null;
+        intervalCount: number;
+        name: string;
+      }>
+    >;
+  };
   actions: {
     bot: {
       discord: {

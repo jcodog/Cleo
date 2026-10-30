@@ -15,18 +15,31 @@ import {
   SidebarMenuItem,
 } from "@workspace/ui/components/sidebar"
 import { AccountRoles } from "./AccountRoles"
+import { Button } from "@workspace/ui/components/button"
 
-export function LinkedRolesDialog() {
+export function LinkedRolesDialog({
+  variant = "sidebar",
+}: {
+  variant?: "sidebar" | "button"
+}) {
   return (
     <Dialog>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <DialogTrigger render={<SidebarMenuButton tooltip="Linked Roles" />}>
-            <IconShield aria-hidden />
-            <span>Linked Roles</span>
-          </DialogTrigger>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      {variant === "button" ? (
+        <DialogTrigger render={<Button variant="outline" />}>
+          Linked Roles FAQ
+        </DialogTrigger>
+      ) : (
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DialogTrigger
+              render={<SidebarMenuButton tooltip="Linked Roles" />}
+            >
+              <IconShield aria-hidden />
+              <span>Linked Roles</span>
+            </DialogTrigger>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      )}
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Discord Linked Roles</DialogTitle>

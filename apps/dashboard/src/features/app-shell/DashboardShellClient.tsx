@@ -13,6 +13,9 @@ import {
   IconSparkles,
   IconBroadcast,
   IconClock,
+  IconUserCircle,
+  IconPlug,
+  IconCreditCard,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
@@ -250,6 +253,42 @@ export function DashboardShellClient({
   ]
 
   const platformNavSections: Record<AppShellArea, AppShellNavSection[]> = {
+    account: [
+      {
+        title: "Account",
+        items: [
+          {
+            title: "Profile",
+            href: "/account",
+            icon: IconUserCircle,
+            isActive:
+              pathname === "/account" ||
+              (pathname.startsWith("/account/") &&
+                !["security", "connections", "billing", "roles"].includes(
+                  pathname.split("/")[2] ?? ""
+                )),
+          },
+          {
+            title: "Connected accounts",
+            href: "/account/connections",
+            icon: IconPlug,
+            isActive: pathname === "/account/connections",
+          },
+          {
+            title: "Security",
+            href: "/account/security",
+            icon: IconShieldLock,
+            isActive: pathname.startsWith("/account/security"),
+          },
+          {
+            title: "Billing & subscriptions",
+            href: "/account/billing",
+            icon: IconCreditCard,
+            isActive: pathname === "/account/billing",
+          },
+        ],
+      },
+    ],
     discord: discordNavSections,
     staff: staffNavSections,
     kick: [],
@@ -292,10 +331,11 @@ export function DashboardShellClient({
         {
           items: [
             {
-              title: "My billing",
-              href: "/account/billing",
+              title:
+                currentArea === "account" ? "Back to dashboard" : "My account",
+              href: currentArea === "account" ? "/dashboard" : "/account",
               icon: IconSettings,
-              isActive: pathname === "/account/billing",
+              isActive: false,
             },
           ],
         },

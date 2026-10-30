@@ -56,12 +56,15 @@ export async function beginTwitchLink(
     | "moderator:manage:chat_messages"
     | "moderator:manage:warnings"
     | "moderator:manage:banned_users"
-  )[] = []
+  )[] = [],
+  returnTo?: "/account/connections"
 ): Promise<string> {
   const callback = new URL(
-    moderationScopes.length
-      ? "/twitch/link-callback?returnTo=%2Ftwitch%2Fmoderation"
-      : "/twitch/link-callback?returnTo=%2Ftwitch",
+    returnTo
+      ? `/twitch/link-callback?returnTo=${encodeURIComponent(returnTo)}`
+      : moderationScopes.length
+        ? "/twitch/link-callback?returnTo=%2Ftwitch%2Fmoderation"
+        : "/twitch/link-callback?returnTo=%2Ftwitch",
     origin
   ).href
   const existing = user.externalAccounts.find((account) =>
