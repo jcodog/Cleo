@@ -1,0 +1,32 @@
+packages/backend/convex/actions/dashboard/discord/lib/dashboardGuildSync.ts
+  s_87dee764425e1a::t_feb91f087ee166 6,153-164
+apps/dashboard/tests/twitch/account-catalogue.spec.ts
+  s_87dee764425e1a::t_6159f5d99385a0 135,137-139,147
+  s_87dee764425e1a::t_0befe659f387c4 136
+docs/account-billing-environments.md
+  s_87dee764425e1a::t_70f3879508acc1 34-49,52-59,65-69,122-123
+  s_87dee764425e1a::t_dc7b3897a16dd4 50-51,60-64
+docs/dashboard-billing-handoff.md
+  s_87dee764425e1a::t_dc7b3897a16dd4 18-41
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_87dee764425e1a::t_0befe659f387c4 163-166
+docs/screenshots/account-repair-2026-10-30/README.md
+  s_87dee764425e1a::t_dc7b3897a16dd4 13
+  s_87dee764425e1a::t_70f3879508acc1 1-12,14-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c8346699601b5ee8aaace095e58d89524c0fceee",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
