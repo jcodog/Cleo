@@ -11,7 +11,9 @@ export const dashboardEnv = createEnv({
   },
   clientPrefix: "NEXT_PUBLIC_",
   client: {
+    // Frontend build target. Preview must use the matching development backend.
     NEXT_PUBLIC_CONVEX_URL: optionalUrl,
+    // Elements only. Billing history must remain readable without checkout.
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
     NEXT_PUBLIC_APP_URL: optionalUrl,
     NEXT_PUBLIC_SITE_URL: optionalUrl,

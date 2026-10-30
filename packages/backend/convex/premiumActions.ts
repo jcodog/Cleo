@@ -14,6 +14,7 @@ import {
   stripeInvoice,
   invoicePaidUntil,
   StripeRequestError,
+  verifyStripeAccount,
 } from "./lib/stripeCommunity"
 import { verifyStripeSignature } from "./lib/integrationSecurity"
 import { approvedCheckoutPrice, checkoutSession } from "./lib/stripeCheckout"
@@ -276,6 +277,7 @@ export const portal = action({
     )
     if (!context.customer || !backendEnv.CLEO_DASHBOARD_ORIGIN)
       throw new Error("Your billing customer is unavailable.")
+    await verifyStripeAccount()
     const session = z.object({ url: z.string().url() }).parse(
       await stripeRequest("/billing_portal/sessions", {
         customer: context.customer.stripeCustomerId,
@@ -292,7 +294,7 @@ async function purchaserCheckout(
   ctx: ActionCtx,
   args: { discordGuildId: string; sessionId: string }
 ) {
-  stripeCommunityConfig(true)
+  stripeCommunityConfig()
   const billing = await ctx.runQuery(internal.premiumPurchases.billingUser, {})
   const reservation = await ctx.runQuery(
     internal.premiumPurchases.checkoutBySession,

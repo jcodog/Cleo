@@ -28,6 +28,13 @@ export declare const api: {
       {
         canManageBilling: boolean;
         clerkUserId: string;
+        configuration: {
+          catalogueWritesEnabled: boolean;
+          checkoutEnabled: boolean;
+          missing: Array<string>;
+          returnOrigin: string | null;
+          stripeMode: string;
+        };
         hasMore: boolean;
         subscriptions: Array<{
           cancelAtPeriodEnd: boolean;

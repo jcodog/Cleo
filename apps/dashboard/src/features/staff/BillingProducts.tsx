@@ -9,6 +9,7 @@ import { formatStripeAmount } from "@/features/community/formatStripeAmount"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
+import { BackendBoundary } from "@/features/app-shell/BackendBoundary"
 import {
   Dialog,
   DialogContent,
@@ -22,10 +23,15 @@ export function BillingProducts({ productId }: { productId?: string }) {
   if (!auth.isLoaded || !auth.userId)
     return <p role="status">Loading billing catalogue…</p>
   return (
-    <Catalogue
-      key={`${auth.userId}:${auth.sessionId}:${productId ?? "list"}`}
-      productId={productId}
-    />
+    <BackendBoundary
+      key={`${auth.userId}:${auth.sessionId}`}
+      feature="Billing catalogue"
+    >
+      <Catalogue
+        key={`${auth.userId}:${auth.sessionId}:${productId ?? "list"}`}
+        productId={productId}
+      />
+    </BackendBoundary>
   )
 }
 

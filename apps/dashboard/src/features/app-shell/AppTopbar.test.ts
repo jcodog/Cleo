@@ -1,11 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import * as React from "react"
-import {
-  isValidElement,
-  type ReactElement,
-  type ReactNode,
-} from "react"
+import { isValidElement, type ReactElement, type ReactNode } from "react"
 
 type MockUserButtonProps = {
   appearance?: {
@@ -32,14 +28,11 @@ type MockActionProps =
     }
 
 const MockAction = (_props: MockActionProps) => null
-const MockUserButton = Object.assign(
-  (_props: MockUserButtonProps) => null,
-  {
-    Action: MockAction,
-    Link: MockLink,
-    MenuItems: MockMenuItems,
-  }
-)
+const MockUserButton = Object.assign((_props: MockUserButtonProps) => null, {
+  Action: MockAction,
+  Link: MockLink,
+  MenuItems: MockMenuItems,
+})
 
 function assertManageAccount(item: ReactNode) {
   assert.ok(isValidElement<MockActionProps>(item))
@@ -79,7 +72,9 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
 
   const { StaffUserButton } = await import("./AppTopbar")
 
-  const hidden = StaffUserButton({ staffLink: null }) as ReactElement<MockUserButtonProps>
+  const hidden = StaffUserButton({
+    staffLink: null,
+  }) as ReactElement<MockUserButtonProps>
   assert.equal(hidden.type, MockUserButton)
   assert.equal(hidden.props.showName, true)
   assert.deepEqual(hidden.props.appearance?.elements, {
@@ -92,9 +87,11 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
   const hiddenItems = React.Children.toArray(
     (hiddenMenu as ReactElement<{ children?: ReactNode }>).props.children
   )
-  assert.equal(hiddenItems.length, 2)
-  assertManageAccount(hiddenItems[0])
-  assertSignOut(hiddenItems[1])
+  assert.equal(hiddenItems.length, 3)
+  assert.ok(isValidElement<MockLinkProps>(hiddenItems[0]))
+  assert.equal(hiddenItems[0].props.href, "/dashboard")
+  assertManageAccount(hiddenItems[1])
+  assertSignOut(hiddenItems[2])
 
   for (const expected of [
     {
@@ -108,7 +105,9 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
       label: "Cleo Dashboard" as const,
     },
   ]) {
-    const rendered = StaffUserButton({ staffLink: expected }) as ReactElement<MockUserButtonProps>
+    const rendered = StaffUserButton({
+      staffLink: expected,
+    }) as ReactElement<MockUserButtonProps>
     const menu = rendered.props.children
     assert.ok(isValidElement(menu))
 
@@ -116,15 +115,17 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
     assert.equal(menuElement.type, MockMenuItems)
 
     const children = React.Children.toArray(menuElement.props.children)
-    assert.equal(children.length, 3)
+    assert.equal(children.length, expected.href === "/dashboard" ? 3 : 4)
 
-    const link = children[0] as ReactElement<MockLinkProps>
+    const link = children[
+      expected.href === "/dashboard" ? 0 : 1
+    ] as ReactElement<MockLinkProps>
     assert.equal(link.type, MockLink)
     assert.equal(link.props.href, expected.href)
     assert.equal(link.props.label, expected.label)
     assert.equal(link.props.labelIcon.props["aria-hidden"], true)
 
-    assertManageAccount(children[1])
-    assertSignOut(children[2])
+    assertManageAccount(children[children.length - 2])
+    assertSignOut(children[children.length - 1])
   }
 })

@@ -4,7 +4,7 @@ import { z } from "zod"
 import { v } from "convex/values"
 import { action } from "./_generated/server"
 import { api } from "./_generated/api"
-import { stripeRequest } from "./lib/stripeCommunity"
+import { stripeRequest, verifyStripeAccount } from "./lib/stripeCommunity"
 
 /** Read commercial details only for Prices attached to this purchaser's ledger. */
 export const prices = action({
@@ -24,6 +24,7 @@ export const prices = action({
     const ids: string[] = [
       ...new Set(ledger.subscriptions.map((row) => row.priceId)),
     ]
+    if (ids.length) await verifyStripeAccount()
     return Promise.all(
       ids.map(async (id) => {
         const price = z

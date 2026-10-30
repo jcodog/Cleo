@@ -124,8 +124,9 @@ function Connections() {
           Connected accounts
         </h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Manage your sign-in identities and the separate permissions Cleo uses
-          for community features.
+          Manage the application permissions Cleo uses for community features.
+          Sign-in identities and security are managed in Clerk’s Account
+          section.
         </p>
       </header>
       <div className="divide-y border-y">
@@ -148,9 +149,9 @@ function Connections() {
               </p>
               <p className="text-sm text-muted-foreground">
                 {discord?.verification?.status === "verified"
-                  ? "Verified sign-in identity"
+                  ? "Discord identity available for community authorisation"
                   : discord
-                    ? "Sign-in verification needs attention"
+                    ? "Verify this identity in Account before authorising community access"
                     : "Your primary identity for Discord communities."}
               </p>
             </div>
@@ -232,7 +233,10 @@ function Connections() {
               <Button
                 variant="ghost"
                 disabled={busy}
-                onClick={() => setConfirmation("twitch")}
+                onClick={() => {
+                  setNotice("")
+                  setConfirmation("twitch")
+                }}
               >
                 Disconnect Twitch
               </Button>
@@ -266,7 +270,10 @@ function Connections() {
               <Button
                 variant="ghost"
                 disabled={busy}
-                onClick={() => setConfirmation("roles")}
+                onClick={() => {
+                  setNotice("")
+                  setConfirmation("roles")
+                }}
               >
                 Disconnect Linked Roles consent
               </Button>
@@ -274,7 +281,7 @@ function Connections() {
           </div>
         </section>
       </div>
-      {notice ? (
+      {notice && confirmation === null ? (
         <p role="status" className="text-sm">
           {notice}
         </p>
@@ -298,6 +305,11 @@ function Connections() {
                 : "This removes Linked Roles verification consent. Your Discord sign-in remains connected."}
             </DialogDescription>
           </DialogHeader>
+          {notice ? (
+            <p role="alert" className="text-sm">
+              {notice}
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-3">
             <Button
               disabled={busy}

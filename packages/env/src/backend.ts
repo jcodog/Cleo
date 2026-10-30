@@ -10,10 +10,13 @@ export const backendEnv = createEnv({
     CONVEX_DEPLOYMENT: optionalString,
     CONVEX_URL: optionalUrl,
 
+    // Hosted Convex settings are deployment scoped, independent of local files.
     CLERK_JWT_ISSUER_DOMAIN: optionalUrl,
     CLERK_SECRET_KEY: optionalString,
     CLERK_WEBHOOK_SECRET: optionalString,
 
+    // Optional at process startup for non-billing features. Financial actions
+    // enforce test mode, expected account and capability-specific prerequisites.
     STRIPE_SECRET_KEY: optionalString,
     STRIPE_EXPECTED_ACCOUNT_ID: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,

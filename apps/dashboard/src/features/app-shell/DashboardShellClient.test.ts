@@ -143,8 +143,9 @@ test("Twitch shell renders account settings navigation through the shared sideba
   const account = shell()
   assert.equal(account.showPlatformSelector, false)
   assert.equal(account.showDiscordGuildSelect, false)
-  assert.deepEqual(account.navSections.flatMap(section => section.items).map(item => item.href), ["/account", "/account/connections", "/account/security", "/account/billing"])
-  assert.equal(account.navSections.flatMap(section => section.items).find(item => item.href === "/account/billing")?.isActive, true)
+  assert.equal(account.hideSidebar, true)
+  assert.deepEqual(account.navSections, [])
+  assert.deepEqual(account.footerNavSections, [])
   // Routes remain stable during a temporary Discord membership verification gap.
   pathname = "/dashboard/999999999999999999"
   assert.ok(

@@ -1,5 +1,39 @@
 # Dashboard and billing checkpoint, 29 October 2026
 
+## PR #284 account and integration repair, 30 October 2026
+
+The account now uses one native Clerk UserProfile with Account, Security and
+custom Connections/Billing pages. Optional catch-all routing owns all four URLs;
+the separate Cleo account sidebar and standalone page implementations are removed.
+Connection consent and purchaser access remain independent of guild navigation.
+
+The real failure is an outdated development Convex deployment: both
+`accountBilling:overview` and `billingCatalogue:access` are missing. Clerk API
+connectivity, matching sandbox Stripe account, approved recurring Price, enabled
+Convex Price mapping and default Customer Portal configuration were verified by
+read-only calls. New test checkout remains disabled; the return origin is local
+while Vercel Preview uses dev-app. See
+[environment setup and runtime evidence](account-billing-environments.md).
+
+Publishing development Convex functions remains pending the explicit exception
+to the earlier no-manual-deployment instruction. The in-app browser is at Discord
+sign-in, so real authenticated native UserProfile and staff catalogue screenshots
+remain unverified. Existing screenshots below are component-fixture evidence,
+not native Clerk or payment acceptance. Do not treat those images as proof of the
+repaired native account layout.
+
+Repair validation: production lint and typecheck (nine tasks each), coverage
+(nine tasks, 407 backend and 108 dashboard tests), production build, 69 Playwright
+component/browser cases and two built-PWA checks passed. Release-contract
+validation passed on its single retry after a Windows temporary-directory
+`EBUSY` cleanup error. No assertions were weakened. Native Clerk
+screenshots and real authenticated billing/catalogue results remain blocked by
+sign-in and the missing deployed development functions, not proved by fixtures.
+
+The four stashes have been re-audited, with the obsolete unique dev-script patch
+archived. Drop their references only after the repair is signed, pushed and
+verified. No new branches, worktrees or PRs are needed. PR #284 remains draft.
+
 ## Consolidated development status, 30 October 2026
 
 Development resumed on `feat/cleo-dashboard-account-billing` at `00e43565257d`.

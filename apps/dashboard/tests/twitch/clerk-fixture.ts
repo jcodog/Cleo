@@ -24,6 +24,8 @@ const user = {
         "channel:bot moderator:read:followers bits:read channel:read:subscriptions",
       verification: { status: "verified" },
       destroy: async () => {
+        if (new URLSearchParams(location.search).has("failDisconnect"))
+          throw new Error("Connection failed")
         user.externalAccounts = user.externalAccounts.filter(
           (account) => account.provider !== "twitch"
         )

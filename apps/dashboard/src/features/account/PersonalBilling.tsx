@@ -1,7 +1,8 @@
 "use client"
 
 import { useAuth } from "@clerk/nextjs"
-import { useAction, useMutation, useQuery } from "convex/react"
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
+import { ConvexError } from "convex/values"
 import type { FunctionReturnType } from "convex/server"
 import { useEffect, useState } from "react"
 import Link from "next/link"
@@ -12,7 +13,16 @@ import { Switch } from "@workspace/ui/components/switch"
 
 export function PersonalBilling() {
   const { userId, sessionId, isLoaded } = useAuth()
+  const { isAuthenticated, isLoading } = useConvexAuth()
   if (!isLoaded || !userId) return <p role="status">Loading billing account…</p>
+  if (isLoading) return <p role="status">Connecting your billing account…</p>
+  if (!isAuthenticated)
+    return (
+      <p role="alert">
+        Your Clerk session has not connected to Convex. Sign in again to load
+        your subscriptions.
+      </p>
+    )
   return <Billing key={`${userId}:${sessionId}`} clerkUserId={userId} />
 }
 
@@ -53,8 +63,12 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
     setNotice("")
     try {
       await operation()
-    } catch {
-      setNotice("Billing could not be updated. Please try again.")
+    } catch (failure) {
+      setNotice(
+        failure instanceof ConvexError && typeof failure.data === "string"
+          ? failure.data
+          : "Billing management failed. Check the connected Convex deployment and Stripe Customer Portal configuration, then retry."
+      )
     } finally {
       setBusy(false)
     }
@@ -91,6 +105,45 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
         <p role="status" className="text-sm">
           {notice}
         </p>
+      ) : null}
+      {ledger.configuration ? (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted-foreground">
+            Billing connection details
+          </summary>
+          <dl className="mt-3 space-y-2">
+            <div>
+              <dt className="inline font-medium">Stripe mode: </dt>
+              <dd className="inline">{ledger.configuration.stripeMode}</dd>
+            </div>
+            <div>
+              <dt className="inline font-medium">New test checkout: </dt>
+              <dd className="inline">
+                {ledger.configuration.checkoutEnabled ? "enabled" : "disabled"}
+              </dd>
+            </div>
+            <div>
+              <dt className="inline font-medium">Return origin: </dt>
+              <dd className="inline break-all">
+                {ledger.configuration.returnOrigin ??
+                  "CLEO_DASHBOARD_ORIGIN is missing"}
+              </dd>
+            </div>
+            {ledger.configuration.missing.length ? (
+              <div>
+                <dt className="font-medium">Missing Convex configuration</dt>
+                <dd className="break-words">
+                  {ledger.configuration.missing.join(", ")}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          <p className="mt-3 text-muted-foreground">
+            Configuration presence does not verify the Stripe account, webhook
+            delivery or payment acceptance. Your subscription history remains
+            available while checkout is disabled.
+          </p>
+        </details>
       ) : null}
       {!ledger.canManageBilling && ledger.subscriptions.length ? (
         <p className="text-sm text-muted-foreground">

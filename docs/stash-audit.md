@@ -1,15 +1,19 @@
 # Saved-work audit, 30 October 2026
 
-Compared against canonical `00e43565257d29915090177edf8d376594434794`.
-Inspected each stash's worktree, index and untracked trees separately. No stash
-was applied, popped or deleted. All four remain available.
+Initially compared against canonical `00e43565257d29915090177edf8d376594434794`,
+then rechecked against `e14b6d8063447e7526d7c4a6f7252dcfcc00b2aa` and the PR #284
+repair. Worktree, index, untracked trees and original bases were inspected
+individually. No stash was applied or popped. The maintainer now authorises
+removal once this accounting and the necessary recovery are committed, validated
+and pushed. The original stash hashes below identify the audited snapshots even
+after their stash references are removed.
 
 | Stash | Original base | Accounting |
 | --- | --- | --- |
 | `stash@{0}`, `5b2c99f216a4` | `88928208de69`, shared moderation merge | 19 tracked files and two untracked files. Almost entirely already incorporated by `c247434` and subsequent security fixes. Recovered only the missing account-link timestamp guard, with regression coverage. |
 | `stash@{1}`, `1b06471369df` | `7525b3322851`, hosted account checkpoint | Worktree and index match their base. Untracked tree is empty. Account source and declarations are already merged through `00e4356`. No recovery needed. |
-| `stash@{2}`, `0e2a9ac2f6f9` | `b020b256918d`, dashboard fixes | Nine tracked and five untracked files. Thirteen are byte-identical to current source. The community fixture contains the same recovery additions plus newer Stripe checkout scenarios in current source. Nothing missing. |
-| `stash@{3}`, `f559dd7c61e0` | `34529a56b0b8`, Stripe PR merge | Only removes `NODE_USE_SYSTEM_CA=1` from the root dev script. Unrelated local preference, deliberately not recovered because it would undo the maintained HTTPS certificate fix. |
+| `stash@{2}`, `0e2a9ac2f6f9` | `b020b256918d`, dashboard fixes | Nine tracked and five untracked files. Recovery implementation and tests are already incorporated. Current Clerk, navigation and community fixtures include newer account/checkout changes. Nothing missing. |
+| `stash@{3}`, `f559dd7c61e0` | `34529a56b0b8`, Stripe PR merge | Only removes `NODE_USE_SYSTEM_CA=1` from the root dev script. Obsolete local preference that would undo the maintained HTTPS certificate fix. Its exact unique patch is preserved in `docs/archive/stash-pre-consolidation-dev.patch`, rather than applied to the dev script. |
 
 ## Stash 0 file accounting
 
@@ -76,3 +80,28 @@ All 44 focused authorization, linked-identity, membership-refresh, billing
 recovery and guild-recency tests passed. Backend lint and typecheck passed.
 The existing identity-sync integration test now proves old evidence is denied
 and a fresh verified bot observation restores access.
+
+## PR #284 recheck and cleanup evidence
+
+- Stash 0: all 21 files accounted for above. The previously recovered timestamp
+  guard is now byte-identical to the stash's membership helper. Newer generation,
+  identity, publication and billing security fences remain in place. No unrelated
+  backend work was introduced during this repair.
+- Stash 1: original base is the preserved account commit `7525b3322851`; index,
+  tracked and untracked deltas are all empty. Its ancestry was verified again.
+- Stash 2: all nine tracked and five untracked paths exist. Eleven are byte-identical
+  after normalising line endings; three fixture/test files retain later additions.
+  The session-recovery source remains unchanged by this repair.
+- Stash 3 has no untracked parent and an empty index delta. The archive contains
+  the complete original `git diff stash^1 stash -- package.json` output.
+- Generated declarations were regenerated from the current Convex source; only
+  the new safe billing configuration result contract changes the API declaration.
+- The earlier recovered authorization guard and its tests were already signed
+  and pushed in `837c7c2`. This repair adds no additional missing stash code.
+- Only `main` and `feat/cleo-dashboard-account-billing` remain locally and on
+  origin. The canonical branch tracks its namesake remote. No extra worktree was
+  created, and original implementation commits remain reachable.
+
+After the repair's signed commit is pushed and verified, all four stash references
+can be safely dropped. The final PR checkpoint records the observed empty stash
+list. No unique source or documentation depends on those references.

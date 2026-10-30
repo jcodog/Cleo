@@ -1,5 +1,6 @@
 "use node"
 import { z } from "zod"
+import { ConvexError } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
 export class StripeRequestError extends Error {
   constructor(
@@ -16,10 +17,28 @@ export function stripeCommunityConfig(checkout = false) {
     !key.startsWith("sk_test_") ||
     (checkout && backendEnv.STRIPE_TEST_CHECKOUT_ENABLED !== "true")
   )
-    throw new Error(
-      "Test-mode Stripe integration is not configured. Live charging is disabled."
+    throw new ConvexError(
+      !key
+        ? "STRIPE_SECRET_KEY is missing on this Convex deployment."
+        : !key.startsWith("sk_test_")
+          ? "STRIPE_SECRET_KEY must use test mode. Live charging is disabled."
+          : "New test checkout is disabled by STRIPE_TEST_CHECKOUT_ENABLED."
     )
   return key
+}
+export async function verifyStripeAccount() {
+  const expected = backendEnv.STRIPE_EXPECTED_ACCOUNT_ID
+  if (!expected)
+    throw new ConvexError(
+      "STRIPE_EXPECTED_ACCOUNT_ID is missing on this Convex deployment."
+    )
+  const account = z
+    .object({ id: z.string() })
+    .parse(await stripeRequest("/account"))
+  if (account.id !== expected)
+    throw new ConvexError(
+      "Stripe account does not match the configured Cleo account. Check STRIPE_EXPECTED_ACCOUNT_ID and STRIPE_SECRET_KEY."
+    )
 }
 export async function stripeRequest(
   path: string,

@@ -17,14 +17,20 @@ import {
 
 export function AppTopbar({
   staffEntry = null,
+  showSidebar = true,
 }: {
   staffEntry?: StaffTopbarEntry | null
+  showSidebar?: boolean
 }) {
   const pathname = usePathname()
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur">
-      <SidebarTrigger />
-      <Separator orientation="vertical" className="my-auto h-5" />
+      {showSidebar ? (
+        <>
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="my-auto h-5" />
+        </>
+      ) : null}
 
       <div className="min-w-0 flex-1">
         {pathname.startsWith("/dashboard") ? (
@@ -38,11 +44,6 @@ export function AppTopbar({
             >
               Servers
             </Link>
-            {pathname !== "/dashboard/servers" && pathname !== "/dashboard" ? (
-              <span className="ml-2 text-muted-foreground" aria-hidden>
-                /
-              </span>
-            ) : null}
           </nav>
         ) : (
           <p className="truncate text-sm font-medium">
@@ -117,6 +118,13 @@ export function StaffUserButton({
       showName
     >
       <UserButton.MenuItems>
+        {staffLink?.href !== "/dashboard" ? (
+          <UserButton.Link
+            href="/dashboard"
+            label="Cleo Dashboard"
+            labelIcon={<IconHome aria-hidden size={16} />}
+          />
+        ) : null}
         {staffLink ? (
           <UserButton.Link
             href={staffLink.href}

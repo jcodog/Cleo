@@ -13,8 +13,6 @@ import {
   IconSparkles,
   IconBroadcast,
   IconClock,
-  IconUserCircle,
-  IconPlug,
   IconCreditCard,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
@@ -259,42 +257,7 @@ export function DashboardShellClient({
   ]
 
   const platformNavSections: Record<AppShellArea, AppShellNavSection[]> = {
-    account: [
-      {
-        title: "Account",
-        items: [
-          {
-            title: "Profile",
-            href: "/account",
-            icon: IconUserCircle,
-            isActive:
-              pathname === "/account" ||
-              (pathname.startsWith("/account/") &&
-                !["security", "connections", "billing", "roles"].includes(
-                  pathname.split("/")[2] ?? ""
-                )),
-          },
-          {
-            title: "Connected accounts",
-            href: "/account/connections",
-            icon: IconPlug,
-            isActive: pathname === "/account/connections",
-          },
-          {
-            title: "Security",
-            href: "/account/security",
-            icon: IconShieldLock,
-            isActive: pathname.startsWith("/account/security"),
-          },
-          {
-            title: "Billing & subscriptions",
-            href: "/account/billing",
-            icon: IconCreditCard,
-            isActive: pathname === "/account/billing",
-          },
-        ],
-      },
-    ],
+    account: [],
     discord: discordNavSections,
     staff: staffNavSections,
     kick: [],
@@ -333,19 +296,23 @@ export function DashboardShellClient({
 
   return (
     <AppShell
-      footerNavSections={[
-        {
-          items: [
-            {
-              title:
-                currentArea === "account" ? "Back to dashboard" : "My account",
-              href: currentArea === "account" ? "/dashboard" : "/account",
-              icon: IconSettings,
-              isActive: false,
-            },
-          ],
-        },
-      ]}
+      hideSidebar={currentArea === "account"}
+      footerNavSections={
+        currentArea === "account"
+          ? []
+          : [
+              {
+                items: [
+                  {
+                    title: "My account",
+                    href: "/account",
+                    icon: IconSettings,
+                    isActive: false,
+                  },
+                ],
+              },
+            ]
+      }
       navSections={
         currentArea === "discord" && pathname === "/dashboard/servers"
           ? [

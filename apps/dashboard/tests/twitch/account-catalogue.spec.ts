@@ -148,3 +148,20 @@ test("empty purchaser billing and restricted staff catalogue have intentional st
     page.getByRole("button", { name: "Review product change" })
   ).toHaveCount(0)
 })
+
+test("disconnect failure stays visible inside the confirmation dialog", async ({
+  page,
+}) => {
+  await page.goto(`/account/connections${fixture}&failDisconnect`)
+  await page
+    .getByRole("button", { name: "Disconnect Twitch", exact: true })
+    .click()
+  const dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: "Confirm disconnect" }).click()
+  await expect(dialog.getByRole("alert")).toContainText("could not be updated")
+  await expect(
+    dialog.getByRole("button", { name: "Confirm disconnect" })
+  ).toBeEnabled()
+  await page.keyboard.press("Escape")
+  await expect(dialog).toHaveCount(0)
+})

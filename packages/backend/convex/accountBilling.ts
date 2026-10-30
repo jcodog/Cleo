@@ -3,6 +3,7 @@ import { query } from "./_generated/server"
 import { requireCurrentUser } from "./lib/auth"
 import { subscriptionStatus } from "./dbTables/guildBilling"
 import { backendEnv } from "@workspace/env/backend"
+import { billingConfiguration } from "./lib/billingConfiguration"
 
 /** A purchaser's ledger remains available independently of Discord membership. */
 export const overview = query({
@@ -10,6 +11,13 @@ export const overview = query({
   returns: v.object({
     clerkUserId: v.string(),
     canManageBilling: v.boolean(),
+    configuration: v.object({
+      stripeMode: v.string(),
+      missing: v.array(v.string()),
+      checkoutEnabled: v.boolean(),
+      catalogueWritesEnabled: v.boolean(),
+      returnOrigin: v.union(v.string(), v.null()),
+    }),
     hasMore: v.boolean(),
     subscriptions: v.array(
       v.object({
@@ -49,6 +57,7 @@ export const overview = query({
       : []
     return {
       clerkUserId: user.clerkUserId,
+      configuration: billingConfiguration(),
       canManageBilling:
         !!customer &&
         !!backendEnv.STRIPE_SECRET_KEY?.startsWith("sk_test_") &&

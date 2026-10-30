@@ -1,8 +1,7 @@
 "use node"
 
 import { z } from "zod"
-import { backendEnv } from "@workspace/env/backend"
-import { stripeRequest } from "./stripeCommunity"
+import { stripeRequest, verifyStripeAccount } from "./stripeCommunity"
 
 export const checkoutSession = z.object({
   id: z.string(),
@@ -21,15 +20,7 @@ export async function approvedCheckoutPrice(
   priceId: string,
   productId: string
 ) {
-  if (!backendEnv.STRIPE_EXPECTED_ACCOUNT_ID)
-    throw new Error("The Cleo Stripe test account must be configured.")
-  const account = z
-    .object({ id: z.string() })
-    .parse(await stripeRequest("/account"))
-  if (account.id !== backendEnv.STRIPE_EXPECTED_ACCOUNT_ID)
-    throw new Error(
-      "Stripe account does not match the configured Cleo account."
-    )
+  await verifyStripeAccount()
   const price = z
     .object({
       id: z.string(),
