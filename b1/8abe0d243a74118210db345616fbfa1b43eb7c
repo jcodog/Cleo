@@ -1,0 +1,101 @@
+apps/dashboard/src/features/app-shell/AppTopbar.tsx
+  s_87dee764425e1a::t_fe7d46dee1b670 20,23,28-33,121-127
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_87dee764425e1a::t_fe7d46dee1b670 260,299-315
+packages/env/src/backend.ts
+  s_87dee764425e1a::t_9bf0d28fa4d014 13,18-19
+packages/backend/convex/lib/stripeCheckout.ts
+  s_87dee764425e1a::t_f7b619dcae08f3 4,23
+apps/dashboard/src/features/app-shell/AppShell.tsx
+  s_87dee764425e1a::t_a31d280d2c5deb 14,16-24
+docs/account-billing-environments.md
+  s_87dee764425e1a::t_9bf0d28fa4d014 1-20,26-138
+  s_87dee764425e1a::t_9807bd594557aa 21-25
+apps/dashboard/tests/twitch/clerk-fixture.ts
+  s_87dee764425e1a::t_fe7d46dee1b670 27-28
+packages/backend/.env.example
+  s_87dee764425e1a::t_9bf0d28fa4d014 4-9
+apps/dashboard/src/features/account/AccountProfile.tsx
+  s_87dee764425e1a::t_bc1663142208d5 3,11
+  s_87dee764425e1a::t_5b5a4b990d1069 32-35,44-47
+  s_87dee764425e1a::t_fe7d46dee1b670 4-7,13,24-31,36-43,48-51
+packages/env/src/dashboard.ts
+  s_87dee764425e1a::t_9bf0d28fa4d014 14,16
+apps/dashboard/src/features/account/AccountProfile.test.ts
+  s_87dee764425e1a::t_4348d099a679e7 1-6,16-17,26-32,54-56
+  s_87dee764425e1a::t_fe7d46dee1b670 7-15,18-25,33-53
+apps/dashboard/.env.example
+  s_87dee764425e1a::t_9bf0d28fa4d014 1-6,8-11,17-21
+apps/dashboard/src/features/app-shell/BackendBoundary.tsx
+  s_87dee764425e1a::t_7a85d3df28c8fe 1-9,15-32,51-54
+  s_87dee764425e1a::t_fe7d46dee1b670 10-14,33-50
+docs/stash-audit.md
+  s_87dee764425e1a::t_31115e2202c27f 92-93
+  s_87dee764425e1a::t_1811d447319aa6 3-9,15-16,83-91,94-107
+docs/dashboard-billing-handoff.md
+  s_87dee764425e1a::t_1811d447319aa6 3-24,33-36
+  s_87dee764425e1a::t_9807bd594557aa 25-27,30-32
+  s_87dee764425e1a::t_35afe647d18ebe 28-29
+apps/dashboard/src/features/app-shell/types.ts
+  s_87dee764425e1a::t_a31d280d2c5deb 28
+packages/backend/convex/accountBilling.ts
+  s_87dee764425e1a::t_fe7d46dee1b670 6,14-20,60
+packages/backend/convex/accountBillingActions.ts
+  s_87dee764425e1a::t_f7b619dcae08f3 7,27
+packages/backend/convex/premiumActions.ts
+  s_87dee764425e1a::t_f7b619dcae08f3 17,280,297
+apps/dashboard/src/features/app-shell/BackendBoundary.test.ts
+  s_87dee764425e1a::t_fe7d46dee1b670 6-18
+  s_87dee764425e1a::t_4348d099a679e7 1-5,19-21
+apps/dashboard/tests/twitch/account-catalogue.spec.ts
+  s_87dee764425e1a::t_fe7d46dee1b670 151-167
+packages/backend/convex/lib/billingConfiguration.ts
+  s_87dee764425e1a::t_fe7d46dee1b670 1-32
+apps/dashboard/src/features/app-shell/AppTopbar.test.ts
+  s_87dee764425e1a::t_fe7d46dee1b670 4,31-35,75-77,90-94,108-110,118,120-122,128-129
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_87dee764425e1a::t_a7fec43702e684 146-148
+packages/backend/convex/accountBilling.test.ts
+  s_87dee764425e1a::t_fe7d46dee1b670 7,21,23-67,69-82,85-90,100-109,111-115,120-125,131,134,137-139,144,148-154,156-167,169-172,174-223
+  s_87dee764425e1a::t_5b5a4b990d1069 224-272
+scripts/check-dashboard-backend.mjs
+  s_87dee764425e1a::t_fe7d46dee1b670 12-18,28-39,44-48,51-53,55-57
+  s_87dee764425e1a::t_824ae318e2c6e6 1-11,19-27,40-43,49-50,54,58-60
+scripts/check-dashboard-backend.test.mjs
+  s_87dee764425e1a::t_824ae318e2c6e6 1-5,16,47
+  s_87dee764425e1a::t_fe7d46dee1b670 6-15,17-46
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_87dee764425e1a::t_6f8b6dfefeaf4a 4-5,16,18,66,109-110,114,140,146
+  s_87dee764425e1a::t_fe7d46dee1b670 19-25,67-71,111-113,115-139,141-145
+  s_87dee764425e1a::t_1b7a2eeefa9d62 147
+apps/dashboard/package.json
+  s_87dee764425e1a::t_e32f18b922156c 9,19-20
+  s_87dee764425e1a::t_5b5a4b990d1069 13
+packages/backend/convex/lib/stripeCommunity.ts
+  s_87dee764425e1a::t_fe7d46dee1b670 3,20-25,29-42
+apps/dashboard/src/features/staff/BillingProducts.tsx
+  s_87dee764425e1a::t_fe7d46dee1b670 26-34
+  s_87dee764425e1a::t_7a85d3df28c8fe 12
+apps/dashboard/src/features/account/AccountConnections.tsx
+  s_87dee764425e1a::t_fe7d46dee1b670 127-129,152,154,236-239,273-276,284,308-312
+docs/archive/stash-pre-consolidation-dev.patch
+  s_87dee764425e1a::t_50b0d7b724952d 1-13
+packages/backend/convex/_generated/api.d.ts
+  s_87dee764425e1a::t_121e685f0bb8a6 31-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b18abe0d243a74118210db345616fbfa1b43eb7c",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
