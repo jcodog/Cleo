@@ -3,7 +3,10 @@
 import { createLogger } from "@workspace/logger"
 import { ConvexError } from "convex/values"
 import { prepareCommunityRefresh } from "../../../../lib/communityRefresh"
-import { DiscordCapabilityError } from "../../../../lib/communityDiscord"
+import {
+  DiscordCapabilityError,
+  DiscordTokenError,
+} from "../../../../lib/communityDiscord"
 
 import { internal } from "../../../../_generated/api"
 import type { Id } from "../../../../_generated/dataModel"
@@ -155,9 +158,10 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
       reason:
         failure instanceof DiscordCapabilityError
           ? `discordHttp${failure.status}`
-          : failure instanceof Error &&
-              failure.message === "Refresh your Discord account connection."
-            ? "discordConnectionRefreshRequired"
+          : failure instanceof DiscordTokenError
+            ? failure.reason === "discordAccessTokenUnavailable"
+              ? "discordConnectionRefreshRequired"
+              : failure.reason
             : "verificationFailed",
     })
     return null

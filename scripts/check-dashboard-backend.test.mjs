@@ -32,6 +32,7 @@ test("preview checks fail on missing backend functions rather than accepting a r
   assert.deepEqual(paths, [
     "accountBilling:overview",
     "billingCatalogue:access",
+    "billingPortalActions:profile",
     "premiumActions:offer",
   ])
   await assert.rejects(

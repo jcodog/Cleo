@@ -212,7 +212,7 @@ test("moderation stays locked and purchase visibility starts private in actual d
       node.type === "button" && content(node).includes("Continue to checkout")
   )
   assert.ok(checkout && !checkout.props.disabled)
-  assert.ok(purchase.some((node) => node.props.href === "/account/billing"))
+  assert.ok(purchase.some((node) => node.props.href === "/billing"))
   assert.ok(
     !purchase.some((node) => content(node) === "Manage my Stripe billing")
   )

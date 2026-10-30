@@ -25,6 +25,7 @@ export const backendEnv = createEnv({
     STRIPE_CATALOGUE_MANAGER_IDS: optionalString,
     STRIPE_CATALOGUE_WRITES_ENABLED: optionalString,
     CLEO_DASHBOARD_ORIGIN: optionalUrl,
+    CLEO_DASHBOARD_ALLOWED_ORIGINS: optionalString,
     CLEO_OFFICIAL_GUILD_ID: optionalString,
     CLEO_MANAGED_ROLE_IDS: optionalString,
     CLEO_COMMUNITY_UPGRADES_CHANNEL_ID: optionalString,

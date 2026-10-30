@@ -9,6 +9,7 @@ import { AccountRoles } from "../../src/features/community/AccountRoles"
 import { LinkedRoleCallback } from "../../src/features/community/LinkedRoleCallback"
 import { PremiumPurchases } from "../../src/features/community/PremiumPurchases"
 import { PersonalBilling } from "../../src/features/account/PersonalBilling"
+import { billingFixture } from "./billing-fixture"
 import { AccountConnections } from "../../src/features/account/AccountConnections"
 import { BillingProducts } from "../../src/features/staff/BillingProducts"
 import { CheckoutReturn } from "../../src/features/community/PremiumCheckout"
@@ -124,6 +125,7 @@ export function communityQuery(path: string) {
         : [
             {
               id: "subscription-fixture",
+              stripeSubscriptionId: "sub_fixture",
               priceId: "price_premium",
               guildName: "Piano Club",
               status: "active",
@@ -175,6 +177,10 @@ export async function communityWrite(
   args: unknown,
   notify: () => void
 ) {
+  if (path.startsWith("billingPortalActions:")) {
+    if (path !== "billingPortalActions:profile") calls.push({ path, args })
+    return billingFixture(path, args)
+  }
   if (path === "accountBillingActions:prices")
     return [
       {
@@ -474,7 +480,7 @@ function NavigationFixture() {
           <DashboardEntry />
         ) : pathname === "/dashboard/servers" ? (
           <DiscordDashboardPageShell />
-        ) : pathname === "/account/billing" ? (
+        ) : pathname === "/billing" || pathname === "/account/billing" ? (
           params.has("accountUI") ? (
             <PersonalBilling />
           ) : (

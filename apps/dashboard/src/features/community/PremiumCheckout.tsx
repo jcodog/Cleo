@@ -226,7 +226,7 @@ function PaymentForm({
           By subscribing, you authorise recurring payments every {period} until
           you cancel. Manage cancellation and payment details in{" "}
           <Link
-            href="/account/billing"
+            href="/billing"
             className="underline underline-offset-4"
           >
             My billing
@@ -422,7 +422,7 @@ function CheckoutReturnContent({
         )}
         <Link
           className="self-center underline underline-offset-4"
-          href="/account/billing"
+          href="/billing"
         >
           My billing
         </Link>

@@ -22,6 +22,7 @@ export const overview = query({
     subscriptions: v.array(
       v.object({
         id: v.id("guildSubscriptions"),
+        stripeSubscriptionId: v.string(),
         priceId: v.string(),
         guildName: v.union(v.string(), v.null()),
         status: subscriptionStatus,
@@ -74,6 +75,7 @@ export const overview = query({
             .unique()
           return {
             id: row._id,
+            stripeSubscriptionId: row.stripeSubscriptionId,
             priceId: row.stripePriceId,
             guildName: guild?.name ?? null,
             status: row.status,

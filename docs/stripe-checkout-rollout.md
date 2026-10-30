@@ -11,9 +11,9 @@ Read-only inspection through the connected Stripe integration found:
 
 | Environment | Product and recurring Price | Existing webhook |
 | --- | --- | --- |
-| Cleo live, `acct_1QsyFxE1O7ChWNwx` | `prod_SpXiCl2PJ8aHD7`, `price_1RtscmE1O7ChWNwxZGKD5Rn1`, GBP 499/month | `we_1RtsPXE1O7ChWNwx4KfMTTjJ`, `https://cleoai.cloud/webhooks/stripe`, `2025-07-30.basil` |
+| Cleo live, `acct_1QsyFxE1O7ChWNwx` | `prod_SpXiCl2PJ8aHD7`, `price_1RtscmE1O7ChWNwxZGKD5Rn1`, GBP 4.99/month (499 minor units) | `we_1RtsPXE1O7ChWNwx4KfMTTjJ`, `https://cleoai.cloud/webhooks/stripe`, `2025-07-30.basil` |
 | Cleo shared test mode | No Products or Prices | No endpoints |
-| Cleo Dev Sandbox, `acct_1RGgwvE1e1YdqDQQ` | New `prod_VX3KxV0lTiLijQ`, `price_1UVzEKE1e1YdqDQQ2ET4LiZ4`, GBP 499/month | Existing Svix `we_1RtrP6E1e1YdqDQQz7cAkRA5` preserved; new Convex `we_1UVzFRE1e1YdqDQQiKOxjur2`, `2026-09-30.endive` |
+| Cleo Dev Sandbox, `acct_1RGgwvE1e1YdqDQQ` | New `prod_VX3KxV0lTiLijQ`, `price_1UVzEKE1e1YdqDQQ2ET4LiZ4`, GBP 4.99/month (499 minor units) | Existing Svix `we_1RtrP6E1e1YdqDQQz7cAkRA5` preserved; new Convex `we_1UVzFRE1e1YdqDQQiKOxjur2`, `2026-09-30.endive` |
 
 The connector initially reported a legacy GBP 999/month sandbox Price, but its
 Product could not be retrieved using the configured sandbox key. Direct API
@@ -32,7 +32,7 @@ invoice, refund, dispute or asynchronous payment events.
 
 Use one Cleo-owned test environment consistently. For the existing Dev Sandbox:
 
-1. Verify the existing approved GBP 499/month licensed recurring Price above.
+1. Verify the existing approved GBP 4.99/month (499 minor units) licensed recurring Price above.
    Create a new Price only when a new commercial offer is intended. Preserve
    legacy Prices and their subscribers.
 2. Set `STRIPE_EXPECTED_ACCOUNT_ID=acct_1RGgwvE1e1YdqDQQ` and that sandbox's
@@ -148,7 +148,7 @@ Every row remains a launch gate until its evidence is recorded in JCN-241/JCN-24
 | Business settings | Cleo account identity, verification requirements, charge/payout readiness, bank destination, public business/support details, statement descriptor and customer-facing policies reviewed by the maintainer. |
 | Tax | Business owner/accountant determines applicable VAT/sales-tax obligations, registrations, product classification, customer location collection and inclusive/exclusive pricing. Configure and test tax calculation only after those decisions; this PR does not enable automatic tax or establish tax compliance. |
 | Customer billing | Correct authenticated purchaser/customer association; receipts and invoices; working Portal payment-method updates and cancellation, including after guild access loss; clear renewal and cancellation terms. |
-| Price and currencies | Approved Cleo GBP 499/month live Product/Price confirmed. Do not imply other currencies are supported without explicitly configured Prices and transaction tests. Preserve historical subscription mappings. |
+| Price and currencies | Approved Cleo GBP 4.99/month (499 minor units) live Product/Price confirmed. Do not imply other currencies are supported without explicitly configured Prices and transaction tests. Preserve historical subscription mappings. |
 | Payment methods | Cleo Dashboard settings, eligible recurring methods and wallet domains reviewed. Test actual card success, decline and authentication, eligible wallets, redirects, cancellation and delayed success/failure on supported devices. |
 | Billing lifecycle | A real sandbox purchase, signed Convex webhook, matching payment evidence and guild entitlement; replay/reordering; renewal; failed collection and grace expiry; scheduled/immediate cancellation; entitlement expiry; refund, dispute and early fraud warning. Record Stripe IDs and resulting Convex state without secrets. |
 | Operations | Confirm current consumers of both legacy webhook destinations. Verify new endpoint signatures, retries, monitoring, secret rotation and reconciliation recovery. Assign refund/dispute response ownership and document manual review of sticky revocation. |

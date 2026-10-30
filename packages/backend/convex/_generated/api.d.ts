@@ -62,6 +62,7 @@ export declare const api: {
             | "paused"
             | "expired"
             | "revoked";
+          stripeSubscriptionId: string;
         }>;
       }
     >;
@@ -1732,6 +1733,114 @@ export declare const api: {
       }
     >;
   };
+  billingPortalActions: {
+    beginSetup: FunctionReference<
+      "action",
+      "public",
+      { key: string; returnOrigin?: string },
+      { clientSecret: string; id: string; returnUrl: string }
+    >;
+    cancelSetup: FunctionReference<
+      "action",
+      "public",
+      { setupIntentId: string },
+      null
+    >;
+    completeSetup: FunctionReference<
+      "action",
+      "public",
+      { setupIntentId: string },
+      "saved" | "processing"
+    >;
+    makeDefault: FunctionReference<
+      "action",
+      "public",
+      { key: string; paymentMethodId: string },
+      null
+    >;
+    profile: FunctionReference<
+      "action",
+      "public",
+      {},
+      {
+        clerkUserId: string;
+        customer: null | {
+          address: {
+            city: string;
+            country: string;
+            line1: string;
+            line2: string;
+            postalCode: string;
+            state: string;
+          };
+          defaultMethodId: string | null;
+          email: string;
+          name: string;
+        };
+        hasMoreInvoices: boolean;
+        hasMoreMethods: boolean;
+        hasMoreSubscriptions: boolean;
+        invoices: Array<{
+          amount: number;
+          createdAt: number;
+          currency: string;
+          id: string;
+          number: string | null;
+          pdf: string | null;
+          status: string;
+          url: string | null;
+        }>;
+        methods: Array<{
+          brand: string | null;
+          expiryMonth: number | null;
+          expiryYear: number | null;
+          id: string;
+          label: string;
+          last4: string | null;
+          manageable: boolean;
+          type: string;
+        }>;
+        subscriptions: Array<{
+          cancelAtPeriodEnd: boolean;
+          id: string;
+          items: Array<{
+            amount: number | null;
+            currency: string;
+            interval: string | null;
+            intervalCount: number;
+            name: string;
+            quantity: number;
+          }>;
+          periodEnd: number | null;
+          status: string;
+        }>;
+      }
+    >;
+    removeMethod: FunctionReference<
+      "action",
+      "public",
+      { key: string; paymentMethodId: string },
+      null
+    >;
+    updateDetails: FunctionReference<
+      "action",
+      "public",
+      {
+        address: {
+          city: string;
+          country: string;
+          line1: string;
+          line2: string;
+          postalCode: string;
+          state: string;
+        };
+        email: string;
+        key: string;
+        name: string;
+      },
+      null
+    >;
+  };
   communityActions: {
     beginLinkedRoles: FunctionReference<"action", "public", {}, string>;
     connectClerkLinkedRoles: FunctionReference<
@@ -2371,7 +2480,12 @@ export declare const api: {
         unitAmount: number;
       }
     >;
-    portal: FunctionReference<"action", "public", {}, string>;
+    portal: FunctionReference<
+      "action",
+      "public",
+      { returnOrigin?: string },
+      string
+    >;
     setCommunityConsent: FunctionReference<
       "action",
       "public",

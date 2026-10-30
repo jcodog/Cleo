@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url"
 const functions = [
   ["query", "accountBilling:overview", {}],
   ["query", "billingCatalogue:access", {}],
+  ["action", "billingPortalActions:profile", {}],
   ["action", "premiumActions:offer", { discordGuildId: "000000000000000000" }],
 ]
 

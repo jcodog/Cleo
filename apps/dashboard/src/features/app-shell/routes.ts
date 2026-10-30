@@ -6,7 +6,11 @@ export const RELEASE_PLATFORMS = ["discord", "twitch"] as const
 export type AppShellArea = AppShellPlatform | "staff" | "account"
 
 export function getAppShellAreaFromPathname(pathname: string): AppShellArea {
-  if (pathname === "/account" || pathname.startsWith("/account/"))
+  if (
+    pathname === "/billing" ||
+    pathname === "/account" ||
+    pathname.startsWith("/account/")
+  )
     return "account"
   if (pathname === "/staff" || pathname.startsWith("/staff/")) {
     return "staff"

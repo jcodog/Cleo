@@ -3,7 +3,6 @@
 import { UserProfile, useAuth } from "@clerk/nextjs"
 import { IconCreditCard, IconPlug } from "@tabler/icons-react"
 import { AccountConnections } from "./AccountConnections"
-import { PersonalBilling } from "./PersonalBilling"
 import { BackendBoundary } from "@/features/app-shell/BackendBoundary"
 
 /** Clerk owns credentials, verification, session controls and security subroutes. */
@@ -16,8 +15,13 @@ export function AccountProfile() {
         path="/account"
         appearance={{
           elements: {
-            rootBox: "w-full max-w-none",
-            cardBox: "w-full shadow-none",
+            rootBox: {
+              marginInline: "auto",
+              maxWidth: "100%",
+              display: "flex",
+              justifyContent: "center",
+            },
+            cardBox: "shadow-none",
             card: "w-full bg-transparent shadow-none",
           },
         }}
@@ -36,18 +40,11 @@ export function AccountProfile() {
             <AccountConnections />
           </BackendBoundary>
         </UserProfile.Page>
-        <UserProfile.Page
+        <UserProfile.Link
           label="Billing & subscriptions"
-          url="billing"
+          url="/billing"
           labelIcon={<IconCreditCard aria-hidden size={16} />}
-        >
-          <BackendBoundary
-            key={`${userId}:${sessionId}:billing`}
-            feature="Billing"
-          >
-            <PersonalBilling />
-          </BackendBoundary>
-        </UserProfile.Page>
+        />
       </UserProfile>
     </section>
   )

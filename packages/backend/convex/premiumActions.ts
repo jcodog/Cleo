@@ -18,6 +18,7 @@ import {
 } from "./lib/stripeCommunity"
 import { verifyStripeSignature } from "./lib/integrationSecurity"
 import { approvedCheckoutPrice, checkoutSession } from "./lib/stripeCheckout"
+import { billingOrigin } from "./lib/billingOrigin"
 
 const offerValue = v.object({
   name: v.string(),
@@ -267,9 +268,9 @@ export const checkout = action({
   },
 })
 export const portal = action({
-  args: {},
+  args: { returnOrigin: v.optional(v.string()) },
   returns: v.string(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     stripeCommunityConfig()
     const context = await ctx.runQuery(
       internal.premiumPurchases.billingUser,
@@ -281,7 +282,7 @@ export const portal = action({
     const session = z.object({ url: z.string().url() }).parse(
       await stripeRequest("/billing_portal/sessions", {
         customer: context.customer.stripeCustomerId,
-        return_url: `${new URL(backendEnv.CLEO_DASHBOARD_ORIGIN).origin}/account/billing`,
+        return_url: `${billingOrigin(args.returnOrigin)}/billing`,
       })
     )
     if (new URL(session.url).hostname !== "billing.stripe.com")

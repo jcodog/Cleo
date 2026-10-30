@@ -147,7 +147,7 @@ test("commercial Price reads and Portal sessions are bound to the purchaser, eve
       assert.equal(fields.get("customer"), "cus_alice")
       assert.equal(
         fields.get("return_url"),
-        "https://dashboard.example/account/billing"
+        "https://dashboard.example/billing"
       )
       return Response.json({
         url: "https://billing.stripe.com/session/fixture",

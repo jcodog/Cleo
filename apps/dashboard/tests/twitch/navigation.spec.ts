@@ -64,7 +64,7 @@ for (const width of [1440, 375])
     ).toHaveCount(0)
     await expect(
       page.getByRole("link", { name: "My billing", exact: true }).last()
-    ).toHaveAttribute("href", "/account/billing")
+    ).toHaveAttribute("href", "/billing")
     const premiumUrl = page.url()
     for (const status of ["pending", "unavailable", "expired", "ready"]) {
       await page.evaluate(

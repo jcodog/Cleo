@@ -1,6 +1,51 @@
 # Dashboard and billing checkpoint, 29 October 2026
 
-## PR #284 account and integration repair, 30 October 2026
+## Current standalone billing portal, 30 October 2026
+
+Continue only on `feat/cleo-dashboard-account-billing`, draft PR #284. No new
+branches or worktrees. `main` and the canonical branch are the only retained
+branches; all four stashes have been safely accounted for and dropped.
+
+- `/billing` now owns purchaser billing. Clerk keeps native Account/Security and
+  custom Connections, with a link to the standalone portal. `/account/billing`
+  redirects for bookmarks. The native Clerk panel is horizontally centred and
+  both areas have a visible dashboard-return link.
+- Stripe supplies masked default payment methods, other-method counts, invoice
+  name/address, invoices and real subscription pricing/status. Payment Element
+  uses customer-bound SetupIntents; Address Element handles invoice details.
+  Confirmations, cancellations, processing returns and errors are recoverable.
+  Convex verifies customer ownership and Stripe evidence; saving a method grants
+  no Premium. Customer Portal retains subscription and legacy-source management.
+- Customer-facing configuration diagnostics were removed. Financial mutations
+  remain test-only and account-pinned. New checkout and catalogue writes remain
+  disabled. The approved dev sync published the matching functions to
+  `compassionate-goose-199`; the four-function backend preflight passes.
+- Real authenticated runtime verified `/billing` empty state, old-link redirect,
+  Clerk Billing navigation, centred desktop/native mobile Clerk and real Stripe
+  Address Element rendering. No real payment or saved test card is claimed.
+  Populated payment/subscription/invoice screenshots are controlled fixtures.
+- Production lint/typecheck and coverage graphs passed, mobile excluded. Coverage
+  run included 418 backend and 108 dashboard tests; configured gates stayed 100%.
+  Final focused backend/security run passed 56 tests. Dashboard build passed;
+  full browser regression passed 75 cases, followed by eight final portal cases
+  including address editing, SDK unavailability and final visual layout. Real
+  reload testing also verified the resolved Stripe provider and address session
+  initialize without new console errors. No assertions weakened.
+- Existing CodeRabbit findings about ambiguous price units and collapsed token
+  failure categories are corrected. No local Cubic or other paid review ran.
+
+Evidence: [portal screenshots](screenshots/billing-portal-2026-10-30/README.md).
+Setup: [deployment-scoped environment guide](account-billing-environments.md).
+
+Still required: explicit approval/completion of a no-charge saved-test-method
+acceptance test; allow the exact hosted Preview origin in Convex before testing
+hosted returns; JCN-241 actual subscription/wallet/redirect/webhook/lifecycle and
+populated Customer Portal acceptance; identification of the original free offer;
+JCN-242 separate live launch authorisation. Do not enable live charging or change
+production webhooks. The earlier checkpoints below retain historical evidence;
+their old remaining-work statements are superseded by this section.
+
+## Earlier account repair, 30 October 2026 (historical)
 
 The account now uses one native Clerk UserProfile with Account, Security and
 custom Connections/Billing pages. Optional catch-all routing owns all four URLs;
@@ -20,7 +65,7 @@ repair is `b18abe0d243a74118210db345616fbfa1b43eb7c`. Matching functions/schema 
 now published to `compassionate-goose-199`; the backend preflight passes. Actual
 authenticated Profile, Security, Connections, Billing, staff catalogue and Price
 detail were tested. Billing correctly shows the maintainer's empty ledger;
-products show the real approved GBP 499/month Price and disabled writes.
+products show the real approved GBP 4.99/month Price (499 minor units) and disabled writes.
 
 Real desktop/mobile screenshots are in
 [signed-in runtime evidence](screenshots/account-repair-2026-10-30/README.md).
@@ -40,11 +85,11 @@ its Premium page reads the actual GBP 4.99/month offer. The initial transient
 cause was not determined. Safe reason/status logging now preserves evidence for
 future provider failures without logging OAuth credentials or relaxing authority.
 
-The four stashes have been re-audited, with the obsolete unique dev-script patch
-archived. Drop their references only after the repair is signed, pushed and
-verified. No new branches, worktrees or PRs are needed. PR #284 remains draft.
+All four stashes were fully accounted for and dropped after signed commit
+verification and push. The unique obsolete dev-script patch is archived.
+`git stash list` is empty. No new branches, worktrees or PRs are needed. PR #284 remains draft.
 
-## Consolidated development status, 30 October 2026
+## Earlier consolidation checkpoint (historical)
 
 Development resumed on `feat/cleo-dashboard-account-billing` at `00e43565257d`.
 The original dashboard, recovery and Stripe commits, plus hosted account commit
@@ -155,7 +200,7 @@ checkpoint. Its code is **not included in the combined local preview**.
 - Account: Cleo Dev Sandbox `acct_1RGgwvE1e1YdqDQQ`, verified using the configured
   test secret key. Matching publishable test key is present in the dashboard.
 - Active Product `prod_VX3KxV0lTiLijQ`, approved Price
-  `price_1UVzEKE1e1YdqDQQ2ET4LiZ4`, GBP 499/month.
+  `price_1UVzEKE1e1YdqDQQ2ET4LiZ4`, GBP 4.99/month (499 minor units).
 - Dedicated endpoint `we_1UVzFRE1e1YdqDQQiKOxjur2` points to
   `https://compassionate-goose-199.convex.site/stripe-community-webhook`, using
   `2026-09-30.endive` and 15 billing event types. Signing secret stored securely.

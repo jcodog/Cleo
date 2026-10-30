@@ -9,7 +9,7 @@ for (const width of [1440, 375]) {
     page,
   }, info) => {
     await page.setViewportSize({ width, height: 1000 })
-    await page.goto(`/account/billing${fixture}`)
+    await page.goto(`/billing${fixture}`)
     await expect(
       page.getByRole("heading", { name: "Billing and subscriptions" })
     ).toBeVisible()
@@ -137,12 +137,12 @@ test("empty purchaser billing and restricted staff catalogue have intentional st
     if (message.type() === "error" && message.text().includes("nativeButton"))
       buttonErrors.push(message.text())
   })
-  await page.goto(`/account/billing${fixture}&emptyBilling`)
+  await page.goto(`/billing${fixture}&emptyBilling`)
   await expect(
     page.getByRole("heading", { name: "No subscriptions yet" })
   ).toBeVisible()
   await expect(
-    page.getByRole("button", { name: "Manage billing" })
+    page.getByRole("button", { name: "Manage subscriptions" })
   ).toHaveCount(0)
   expect(buttonErrors).toEqual([])
   await page.goto(`/staff/billing/products${fixture}&nonStaff`)

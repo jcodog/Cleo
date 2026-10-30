@@ -276,7 +276,7 @@ function PremiumPurchasesContent({
                   This server is already covered. The purchaser can manage
                   renewal in{" "}
                   <Link
-                    href="/account/billing"
+                    href="/billing"
                     className="underline underline-offset-4"
                   >
                     My billing
@@ -430,7 +430,7 @@ function PremiumPurchasesContent({
         <p className="text-sm text-muted-foreground">
           The purchaser manages payment methods and subscriptions in{" "}
           <Link
-            href="/account/billing"
+            href="/billing"
             className="text-primary underline underline-offset-4"
           >
             My billing

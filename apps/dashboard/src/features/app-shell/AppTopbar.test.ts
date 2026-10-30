@@ -87,11 +87,11 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
   const hiddenItems = React.Children.toArray(
     (hiddenMenu as ReactElement<{ children?: ReactNode }>).props.children
   )
-  assert.equal(hiddenItems.length, 3)
+  assert.equal(hiddenItems.length, 4)
   assert.ok(isValidElement<MockLinkProps>(hiddenItems[0]))
-  assert.equal(hiddenItems[0].props.href, "/dashboard")
-  assertManageAccount(hiddenItems[1])
-  assertSignOut(hiddenItems[2])
+  assert.equal(hiddenItems[0].props.href, "/billing")
+  assertManageAccount(hiddenItems[2])
+  assertSignOut(hiddenItems[3])
 
   for (const expected of [
     {
@@ -115,10 +115,10 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
     assert.equal(menuElement.type, MockMenuItems)
 
     const children = React.Children.toArray(menuElement.props.children)
-    assert.equal(children.length, expected.href === "/dashboard" ? 3 : 4)
+    assert.equal(children.length, expected.href === "/dashboard" ? 4 : 5)
 
     const link = children[
-      expected.href === "/dashboard" ? 0 : 1
+      expected.href === "/dashboard" ? 1 : 2
     ] as ReactElement<MockLinkProps>
     assert.equal(link.type, MockLink)
     assert.equal(link.props.href, expected.href)

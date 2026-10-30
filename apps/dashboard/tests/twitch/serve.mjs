@@ -21,7 +21,7 @@ const bundle = await build({
       setup(build) {
         build.onResolve(
           {
-            filter: /^@stripe\/(?:react-stripe-js\/checkout|stripe-js\/pure)$/,
+            filter: /^@stripe\/(?:react-stripe-js(?:\/checkout)?|stripe-js\/pure)$/,
           },
           () => ({
             path: path.join(root, "tests/twitch/stripe-fixture.tsx"),

@@ -14,7 +14,7 @@ reachable and uses the development issuer `usable-oarfish-98.clerk.accounts.dev`
 The deployed Stripe secret successfully reads Cleo Dev Sandbox
 `acct_1RGgwvE1e1YdqDQQ` and matches `STRIPE_EXPECTED_ACCOUNT_ID`. Both the plugin and
 that account's API report approved Product `prod_VX3KxV0lTiLijQ`, Price
-`price_1UVzEKE1e1YdqDQQ2ET4LiZ4`, GBP 499 per month. An active default Customer Portal
+`price_1UVzEKE1e1YdqDQQ2ET4LiZ4`, GBP 4.99 per month (499 minor units). An active default Customer Portal
 configuration exists (`bpc_1UVzOcE1e1YdqDQQVzDremJy`). This does not prove a Portal
 session or payment has been accepted for an authenticated purchaser.
 
@@ -36,7 +36,9 @@ No configuration was changed by these diagnostic reads.
 The maintainer authorised a one-shot sync to `dev:compassionate-goose-199`.
 `convex dev --once --typecheck enable --tail-logs disable` completed successfully.
 The backend preflight now reaches the expected authentication guards for all
-three required functions. Production and Stripe configuration were unchanged.
+three original required functions. The standalone billing portal adds a fourth
+preflight probe, `billingPortalActions:profile`. Production and Stripe configuration
+remain unchanged.
 
 Using the maintainer's real authenticated local session, verified:
 
@@ -115,6 +117,7 @@ work. Use `bunx --no-install convex env list --names-only` for safe inventory.
 | `STRIPE_CATALOGUE_WRITES_ENABLED` | Independent sandbox write gate; default off | No |
 | `STRIPE_CATALOGUE_MANAGER_IDS` | Comma-separated Clerk user IDs; active admin/superadmin role and a fresh signed session are additionally required | No, access-controlled administration setting |
 | `CLEO_DASHBOARD_ORIGIN` | Exact approved HTTPS dashboard origin, no path/query/fragment; used for Stripe return URLs | No |
+| `CLEO_DASHBOARD_ALLOWED_ORIGINS` | Optional comma-separated **exact HTTPS origins** for additional development frontends sharing this backend, for example `https://dev-app.cleoai.cloud`. No wildcards or paths. Configure only origins controlled by Cleo. | No |
 
 Deploy the matching functions and schema to the intended development deployment
 before testing the new UI. Publishing a frontend alone cannot publish Convex
@@ -151,6 +154,40 @@ exposing keys or tokens. Missing deployed functions and rejected Convex identity
 have distinct messages and leave Clerk navigation usable. Ledger configuration
 presence is never presented as proof of Stripe connectivity.
 
+## Standalone purchaser portal
+
+`/billing` owns payment methods, invoice identity, subscriptions and invoices.
+Clerk's account navigation links there; `/account/billing` redirects there for
+existing bookmarks. Customer-facing pages do not display environment diagnostics.
+
+The read-only purchaser ledger does not need Stripe keys to display an empty
+history. Existing Stripe customers additionally load their actual masked saved
+methods, billing name/address, invoices and subscription prices. A failed Stripe
+read preserves the verified Convex ledger and offers retry rather than claiming
+the customer has no saved methods.
+
+Adding a method is an explicit customer action. The authenticated backend creates
+a test-mode SetupIntent with automatic payment methods. Stripe Payment Element
+collects the payment details; Stripe Address Element collects invoice addresses.
+The backend checks the actual SetupIntent status, customer ownership and Cleo
+metadata before setting the account default. This does not grant Premium.
+Existing subscription-specific payment methods retain precedence over the
+customer default. Customer Portal remains available for subscription changes,
+invoices and legacy payment sources. The default method and methods used by an
+active subscription cannot be removed without first choosing a replacement.
+
+Setup/Portal returns use the requesting frontend origin only when it exactly
+matches the canonical origin or the optional allowlist above. For this shared
+development deployment, retain localhost as canonical and explicitly allow
+`https://dev-app.cleoai.cloud` before testing hosted returns. These are Convex
+settings, not browser or Vercel secret-key variables. This optional allowlist does
+not enable checkout, catalogue writes or live billing.
+
+Publish `billingPortalActions` to the approved development deployment before
+building the frontend. Rebuild Next.js after changing its matching `pk_test_`
+publishable key. Saving a test method is separate from JCN-241's actual subscription
+acceptance; no new payment or subscription has been accepted by this change alone.
+
 ## Acceptance and launch gates
 
 JCN-241 still requires an authenticated sandbox checkout, wallet/redirect return,
@@ -172,3 +209,6 @@ unidentified; internal complimentary coverage is distinct from paid recognition.
 - [Stripe API keys](https://docs.stripe.com/keys)
 - [Checkout Sessions integration choices](https://docs.stripe.com/payments/checkout)
 - [Stripe Customer Portal configuration](https://docs.stripe.com/customer-management/configure-portal)
+- [Save payment methods with Elements](https://docs.stripe.com/payments/save-and-reuse?payment-ui=elements)
+- [Confirm a SetupIntent](https://docs.stripe.com/js/setup_intents/confirm_setup)
+- [Customer invoice defaults](https://docs.stripe.com/api/customers/update)

@@ -4,7 +4,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { UserButton, useClerk } from "@clerk/nextjs"
-import { IconHome, IconLogout, IconShieldLock } from "@tabler/icons-react"
+import {
+  IconArrowLeft,
+  IconCreditCard,
+  IconHome,
+  IconLogout,
+  IconShieldLock,
+} from "@tabler/icons-react"
 
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 import { Separator } from "@workspace/ui/components/separator"
@@ -45,6 +51,13 @@ export function AppTopbar({
               Servers
             </Link>
           </nav>
+        ) : pathname.startsWith("/account") || pathname === "/billing" ? (
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            <IconArrowLeft aria-hidden size={16} /> Back to dashboard
+          </Link>
         ) : (
           <p className="truncate text-sm font-medium">
             {pathname.startsWith("/account")
@@ -118,6 +131,11 @@ export function StaffUserButton({
       showName
     >
       <UserButton.MenuItems>
+        <UserButton.Link
+          href="/billing"
+          label="Billing"
+          labelIcon={<IconCreditCard aria-hidden size={16} />}
+        />
         {staffLink?.href !== "/dashboard" ? (
           <UserButton.Link
             href="/dashboard"
