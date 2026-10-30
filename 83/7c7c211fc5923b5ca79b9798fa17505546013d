@@ -1,0 +1,29 @@
+packages/backend/convex/lib/auth.test.ts
+  s_87dee764425e1a::t_a3f231e1546469 181-216
+docs/dashboard-billing-handoff.md
+  s_87dee764425e1a::t_bcba6cbbadcd5c 1-2,18-116
+  s_87dee764425e1a::t_492bf88a1ebe60 3-17,117-119
+packages/backend/convex/lib/discordGuildMemberships.ts
+  s_87dee764425e1a::t_c0bffccc0d5425 40
+packages/backend/convex/linkedAccountAuthority.test.ts
+  s_87dee764425e1a::t_f0db3f5d340de6 187-202
+docs/stash-audit.md
+  s_87dee764425e1a::t_ab5bd8aef8182c 71-78
+  s_87dee764425e1a::t_f0db3f5d340de6 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "837c7c211fc5923b5ca79b9798fa17505546013d",
+  "prompts": {},
+  "sessions": {
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
