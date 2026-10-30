@@ -248,6 +248,12 @@ export function DashboardShellClient({
           icon: IconShield,
           isActive: pathname.startsWith("/staff/linked-roles"),
         },
+        {
+          title: "Products and prices",
+          href: "/staff/billing/products",
+          icon: IconCreditCard,
+          isActive: pathname.startsWith("/staff/billing/products"),
+        },
       ],
     },
   ]

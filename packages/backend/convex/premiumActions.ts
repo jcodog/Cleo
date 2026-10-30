@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { v } from "convex/values"
 import { action, internalAction, type ActionCtx } from "./_generated/server"
-import { internal } from "./_generated/api"
+import { api, internal } from "./_generated/api"
 import { backendEnv } from "@workspace/env/backend"
 import { verifiedDiscordGuilds } from "./lib/communityDiscord"
 import { verifyBotCanAccessDiscordGuild } from "./actions/dashboard/discord/lib/restAccess"
@@ -46,12 +46,10 @@ async function purchaseAuthority(ctx: ActionCtx, discordGuildId: string) {
   if (
     !guild ||
     bot.status !== "ready" ||
-    !backendEnv.CLEO_OFFICIAL_GUILD_ID ||
-    discordGuildId === backendEnv.CLEO_OFFICIAL_GUILD_ID ||
     (!guild.owner && (BigInt(guild.permissions ?? "0") & 8n) === 0n)
   )
     throw new Error(
-      "Fresh owner or Administrator permission in an independent Cleo-installed server is required."
+      "Fresh owner or Administrator permission in a Cleo-installed server is required."
     )
   return {
     ...account,
@@ -60,6 +58,38 @@ async function purchaseAuthority(ctx: ActionCtx, discordGuildId: string) {
       : ("administrator" as const),
   }
 }
+export const offer = action({
+  args: { discordGuildId: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      name: v.string(),
+      unitAmount: v.number(),
+      currency: v.string(),
+      interval: v.union(
+        v.literal("day"),
+        v.literal("week"),
+        v.literal("month"),
+        v.literal("year")
+      ),
+      intervalCount: v.number(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const view = await ctx.runQuery(api.premiumPurchases.view, args)
+    if (!view.guildPremium) return null
+    const { user } = await ctx.runQuery(
+      internal.premiumPurchases.billingUser,
+      {}
+    )
+    const { price } = await ctx.runQuery(internal.premiumPurchases.context, {
+      userId: user._id,
+      discordGuildId: args.discordGuildId,
+    })
+    if (!price?.enabled) return null
+    return approvedCheckoutPrice(price.stripePriceId, price.stripeProductId)
+  },
+})
 export const checkout = action({
   args: {
     discordGuildId: v.string(),

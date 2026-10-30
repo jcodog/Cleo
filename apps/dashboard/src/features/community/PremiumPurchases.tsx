@@ -1,6 +1,6 @@
 "use client"
 import { useAction, useMutation, useQuery } from "convex/react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@clerk/nextjs"
 import type { FunctionReturnType } from "convex/server"
 import { dashboardEnv } from "@workspace/env/dashboard"
@@ -10,11 +10,15 @@ import { Button } from "@workspace/ui/components/button"
 import { Switch } from "@workspace/ui/components/switch"
 import { Field, FieldLabel } from "@workspace/ui/components/field"
 import Link from "next/link"
+import Image from "next/image"
+import { formatStripeAmount } from "./formatStripeAmount"
 /** Separate guild entitlements from purchaser billing and wait for resolved billing state. */
 export function PremiumPurchases({
   discordGuildId,
+  showCommunityHeader = true,
 }: {
   discordGuildId?: string
+  showCommunityHeader?: boolean
 }) {
   const { isLoaded, userId, sessionId } = useAuth()
   if (!isLoaded || !userId) return <p role="status">Loading billing account…</p>
@@ -22,17 +26,39 @@ export function PremiumPurchases({
     <PremiumPurchasesContent
       key={`${userId}:${sessionId}:${discordGuildId ?? "personal"}`}
       discordGuildId={discordGuildId}
+      showCommunityHeader={showCommunityHeader}
     />
   )
 }
 
 function PremiumPurchasesContent({
   discordGuildId,
+  showCommunityHeader,
 }: {
   discordGuildId?: string
+  showCommunityHeader: boolean
 }) {
   const view = useQuery(api.premiumPurchases.view, { discordGuildId })
   const checkout = useAction(api.premiumActions.checkout)
+  const loadOffer = useAction(api.premiumActions.offer)
+  const [offer, setOffer] = useState<
+    FunctionReturnType<typeof api.premiumActions.offer> | undefined
+  >()
+  const [offerFailed, setOfferFailed] = useState(false)
+  useEffect(() => {
+    if (!discordGuildId) return
+    let active = true
+    void loadOffer({ discordGuildId })
+      .then((value) => {
+        if (active) setOffer(value)
+      })
+      .catch(() => {
+        if (active) setOfferFailed(true)
+      })
+    return () => {
+      active = false
+    }
+  }, [discordGuildId, loadOffer])
   const cancelCheckout = useAction(api.premiumActions.cancelCheckout)
   const portal = useAction(api.premiumActions.portal)
   const communityConsent = useAction(api.premiumActions.setCommunityConsent)
@@ -106,22 +132,40 @@ function PremiumPurchasesContent({
     )
   return (
     <section className="w-full min-w-0 space-y-9">
-      <header className="space-y-3 border-b pb-7">
-        <h2 className="font-heading text-2xl font-medium tracking-tight">
-          {discordGuildId ? "Server subscription" : "My billing"}
-        </h2>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          {discordGuildId
-            ? "Premium is attached to this community, not to its owner's account. Supporting a community never changes ownership or grants server permissions."
-            : "Manage your own purchases and billing preferences, including after you leave a community."}
+      {showCommunityHeader ? (
+        <header className="flex items-center gap-4 border-b pb-6">
+          {view.guildPremium?.iconUrl ? (
+            <Image
+              src={view.guildPremium.iconUrl}
+              alt=""
+              width={48}
+              height={48}
+              className="size-12 rounded-lg"
+              unoptimized
+            />
+          ) : null}
+          <div className="min-w-0 space-y-1">
+            <h2 className="font-heading text-xl font-medium break-words">
+              {view.guildPremium?.name ??
+                (discordGuildId ? "Community Premium" : "My billing")}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {discordGuildId
+                ? "Premium benefits for this server. Billing belongs to the purchaser."
+                : "Your subscriptions and payment preferences."}
+            </p>
+          </div>
+        </header>
+      ) : null}
+      {view !== undefined && !view.configured ? (
+        <p
+          role="status"
+          className="rounded-md border px-4 py-3 text-sm text-muted-foreground"
+        >
+          New purchases are currently unavailable. Existing coverage and
+          purchaser billing remain separate.
         </p>
-        {view !== undefined && !view.configured ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            Test-mode purchasing is unavailable until billing is configured.
-            Live charging is not enabled.
-          </p>
-        ) : null}
-      </header>
+      ) : null}
 
       {discordGuildId ? (
         <>
@@ -180,8 +224,8 @@ function PremiumPurchasesContent({
               </ul>
               {!view.guildPremium.canPurchase ? (
                 <p className="text-sm text-muted-foreground">
-                  Purchasing requires the server owner or an Administrator in an
-                  independent server with Cleo installed.
+                  Purchasing requires the server owner or an Administrator in a
+                  server with Cleo installed.
                 </p>
               ) : null}
             </section>
@@ -193,18 +237,32 @@ function PremiumPurchasesContent({
                   id="guild-upgrade"
                   className="font-heading text-lg font-medium"
                 >
-                  Support this community
+                  {offer?.name ?? "Server Premium"}
                 </h3>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Review your plan and pay securely in Cleo. A paid plan does
-                  not transfer ownership or management permissions.
+                  Custom welcome cards and Twitch notification styles for this
+                  community.
                 </p>
+                <p className="font-heading text-2xl font-medium" role="status">
+                  {offer
+                    ? `${formatStripeAmount(offer.unitAmount, offer.currency)} / ${offer.intervalCount === 1 ? offer.interval : `${offer.intervalCount} ${offer.interval}s`}`
+                    : offerFailed || offer === null
+                      ? "Pricing unavailable"
+                      : "Loading current price…"}
+                </p>
+                {offer ? (
+                  <p className="text-xs text-muted-foreground">
+                    Renews automatically. Cancel through My billing.
+                  </p>
+                ) : null}
               </div>
               <Button
                 disabled={
                   busy ||
                   !view.configured ||
                   !paymentFormConfigured ||
+                  !offer ||
+                  !!view.guildPremium?.capabilities.length ||
                   !view.guildPremium?.canPurchase
                 }
                 onClick={beginCheckout}
@@ -213,6 +271,19 @@ function PremiumPurchasesContent({
                   ? "Resume checkout"
                   : "Continue to checkout"}
               </Button>
+              {view.guildPremium?.capabilities.length ? (
+                <p className="text-sm text-muted-foreground">
+                  This server is already covered. The purchaser can manage
+                  renewal in{" "}
+                  <Link
+                    href="/account/billing"
+                    className="underline underline-offset-4"
+                  >
+                    My billing
+                  </Link>
+                  .
+                </p>
+              ) : null}
               {view.pendingCheckout?.sessionId ? (
                 <Button
                   variant="outline"

@@ -52,6 +52,8 @@ export const view = query({
     guildPremium: v.union(
       v.null(),
       v.object({
+        name: v.string(),
+        iconUrl: v.optional(v.string()),
         state: v.union(
           v.literal("active"),
           v.literal("trial"),
@@ -122,13 +124,15 @@ export const view = query({
           /* Invalid permissions cannot purchase. */
         }
         guildPremium = {
+          name: guild.name,
+          iconUrl: guild.iconHash
+            ? `https://cdn.discordapp.com/icons/${guild.discordGuildId}/${guild.iconHash}.png?size=128`
+            : guild.iconUrl,
           state: access.state,
           capabilities: access.capabilities,
           validUntil: access.validUntil,
           canPurchase:
             guild.botLeftAt === undefined &&
-            !!backendEnv.CLEO_OFFICIAL_GUILD_ID &&
-            guild.discordGuildId !== backendEnv.CLEO_OFFICIAL_GUILD_ID &&
             (membership.isOwner === true || administrator),
         }
         communityPublishIdentity =
@@ -208,13 +212,8 @@ export const reserve = internalMutation({
         q.eq("discordGuildId", args.discordGuildId)
       )
       .unique()
-    if (
-      !guild ||
-      guild.botLeftAt !== undefined ||
-      !backendEnv.CLEO_OFFICIAL_GUILD_ID ||
-      guild.discordGuildId === backendEnv.CLEO_OFFICIAL_GUILD_ID
-    )
-      throw new ConvexError("Select an independent Cleo-installed community.")
+    if (!guild || guild.botLeftAt !== undefined)
+      throw new ConvexError("Select a Cleo-installed community.")
     const linked = await ctx.db
       .query("linkedAccounts")
       .withIndex("by_user_provider", (q) =>

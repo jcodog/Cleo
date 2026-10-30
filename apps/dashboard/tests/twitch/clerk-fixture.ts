@@ -1,7 +1,13 @@
 const user = {
+  id: "fixture-clerk",
+  reload: async () => user,
   externalAccounts: [
     {
       provider: "discord",
+      username: "Cleo tester",
+      providerUserId: "111111111111111111",
+      approvedScopes: "identify guilds",
+      verification: { status: "verified" },
       reauthorize: async () => ({
         verification: {
           externalVerificationRedirectURL: new URL(
@@ -12,10 +18,16 @@ const user = {
     },
     {
       provider: "twitch",
+      username: "cleo_channel",
       providerUserId: "222",
       approvedScopes:
         "channel:bot moderator:read:followers bits:read channel:read:subscriptions",
       verification: { status: "verified" },
+      destroy: async () => {
+        user.externalAccounts = user.externalAccounts.filter(
+          (account) => account.provider !== "twitch"
+        )
+      },
     },
   ],
 }

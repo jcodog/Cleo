@@ -32,8 +32,9 @@ invoice, refund, dispute or asynchronous payment events.
 
 Use one Cleo-owned test environment consistently. For the existing Dev Sandbox:
 
-1. Create a new GBP 499/month licensed recurring Price for the intended Premium
-   Product. Preserve the legacy Price and its subscribers.
+1. Verify the existing approved GBP 499/month licensed recurring Price above.
+   Create a new Price only when a new commercial offer is intended. Preserve
+   legacy Prices and their subscribers.
 2. Set `STRIPE_EXPECTED_ACCOUNT_ID=acct_1RGgwvE1e1YdqDQQ` and that sandbox's
    `sk_test_` key in the intended development Convex deployment. Never commit keys.
 3. Approve the exact Product/Price pair through the existing internal
@@ -65,20 +66,55 @@ configured handler accepts a correctly signed request, not that Stripe has
 delivered a subscription lifecycle event. No real sandbox payment, wallet
 authorisation, redirect or Stripe-originated billing delivery is verified yet.
 
-## Maintainer checkpoint
+## Consolidated implementation, 30 October 2026
 
-Further testing stopped at the maintainer's request on 29 October. PR #283 remains
-a draft. Keep the test checkout gate disabled until acceptance resumes.
+PRs #277, #282 and #283 and the original hosted-account commit are preserved on
+`feat/cleo-dashboard-account-billing`. Only that development branch and `main`
+remain. See [stash audit](stash-audit.md) for the complete recovery accounting.
 
-The maintainer subsequently clarified that Cleo's official server may itself
-receive Premium, may be the notification destination, and should use an existing
-free code. The current code still excludes that server from checkout and does
-not support that free-code flow. This requirement is **not implemented**.
-Revise the purchase guard separately from independent-community qualification,
-and verify zero-cost subscription evidence without granting paid-supporter
-recognition from a free invoice. Current connected live-account lookups found no
-active promotion codes or coupons; locate the intended offer before creating or
-changing anything. Live charging remains under JCN-242.
+The official Cleo server may now purchase or receive Premium. Fresh purchaser
+authority remains required; the official ID confers no Discord permissions.
+Independent-community role qualification and notification destination checks
+remain separate. Existing internal `guildEntitlementGrants` support scoped,
+expiring `complimentary` coverage with a staff issuer, reason and idempotency
+key. Tests prove this coverage grants Premium to the official server without
+creating paid activations, announcements or Supporter recognition.
+
+The intended existing free offer is **awaiting maintainer confirmation**. The
+maintainer confirmed it may be an internal grant rather than a Stripe promotion.
+No code, coupon, promotion or replacement offer has been created, and no new
+redemption UI is enabled. Verified zero-cost Stripe subscriptions also remain
+distinct from paid recognition. Actual payment acceptance stays under JCN-241.
+
+## Staff sandbox catalogue
+
+`/staff/billing/products` lists real sandbox Products, with paginated detail and
+Price views. It supports product creation/editing/archival, new recurring or
+one-time Prices, default changes, Price archival and explicit Premium mapping.
+Changing a default does not change the configured checkout Price. Archival does
+not disable historical Convex mappings or migrate existing subscriptions.
+
+All catalogue operations are pinned to Cleo Dev Sandbox
+`acct_1RGgwvE1e1YdqDQQ` and require the same configured account ID and a test key.
+Writes additionally require `STRIPE_CATALOGUE_WRITES_ENABLED=true`, an active
+admin/superadmin explicitly listed in `STRIPE_CATALOGUE_MANAGER_IDS`, typed
+confirmation and a separately verified signed Clerk session token. The token is
+bound to the current Clerk user/session and recent factor verification. Convex
+filters `fva` from its identity object, so it is not used as a freshness proxy.
+The Clerk issuer must be configured, and the Convex identity must retain `sid`.
+Missing evidence fails closed. Sign in again or use Clerk reverification when
+the financial session is stale.
+
+Operation records bind actor, account, idempotency key and normalized terms.
+Leases fence concurrent requests. Ambiguous writes retain their request key;
+after 23 hours they require Stripe investigation rather than repeating an
+expired Stripe idempotency key. Session tokens and secrets are not stored in
+these audit records. No catalogue gate or production configuration was changed.
+
+References: [Clerk session claims](https://clerk.com/docs/guides/sessions/session-tokens),
+[Convex and Clerk](https://docs.convex.dev/auth/clerk),
+[Stripe catalogue rules](https://docs.stripe.com/products-prices/manage-prices),
+[Stripe amount units](https://docs.stripe.com/currencies).
 
 ## Payment and entitlement boundaries
 

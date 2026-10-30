@@ -168,6 +168,113 @@ async function fixture() {
 const discordUserId = "111111111111111111"
 const discordGuildId = "333333333333333333"
 
+test("Premium offer reads approved Stripe pricing only for a currently manageable community", async (t) => {
+  const f = await fixture()
+  const previous = globalThis.fetch
+  let requests = 0
+  t.after(() => {
+    globalThis.fetch = previous
+  })
+  globalThis.fetch = async (input) => {
+    requests++
+    const response = catalogueFixture(String(input))
+    if (!response) throw new Error("Unexpected pricing endpoint")
+    return response
+  }
+  assert.equal(
+    (await f.alice.action(api.premiumActions.offer, { discordGuildId }))
+      ?.unitAmount,
+    499
+  )
+  assert.equal(requests, 2)
+  assert.equal(
+    await f.alice.action(api.premiumActions.offer, {
+      discordGuildId: "555555555555555555",
+    }),
+    null
+  )
+  await assert.rejects(
+    f.bob.action(api.premiumActions.offer, { discordGuildId }),
+    /Verified Discord/
+  )
+  await f.t.run((ctx) =>
+    ctx.db.patch(f.membershipId, { managementVerifiedAt: Date.now() - 300001 })
+  )
+  await assert.rejects(
+    f.alice.action(api.premiumActions.offer, { discordGuildId }),
+    /Verified Discord/
+  )
+  assert.equal(requests, 2)
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("premiumCheckouts").unique()),
+    null
+  )
+})
+
+test("the official server can reserve Premium without qualifying as an independent community", async () => {
+  const f = await fixture()
+  const discordGuildId = "999999999999999999"
+  await f.t.run((ctx) => ctx.db.patch(f.guildId, { discordGuildId }))
+  await f.t.run((ctx) =>
+    ctx.db.patch(f.membershipId, {
+      isOwner: true,
+      managementVerifiedAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+  )
+  const view = await f.alice.query(api.premiumPurchases.view, {
+    discordGuildId,
+  })
+  assert.equal(view.guildPremium?.canPurchase, true)
+  const reservation = await f.t.mutation(internal.premiumPurchases.reserve, {
+    userId: f.userId,
+    discordUserId,
+    discordGuildId,
+    purchaserKind: "owner",
+    announce: false,
+    displayRole: false,
+    key: "official-server",
+  })
+  assert.equal(reservation.guildId, f.guildId)
+  const roles = await f.alice.query(api.communityRoles.current, {})
+  assert.equal(roles?.communityOwner, "notEligible")
+  assert.equal(roles?.premiumSupporter, "notEligible")
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("paidCommunityActivations").unique()),
+    null
+  )
+  await f.t.run((ctx) => ctx.db.patch(f.otherId, { role: "admin" }))
+  const now = Date.now()
+  await f.t.mutation(internal.mutations.internal.guildBilling.issueGrant, {
+    grantKey: "official-complimentary-fixture",
+    discordGuildId,
+    category: "complimentary",
+    capabilities: ["guild.welcome.premium-style", "guild.twitch.premium-style"],
+    startsAt: now - 1000,
+    endsAt: now + 3600000,
+    issuedBy: f.otherId,
+    reason: "Verify existing internal complimentary coverage",
+  })
+  const covered = await f.alice.query(api.premiumPurchases.view, {
+    discordGuildId,
+  })
+  assert.equal(covered.guildPremium?.capabilities.length, 2)
+  assert.equal(
+    (await f.alice.query(api.communityRoles.current, {}))?.premiumSupporter,
+    "notEligible"
+  )
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("paidCommunityActivations").unique()),
+    null
+  )
+  assert.equal(
+    await f.t.run((ctx) =>
+      ctx.db.query("communityAnnouncementOutbox").unique()
+    ),
+    null
+  )
+})
+
 test("Clerk Linked Roles requires consent once, validates the application, publishes idempotently and disconnects without revoking Clerk", async (t) => {
   const f = await fixture()
   let scopes = ["identify"],

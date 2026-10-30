@@ -46,6 +46,7 @@ export function PremiumCheckout({
       <CheckoutReturn
         discordGuildId={discordGuildId}
         sessionId={session.sessionId}
+        onDone={onCancel}
       />
     )
   return (
@@ -310,9 +311,11 @@ function PaymentForm({
 export function CheckoutReturn({
   discordGuildId,
   sessionId,
+  onDone,
 }: {
   discordGuildId: string
   sessionId: string
+  onDone?: () => void
 }) {
   const auth = useAuth()
   if (!auth.isLoaded || !auth.userId)
@@ -322,6 +325,7 @@ export function CheckoutReturn({
       key={`${auth.userId}:${auth.sessionId}:${discordGuildId}:${sessionId}`}
       discordGuildId={discordGuildId}
       sessionId={sessionId}
+      onDone={onDone}
     />
   )
 }
@@ -329,9 +333,11 @@ export function CheckoutReturn({
 function CheckoutReturnContent({
   discordGuildId,
   sessionId,
+  onDone,
 }: {
   discordGuildId: string
   sessionId: string
+  onDone?: () => void
 }) {
   const status = useAction(api.premiumActions.checkoutStatus)
   const [response, setResponse] = useState<
@@ -373,17 +379,22 @@ function CheckoutReturnContent({
       <h1 id="payment-heading" className="font-heading text-2xl font-medium">
         {result?.status === "expired"
           ? "Checkout cancelled or expired"
-          : result?.paymentStatus === "paid"
-            ? "Payment confirmed"
-            : "Payment status"}
+          : result?.status === "complete" &&
+              result.paymentStatus === "no_payment_required"
+            ? "Checkout complete"
+            : result?.paymentStatus === "paid"
+              ? "Payment confirmed"
+              : "Payment status"}
       </h1>
       <p role="status" className="text-sm leading-6 text-muted-foreground">
         {busy
           ? "Checking your payment securely with Stripe…"
           : result?.status === "complete"
-            ? result.paymentStatus === "paid"
-              ? `Stripe confirmed your payment for ${result.guildName}. Premium access appears after verified billing reconciliation.`
-              : "Your payment is processing. Some methods take longer to confirm. Premium access waits for verified payment evidence."
+            ? result.paymentStatus === "no_payment_required"
+              ? "No payment was due. Premium coverage waits for verified subscription reconciliation. Free coverage does not grant paid Supporter recognition."
+              : result.paymentStatus === "paid"
+                ? `Stripe confirmed your payment for ${result.guildName}. Premium access appears after verified billing reconciliation.`
+                : "Your payment is processing. Some methods take longer to confirm. Premium access waits for verified payment evidence."
             : result?.status === "expired"
               ? "No new payment can be made through this checkout."
               : "Checkout has not completed. Return to the community to resume your existing checkout."}
@@ -397,12 +408,18 @@ function CheckoutReturnContent({
         >
           Refresh payment status
         </Button>
-        <Link
-          className="self-center underline underline-offset-4"
-          href={`/dashboard/${discordGuildId}/premium`}
-        >
-          Return to community
-        </Link>
+        {onDone ? (
+          <Button variant="ghost" onClick={onDone}>
+            Return to community
+          </Button>
+        ) : (
+          <Link
+            className="self-center underline underline-offset-4"
+            href={`/dashboard/${discordGuildId}/premium`}
+          >
+            Return to community
+          </Link>
+        )}
         <Link
           className="self-center underline underline-offset-4"
           href="/account/billing"

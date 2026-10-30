@@ -8,6 +8,9 @@ import { resolveCleoRoleEligibility } from "@workspace/shared/cleoRoleEligibilit
 import { AccountRoles } from "../../src/features/community/AccountRoles"
 import { LinkedRoleCallback } from "../../src/features/community/LinkedRoleCallback"
 import { PremiumPurchases } from "../../src/features/community/PremiumPurchases"
+import { PersonalBilling } from "../../src/features/account/PersonalBilling"
+import { AccountConnections } from "../../src/features/account/AccountConnections"
+import { BillingProducts } from "../../src/features/staff/BillingProducts"
 import { CheckoutReturn } from "../../src/features/community/PremiumCheckout"
 import { DiscordAddServerPageShell } from "../../src/features/add-server/DiscordAddServerPageShell"
 import { LinkedRoleTesting } from "../../src/features/staff/LinkedRoleTesting"
@@ -84,9 +87,12 @@ let purchaseView = {
   canManageOwnBilling: true,
   communityPublishIdentity: false,
   guildPremium: {
+    name: "Premium Guild",
     state: "expired",
-    capabilities: [],
-    validUntil: 0,
+    capabilities: params.has("premiumActive")
+      ? ["guild.welcome.premium-style", "guild.twitch.premium-style"]
+      : [],
+    validUntil: params.has("premiumActive") ? Date.now() + 86400000 : 0,
     canPurchase: true,
   },
   subscriptions: params.has("existing")
@@ -102,6 +108,38 @@ let purchaseView = {
     : [],
 }
 export function communityQuery(path: string) {
+  if (path === "billingCatalogue:access")
+    return {
+      canRead: !params.has("nonStaff"),
+      canWrite: !params.has("readOnly"),
+    }
+  if (path === "billingCatalogue:history") return []
+  if (path === "accountBilling:overview")
+    return {
+      clerkUserId: "fixture-clerk",
+      canManageBilling: !params.has("emptyBilling"),
+      hasMore: false,
+      subscriptions: params.has("emptyBilling")
+        ? []
+        : [
+            {
+              id: "subscription-fixture",
+              priceId: "price_premium",
+              guildName: "Piano Club",
+              status: "active",
+              startsAt: Date.now() - 10000,
+              endsAt: Date.now() + 86400000,
+              reconciledAt: Date.now(),
+              cancelAtPeriodEnd: false,
+              recognition: {
+                id: "paid-fixture",
+                announce: false,
+                displayRole: false,
+                testMode: true,
+              },
+            },
+          ],
+    }
   if (path === "discordConnections:status") return null
   if (path === "queries/dashboard/discord/guilds/directory:list")
     return directory
@@ -137,7 +175,75 @@ export async function communityWrite(
   args: unknown,
   notify: () => void
 ) {
+  if (path === "accountBillingActions:prices")
+    return [
+      {
+        id: "price_premium",
+        name: "Cleo Server Premium",
+        amount: 499,
+        currency: "gbp",
+        interval: "month",
+        intervalCount: 1,
+      },
+    ]
+  if (path === "billingCatalogueActions:list")
+    return {
+      accountId: "acct_1RGgwvE1e1YdqDQQ",
+      next: null,
+      products: [
+        {
+          id: "prod_fixture",
+          name: "Cleo Server Premium",
+          description: "Premium server tools",
+          active: true,
+          defaultPrice: "price_premium",
+        },
+      ],
+    }
+  if (path === "billingCatalogueActions:detail")
+    return {
+      product: {
+        id: "prod_fixture",
+        name: "Cleo Server Premium",
+        description: "Premium server tools",
+        active: true,
+        defaultPrice: "price_premium",
+      },
+      next: null,
+      prices: [
+        {
+          id: "price_premium",
+          amount: 499,
+          currency: "gbp",
+          interval: "month",
+          intervalCount: 1,
+          active: true,
+          approved: true,
+        },
+        {
+          id: "price_annual",
+          amount: 4990,
+          currency: "gbp",
+          interval: "year",
+          intervalCount: 1,
+          active: true,
+          approved: false,
+        },
+      ],
+    }
+  if (path === "premiumActions:offer")
+    return {
+      name: "Cleo Server Premium",
+      unitAmount: 499,
+      currency: "gbp",
+      interval: "month",
+      intervalCount: 1,
+    }
   calls.push({ path, args })
+  if (path === "billingCatalogueActions:change") {
+    notify()
+    return "prod_fixture"
+  }
   observers.forEach((callback) => callback())
   if (path === "actions/dashboard/account/syncLinkedAccounts:sync")
     return { status: "ready" }
@@ -248,7 +354,11 @@ export async function communityWrite(
     if (params.has("statusError")) throw new Error("Status unavailable")
     return {
       status: params.has("expiredCheckout") ? "expired" : "complete",
-      paymentStatus: params.has("asyncPayment") ? "unpaid" : "paid",
+      paymentStatus: params.has("asyncPayment")
+        ? "unpaid"
+        : params.has("freeCheckout")
+          ? "no_payment_required"
+          : "paid",
       guildName: "Premium Guild",
     }
   } else if (path === "premiumActions:cancelCheckout") {
@@ -365,9 +475,19 @@ function NavigationFixture() {
         ) : pathname === "/dashboard/servers" ? (
           <DiscordDashboardPageShell />
         ) : pathname === "/account/billing" ? (
-          <PremiumPurchases />
+          params.has("accountUI") ? (
+            <PersonalBilling />
+          ) : (
+            <PremiumPurchases />
+          )
+        ) : pathname === "/account/connections" ? (
+          <AccountConnections />
+        ) : pathname.startsWith("/staff/billing/products") ? (
+          <BillingProducts productId={pathname.split("/")[4]} />
         ) : pathname.endsWith("/premium") ? (
-          <PremiumPurchases key={guildId} discordGuildId={guildId} />
+          <div className="mx-auto w-full max-w-4xl">
+            <PremiumPurchases key={guildId} discordGuildId={guildId} />
+          </div>
         ) : pathname.endsWith("/settings") ? (
           <SettingsSection discordGuildId={guildId ?? ""} />
         ) : (

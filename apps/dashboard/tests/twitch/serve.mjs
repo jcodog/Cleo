@@ -60,6 +60,17 @@ const css = (
     )
   )
 ).join("\n")
+const builtHtml = await readFile(
+  path.join(root, ".next/server/app/_not-found.html"),
+  "utf8"
+)
+const fontClasses = builtHtml.match(/<html\b[^>]*\bclass="([^"]*)"/)?.[1]
+if (!fontClasses) throw new Error("Built dashboard font classes are missing")
+const fonts = new Set(
+  await Array.fromAsync(
+    new Glob("*.woff2").scan({ cwd: path.join(root, ".next/static/media") })
+  )
+)
 serve({
   hostname: "127.0.0.1",
   port: 4319,
@@ -100,9 +111,19 @@ serve({
         ),
         { headers: { "content-type": "font/woff" } }
       )
+    const font = path.posix.basename(url.pathname)
+    if (
+      (url.pathname.startsWith("/media/") ||
+        url.pathname.startsWith("/_next/static/media/")) &&
+      fonts.has(font)
+    )
+      return new Response(
+        await readFile(path.join(root, ".next/static/media", font)),
+        { headers: { "content-type": "font/woff2" } }
+      )
     const theme = url.searchParams.get("theme") === "light" ? "" : "dark"
     return new Response(
-      `<!doctype html><html class="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>@font-face{font-family:Geist;src:url(/font.woff)}body{margin:0;background:var(--background);color:var(--foreground);font-family:Geist,sans-serif}</style></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>`,
+      `<!doctype html><html class="${fontClasses} ${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>body{margin:0;background:var(--background);color:var(--foreground)}</style></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>`,
       { headers: { "content-type": "text/html" } }
     )
   },

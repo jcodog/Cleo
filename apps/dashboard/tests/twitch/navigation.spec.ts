@@ -54,7 +54,7 @@ for (const width of [1440, 375])
     await page.getByRole("link", { name: "Premium Guild", exact: true }).click()
     if (width < 768) await page.keyboard.press("Escape")
     await expect(
-      page.getByRole("heading", { name: "Server subscription" })
+      page.getByRole("heading", { name: "Cleo Server Premium" })
     ).toBeVisible()
     await expect(
       page.getByText("No active Premium", { exact: true })
@@ -76,7 +76,7 @@ for (const width of [1440, 375])
       )
       await expect(page).toHaveURL(premiumUrl)
       await expect(
-        page.getByRole("heading", { name: "Server subscription" })
+        page.getByRole("heading", { name: "Cleo Server Premium" })
       ).toBeVisible()
     }
     if (width < 768)
@@ -142,7 +142,7 @@ test("legacy Settings leads to Premium without a Server Access presentation", as
   await expect(page.getByText("Server access", { exact: false })).toHaveCount(0)
   await page.getByRole("link", { name: "Open Premium Guild" }).click()
   await expect(
-    page.getByRole("heading", { name: "Server subscription" })
+    page.getByRole("heading", { name: "Cleo Server Premium" })
   ).toBeVisible()
 })
 

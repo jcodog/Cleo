@@ -19,6 +19,8 @@ export const backendEnv = createEnv({
     STRIPE_WEBHOOK_SECRET: optionalString,
     STRIPE_GUILD_PREMIUM_PRICE_ID: optionalString,
     STRIPE_TEST_CHECKOUT_ENABLED: optionalString,
+    STRIPE_CATALOGUE_MANAGER_IDS: optionalString,
+    STRIPE_CATALOGUE_WRITES_ENABLED: optionalString,
     CLEO_DASHBOARD_ORIGIN: optionalUrl,
     CLEO_OFFICIAL_GUILD_ID: optionalString,
     CLEO_MANAGED_ROLE_IDS: optionalString,

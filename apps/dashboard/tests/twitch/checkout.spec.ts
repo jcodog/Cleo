@@ -1,6 +1,22 @@
 import { test, expect } from "@playwright/test"
 
 const premium = "/dashboard/333333333333333333/premium?community"
+test("a zero-cost redirect return never claims paid recognition", async ({
+  page,
+}) => {
+  await page.goto(
+    "/dashboard/333333333333333333/checkout?community&freeCheckout"
+  )
+  await expect(
+    page.getByRole("heading", { name: "Checkout complete" })
+  ).toBeVisible()
+  await expect(
+    page.getByText(/Free coverage does not grant paid Supporter recognition/)
+  ).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "Payment confirmed" })
+  ).toHaveCount(0)
+})
 test("a reloaded checkout resumes its saved consent and can be cancelled before changing it", async ({
   page,
 }) => {
@@ -69,6 +85,13 @@ for (const width of [1440, 375])
       "after verified billing reconciliation"
     )
     await expect(page.getByRole("button", { name: /Subscribe/ })).toHaveCount(0)
+    await page.getByRole("button", { name: "Return to community" }).click()
+    await expect(
+      page.getByRole("button", { name: "Continue to checkout" })
+    ).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "Payment confirmed" })
+    ).toHaveCount(0)
   })
 
 test("eligible wallet confirmation uses the same checkout confirmation and authenticated receipt", async ({
@@ -164,6 +187,9 @@ for (const [query, message] of [
       page.getByRole("heading", { name: "Payment confirmed" })
     ).toHaveCount(0)
     await expect(page.getByRole("link", { name: "My billing" })).toBeVisible()
+    await expect(
+      page.getByRole("link", { name: "Return to community" })
+    ).toHaveAttribute("href", "/dashboard/333333333333333333/premium")
     await page.getByRole("button", { name: "Refresh payment status" }).click()
     await expect(page.getByText(new RegExp(message))).toBeVisible()
   })

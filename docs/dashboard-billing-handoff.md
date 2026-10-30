@@ -13,6 +13,54 @@ maintainer's consolidated implementation request. The only active development
 branch is now `feat/cleo-dashboard-account-billing`; future work uses one draft
 PR against `main`. See [stash audit](stash-audit.md) for saved-work accounting.
 
+Implemented since consolidation:
+
+- Recovered the account-link membership timestamp guard and regression coverage.
+- Added account-unavailable handling and current-Clerk-identity isolation for
+  connection details. Purchaser billing and hosted profile/security remain in
+  their independent account navigation.
+- Premium overview reads the approved Stripe offer, identifies the guild,
+  separates coverage, purchaser management and consent, and prevents duplicate
+  purchases while covered. The existing workspace supplies the guild header/icon.
+- Fixed embedded Checkout return state and preserved standalone redirect links.
+- Removed official-server purchase exclusion without changing Discord authority
+  or independent-community role qualification. Existing complimentary grants and
+  verified zero-cost subscriptions do not create paid Supporter evidence.
+- Added sandbox staff Products/Prices UI, server financial permissions, signed
+  session freshness, audit/idempotency records and historical mapping protection.
+
+Current acceptance limits:
+
+- The intended free offer awaits maintainer confirmation. It may be an internal
+  grant. No new offer or redemption mechanism was invented.
+- Browser screenshots/tests exercise real UI components with isolated provider
+  fixtures. They do not prove a real Stripe payment or Clerk credential change.
+- The real local app reaches Clerk sign-in with only the expected development-key
+  warning. Authenticated profile/security and the original Zen-specific warning
+  still need the maintainer's authenticated session.
+- Actual Stripe lifecycle acceptance remains JCN-241. Live remains JCN-242.
+  No live writes, charging, production deployments or merges were performed.
+
+The historical remaining-work list below is retained for provenance. The current
+implementation and launch requirements are in
+[Stripe checkout rollout](stripe-checkout-rollout.md).
+
+Current local validation passed:
+
+- Production lint and typecheck graphs, nine tasks each, mobile excluded.
+- Production coverage graph, nine tasks, including 403 backend and 106 dashboard
+  tests. Existing configured coverage gates remain at 100%. A subsequent focused
+  32-test community run also validates the final offer authorization regression.
+- Production builds, four tasks, and two generated-PWA checks.
+- Production CI/release-contract and asset regressions, using installed Git Bash
+  on Windows. No production action was performed by these fixtures.
+- Full Playwright suite, 68 cases, followed by refreshed desktop/mobile visual
+  evidence. See [screenshots](screenshots/dashboard-billing-2026-10-30/README.md).
+
+The new Convex declarations were generated from current source and reviewed.
+Temporary validation logs are ignored and must not be committed. The local
+dashboard dev server is running; no bot or backend deployment was launched.
+
 ## Historical checkpoint
 
 The maintainer requested that further testing stop and current work be committed

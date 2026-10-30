@@ -1,4 +1,5 @@
 import { defineSchema } from "convex/server"
+import { billingCatalogueOperations } from "./dbTables/billingCatalogue"
 import {
   communityPayments,
   stripeReconciliationLocks,
@@ -71,6 +72,7 @@ import {
 } from "./dbTables/cleoPets"
 
 export default defineSchema({
+  billingCatalogueOperations,
   communityPayments,
   stripeReconciliationLocks,
   communityRoleTestGrants,

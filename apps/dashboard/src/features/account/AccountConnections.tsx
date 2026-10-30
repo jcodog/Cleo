@@ -26,6 +26,7 @@ export function AccountConnections() {
 
 function Connections() {
   const { user } = useUser()
+  const { userId } = useAuth()
   const linkedRoles = useQuery(api.discordConnections.status, {})
   const disconnectRoles = useAction(api.communityActions.disconnectLinkedRoles)
   const syncAccounts = useAction(
@@ -114,6 +115,8 @@ function Connections() {
       setBusy(false)
     }
   }
+  if (!user || user.id !== userId)
+    return <p role="status">Loading connected accounts…</p>
   return (
     <section className="mx-auto w-full max-w-4xl space-y-7">
       <header className="space-y-2">
@@ -170,7 +173,12 @@ function Connections() {
                 disabled={busy}
                 onClick={() =>
                   run(async () => {
-                    await syncGuilds({})
+                    const result = await syncGuilds({})
+                    if (
+                      result.status !== "ready" &&
+                      result.status !== "verificationPending"
+                    )
+                      throw new Error("Server verification is unavailable")
                   }, "Server verification requested. Open your servers to check progress.")
                 }
               >

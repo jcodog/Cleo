@@ -5,6 +5,7 @@ import { useAction, useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { formatStripeAmount } from "@/features/community/formatStripeAmount"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { Button } from "@workspace/ui/components/button"
 import { Switch } from "@workspace/ui/components/switch"
@@ -135,7 +136,7 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
                     <p className="text-sm text-muted-foreground">
                       {price?.name ?? "Plan information unavailable"}
                       {price?.amount !== null && price?.amount !== undefined
-                        ? ` · ${new Intl.NumberFormat(undefined, { style: "currency", currency: price.currency }).format(price.amount / 100)}${period ? ` / ${period}` : ""}`
+                        ? ` · ${formatStripeAmount(price.amount, price.currency)}${period ? ` / ${period}` : ""}`
                         : ""}
                     </p>
                   </div>

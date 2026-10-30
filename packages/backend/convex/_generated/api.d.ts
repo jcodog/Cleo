@@ -1653,6 +1653,78 @@ export declare const api: {
       };
     };
   };
+  billingCatalogue: {
+    access: FunctionReference<
+      "query",
+      "public",
+      {},
+      { canRead: boolean; canWrite: boolean }
+    >;
+    history: FunctionReference<
+      "query",
+      "public",
+      {},
+      Array<{
+        completedAt?: number;
+        createdAt: number;
+        key: string;
+        request: string;
+      }>
+    >;
+  };
+  billingCatalogueActions: {
+    change: FunctionReference<
+      "action",
+      "public",
+      {
+        confirmation: string;
+        key: string;
+        request: string;
+        sessionToken: string;
+      },
+      string
+    >;
+    detail: FunctionReference<
+      "action",
+      "public",
+      { cursor?: string; productId: string },
+      {
+        next: string | null;
+        prices: Array<{
+          active: boolean;
+          amount: number | null;
+          approved: boolean;
+          currency: string;
+          id: string;
+          interval: string | null;
+          intervalCount: number;
+        }>;
+        product: {
+          active: boolean;
+          defaultPrice: string | null;
+          description: string | null;
+          id: string;
+          name: string;
+        };
+      }
+    >;
+    list: FunctionReference<
+      "action",
+      "public",
+      { cursor?: string },
+      {
+        accountId: string;
+        next: string | null;
+        products: Array<{
+          active: boolean;
+          defaultPrice: string | null;
+          description: string | null;
+          id: string;
+          name: string;
+        }>;
+      }
+    >;
+  };
   communityActions: {
     beginLinkedRoles: FunctionReference<"action", "public", {}, string>;
     connectClerkLinkedRoles: FunctionReference<
@@ -2280,6 +2352,18 @@ export declare const api: {
       { discordGuildId: string; sessionId: string },
       { guildName: string; paymentStatus: string; status: string }
     >;
+    offer: FunctionReference<
+      "action",
+      "public",
+      { discordGuildId: string },
+      null | {
+        currency: string;
+        interval: "day" | "week" | "month" | "year";
+        intervalCount: number;
+        name: string;
+        unitAmount: number;
+      }
+    >;
     portal: FunctionReference<"action", "public", {}, string>;
     setCommunityConsent: FunctionReference<
       "action",
@@ -2310,6 +2394,8 @@ export declare const api: {
         guildPremium: null | {
           canPurchase: boolean;
           capabilities: Array<string>;
+          iconUrl?: string;
+          name: string;
           state: "active" | "trial" | "grace" | "expired" | "revoked";
           validUntil: number;
         };
@@ -3583,6 +3669,37 @@ export declare const api: {
  * ```
  */
 export declare const internal: {
+  billingCatalogue: {
+    authority: FunctionReference<
+      "query",
+      "internal",
+      { write: boolean },
+      { clerkUserId: string; sessionId: string }
+    >;
+    claim: FunctionReference<
+      "mutation",
+      "internal",
+      { accountId: string; key: string; request: string; worker: string },
+      null | string
+    >;
+    complete: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        key: string;
+        mapping?: { priceId: string; productId: string };
+        result: string;
+        worker: string;
+      },
+      null
+    >;
+    mappings: FunctionReference<
+      "query",
+      "internal",
+      {},
+      Array<{ priceId: string; productId: string }>
+    >;
+  };
   communityActions: {
     publishLinkedRoles: FunctionReference<
       "action",
