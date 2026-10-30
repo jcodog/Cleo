@@ -15,20 +15,30 @@ read-only calls. New test checkout remains disabled; the return origin is local
 while Vercel Preview uses dev-app. See
 [environment setup and runtime evidence](account-billing-environments.md).
 
-Publishing development Convex functions remains pending the explicit exception
-to the earlier no-manual-deployment instruction. The in-app browser is at Discord
-sign-in, so real authenticated native UserProfile and staff catalogue screenshots
-remain unverified. Existing screenshots below are component-fixture evidence,
-not native Clerk or payment acceptance. Do not treat those images as proof of the
-repaired native account layout.
+The maintainer approved the development sync and completed signing. The signed
+repair is `b18abe0d243a74118210db345616fbfa1b43eb7c`. Matching functions/schema are
+now published to `compassionate-goose-199`; the backend preflight passes. Actual
+authenticated Profile, Security, Connections, Billing, staff catalogue and Price
+detail were tested. Billing correctly shows the maintainer's empty ledger;
+products show the real approved GBP 499/month Price and disabled writes.
 
-Repair validation: production lint and typecheck (nine tasks each), coverage
-(nine tasks, 407 backend and 108 dashboard tests), production build, 69 Playwright
-component/browser cases and two built-PWA checks passed. Release-contract
-validation passed on its single retry after a Windows temporary-directory
-`EBUSY` cleanup error. No assertions were weakened. Native Clerk
-screenshots and real authenticated billing/catalogue results remain blocked by
-sign-in and the missing deployed development functions, not proved by fixtures.
+Real desktop/mobile screenshots are in
+[signed-in runtime evidence](screenshots/account-repair-2026-10-30/README.md).
+The older screenshots below remain provider-fixture evidence. Actual Elements
+payment, populated purchaser Portal and second-account switching acceptance are
+still separate checks. No checkout flag or Stripe settings were changed.
+
+Live testing also found and fixed a Base UI link/button semantics warning. Its
+focused browser regression, fresh dashboard typecheck/lint/build and eight
+membership refresh regressions pass. Production graph checks from the repair
+still apply. The release-contract suite passed its single retry after Windows
+`EBUSY` cleanup. No test assertions were weakened.
+
+Discord verification was temporarily unavailable on dashboard return. A normal
+retry restored fresh verified guild access and opened the saved test server;
+its Premium page reads the actual GBP 4.99/month offer. The initial transient
+cause was not determined. Safe reason/status logging now preserves evidence for
+future provider failures without logging OAuth credentials or relaxing authority.
 
 The four stashes have been re-audited, with the obsolete unique dev-script patch
 archived. Drop their references only after the repair is signed, pushed and

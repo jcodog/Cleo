@@ -132,6 +132,11 @@ for (const width of [1440, 375]) {
 test("empty purchaser billing and restricted staff catalogue have intentional states", async ({
   page,
 }) => {
+  const buttonErrors: string[] = []
+  page.on("console", (message) => {
+    if (message.type() === "error" && message.text().includes("nativeButton"))
+      buttonErrors.push(message.text())
+  })
   await page.goto(`/account/billing${fixture}&emptyBilling`)
   await expect(
     page.getByRole("heading", { name: "No subscriptions yet" })
@@ -139,6 +144,7 @@ test("empty purchaser billing and restricted staff catalogue have intentional st
   await expect(
     page.getByRole("button", { name: "Manage billing" })
   ).toHaveCount(0)
+  expect(buttonErrors).toEqual([])
   await page.goto(`/staff/billing/products${fixture}&nonStaff`)
   await expect(page.getByRole("alert")).toContainText("staff only")
   await expect(page.getByRole("table")).toHaveCount(0)

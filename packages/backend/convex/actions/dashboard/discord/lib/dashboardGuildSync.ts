@@ -3,6 +3,7 @@
 import { createLogger } from "@workspace/logger"
 import { ConvexError } from "convex/values"
 import { prepareCommunityRefresh } from "../../../../lib/communityRefresh"
+import { DiscordCapabilityError } from "../../../../lib/communityDiscord"
 
 import { internal } from "../../../../_generated/api"
 import type { Id } from "../../../../_generated/dataModel"
@@ -149,7 +150,18 @@ export async function syncDashboardGuilds(ctx: ActionCtx) {
     userId: context.user._id,
     discordUserId: context.discordAccount.providerAccountId,
     clerkUserId: context.user.clerkUserId,
-  }).catch(() => null)
+  }).catch((failure: unknown) => {
+    dashboardDiscordLog.warn("Discord community refresh unavailable.", {
+      reason:
+        failure instanceof DiscordCapabilityError
+          ? `discordHttp${failure.status}`
+          : failure instanceof Error &&
+              failure.message === "Refresh your Discord account connection."
+            ? "discordConnectionRefreshRequired"
+            : "verificationFailed",
+    })
+    return null
+  })
   const verifiedDiscordUserId = context.discordAccount.providerAccountId
   if (snapshot?.state === "pending" || snapshot?.state === "superseded")
     return { status: "verificationPending" as const, guilds: [] }

@@ -160,7 +160,10 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
             Community Premium purchases made with this account will appear here
             after payment verification.
           </p>
-          <Button render={<Link href="/dashboard/servers" />}>
+          <Button
+            nativeButton={false}
+            render={<Link href="/dashboard/servers" />}
+          >
             View your servers
           </Button>
         </div>

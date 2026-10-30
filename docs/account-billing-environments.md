@@ -31,6 +31,42 @@ wrong host. Correct the selected deployment's return origin for the acceptance
 frontend, or use separate development deployments for local and Preview testing.
 No configuration was changed by these diagnostic reads.
 
+## Runtime repair verified after maintainer approval
+
+The maintainer authorised a one-shot sync to `dev:compassionate-goose-199`.
+`convex dev --once --typecheck enable --tail-logs disable` completed successfully.
+The backend preflight now reaches the expected authentication guards for all
+three required functions. Production and Stripe configuration were unchanged.
+
+Using the maintainer's real authenticated local session, verified:
+
+- Native Clerk Profile and Security, plus custom Connections and Billing pages.
+- Direct `/account/billing`, actual empty purchaser ledger, and mobile native menu.
+- Actual Discord/Twitch identities and application scope status; Linked Roles FAQ
+  opens and closes without navigating. No identities or consent were changed.
+- Actual staff product listing and active Product detail, GBP 4.99 per month,
+  enabled Guild Premium mapping and read-only controls with the write gate off.
+- Billing and staff detail at desktop/mobile widths without document overflow.
+- Saved test guild opens after successful fresh Discord verification; its Premium
+  page shows the real GBP 4.99/month offer and correctly disables new checkout.
+
+Live testing found a Base UI warning because the empty-ledger navigation link
+was rendered as a button without `nativeButton={false}`. Corrected the link and
+added a console-error regression. A fresh authenticated billing load has no
+runtime errors, only Clerk's expected development-key warning. The original
+Next.js theme/script warning was not reproduced in this session.
+
+See [real authenticated screenshots](screenshots/account-repair-2026-10-30/README.md).
+A temporary Discord verification failure recovered on explicit retry. Its initial
+cause remains undetermined; safe reason/status logging was added without changing
+authority. Clerk keys in the frontend and deployed backend were confirmed equal,
+and read-only provider calls confirmed Discord identity and the test guild.
+
+This account has no subscriptions, so a purchaser Portal session and Elements
+payment were not exercised. No test payments or catalogue mutations were made.
+Checkout remains deliberately disabled, and the Preview return-origin mismatch
+above still needs configuration for hosted acceptance under JCN-241.
+
 ## Frontend settings
 
 Set local values in `apps/dashboard/.env.local`. Set hosted values in the Vercel
@@ -83,8 +119,8 @@ work. Use `bunx --no-install convex env list --names-only` for safe inventory.
 Deploy the matching functions and schema to the intended development deployment
 before testing the new UI. Publishing a frontend alone cannot publish Convex
 functions. Existing production deployment and webhook consumers must remain
-untouched. The historical instruction prohibiting manual Convex deployment still
-requires maintainer approval before this agent publishes development functions.
+untouched. The maintainer approved the specific development sync above. Further production
+deployment and live financial configuration remain outside this authorisation.
 
 ## Financial prerequisites are separate capabilities
 
