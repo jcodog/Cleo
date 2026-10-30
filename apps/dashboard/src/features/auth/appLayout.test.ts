@@ -15,6 +15,7 @@ test("actual app layout starts authenticated preloads together and enforces onbo
     else Reflect.deleteProperty(globalThis, "React")
   })
   let completed = false
+  let preloadFailure: Error | null = null
   let returnPath = "/twitch?tab=chat"
   const calls: string[] = []
   const resolveReads: (() => void)[] = []
@@ -30,6 +31,7 @@ test("actual app layout starts authenticated preloads together and enforces onbo
       ) => {
         assert.equal(options.token, "convex-jwt")
         calls.push(getFunctionName(query))
+        if (preloadFailure) throw preloadFailure
         await new Promise<void>((resolve) => resolveReads.push(resolve))
         return {
           value: {
@@ -59,6 +61,10 @@ test("actual app layout starts authenticated preloads together and enforces onbo
   })
   const DashboardShellClient = () => null
   const OnboardingGuard = () => null
+  const SessionRecovery = () => null
+  t.mock.module(new URL("./SessionRecovery.tsx", import.meta.url).href, {
+    exports: { SessionRecovery },
+  })
   t.mock.module(new URL("../app-shell/index.ts", import.meta.url).href, {
     exports: { DashboardShellClient },
   })
@@ -71,6 +77,7 @@ test("actual app layout starts authenticated preloads together and enforces onbo
     calls.length = 0
     resolveReads.length = 0
     const rendering = layout({ children: "product content" })
+    void rendering.catch(() => {})
     await new Promise<void>((resolve) => setImmediate(resolve))
     assert.equal(calls.length, 3, "all three queries start before any resolves")
     resolveReads.forEach((resolve) => resolve())
@@ -95,4 +102,15 @@ test("actual app layout starts authenticated preloads together and enforces onbo
   assert.equal(tree.props.children.props.children, "product content")
   assert.ok(tree.props.children.props.preloadedStaffAccess)
   assert.ok(tree.props.children.props.preloadedManageableGuilds)
+  preloadFailure = new Error(
+    JSON.stringify({
+      code: "Unauthenticated",
+      message:
+        "Could not verify OIDC token claim. Check that the token signature is valid and the token hasn't expired.",
+    })
+  )
+  const recovered = await start()
+  assert.equal(recovered.type, SessionRecovery)
+  preloadFailure = new Error("Backend unavailable")
+  await assert.rejects(start(), /Backend unavailable/)
 })

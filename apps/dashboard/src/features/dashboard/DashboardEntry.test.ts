@@ -15,7 +15,7 @@ test("dashboard entry scopes saved selection and waits for authoritative verific
   )
   let userId = "alice"
   let authenticated = true
-  const directory = {
+  const initialValue = {
     clerkUserId: "alice",
     status: "ready",
     guilds: [
@@ -31,6 +31,7 @@ test("dashboard entry scopes saved selection and waits for authoritative verific
       },
     ],
   }
+  let directory: typeof initialValue | undefined = initialValue
   const state = {
     selectionClerkUserId: "alice",
     selectedDiscordGuildId: "111111111111111111",
@@ -67,9 +68,9 @@ test("dashboard entry scopes saved selection and waits for authoritative verific
     },
   })
   const { DashboardEntry } = await import("./DashboardEntry")
-  const settle = () => {
+  const settle = (options: Parameters<typeof DashboardEntry>[0] = {}) => {
     paths.length = 0
-    DashboardEntry()
+    DashboardEntry(options)
     effects.splice(0).forEach((effect) => effect())
     return [...paths]
   }
@@ -96,4 +97,28 @@ test("dashboard entry scopes saved selection and waits for authoritative verific
   assert.deepEqual(settle(), ["/dashboard/servers"])
   authenticated = false
   assert.deepEqual(settle(), [])
+  authenticated = true
+  directory = undefined
+  const snapshot = {
+    resolvedAt: Date.now(),
+    value: { clerkUserId: "bob", status: "ready" as const, guilds: [] },
+  }
+  assert.deepEqual(settle({ initialDirectory: snapshot }), [
+    "/dashboard/servers",
+  ])
+  assert.deepEqual(
+    settle({
+      initialDirectory: {
+        ...snapshot,
+        value: { ...snapshot.value, clerkUserId: "alice" },
+      },
+    }),
+    []
+  )
+  assert.deepEqual(
+    settle({
+      initialDirectory: { ...snapshot, resolvedAt: Date.now() - 16000 },
+    }),
+    []
+  )
 })

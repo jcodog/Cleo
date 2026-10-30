@@ -8,22 +8,44 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { getDashboardGuildSelection } from "@/features/app-shell/dashboardGuildSelection"
 import Link from "next/link"
+import type { FunctionReturnType } from "convex/server"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+
+type DirectorySnapshot = {
+  resolvedAt: number
+  value: FunctionReturnType<
+    typeof api.queries.dashboard.discord.guilds.directory.list
+  >
+}
 
 /** Resume only after the current account's server verification has completed. */
-export function DashboardEntry() {
+export function DashboardEntry({
+  initialDirectory,
+}: { initialDirectory?: DirectorySnapshot } = {}) {
   const { userId, isLoaded } = useAuth()
   const { isAuthenticated, isLoading } = useConvexAuth()
   const router = useRouter()
-  const directory = useQuery(
+  const liveDirectory = useQuery(
     api.queries.dashboard.discord.guilds.directory.list,
     isAuthenticated ? {} : "skip"
   )
+  const directory =
+    liveDirectory ??
+    (initialDirectory && initialDirectory.value.clerkUserId === userId
+      ? initialDirectory.value
+      : undefined)
   const storedDiscordGuildId = useAppShellStore((state) =>
     state.selectionClerkUserId === userId
       ? state.selectedDiscordGuildId
       : undefined
   )
   useEffect(() => {
+    if (liveDirectory === undefined) {
+      const snapshotAge = initialDirectory
+        ? Date.now() - initialDirectory.resolvedAt
+        : Infinity
+      if (snapshotAge < 0 || snapshotAge >= 15000) return
+    }
     if (
       !isLoaded ||
       !userId ||
@@ -42,6 +64,8 @@ export function DashboardEntry() {
     }
   }, [
     directory,
+    liveDirectory,
+    initialDirectory,
     isAuthenticated,
     isLoaded,
     isLoading,
@@ -49,19 +73,35 @@ export function DashboardEntry() {
     storedDiscordGuildId,
     userId,
   ])
+  const unavailable =
+    directory?.status === "unavailable" || directory?.status === "expired"
   return (
-    <div className="space-y-3 py-6 text-sm text-muted-foreground">
-      <p role="status">
-        {directory?.status === "unavailable" || directory?.status === "expired"
-          ? "Discord verification is unavailable. Your saved server will be checked when verification recovers."
-          : "Checking your Discord servers…"}
+    <div
+      className="w-full max-w-3xl space-y-5"
+      role="status"
+      aria-label="Loading server workspace"
+      aria-live="polite"
+    >
+      <Skeleton className="h-6 w-44" />
+      <div className="space-y-3 border-t pt-5" aria-hidden>
+        <Skeleton className="h-4 w-64 max-w-full" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {unavailable
+          ? "Discord verification is unavailable. Your saved server will be checked when it recovers."
+          : directory?.status === "pending"
+            ? "Verifying server access…"
+            : "Opening your server…"}
       </p>
-      <Link
-        href="/dashboard/servers"
-        className="text-foreground underline underline-offset-4"
-      >
-        View all servers
-      </Link>
+      {unavailable ? (
+        <Link
+          href="/dashboard/servers"
+          className="text-sm underline underline-offset-4"
+        >
+          Open server directory
+        </Link>
+      ) : null}
     </div>
   )
 }
