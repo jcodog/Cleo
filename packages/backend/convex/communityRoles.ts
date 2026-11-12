@@ -226,6 +226,10 @@ export const settle = internalMutation({
       row.leaseUntil <= Date.now()
     )
       return null
+    const successfulRevision =
+      args.success && row.revision === args.revision
+    const needsPublication =
+      successfulRevision && row.lastSuccessfulRevision !== args.revision
     await ctx.db.patch(row._id, {
       leaseUntil: 0,
       attempts:
@@ -235,21 +239,24 @@ export const settle = internalMutation({
           ? Date.now()
           : Date.now() +
             (args.success
-              ? 60000
+              ? 300000 // Match the existing five-minute Discord verification TTL.
               : Math.min(300000, 1000 * 2 ** Math.min(row.attempts, 8))),
+      ...(successfulRevision ? { lastSuccessfulRevision: args.revision } : {}),
     })
-    const account = await ctx.db
-      .query("linkedAccounts")
-      .withIndex("by_provider_and_provider_account_id", (q) =>
-        q.eq("provider", "discord").eq("providerAccountId", row.discordUserId)
-      )
-      .first()
-    if (account)
-      await ctx.scheduler.runAfter(
-        0,
-        internal.communityActions.publishLinkedRoles,
-        { userId: account.userId }
-      )
+    if (needsPublication) {
+      const account = await ctx.db
+        .query("linkedAccounts")
+        .withIndex("by_provider_and_provider_account_id", (q) =>
+          q.eq("provider", "discord").eq("providerAccountId", row.discordUserId)
+        )
+        .first()
+      if (account)
+        await ctx.scheduler.runAfter(
+          0,
+          internal.communityActions.publishLinkedRoles,
+          { userId: account.userId }
+        )
+    }
     return null
   },
 })
