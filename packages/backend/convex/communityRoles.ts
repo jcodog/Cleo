@@ -228,6 +228,14 @@ export const settle = internalMutation({
       return null
     const successfulRevision =
       args.success && row.revision === args.revision
+    const now = Date.now()
+    // A five-minute interval starting at settlement can overshoot the
+    // snapshot's observation-based deadline. Recheck before that deadline;
+    // bound already-expired evidence to a five-second retry to avoid loops.
+    const nextSuccessfulAt = Math.max(
+      now + 5000,
+      Math.min(now + 300000, (row.authorityUntil ?? Infinity) - 1000)
+    )
     const needsPublication =
       successfulRevision && row.lastSuccessfulRevision !== args.revision
     await ctx.db.patch(row._id, {
@@ -239,7 +247,7 @@ export const settle = internalMutation({
           ? Date.now()
           : Date.now() +
             (args.success
-              ? 300000 // Match the existing five-minute Discord verification TTL.
+              ? nextSuccessfulAt - now
               : Math.min(300000, 1000 * 2 ** Math.min(row.attempts, 8))),
       ...(successfulRevision ? { lastSuccessfulRevision: args.revision } : {}),
     })
