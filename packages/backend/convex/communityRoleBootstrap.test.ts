@@ -103,6 +103,20 @@ test("successful role jobs recheck at the Discord verification TTL and retain re
     revision: 3,
     success: true,
   })
+  const publications = async () =>
+    (await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect()))
+      .filter((entry) => entry.name.endsWith("communityActions:publishLinkedRoles"))
+  const linkedUserId = await t.run(async (ctx) => {
+    const account = await ctx.db
+      .query("linkedAccounts")
+      .withIndex("by_provider_and_provider_account_id", (q) =>
+        q.eq("provider", "discord").eq("providerAccountId", discordUserId)
+      )
+      .unique()
+    assert.ok(account)
+    return account.userId
+  })
+  assert.equal((await publications()).length, 1)
   const first = await t.run((ctx) => ctx.db.get(id))
   assert.equal(first?.lastSuccessfulRevision, 3)
   assert.equal(first?.attempts, 0)
@@ -124,6 +138,7 @@ test("successful role jobs recheck at the Discord verification TTL and retain re
   })
   const repeat = await t.run((ctx) => ctx.db.get(id))
   assert.equal(repeat?.lastSuccessfulRevision, 3)
+  assert.equal((await publications()).length, 1, "a repeat must not publish")
   assert.ok((repeat?.nextAt ?? 0) >= now + 300000)
 
   // Explicit eligibility changes still open a fresh publication generation.
@@ -142,4 +157,30 @@ test("successful role jobs recheck at the Discord verification TTL and retain re
     success: true,
   })
   assert.equal((await t.run((ctx) => ctx.db.get(id)))?.lastSuccessfulRevision, 4)
+  const scheduled = await publications()
+  assert.equal(scheduled.length, 2, "a new revision must publish once")
+  for (const entry of scheduled)
+    assert.equal(entry.args[0]?.userId, linkedUserId)
+
+  // The deadline begins with provider observation, not settlement.
+  const authorityUntil = Date.now() + 30_000
+  await t.run((ctx) =>
+    ctx.db.patch(id, {
+      revision: 5,
+      attemptedRevision: 5,
+      leaseUntil: Date.now() + 60_000,
+      authorityUntil,
+    })
+  )
+  await t.mutation(internal.communityRoles.settle, {
+    id,
+    worker,
+    revision: 5,
+    success: true,
+  })
+  const bounded = await t.run((ctx) => ctx.db.get(id))
+  assert.ok(bounded)
+  assert.ok(bounded.nextAt < authorityUntil)
+  assert.ok(bounded.nextAt >= Date.now() + 4990)
+  assert.equal((await publications()).length, 3)
 })
