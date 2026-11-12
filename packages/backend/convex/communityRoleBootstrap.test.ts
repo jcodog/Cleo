@@ -61,3 +61,85 @@ test("periodic role bootstrap preserves retry backoff and leases while adding mi
   assert.equal(changed?.attempts, 0)
   assert.equal(changed?.leaseUntil, job.leaseUntil)
 })
+
+
+test("successful role jobs recheck at the Discord verification TTL and retain revision publication receipts", async () => {
+  const t = convexTest(schema, {
+    "./_generated/server.js": () => import("./_generated/server.js"),
+    "./communityRoles.ts": () => import("./communityRoles"),
+  })
+  const discordUserId = "333333333333333333"
+  const worker = "settlement-worker"
+  const now = Date.now()
+  const id = await t.run(async (ctx) => {
+    const userId = await ctx.db.insert("users", {
+      clerkUserId: "role-settle",
+      email: "role-settle@example.com",
+      role: "user",
+      createdAt: now,
+      updatedAt: now,
+    })
+    await ctx.db.insert("linkedAccounts", {
+      userId,
+      provider: "discord",
+      providerAccountId: discordUserId,
+      scopes: [],
+      createdAt: now,
+      updatedAt: now,
+    })
+    return ctx.db.insert("communityRoleJobs", {
+      discordUserId,
+      revision: 3,
+      attemptedRevision: 3,
+      worker,
+      leaseUntil: now + 60000,
+      attempts: 0,
+      nextAt: now,
+    })
+  })
+  await t.mutation(internal.communityRoles.settle, {
+    id,
+    worker,
+    revision: 3,
+    success: true,
+  })
+  const first = await t.run((ctx) => ctx.db.get(id))
+  assert.equal(first?.lastSuccessfulRevision, 3)
+  assert.equal(first?.attempts, 0)
+  assert.ok((first?.nextAt ?? 0) >= now + 300000)
+  assert.ok((first?.nextAt ?? Infinity) <= Date.now() + 300000)
+
+  // A subsequent periodic success is not a new publication revision.
+  await t.run((ctx) =>
+    ctx.db.patch(id, {
+      leaseUntil: Date.now() + 60000,
+      nextAt: Date.now(),
+    })
+  )
+  await t.mutation(internal.communityRoles.settle, {
+    id,
+    worker,
+    revision: 3,
+    success: true,
+  })
+  const repeat = await t.run((ctx) => ctx.db.get(id))
+  assert.equal(repeat?.lastSuccessfulRevision, 3)
+  assert.ok((repeat?.nextAt ?? 0) >= now + 300000)
+
+  // Explicit eligibility changes still open a fresh publication generation.
+  await t.mutation(internal.communityRoles.enqueue, { discordUserId })
+  await t.run((ctx) =>
+    ctx.db.patch(id, {
+      attemptedRevision: 4,
+      leaseUntil: Date.now() + 60000,
+      worker,
+    })
+  )
+  await t.mutation(internal.communityRoles.settle, {
+    id,
+    worker,
+    revision: 4,
+    success: true,
+  })
+  assert.equal((await t.run((ctx) => ctx.db.get(id)))?.lastSuccessfulRevision, 4)
+})
