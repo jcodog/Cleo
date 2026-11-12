@@ -80,6 +80,9 @@ export const communityRoleJobs = defineTable({
   discordUserId: v.string(),
   revision: v.number(),
   attemptedRevision: v.optional(v.number()),
+  // Successfully handled revisions need one Linked Roles notification, not
+  // another notification on every periodic membership recheck.
+  lastSuccessfulRevision: v.optional(v.number()),
   attemptedAccountId: v.optional(v.id("linkedAccounts")),
   attemptedRefreshId: v.optional(v.id("discordGuildRefreshes")),
   attemptedRefreshRevision: v.optional(v.number()),
