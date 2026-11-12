@@ -226,6 +226,18 @@ export const settle = internalMutation({
       row.leaseUntil <= Date.now()
     )
       return null
+    const successfulRevision =
+      args.success && row.revision === args.revision
+    const now = Date.now()
+    // A five-minute interval starting at settlement can overshoot the
+    // snapshot's observation-based deadline. Recheck before that deadline;
+    // bound already-expired evidence to a five-second retry to avoid loops.
+    const nextSuccessfulAt = Math.max(
+      now + 5000,
+      Math.min(now + 300000, (row.authorityUntil ?? Infinity) - 1000)
+    )
+    const needsPublication =
+      successfulRevision && row.lastSuccessfulRevision !== args.revision
     await ctx.db.patch(row._id, {
       leaseUntil: 0,
       attempts:
@@ -235,21 +247,24 @@ export const settle = internalMutation({
           ? Date.now()
           : Date.now() +
             (args.success
-              ? 60000
+              ? nextSuccessfulAt - now
               : Math.min(300000, 1000 * 2 ** Math.min(row.attempts, 8))),
+      ...(successfulRevision ? { lastSuccessfulRevision: args.revision } : {}),
     })
-    const account = await ctx.db
-      .query("linkedAccounts")
-      .withIndex("by_provider_and_provider_account_id", (q) =>
-        q.eq("provider", "discord").eq("providerAccountId", row.discordUserId)
-      )
-      .first()
-    if (account)
-      await ctx.scheduler.runAfter(
-        0,
-        internal.communityActions.publishLinkedRoles,
-        { userId: account.userId }
-      )
+    if (needsPublication) {
+      const account = await ctx.db
+        .query("linkedAccounts")
+        .withIndex("by_provider_and_provider_account_id", (q) =>
+          q.eq("provider", "discord").eq("providerAccountId", row.discordUserId)
+        )
+        .first()
+      if (account)
+        await ctx.scheduler.runAfter(
+          0,
+          internal.communityActions.publishLinkedRoles,
+          { userId: account.userId }
+        )
+    }
     return null
   },
 })

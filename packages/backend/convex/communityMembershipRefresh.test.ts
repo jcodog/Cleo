@@ -382,3 +382,112 @@ for (const failure of ["provider", "duplicate", "bound"] as const)
     )
     assert.equal(pages, failure === "bound" ? 5 : 2)
   })
+
+
+test("deleted guild records revoke previously verified memberships even when their Discord ID is cached", async (t) => {
+  const f = await fixture()
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  const guild = f.guilds[0]!
+  const incoming = [{ id: guild.externalId, owner: true, permissions: "8" }]
+  await f.refresh(incoming)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(guild.membershipId)))?.discordGuildId,
+    guild.externalId
+  )
+  await f.t.run((ctx) => ctx.db.delete(guild.guildId))
+  now += 10
+  await f.refresh(incoming)
+  const membership = await f.t.run((ctx) => ctx.db.get(guild.membershipId))
+  assert.equal(membership?.canManage, false)
+  assert.ok(membership?.revokedAt)
+  await assert.rejects(f.access(), /Verified Discord guild management/)
+})
+
+test("repeated revoked memberships avoid redundant guild reads and writes", async (t) => {
+  const f = await fixture(120)
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  await f.refresh([])
+  await f.drain()
+  const target = f.guilds[110]!
+  const before = await f.t.run((ctx) => ctx.db.get(target.membershipId))
+  assert.equal(before?.discordGuildId, target.externalId)
+  assert.equal(before?.canManage, false)
+  now += 10
+  await f.refresh([])
+  const checkpoint = await f.state()
+  assert.ok(checkpoint && checkpoint.state === "pending")
+  const guildIds = new Set(f.guilds.map(({ guildId }) => String(guildId)))
+  let redundantGuildGets = 0
+  const { reconcileDiscordGuildRefresh } = await import("./lib/discordGuildRefresh")
+  await f.t.run((ctx) =>
+    reconcileDiscordGuildRefresh(
+      {
+        ...ctx,
+        db: new Proxy(ctx.db, {
+          get(db, property) {
+            if (property === "get")
+              return (...args: Parameters<typeof db.get>) => {
+                if (guildIds.has(String(args[0]))) redundantGuildGets++
+                return db.get(...args)
+              }
+            return Reflect.get(db, property)
+          },
+        }),
+      },
+      checkpoint._id,
+      checkpoint.revision
+    )
+  )
+  assert.equal(redundantGuildGets, 0)
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.get(target.membershipId)),
+    before,
+    "a revoked membership must not be rewritten on unchanged negative evidence"
+  )
+})
+
+test("unchanged guild ownership causes no guild-document writes during reconciliation", async (t) => {
+  const f = await fixture(120)
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  const incoming = f.guilds.map(({ externalId }) => ({
+    id: externalId,
+    owner: true,
+    permissions: "8",
+  }))
+  await f.refresh(incoming)
+  await f.drain()
+  now += 10
+  await f.refresh(incoming)
+  const checkpoint = await f.state()
+  assert.ok(checkpoint && checkpoint.state === "pending")
+  const guildIds = new Set(f.guilds.map(({ guildId }) => String(guildId)))
+  let ownerPatches = 0
+  const { reconcileDiscordGuildRefresh } = await import("./lib/discordGuildRefresh")
+  await f.t.run((ctx) =>
+    reconcileDiscordGuildRefresh(
+      {
+        ...ctx,
+        db: new Proxy(ctx.db, {
+          get(db, property) {
+            if (property === "patch")
+              return (...args: Parameters<typeof db.patch>) => {
+                if (guildIds.has(String(args[0]))) ownerPatches++
+                return db.patch(...args)
+              }
+            return Reflect.get(db, property)
+          },
+        }),
+      },
+      checkpoint._id,
+      checkpoint.revision
+    )
+  )
+  assert.equal(ownerPatches, 0)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(f.guilds[0]!.guildId)))?.ownerDiscordId,
+    discordUserId
+  )
+})

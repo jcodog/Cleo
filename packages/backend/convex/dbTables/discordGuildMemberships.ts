@@ -4,6 +4,9 @@ import { discordVerificationSource } from "./shared"
 
 export const discordGuildMemberships = defineTable({
   guildId: v.id("guilds"),
+  // Lazy backfill during verified refreshes avoids a guild-document lookup for
+  // unchanged memberships in the next reconciliation.
+  discordGuildId: v.optional(v.string()),
   userId: v.optional(v.id("users")),
   discordUserId: v.string(),
 
