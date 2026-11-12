@@ -43,29 +43,41 @@ export async function reconcileDiscordGuildRefresh(
       .paginate({ cursor: cursor ?? null, numItems: 100 })
     const incoming = new Set(refresh.guilds.map((guild) => guild.id))
     for (const membership of page.page) {
-      // The verified external ID is denormalized on the membership. Older
-      // documents fall back to a guild read and are backfilled below.
-      if (membership.discordGuildId && incoming.has(membership.discordGuildId))
-        continue
+      // Never skip checking an active membership's guild record: a missing
+      // guild must revoke authority even if its Discord ID is in the snapshot.
+      // Fully revoked rows are safe to skip after initial owner cleanup.
+      const alreadyRevoked =
+        membership.revokedAt !== undefined &&
+        !membership.canManage &&
+        membership.isOwner !== true &&
+        (membership.permissions ?? "0") === "0"
+      if (
+        alreadyRevoked &&
+        membership.discordGuildId &&
+        !incoming.has(membership.discordGuildId)
+      ) continue
       const guild = await ctx.db.get(membership.guildId)
       if (!guild || !incoming.has(guild.discordGuildId)) {
         // Do not overwrite a separately verified observation newer than this snapshot.
         if ((membership.managementVerifiedAt ?? 0) > refresh.startedAt) continue
-        // Repeated negative observations should not rewrite a previously
-        // revoked membership, nor invalidate subscribers unnecessarily.
-        if (
-          membership.revokedAt === undefined ||
-          membership.canManage ||
-          membership.isOwner ||
-          (membership.permissions ?? "0") !== "0"
-        )
+        // Backfill the ID on the first revocation. Future negative snapshots
+        // can skip this row after its corresponding owner was cleaned up.
+        // Do not rewrite unchanged negative evidence on every verification.
+        if (!alreadyRevoked || (guild && !membership.discordGuildId))
           await ctx.db.patch(membership._id, {
-            revokedAt: refresh.startedAt,
-            canManage: false,
-            isOwner: false,
-            permissions: "0",
-            managementVerifiedAt: refresh.startedAt,
-            updatedAt: Date.now(),
+            ...(!alreadyRevoked
+              ? {
+                  revokedAt: refresh.startedAt,
+                  canManage: false,
+                  isOwner: false,
+                  permissions: "0",
+                  managementVerifiedAt: refresh.startedAt,
+                  updatedAt: Date.now(),
+                }
+              : {}),
+            ...(guild && !membership.discordGuildId
+              ? { discordGuildId: guild.discordGuildId }
+              : {}),
           })
         if (guild?.ownerDiscordId === refresh.discordUserId)
           await ctx.db.patch(guild._id, { ownerDiscordId: undefined })
