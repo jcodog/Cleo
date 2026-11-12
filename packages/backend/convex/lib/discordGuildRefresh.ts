@@ -117,7 +117,7 @@ export async function reconcileDiscordGuildRefresh(
       else await ctx.db.insert("discordGuildMemberships", value)
       if (incoming.owner && guild.ownerDiscordId !== refresh.discordUserId)
         await ctx.db.patch(guild._id, { ownerDiscordId: refresh.discordUserId })
-      else if (guild.ownerDiscordId === refresh.discordUserId)
+      else if (!incoming.owner && guild.ownerDiscordId === refresh.discordUserId)
         await ctx.db.patch(guild._id, { ownerDiscordId: undefined })
     }
     offset += batch.length
