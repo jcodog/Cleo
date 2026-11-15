@@ -272,6 +272,7 @@ test("Elements setup creates one bound customer and uses dynamic methods with st
     setups[0]?.fields.get("automatic_payment_methods[enabled]"),
     "true"
   )
+  assert.equal(setups[0]?.fields.get("automatic_payment_methods[allow_redirects]"), "never")
   assert.equal(setups[0]?.fields.get("usage"), "off_session")
   assert.equal(setups[0]?.fields.has("payment_method_types"), false)
   assert.equal(
@@ -316,13 +317,12 @@ test("setup completion trusts verified Stripe status and ownership, never a clie
     "processing"
   )
   assert.ok(calls.every((call) => call.method === "GET"))
-  status = "requires_payment_method"
-  await assert.rejects(
-    f.payer.action(api.billingPortalActions.completeSetup, {
+  for (const terminal of ["requires_payment_method", "canceled"]) {
+    status = terminal
+    assert.equal(await f.payer.action(api.billingPortalActions.completeSetup, {
       setupIntentId: "seti_alice",
-    }),
-    /not been saved/
-  )
+    }), "failed")
+  }
   status = "succeeded"
   owner = f.bob
   await assert.rejects(

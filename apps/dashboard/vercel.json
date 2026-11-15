@@ -3,5 +3,5 @@
   "framework": "nextjs",
   "git": { "deploymentEnabled": { "main": false } },
   "installCommand": "cd ../.. && bun ci",
-  "buildCommand": "cd ../.. && bun run --filter @workspace/dashboard build"
+  "buildCommand": "cd ../.. && bun scripts/build-dashboard-preview.mjs"
 }

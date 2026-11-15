@@ -10,7 +10,7 @@
     "start": "bun run assets:welcome && next start",
     "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "test": "node --test ../../scripts/check-dashboard-backend.test.mjs && node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
+    "test": "node --test ../../scripts/check-dashboard-backend.test.mjs ../../scripts/build-dashboard-preview.test.mjs && node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
     "test:pwa": "node --import tsx --test tests/pwa.test.ts",
     "test:twitch:browser": "bunx --no-install playwright test --config tests/twitch/playwright.config.ts",
     "test:welcome:browser": "bunx --no-install playwright test --config tests/welcome/playwright.config.ts",

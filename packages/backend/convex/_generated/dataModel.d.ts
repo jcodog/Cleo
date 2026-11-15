@@ -1333,6 +1333,11 @@ export type DataModel = {
         "managementVerifiedAt",
         "_creationTime",
       ];
+      by_discord_user_and_discord_guild_id: [
+        "discordUserId",
+        "discordGuildId",
+        "_creationTime",
+      ];
       by_discord_user_id: ["discordUserId", "_creationTime"];
       by_guild_id: ["guildId", "_creationTime"];
       by_guild_id_and_discord_user_id: [

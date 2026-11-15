@@ -35,12 +35,55 @@ export function PremiumCheckout({
 }) {
   const [returning, setReturning] = useState(false)
   const [retry, setRetry] = useState(0)
+  const cancel = useAction(api.premiumActions.cancelCheckout)
+  const [legacyError, setLegacyError] = useState("")
+  const [canceling, setCanceling] = useState(false)
   const { resolvedTheme } = useTheme()
   const key = dashboardEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   const stripe = useMemo(
     () => (key?.startsWith("pk_test_") ? loadStripe(key) : null),
     [key]
   )
+  if (session.hostedUrl)
+    return (
+      <section className="space-y-4">
+        <h2 className="font-heading text-2xl font-medium">Resume checkout</h2>
+        <p>
+          This checkout was started on Stripe. You can continue there or cancel
+          it before starting again.
+        </p>
+        <a href={session.hostedUrl} className="underline">
+          Continue on Stripe
+        </a>
+        <Button
+          disabled={canceling}
+          variant="outline"
+          onClick={async () => {
+            setCanceling(true)
+            try {
+              const result = await cancel({
+                discordGuildId,
+                sessionId: session.sessionId,
+              })
+              if (result === "complete")
+                setLegacyError(
+                  "This checkout completed. Check your billing account."
+                )
+              else onCancel()
+            } catch {
+              setLegacyError(
+                "Checkout could not be canceled. Check its status before trying again."
+              )
+            } finally {
+              setCanceling(false)
+            }
+          }}
+        >
+          Cancel checkout
+        </Button>
+        {legacyError ? <p role="alert">{legacyError}</p> : null}
+      </section>
+    )
   if (returning)
     return (
       <CheckoutReturn
@@ -63,7 +106,7 @@ export function PremiumCheckout({
           collected.
         </p>
       </header>
-      {stripe ? (
+      {stripe && session.clientSecret ? (
         <CheckoutElementsProvider
           key={retry}
           stripe={stripe}
@@ -225,10 +268,7 @@ function PaymentForm({
         <p className="text-sm leading-6 text-muted-foreground">
           By subscribing, you authorise recurring payments every {period} until
           you cancel. Manage cancellation and payment details in{" "}
-          <Link
-            href="/billing"
-            className="underline underline-offset-4"
-          >
+          <Link href="/billing" className="underline underline-offset-4">
             My billing
           </Link>
           . Premium does not grant Discord ownership or management permissions.

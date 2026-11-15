@@ -97,14 +97,14 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
     void completeSetup({ setupIntentId })
       .then((status) => {
         if (!active) return
-        if (status === "saved") {
+        if (status === "saved" || status === "failed") {
           try {
             sessionStorage.removeItem(storageKey)
           } catch {
             /* Optional storage. */
           }
           setPendingSetup(null)
-          setNotice("Payment method saved as your default.")
+          setNotice(status === "saved" ? "Payment method saved as your default." : "Payment setup was not completed. Please try again.")
           setProfileRevision((value) => value + 1)
         } else {
           setPendingSetup(setupIntentId)
@@ -183,10 +183,10 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
               const status = await completeSetup({
                 setupIntentId: pendingSetup,
               })
-              if (status === "saved") {
+              if (status === "saved" || status === "failed") {
                 rememberSetup(null)
                 refreshProfile()
-                setNotice("Payment method saved as your default.")
+                setNotice(status === "saved" ? "Payment method saved as your default." : "Payment setup was not completed. Please try again.")
               } else
                 setNotice("Your bank is still confirming the payment method.")
             })

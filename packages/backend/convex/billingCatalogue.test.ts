@@ -118,6 +118,11 @@ test("operation reservations bind actor, account and exact terms and preserve am
   const history = await f.finance.query(api.billingCatalogue.history, {})
   assert.equal(history.length, 1)
   assert.ok(history[0]?.completedAt)
+  assert.equal(history[0]?.canRetry, true)
+  const otherStaff = await f.t
+    .withIdentity({ subject: "staff" })
+    .query(api.billingCatalogue.history, {})
+  assert.equal(otherStaff[0]?.canRetry, false)
 })
 test("freshness checks reject other users, sessions, stale factors, future issuance and missing claims", () => {
   const now = Math.floor(Date.now() / 1000)

@@ -185,21 +185,23 @@ export const history = query({
       request: v.string(),
       createdAt: v.number(),
       completedAt: v.optional(v.number()),
+      canRetry: v.boolean(),
     })
   ),
   handler: async (ctx) => {
-    await requireStaff(ctx)
+    const staff = await requireStaff(ctx)
     return (
       await ctx.db
         .query("billingCatalogueOperations")
         .withIndex("by_created")
         .order("desc")
         .take(30)
-    ).map(({ key, request, createdAt, completedAt }) => ({
+    ).map(({ key, request, createdAt, completedAt, userId }) => ({
       key,
       request,
       createdAt,
       completedAt,
+      canRetry: userId === staff._id,
     }))
   },
 })

@@ -30,6 +30,7 @@ export type BillingProfile = FunctionReturnType<
   typeof api.billingPortalActions.profile
 >
 type Setup = FunctionReturnType<typeof api.billingPortalActions.beginSetup>
+type SetupResult = FunctionReturnType<typeof api.billingPortalActions.completeSetup>
 const publicKey = dashboardEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 const stripePromise = publicKey?.startsWith("pk_test_")
   ? loadStripe(publicKey).catch(() => null)
@@ -82,7 +83,7 @@ export function PaymentSetupDialog({
   onClose,
 }: {
   setup: Setup
-  onSaved: (processing: boolean) => void
+  onSaved: (result: SetupResult) => void
   onClose: () => void
 }) {
   const appearance = useAppearance()
@@ -160,7 +161,7 @@ function PaymentSetupForm({
   setup: Setup
   busy: boolean
   setBusy: (busy: boolean) => void
-  onSaved: (processing: boolean) => void
+  onSaved: (result: SetupResult) => void
   onCancel: () => Promise<void>
 }) {
   const stripe = useStripe(),
@@ -175,7 +176,6 @@ function PaymentSetupForm({
     try {
       const result = await stripe.confirmSetup({
         elements,
-        confirmParams: { return_url: setup.returnUrl },
         redirect: "if_required",
       })
       if (result.error) {
@@ -185,7 +185,7 @@ function PaymentSetupForm({
         return
       }
       const status = await complete({ setupIntentId: setup.id })
-      onSaved(status === "processing")
+      onSaved(status)
     } catch (failure) {
       setError(
         billingError(

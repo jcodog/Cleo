@@ -26,6 +26,10 @@ export const discordGuildMemberships = defineTable({
   .index("by_guild_id", ["guildId"])
   .index("by_user_id", ["userId"])
   .index("by_discord_user_id", ["discordUserId"])
+  .index("by_discord_user_and_discord_guild_id", [
+    "discordUserId",
+    "discordGuildId",
+  ])
   .index("by_guild_id_and_discord_user_id", ["guildId", "discordUserId"])
   .index("by_user_id_and_guild_id", ["userId", "guildId"])
   .index("by_discord_management", [

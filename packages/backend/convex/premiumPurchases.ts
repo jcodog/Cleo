@@ -565,9 +565,33 @@ export const apply = internalMutation({
         ),
       })
     ),
+    associatedInvoices: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          paidUntil: v.number(),
+          payments: v.array(
+            v.object({ paymentIntentId: v.string(), chargeId: v.string() })
+          ),
+        })
+      )
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const invoices =
+      args.associatedInvoices ?? (args.paidInvoice ? [args.paidInvoice] : [])
+    if (
+      invoices.length > 2 ||
+      invoices.some(
+        (invoice) =>
+          !invoice.payments.length ||
+          invoice.payments.length > 10 ||
+          !Number.isSafeInteger(invoice.paidUntil) ||
+          invoice.paidUntil > args.endsAt
+      )
+    )
+      throw new Error("Invalid invoice payment evidence.")
     const lock = await ctx.db
       .query("stripeReconciliationLocks")
       .withIndex("by_subscription", (q) =>
@@ -727,27 +751,33 @@ export const apply = internalMutation({
             updatedAt: now,
           })
       }
-      const recorded = await ctx.db
-        .query("communityPayments")
-        .withIndex("by_invoice", (q) => q.eq("invoiceId", args.paidInvoice!.id))
-        .take(11)
-      for (const payment of args.paidInvoice.payments)
-        if (
-          !recorded.some(
-            (row) => row.paymentIntentId === payment.paymentIntentId
-          )
-        )
-          await ctx.db.insert("communityPayments", {
-            invoiceId: args.paidInvoice.id,
-            subscriptionId: args.subscriptionId,
-            ...payment,
-          })
     } else if (paid && (revoked || status !== "active"))
       await ctx.db.patch(paid._id, {
         revoked: true,
         paidUntil: Math.min(paid.paidUntil, now),
         updatedAt: now,
       })
+    // Payment ownership survives cancellation and reversal. Older paid events
+    // must remain addressable by subsequent refund and dispute events.
+    for (const invoice of invoices) {
+      const recorded = await ctx.db
+        .query("communityPayments")
+        .withIndex("by_invoice", (q) => q.eq("invoiceId", invoice.id))
+        .take(11)
+      if (recorded.some((row) => row.subscriptionId !== args.subscriptionId))
+        throw new Error("Invoice ownership cannot change.")
+      for (const payment of invoice.payments)
+        if (
+          !recorded.some(
+            (row) => row.paymentIntentId === payment.paymentIntentId
+          )
+        )
+          await ctx.db.insert("communityPayments", {
+            invoiceId: invoice.id,
+            subscriptionId: args.subscriptionId,
+            ...payment,
+          })
+    }
     await queueRoleSync(ctx, reservation.discordUserId)
     await ctx.db.insert("integrationReceipts", {
       provider: "stripe",

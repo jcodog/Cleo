@@ -246,6 +246,7 @@ export const beginSetup = action({
           customer: context.customerId,
           usage: "off_session",
           "automatic_payment_methods[enabled]": "true",
+          "automatic_payment_methods[allow_redirects]": "never",
           "metadata[cleo_user]": context.user._id,
         },
         `cleo-method:${context.user._id}:${key}`
@@ -264,7 +265,7 @@ export const beginSetup = action({
 })
 export const completeSetup = action({
   args: { setupIntentId: v.string() },
-  returns: v.union(v.literal("saved"), v.literal("processing")),
+  returns: v.union(v.literal("saved"), v.literal("processing"), v.literal("failed")),
   handler: async (ctx, args) => {
     const context = await purchaser(ctx)
     if (!context.customer)
@@ -282,6 +283,7 @@ export const completeSetup = action({
         "This payment setup does not belong to your account."
       )
     if (intent.status === "processing") return "processing"
+    if (intent.status === "requires_payment_method" || intent.status === "canceled") return "failed"
     if (intent.status !== "succeeded" || !intent.payment_method)
       throw new ConvexError("The payment method has not been saved. Try again.")
     await setCustomerDefault(
