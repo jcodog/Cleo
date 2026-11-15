@@ -9,6 +9,7 @@ export function PremiumGuildSection({ overview }: { overview: GuildOverview }) {
       <PremiumPurchases
         key={overview.discordGuildId}
         discordGuildId={overview.discordGuildId}
+        showCommunityHeader={false}
       />
     </div>
   )

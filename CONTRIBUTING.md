@@ -62,13 +62,13 @@ bun run --filter @workspace/discord-bot test:coverage
 
 Only run a script for a workspace that actually defines it.
 
-If you intentionally need the complete development stack, the root development command is supported:
+For the web, bot and backend development stack, the root development command is supported:
 
 ```bash
 bun run dev
 ```
 
-This starts the Turborepo development graph and may run multiple workspace processes. Prefer targeted development for focused work and root development when exercising integration across the monorepo.
+This excludes mobile. Use `bun run dev:mobile` for mobile alone, or `bun run dev:all` for the unfiltered graph. Both web stack commands enable Node's system certificate trust and retain the Turbo terminal UI. Prefer targeted development for focused work.
 
 Avoid starting duplicate long-running dev servers, watchers, bots, workers, or tunnels when an equivalent process is already running.
 

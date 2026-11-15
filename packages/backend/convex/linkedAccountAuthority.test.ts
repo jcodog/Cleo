@@ -184,6 +184,22 @@ test("dashboard sync gets identity from Clerk and preserves account reads and gu
   )
   assert.ok(onboarding.status === "ready")
   assert.equal(onboarding.discordIdentity?.username, "verified-manager")
+  await assert.rejects(
+    manager.query(api.queries.dashboard.discord.guildConfigs.byGuildId.get, {
+      guildId,
+    }),
+    isForbidden
+  )
+  await t.mutation(
+    internal.mutations.bot.discord.guildMemberships.upsertVerified.upsert,
+    {
+      guildId,
+      discordUserId,
+      canManage: true,
+      managementVerifiedAt: Date.now(),
+      managementVerificationSource: "discord-bot",
+    }
+  )
   assert.equal(
     await manager.query(
       api.queries.dashboard.discord.guildConfigs.byGuildId.get,

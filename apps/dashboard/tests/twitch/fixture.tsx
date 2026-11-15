@@ -91,11 +91,13 @@ const connection = {
   syncedAt: Date.now(),
 }
 const guilds = [{ discordGuildId: "123456789012345678", lastOpenedAt: 10 }]
-useAppShellStore.setState({
-  selectedDiscordGuildId: staleGuild
-    ? "999999999999999999"
-    : "123456789012345678",
-})
+if (!communityFixtureMode)
+  useAppShellStore.setState({
+    selectionClerkUserId: "fixture-clerk",
+    selectedDiscordGuildId: staleGuild
+      ? "999999999999999999"
+      : "123456789012345678",
+  })
 const client = new ConvexReactClient("https://twitch-fixture.invalid")
 client.setAuth = (_fetchToken, onChange) => {
   onChange?.(true)
@@ -116,6 +118,14 @@ client.watchQuery = (...[reference]) => ({
         return health
       case "queries/dashboard/discord/guilds/manageable:list":
         return staleGuild ? [] : guilds
+      case "queries/dashboard/discord/guilds/directory:list":
+        return {
+          clerkUserId: "fixture-clerk",
+          status: "ready",
+          guilds: staleGuild
+            ? []
+            : guilds.map((guild) => ({ ...guild, verified: true })),
+        }
       case "queries/dashboard/twitch/connection:get":
         return connection
       case "twitchEventSub:settings":

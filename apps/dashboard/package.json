@@ -6,21 +6,24 @@
   "scripts": {
     "assets:welcome": "node ../../scripts/prepare-welcome-assets.mjs dashboard",
     "dev": "bun run assets:welcome && next dev --turbopack --experimental-https",
-    "build": "bun run assets:welcome && next build",
+    "build": "bun run assets:welcome && node --env-file-if-exists=.env.local ../../scripts/check-dashboard-backend.mjs && next build",
     "start": "bun run assets:welcome && next start",
     "lint": "bunx --no-install oxlint -c ../../.oxlintrc.json . --deny-warnings",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "test": "node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
+    "test": "node --test ../../scripts/check-dashboard-backend.test.mjs && node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
     "test:pwa": "node --import tsx --test tests/pwa.test.ts",
     "test:twitch:browser": "bunx --no-install playwright test --config tests/twitch/playwright.config.ts",
     "test:welcome:browser": "bunx --no-install playwright test --config tests/welcome/playwright.config.ts",
     "test:pwa:build": "node --import tsx --test tests/pwa-build.test.ts",
     "test:coverage": "c8 --all --check-coverage --lines=100 --statements=100 --functions=100 --branches=100 --src=src/features/discord-guild-workspace --src=src/features/auth --include=\"src/features/discord-guild-workspace/**/*.ts\" --include=\"src/features/auth/applicationEntry.ts\" --exclude=\"src/**/*.test.ts\" --exclude=\"src/**/index.ts\" --exclude=\"src/features/discord-guild-workspace/types.ts\" --reporter=text --reporter=html --reporter=cobertura --reports-dir=\"../../coverage/apps/dashboard\" --temp-directory=\"../../.coverage-tmp/apps/dashboard\" node --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "check:backend": "node --env-file-if-exists=.env.local ../../scripts/check-dashboard-backend.mjs --check"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.22",
     "@clerk/ui": "^1.42.1",
+    "@stripe/react-stripe-js": "^7.0.1",
+    "@stripe/stripe-js": "^10.2.0",
     "@tabler/icons-react": "^3.50.0",
     "@workspace/backend": "workspace:*",
     "@workspace/env": "workspace:*",

@@ -13,6 +13,7 @@ import {
   IconSparkles,
   IconBroadcast,
   IconClock,
+  IconCreditCard,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
@@ -47,7 +48,7 @@ export function DashboardShellClient({
   preloadedStaffAccess: Preloaded<typeof api.queries.dashboard.staff.access.get>
 }) {
   const pathname = usePathname()
-  const { sessionId } = useAuth()
+  const { sessionId, userId } = useAuth()
   const { isAuthenticated, isLoading } = useConvexAuth()
   const liveStaffAccess = usePreloadedQuery(preloadedStaffAccess)
   const liveManageableGuilds = usePreloadedQuery(preloadedManageableGuilds)
@@ -83,39 +84,58 @@ export function DashboardShellClient({
 
   const currentArea = getAppShellAreaFromPathname(pathname)
   const staffEntry = getStaffTopbarEntry(currentArea, staffAccess)
-  const storedDiscordGuildId = useAppShellStore(
-    (state) => state.selectedDiscordGuildId
+  const storedDiscordGuildId = useAppShellStore((state) =>
+    state.selectionClerkUserId === userId
+      ? state.selectedDiscordGuildId
+      : undefined
   )
   const setSelectedDiscordGuildId = useAppShellStore(
     (state) => state.setSelectedDiscordGuildId
   )
+  const selectionClerkUserId = useAppShellStore(
+    (state) => state.selectionClerkUserId
+  )
+  useEffect(() => {
+    if (userId && selectionClerkUserId && selectionClerkUserId !== userId)
+      setSelectedDiscordGuildId(undefined, userId)
+  }, [selectionClerkUserId, setSelectedDiscordGuildId, userId])
   const routeDiscordGuildId = getRouteDiscordGuildId(pathname)
   const { activeDiscordGuildId } = getDashboardGuildSelection({
     manageableGuilds:
-      isAuthenticated && directory ? directory.guilds : manageableGuilds,
+      isAuthenticated && directory && directory.clerkUserId === userId
+        ? directory.status === "ready"
+          ? directory.guilds.filter((guild) => guild.verified)
+          : directory.guilds
+        : manageableGuilds,
     routeDiscordGuildId,
     storedDiscordGuildId,
   })
-  const hasSelectedDiscordGuild = Boolean(activeDiscordGuildId)
+  const hasSelectedDiscordGuild = Boolean(
+    routeDiscordGuildId && activeDiscordGuildId
+  )
   const discordOverviewHref = activeDiscordGuildId
     ? `/dashboard/${activeDiscordGuildId}`
-    : "/dashboard"
+    : "/dashboard/servers"
   const discordGuildSectionHref = (section: string) =>
     activeDiscordGuildId
       ? `/dashboard/${activeDiscordGuildId}/${section}`
-      : "/dashboard"
+      : "/dashboard/servers"
 
   useEffect(() => {
     if (
+      userId &&
       isAuthenticated &&
+      directory?.clerkUserId === userId &&
       directory?.status === "ready" &&
-      !routeDiscordGuildId &&
+      (!routeDiscordGuildId || activeDiscordGuildId === routeDiscordGuildId) &&
       storedDiscordGuildId !== activeDiscordGuildId
     ) {
-      setSelectedDiscordGuildId(activeDiscordGuildId)
+      setSelectedDiscordGuildId(activeDiscordGuildId, userId)
     }
   }, [
     activeDiscordGuildId,
+    userId,
+    directory?.clerkUserId,
     isAuthenticated,
     directory?.status,
     setSelectedDiscordGuildId,
@@ -226,11 +246,18 @@ export function DashboardShellClient({
           icon: IconShield,
           isActive: pathname.startsWith("/staff/linked-roles"),
         },
+        {
+          title: "Products and prices",
+          href: "/staff/billing/products",
+          icon: IconCreditCard,
+          isActive: pathname.startsWith("/staff/billing/products"),
+        },
       ],
     },
   ]
 
   const platformNavSections: Record<AppShellArea, AppShellNavSection[]> = {
+    account: [],
     discord: discordNavSections,
     staff: staffNavSections,
     kick: [],
@@ -269,25 +296,39 @@ export function DashboardShellClient({
 
   return (
     <AppShell
-      footerNavSections={[
-        {
-          items: [
-            {
-              title: "Linked Roles",
-              href: "/account/roles",
-              icon: IconShield,
-              isActive: pathname === "/account/roles",
-            },
-            {
-              title: "My billing",
-              href: "/account/billing",
-              icon: IconSettings,
-              isActive: pathname === "/account/billing",
-            },
-          ],
-        },
-      ]}
-      navSections={platformNavSections[currentArea]}
+      hideSidebar={currentArea === "account"}
+      footerNavSections={
+        currentArea === "account"
+          ? []
+          : [
+              {
+                items: [
+                  {
+                    title: "My account",
+                    href: "/account",
+                    icon: IconSettings,
+                    isActive: false,
+                  },
+                ],
+              },
+            ]
+      }
+      navSections={
+        currentArea === "discord" && pathname === "/dashboard/servers"
+          ? [
+              {
+                items: [
+                  {
+                    title: "Servers",
+                    href: "/dashboard/servers",
+                    icon: IconHome,
+                    isActive: true,
+                  },
+                ],
+              },
+            ]
+          : platformNavSections[currentArea]
+      }
       showDiscordGuildSelect={currentArea === "discord"}
       showPlatformSelector={
         currentArea === "discord" || currentArea === "twitch"

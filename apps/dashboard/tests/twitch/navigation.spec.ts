@@ -1,5 +1,40 @@
 import { test, expect } from "@playwright/test"
 
+for (const saved of ["333333333333333333", "999999999999999999"])
+  test(`dashboard entry resumes authorised saved or recent server: ${saved}`, async ({
+    page,
+  }) => {
+    await page.goto(`/dashboard?community&navigation&savedServer=${saved}`)
+    await expect(page).toHaveURL(
+      new RegExp(
+        `/dashboard/${saved.startsWith("333") ? saved : "444444444444444444"}$`
+      )
+    )
+  })
+
+test("entry waits for verification, empty accounts open the directory, and server search works", async ({
+  page,
+}) => {
+  await page.goto("/dashboard?community&navigation&pendingDirectory")
+  await expect(
+    page.getByRole("status", { name: "Loading server workspace" })
+  ).toContainText("Verifying server access")
+  await expect(
+    page.getByRole("link", { name: "View all servers", exact: true })
+  ).toHaveCount(0)
+  await expect(page).toHaveURL(/pendingDirectory/)
+  await page.goto("/dashboard?community&navigation&emptyDirectory")
+  await expect(page).toHaveURL(/\/dashboard\/servers$/)
+  await page.goto("/dashboard/servers?community&navigation")
+  await page.getByRole("searchbox", { name: "Find a server" }).fill("second")
+  await expect(
+    page.getByRole("link").filter({ hasText: "Second server" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("link").filter({ hasText: "Cleo community" })
+  ).toHaveCount(0)
+})
+
 for (const width of [1440, 375])
   test(`guild navigation, Premium and permission gaps stay stable at ${width}px`, async ({
     page,
@@ -8,7 +43,7 @@ for (const width of [1440, 375])
     page.on("pageerror", (error) => errors.push(error.message))
     await page.addInitScript(() => localStorage.setItem("theme", "dark"))
     await page.setViewportSize({ width, height: 900 })
-    await page.goto("/dashboard?community&navigation")
+    await page.goto("/dashboard/servers?community&navigation")
     await expect(
       page.getByRole("heading", { name: "Servers", exact: true })
     ).toBeVisible()
@@ -19,7 +54,7 @@ for (const width of [1440, 375])
     await page.getByRole("link", { name: "Premium Guild", exact: true }).click()
     if (width < 768) await page.keyboard.press("Escape")
     await expect(
-      page.getByRole("heading", { name: "Server subscription" })
+      page.getByRole("heading", { name: "Cleo Server Premium" })
     ).toBeVisible()
     await expect(
       page.getByText("No active Premium", { exact: true })
@@ -29,7 +64,7 @@ for (const width of [1440, 375])
     ).toHaveCount(0)
     await expect(
       page.getByRole("link", { name: "My billing", exact: true }).last()
-    ).toHaveAttribute("href", "/account/billing")
+    ).toHaveAttribute("href", "/billing")
     const premiumUrl = page.url()
     for (const status of ["pending", "unavailable", "expired", "ready"]) {
       await page.evaluate(
@@ -41,7 +76,7 @@ for (const width of [1440, 375])
       )
       await expect(page).toHaveURL(premiumUrl)
       await expect(
-        page.getByRole("heading", { name: "Server subscription" })
+        page.getByRole("heading", { name: "Cleo Server Premium" })
       ).toBeVisible()
     }
     if (width < 768)
@@ -69,7 +104,7 @@ for (const width of [1440, 375])
 test("directory survives slow verification, removes revoked servers and keeps absent deep links in place", async ({
   page,
 }) => {
-  await page.goto("/dashboard?community&navigation")
+  await page.goto("/dashboard/servers?community&navigation")
   const servers = page.getByRole("link").filter({ hasText: "Cleo community" })
   await expect(servers).toBeVisible()
   await page.evaluate(() =>
@@ -107,8 +142,27 @@ test("legacy Settings leads to Premium without a Server Access presentation", as
   await expect(page.getByText("Server access", { exact: false })).toHaveCount(0)
   await page.getByRole("link", { name: "Open Premium Guild" }).click()
   await expect(
-    page.getByRole("heading", { name: "Server subscription" })
+    page.getByRole("heading", { name: "Cleo Server Premium" })
   ).toBeVisible()
+})
+
+test("a resolved unavailable account shows an error instead of an indefinite directory skeleton", async ({
+  page,
+}) => {
+  await page.goto("/dashboard/servers?community&navigation")
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: { status: "unavailable", unavailableAccount: true },
+      })
+    )
+  )
+  await expect(page.getByRole("alert")).toHaveText(
+    /This account cannot load the server directory/
+  )
+  await expect(
+    page.getByRole("link").filter({ hasText: "Cleo community" })
+  ).toHaveCount(0)
 })
 
 test("already-consented Linked Roles does not start OAuth again", async ({

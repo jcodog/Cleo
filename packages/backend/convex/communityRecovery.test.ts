@@ -138,6 +138,85 @@ async function fixture() {
   }
 }
 
+test("verified zero-cost subscription coverage never creates paid recognition or announcements", async (t) => {
+  const f = await fixture()
+  const end = Math.floor(Date.now() / 1000) + 3600
+  fetchFixture(t, async (input) => {
+    if (String(input).includes("/subscriptions/"))
+      return Response.json({
+        id: "sub_one",
+        customer: "cus_alice",
+        status: "active",
+        cancel_at_period_end: false,
+        metadata: { cleo_checkout: f.reservation.key },
+        latest_invoice: "in_free",
+        items: {
+          data: [
+            {
+              current_period_start: end - 3600,
+              current_period_end: end,
+              price: { id: "price_premium", product: "prod_premium" },
+            },
+          ],
+        },
+      })
+    if (String(input).includes("/invoices/"))
+      return Response.json({
+        id: "in_free",
+        amount_paid: 0,
+        status: "paid",
+        period_end: end,
+        parent: { subscription_details: { subscription: "sub_one" } },
+        lines: {
+          has_more: false,
+          data: [
+            {
+              period: { start: end - 3600, end },
+              parent: {
+                subscription_item_details: { subscription: "sub_one" },
+              },
+            },
+          ],
+        },
+        payments: { has_more: false, data: [] },
+      })
+    throw new Error(
+      "Free coverage must not request fictitious payment evidence"
+    )
+  })
+  await f.t.action(internal.premiumActions.reconcile, {
+    subscriptionId: "sub_one",
+    eventId: "free-invoice",
+    revoked: false,
+  })
+  const { getGuildAccess } = await import("./lib/guildEntitlements")
+  const access = await f.t.run(async (ctx) =>
+    getGuildAccess(ctx, (await ctx.db.get(f.guildId))!)
+  )
+  assert.deepEqual(
+    [...access.capabilities].sort(),
+    [...CLEO_GUILD_CAPABILITIES].sort()
+  )
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("paidCommunityActivations").unique()),
+    null
+  )
+  assert.equal(
+    await f.t.run((ctx) =>
+      ctx.db.query("communityAnnouncementOutbox").unique()
+    ),
+    null
+  )
+  assert.equal(
+    (
+      await f.t
+        .withIdentity({ subject: "alice" })
+        .query(api.communityRoles.current, {})
+    )?.premiumSupporter,
+    "notEligible"
+  )
+})
+
 test("nullable unpaid invoice payments preserve failure grace, successful retries and sticky reversal ordering", async (t) => {
   const f = await fixture()
   await f.activate()

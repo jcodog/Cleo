@@ -9,6 +9,7 @@ import {
 
 test("dashboard route parser only infers actual Discord guild workspace IDs", () => {
   assert.equal(getRouteDiscordGuildId("/dashboard"), undefined)
+  assert.equal(getRouteDiscordGuildId("/dashboard/servers"), undefined)
   assert.equal(getRouteDiscordGuildId("/dashboard/add-server"), undefined)
   assert.equal(getRouteDiscordGuildId("/dashboard/staff"), undefined)
   assert.equal(
@@ -32,6 +33,18 @@ test("staff routes use the staff app shell area", () => {
     "staff"
   )
   assert.equal(getAppShellAreaFromPathname("/dashboard"), "discord")
+})
+
+test("profile, connection, security and billing routes use the dedicated account shell", () => {
+  for (const path of [
+    "/billing",
+    "/account",
+    "/account/connections",
+    "/account/security",
+    "/account/billing",
+  ])
+    assert.equal(getAppShellAreaFromPathname(path), "account")
+  assert.equal(getAppShellAreaFromPathname("/accounting"), "discord")
 })
 
 test("release navigation exposes Discord and Twitch without Kick", () => {

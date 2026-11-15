@@ -25,5 +25,6 @@ export type AppShellProps = {
   topbarRight?: ReactNode
   showDiscordGuildSelect?: boolean
   showPlatformSelector?: boolean
+  hideSidebar?: boolean
   staffEntry?: StaffTopbarEntry | null
 }

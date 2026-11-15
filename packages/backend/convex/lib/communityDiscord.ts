@@ -1,7 +1,20 @@
 "use node"
 import { z } from "zod"
 import { backendEnv } from "@workspace/env/backend"
-import { getClerkDiscordAccessToken } from "./clerkOAuth"
+import {
+  getClerkDiscordAccessToken,
+  type ClerkDiscordAccessTokenResult,
+} from "./clerkOAuth"
+export class DiscordTokenError extends Error {
+  constructor(
+    readonly reason: Extract<
+      ClerkDiscordAccessTokenResult,
+      { status: "unavailable" }
+    >["reason"]
+  ) {
+    super("Discord account verification is unavailable.")
+  }
+}
 export class DiscordCapabilityError extends Error {
   constructor(readonly status: number) {
     super(`Discord capability unavailable (${status}).`)
@@ -47,8 +60,7 @@ export async function verifiedDiscordGuilds(
   const token = accessToken
     ? { status: "ready" as const, accessToken }
     : await getClerkDiscordAccessToken(clerkUserId)
-  if (token.status !== "ready")
-    throw new Error("Refresh your Discord account connection.")
+  if (token.status !== "ready") throw new DiscordTokenError(token.reason)
   const me = z
     .object({ id: z.string() })
     .parse(await discordJson("/users/@me", token.accessToken))

@@ -8,10 +8,17 @@ import { api } from "@workspace/backend/convex/_generated/api.js"
 test("Twitch shell renders account settings navigation through the shared sidebar", async (t) => {
   let pathname = "/twitch"
   let storedGuildId: string | undefined
+  let userId: string | undefined = "user"
+  let selectionClerkUserId = "user"
   let directory:
     | {
+        clerkUserId: string
         status: string
-        guilds: { discordGuildId: string; lastOpenedAt?: number }[]
+        guilds: {
+          discordGuildId: string
+          lastOpenedAt?: number
+          verified: boolean
+        }[]
       }
     | undefined
   const effects: (() => void)[] = []
@@ -33,7 +40,7 @@ test("Twitch shell renders account settings navigation through the shared sideba
     },
   })
   t.mock.module("@clerk/nextjs", {
-    exports: { useAuth: () => ({ sessionId: "session" }) },
+    exports: { useAuth: () => ({ sessionId: "session", userId }) },
   })
   t.mock.module("next/navigation", {
     exports: {
@@ -53,15 +60,21 @@ test("Twitch shell renders account settings navigation through the shared sideba
     exports: {
       useAppShellStore: (
         select: (state: {
+          selectionClerkUserId: string
           selectedDiscordGuildId: string | undefined
-          setSelectedDiscordGuildId: (id: string | undefined) => void
+          setSelectedDiscordGuildId: (
+            id: string | undefined,
+            owner: string
+          ) => void
         }) => unknown
       ) =>
         select({
+          selectionClerkUserId,
           selectedDiscordGuildId: storedGuildId,
-          setSelectedDiscordGuildId: (id) => {
+          setSelectedDiscordGuildId: (id, owner) => {
             writes.push(id)
             storedGuildId = id
+            selectionClerkUserId = owner
           },
         }),
     },
@@ -98,7 +111,7 @@ test("Twitch shell renders account settings navigation through the shared sideba
     props.footerNavSections
       ?.flatMap((section) => section.items)
       .map((item) => item.href),
-    ["/account/roles", "/account/billing"]
+    ["/account"]
   )
   assert.equal(items[0]?.title, "Overview")
   assert.equal(items[0]?.href, "/twitch")
@@ -126,6 +139,13 @@ test("Twitch shell renders account settings navigation through the shared sideba
   assert.equal(label?.props.children, "Overview")
   pathname = "/twitch/link/callback"
   assert.equal(shell().navSections[0]?.items[0]?.isActive, false)
+  pathname = "/account/billing"
+  const account = shell()
+  assert.equal(account.showPlatformSelector, false)
+  assert.equal(account.showDiscordGuildSelect, false)
+  assert.equal(account.hideSidebar, true)
+  assert.deepEqual(account.navSections, [])
+  assert.deepEqual(account.footerNavSections, [])
   // Routes remain stable during a temporary Discord membership verification gap.
   pathname = "/dashboard/999999999999999999"
   assert.ok(
@@ -133,6 +153,11 @@ test("Twitch shell renders account settings navigation through the shared sideba
   )
   pathname = "/dashboard"
   assert.ok((shell().navSections[0]?.items.length ?? 0) > 0)
+  pathname = "/dashboard/servers"
+  assert.deepEqual(
+    shell().navSections[0]?.items.map((item) => item.title),
+    ["Servers"]
+  )
   await t.test(
     "stored guild survives directory loading and verification gaps until fresh reconciliation",
     () => {
@@ -144,25 +169,47 @@ test("Twitch shell renders account settings navigation through the shared sideba
       }
       settle()
       for (const status of ["pending", "unavailable", "expired"]) {
-        directory = { status, guilds: [] }
+        directory = { clerkUserId: "user", status, guilds: [] }
         settle()
         assert.equal(storedGuildId, "222222222222222222", status)
       }
       assert.deepEqual(writes, [])
       directory = {
+        clerkUserId: "user",
         status: "ready",
         guilds: [
-          { discordGuildId: "111111111111111111", lastOpenedAt: 100 },
-          { discordGuildId: "222222222222222222", lastOpenedAt: 10 },
+          {
+            discordGuildId: "111111111111111111",
+            lastOpenedAt: 100,
+            verified: true,
+          },
+          {
+            discordGuildId: "222222222222222222",
+            lastOpenedAt: 10,
+            verified: true,
+          },
         ],
       }
       settle()
       assert.equal(storedGuildId, "222222222222222222")
       assert.deepEqual(writes, [])
-      directory = { status: "ready", guilds: [] }
+      directory = { clerkUserId: "user", status: "ready", guilds: [] }
       settle()
       assert.equal(storedGuildId, undefined)
       assert.deepEqual(writes, [undefined])
+      directory = undefined
+      storedGuildId = "222222222222222222"
+      userId = undefined
+      settle()
+      assert.equal(
+        storedGuildId,
+        "222222222222222222",
+        "unfinished Clerk hydration preserves selection"
+      )
+      userId = "second-account"
+      settle()
+      assert.equal(storedGuildId, undefined)
+      assert.equal(selectionClerkUserId, "second-account")
     }
   )
 })
