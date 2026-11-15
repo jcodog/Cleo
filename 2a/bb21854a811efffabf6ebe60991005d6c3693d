@@ -1,0 +1,43 @@
+docs/issue-288-release-evidence.md
+  s_599972de547b7c::t_fdb3050180c6f1 3,95-102,118,123-144
+  s_599972de547b7c::t_358f5a85ffe05d 28-34,36,48-59,79-85,103-116
+  s_599972de547b7c::t_f5abaf2b66e0d0 38-44
+  s_599972de547b7c::t_2aa71a88a396e4 117
+  s_599972de547b7c::t_bac48395d7b052 145
+apps/mobile/package.json
+  s_599972de547b7c::t_58e36a614e8568 23-27,29-34,38
+apps/dashboard/vercel.json
+  s_599972de547b7c::t_43ecbe9062c109 5
+scripts/build-dashboard-preview.mjs
+  s_599972de547b7c::t_358f5a85ffe05d 17-31,68-70,113-115,215-217
+  s_599972de547b7c::t_43ecbe9062c109 12-16,32-33,36,42,45-46,50-52,60,107,112,213
+docs/isolated-review-preview.md
+  s_599972de547b7c::t_fdb3050180c6f1 9-14,16,75-77,105-107,186-188
+scripts/build-dashboard-preview.test.mjs
+  s_599972de547b7c::t_fdb3050180c6f1 73-74,86
+  s_599972de547b7c::t_f3c9d20aadab84 3-5,21-22,50-55,63-64,75
+  s_599972de547b7c::t_358f5a85ffe05d 23-49,56-62,65-72,95-102
+scripts/ignore-dashboard-preview.mjs
+  s_599972de547b7c::t_358f5a85ffe05d 5-11,13-17
+  s_599972de547b7c::t_43ecbe9062c109 1-4,12,18
+apps/dashboard/package.json
+  s_599972de547b7c::t_041ea3d7c6baf0 18
+bun.lock
+  s_599972de547b7c::t_c38cd7af6853d1 105-109,111-116,120,552,556,558,568,570,572,574,578,580,586,588,590,592,594,596,598,606,608,610,612,614,1224,1464,1468,1470,1472,1474,1476,1478,1480,1482,1486,1492,1494,1498,1500,1502,1504,1506,1508,1510,1512,1514,1516,1520,1996
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2abb21854a811efffabf6ebe60991005d6c3693d",
+  "prompts": {},
+  "sessions": {
+    "s_599972de547b7c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1df38-c048-73b3-8321-e5986ce65884",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
