@@ -9,39 +9,47 @@ const root = fileURLToPath(new URL("../", import.meta.url))
 const backend = join(root, "packages/backend")
 const stampPath = join(backend, "convex/previewVersion.ts")
 
+class PreviewConfigurationError extends Error {}
+
+function configuredOrigin(env, name) {
+  try {
+    const url = new URL(env[name])
+    if (
+      url.protocol === "https:" &&
+      url.origin === env[name] &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.hostname.includes("*")
+    )
+      return url
+  } catch {
+    /* Report the variable name, never its value. */
+  }
+  throw new PreviewConfigurationError(
+    `${name} must be one exact controlled HTTPS origin.`
+  )
+}
+
 export function previewConfig(env) {
   if (env.VERCEL_ENV !== "preview")
-    throw new Error("Preview environment required.")
+    throw new PreviewConfigurationError("Preview environment required.")
   if (
     env.VERCEL_GIT_REPO_OWNER !== "jcodog" ||
     env.VERCEL_GIT_REPO_SLUG !== "Cleo" ||
     env.VERCEL_GIT_COMMIT_REF !== "perf/convex-community-role-io"
   )
-    throw new Error(
+    throw new PreviewConfigurationError(
       "Only the approved stacked review branch may deploy a backend."
     )
-  if (!/^preview:[^:|\s]+:[^|\s]+\|[^\s]+$/.test(env.CONVEX_DEPLOY_KEY ?? ""))
-    throw new Error(
+  if (!/^preview:[^:|\s]+:[^:|\s]+\|[^\s]+$/.test(env.CONVEX_DEPLOY_KEY ?? ""))
+    throw new PreviewConfigurationError(
       "A restricted Convex project Preview Deploy Key is required. See docs/isolated-review-preview.md."
     )
   if (!/^[a-f0-9]{40}$/.test(env.VERCEL_GIT_COMMIT_SHA ?? ""))
-    throw new Error("Exact source SHA required.")
-  const origin = new URL(env.CLEO_PREVIEW_ORIGIN)
-  if (
-    origin.protocol !== "https:" ||
-    origin.origin !== env.CLEO_PREVIEW_ORIGIN ||
-    origin.username ||
-    origin.password ||
-    origin.port ||
-    origin.hostname.includes("*")
-  )
-    throw new Error("One exact controlled HTTPS review origin is required.")
-  const issuer = new URL(env.CLEO_PREVIEW_CLERK_ISSUER)
-  if (
-    issuer.protocol !== "https:" ||
-    issuer.origin !== env.CLEO_PREVIEW_CLERK_ISSUER
-  )
-    throw new Error("Exact development Clerk issuer required.")
+    throw new PreviewConfigurationError("Exact source SHA required.")
+  const origin = configuredOrigin(env, "CLEO_PREVIEW_ORIGIN")
+  const issuer = configuredOrigin(env, "CLEO_PREVIEW_CLERK_ISSUER")
   const key = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? ""
   if (
     !key.startsWith("pk_test_") ||
@@ -49,7 +57,7 @@ export function previewConfig(env) {
       issuer.hostname ||
     !env.CLERK_SECRET_KEY?.startsWith("sk_test_")
   )
-    throw new Error(
+    throw new PreviewConfigurationError(
       "Preview frontend must use the matching development Clerk instance."
     )
   if (
@@ -57,7 +65,9 @@ export function previewConfig(env) {
     (env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY &&
       !env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.startsWith("pk_test_"))
   )
-    throw new Error("Preview frontend origin or Stripe test mode mismatch.")
+    throw new PreviewConfigurationError(
+      "Preview frontend origin or Stripe test mode mismatch."
+    )
   return {
     sha: env.VERCEL_GIT_COMMIT_SHA,
     branch: env.VERCEL_GIT_COMMIT_REF,
@@ -94,11 +104,15 @@ function run(args, env, cwd = root) {
 
 async function main() {
   const env = process.env
-  if (env.VERCEL_ENV !== "preview") {
+  if (env.VERCEL_ENV === "production") {
     // Preserve the existing manually gated production build behavior.
     run(["run", "--filter", "@workspace/dashboard", "build"], env)
     return
   }
+  if (env.VERCEL_ENV !== "preview")
+    throw new PreviewConfigurationError(
+      "VERCEL_ENV must identify Preview or the manually gated Production build."
+    )
   const config = previewConfig(env)
   if (process.argv.includes("--capture")) {
     const url = previewUrl(env.NEXT_PUBLIC_CONVEX_URL)
@@ -196,9 +210,11 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 )
-  await main().catch(() => {
+  await main().catch((error) => {
     console.error(
-      "Dashboard preview build failed. Check the Preview key, trusted source, origin and isolation configuration. See docs/isolated-review-preview.md."
+      error instanceof PreviewConfigurationError
+        ? error.message
+        : "Dashboard preview build failed. Check the Preview key, trusted source, origin and isolation configuration. See docs/isolated-review-preview.md."
     )
     process.exitCode = 1
   })

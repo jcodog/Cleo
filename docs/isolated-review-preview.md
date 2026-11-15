@@ -6,9 +6,14 @@ authorise a merge, production deployment, live billing or history rewrite.
 
 ## Build contract
 
-`apps/dashboard/vercel.json` invokes `bun scripts/build-dashboard-preview.mjs`
+`apps/dashboard/vercel.json` first runs Vercel's Ignored Build Step using
+`scripts/ignore-dashboard-preview.mjs`. Unconfigured previews and branches other
+than the approved combined review branch are explicitly skipped before install
+or build. A skipped deployment is not a working preview or passing acceptance.
+No shared backend is used as a fallback. Once the restricted Preview key is
+present, the approved branch enters `bun scripts/build-dashboard-preview.mjs`
 from the repository root. Production keeps the existing frontend build and
-`git.deploymentEnabled.main=false`. Preview builds fail closed without the
+`git.deploymentEnabled.main=false`. Configured Preview builds fail closed without the
 trusted repository, exact branch, full source SHA, clean checkout, development
 Clerk identity, controlled origin and project Preview Deploy Key.
 
@@ -67,7 +72,9 @@ deployment's key, is rejected before invoking the CLI.
    | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Optional matching Cleo Dev Sandbox `pk_test_`; omit for read-only review |
 
    Vercel supplies the source SHA, repository and branch variables. Do not
-   override them. A global `NEXT_PUBLIC_CONVEX_URL` is not authoritative for
+   override them. Ensure **Automatically Expose System Environment Variables**
+   is enabled for the project so the ignore step and build can identify the
+   source and environment. A global `NEXT_PUBLIC_CONVEX_URL` is not authoritative for
    this build: the official CLI supplies the branch Preview URL.
 
 4. In Convex **Project Settings → Default Environment Variables**, inspect
@@ -95,7 +102,9 @@ deployment's key, is rejected before invoking the CLI.
    webhook routes. It cannot consume the shared development or live webhooks.
    Never repoint the existing development sandbox webhook at this backend.
 
-5. Redeploy the reviewed, signed exact commit as **Preview**. The first push
+5. Redeploy the reviewed, signed exact commit as **Preview** after setup.
+   Until the restricted key is configured, automatic previews are skipped;
+   do not call that hosted acceptance. The first configured push
    may create the branch Preview and then fail its isolation receipt until
    deployment-specific variables are set. Configure only that new Preview's
    variables and retry with the same `--preview-name`; its data is retained.
@@ -174,3 +183,6 @@ Sources: [Convex preview deployments](https://docs.convex.dev/production/multipl
 [Convex deploy reference](https://docs.convex.dev/cli/reference/deploy),
 [Stripe redirect-method filtering](https://docs.stripe.com/changelog/2023-08-16/automatic-payment-methods),
 [Vercel verified commits](https://vercel.com/docs/project-configuration/git-settings#verified-commits).
+
+The skip/continue exit codes follow Vercel's
+[Ignored Build Step contract](https://vercel.com/kb/guide/how-do-i-use-the-ignored-build-step-field-on-vercel).
