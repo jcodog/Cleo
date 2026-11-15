@@ -1,0 +1,133 @@
+packages/backend/convex/previewVersion.ts
+  s_599972de547b7c::t_27abccb413f3ed 2-8
+  s_599972de547b7c::t_ccbd8a3400373b 1
+packages/backend/convex/lib/previewIsolation.test.ts
+  s_599972de547b7c::t_6bcb46b9a2b002 1-5,21,33-35,51-52,55
+  s_599972de547b7c::t_e448a581658ab4 6-20,22-32,36-48,50,53-54
+  s_599972de547b7c::t_d72499ad3b9145 49
+packages/backend/convex/accountBilling.test.ts
+  s_599972de547b7c::t_e448a581658ab4 225-246,248-275
+apps/dashboard/src/features/community/PremiumCheckout.tsx
+  s_599972de547b7c::t_27abccb413f3ed 38-40,47-86,109,271
+packages/backend/convex/http.ts
+  s_599972de547b7c::t_ccbd8a3400373b 2,130-131
+docs/issue-288-release-evidence.md
+  s_599972de547b7c::t_bce892116067da 1-141
+scripts/build-dashboard-preview.test.mjs
+  s_599972de547b7c::t_27abccb413f3ed 6-10,12-13,21-26,30-31,34-35,38-48
+  s_599972de547b7c::t_4977effbd118da 1-5,11,14-20,27-29,32-33,36-37,49-50
+scripts/build-dashboard-preview.mjs
+  s_599972de547b7c::t_ccbd8a3400373b 1-12,23,27-29,38-39,44-45,60,67-70,80-83,93-104,109-111,130-139,158-159,167-170,183-194,199,203-204
+  s_599972de547b7c::t_27abccb413f3ed 13-22,24-26,30-37,40-43,46-59,61-66,71-79,84-92,105-108,112-129,140-157,160-166,171-182,195-198,200-202
+packages/backend/convex/lib/stripeCheckout.test.ts
+  s_599972de547b7c::t_27abccb413f3ed 3-7,10-19,24-37
+  s_599972de547b7c::t_4977effbd118da 1-2,8-9,20-23,38-39
+packages/backend/convex/lib/stripeCheckout.ts
+  s_599972de547b7c::t_043dc831ff63bf 11,14-15,19-25,29,37-39
+  s_599972de547b7c::t_27abccb413f3ed 26-28,30-36
+  s_599972de547b7c::t_49cfce30097f52 40
+apps/dashboard/tests/twitch/review-billing.spec.ts
+  s_599972de547b7c::t_08aa2b33a947c0 77-78
+  s_599972de547b7c::t_e448a581658ab4 3-25,28-33,35-37,40-42,44-46,48-52,64-66,68-75
+  s_599972de547b7c::t_b3271ebf677dd2 1-2,34,38-39,43,55-63,67,76,79
+  s_599972de547b7c::t_33839a3a7f364e 26-27
+  s_599972de547b7c::t_7a64667b801b2d 47,53-54
+packages/backend/convex/previewHealth.ts
+  s_599972de547b7c::t_295d32e300fc77 4,21
+  s_599972de547b7c::t_ccbd8a3400373b 1-3,5-8,19-20,22-25,28,41-42
+  s_599972de547b7c::t_27abccb413f3ed 9-18,26-27,29-40
+packages/backend/convex/crons.ts
+  s_599972de547b7c::t_27abccb413f3ed 3,6-49
+packages/backend/convex/communityRecovery.test.ts
+  s_599972de547b7c::t_e366dfe020c18e 373-379,398,447-448,456-459,475,482,491-492
+  s_599972de547b7c::t_27abccb413f3ed 380-397,399-446,449-455,460-474,476-481,483-490,1052-1060
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_599972de547b7c::t_08aa2b33a947c0 251-254
+packages/backend/convex/dbTables/discordGuildMemberships.ts
+  s_599972de547b7c::t_27abccb413f3ed 29-32
+apps/dashboard/src/features/staff/BillingProducts.tsx
+  s_599972de547b7c::t_ac3b7b8b863b5b 6,22-30,35-37,46,51,55-57,96,102,117-119,178
+  s_599972de547b7c::t_e448a581658ab4 31-34,38-45,47-50,52-54,104-116,232-237
+  s_599972de547b7c::t_0bedd57d7dfc16 76,101,154-158,160-161,170-172,177,180-181,238-239,253-254,634,645,647-650
+  s_599972de547b7c::t_27abccb413f3ed 240-252,619-633
+  s_599972de547b7c::t_7a64667b801b2d 10,103,141
+  s_599972de547b7c::t_5f2a1e34ccf718 142-153,618
+packages/backend/convex/premiumPurchases.ts
+  s_599972de547b7c::t_27abccb413f3ed 568-578,582-594
+  s_599972de547b7c::t_57511a014fa930 754-762,765,767-769,776,780
+packages/backend/convex/communityIntegrations.test.ts
+  s_599972de547b7c::t_e448a581658ab4 1520-1521
+  s_599972de547b7c::t_08aa2b33a947c0 1585
+packages/backend/convex/premiumActions.ts
+  s_599972de547b7c::t_27abccb413f3ed 20-25,107-108,174,197-200,219,269,625-631,713-720,741
+packages/backend/convex/_generated/api.d.ts
+  s_599972de547b7c::t_1c14a2e29faac3 1676
+  s_599972de547b7c::t_cc278fbfc41c82 1754,2452,2454,2540-2553,7686-7690
+packages/backend/convex/lib/previewIsolation.ts
+  s_599972de547b7c::t_d72499ad3b9145 9
+  s_599972de547b7c::t_e448a581658ab4 7-8,13-24,26-28
+  s_599972de547b7c::t_6bcb46b9a2b002 1-6,12,25,29
+  s_599972de547b7c::t_049e022513fa00 10-11
+docs/isolated-review-preview.md
+  s_599972de547b7c::t_08d4c3ba440feb 1-58,67-71,73-79,92-96,98-176
+  s_599972de547b7c::t_e448a581658ab4 59-66,72,80-91,97
+packages/backend/convex/lib/discordGuildRefresh.ts
+  s_599972de547b7c::t_e3ad86bb685a57 133-135,140-142,146-151
+  s_599972de547b7c::t_27abccb413f3ed 46-49,59-60,102-129,131,136-137,186-189
+  s_599972de547b7c::t_85b5fa957b936d 130,132,138-139,143-145,152-155
+apps/dashboard/vercel.json
+  s_599972de547b7c::t_ccbd8a3400373b 6
+packages/backend/convex/_generated/dataModel.d.ts
+  s_599972de547b7c::t_cc278fbfc41c82 1336-1340
+packages/backend/convex/communityMembershipRefresh.test.ts
+  s_599972de547b7c::t_27abccb413f3ed 422-423,468-469,495-610
+  s_599972de547b7c::t_e3ad86bb685a57 621-627,632-635
+  s_599972de547b7c::t_85b5fa957b936d 611-620,628-631,636-642
+packages/backend/convex/billingCatalogue.ts
+  s_599972de547b7c::t_5f2a1e34ccf718 188,192,199,204
+packages/backend/convex/billingCatalogue.test.ts
+  s_599972de547b7c::t_b3271ebf677dd2 121,125
+  s_599972de547b7c::t_e448a581658ab4 122-124
+apps/dashboard/package.json
+  s_599972de547b7c::t_4977effbd118da 13
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_87dee764425e1a::t_3c3214529d666f 100,107,186,189
+apps/dashboard/tests/twitch/billing-fixture.ts
+  s_87dee764425e1a::t_89fbbe309e83ee 99
+packages/backend/convex/billingPortalActions.test.ts
+  s_87dee764425e1a::t_ec39401b4be14e 275,320-322,324-325
+packages/backend/convex/lib/communityDiscord.test.ts
+  s_87dee764425e1a::t_e3130d18dd5d91 29
+apps/dashboard/src/features/billing/PaymentDetails.tsx
+  s_87dee764425e1a::t_a3beb174dd67f3 326,329,331,333
+apps/dashboard/src/features/billing/PaymentForms.tsx
+  s_87dee764425e1a::t_59014c787d6374 33,86,164,188
+packages/backend/convex/billingPortalActions.ts
+  s_87dee764425e1a::t_d008c0939627c3 249,268,286
+packages/backend/convex/lib/communityDiscord.ts
+  s_87dee764425e1a::t_6bcf94f32eeb43 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e6039c9bb7f06a2485c1fcc9a16f76e8f0dbf5d",
+  "prompts": {},
+  "sessions": {
+    "s_599972de547b7c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1df38-c048-73b3-8321-e5986ce65884",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    },
+    "s_87dee764425e1a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18891-da44-7823-9602-9477fa0a2342",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
