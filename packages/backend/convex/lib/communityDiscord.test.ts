@@ -26,6 +26,7 @@ test("Discord verification preserves safe Clerk token failure categories without
       (error: unknown) => {
         assert.ok(error instanceof DiscordTokenError)
         assert.equal(error.reason, reason)
+      assert.equal(error.message.includes("Reconnect Discord"), mode === "unlinked")
         assert.ok(!error.message.includes("sk_test"))
         return true
       }

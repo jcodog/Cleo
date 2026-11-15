@@ -1673,6 +1673,7 @@ export declare const api: {
       "public",
       {},
       Array<{
+        canRetry: boolean;
         completedAt?: number;
         createdAt: number;
         key: string;
@@ -1750,7 +1751,7 @@ export declare const api: {
       "action",
       "public",
       { setupIntentId: string },
-      "saved" | "processing"
+      "saved" | "processing" | "failed"
     >;
     makeDefault: FunctionReference<
       "action",
@@ -2448,8 +2449,9 @@ export declare const api: {
       "public",
       { announce: boolean; discordGuildId: string; displayRole: boolean },
       {
-        clientSecret: string;
+        clientSecret: string | null;
         expiresAt: number;
+        hostedUrl: string | null;
         offer: {
           currency: string;
           email: string;
@@ -2532,6 +2534,20 @@ export declare const api: {
           id: Id<"paidCommunityActivations">;
           testMode: boolean;
         }>;
+      }
+    >;
+  };
+  previewHealth: {
+    read: FunctionReference<
+      "query",
+      "public",
+      {},
+      null | {
+        branch: string;
+        isolated: boolean;
+        schemaReady: boolean;
+        sha: string;
+        url: string;
       }
     >;
   };
@@ -7667,6 +7683,11 @@ export declare const internal: {
       "mutation",
       "internal",
       {
+        associatedInvoices?: Array<{
+          id: string;
+          paidUntil: number;
+          payments: Array<{ chargeId: string; paymentIntentId: string }>;
+        }>;
         cancelAtPeriodEnd: boolean;
         checkoutKey: string;
         customerId: string;

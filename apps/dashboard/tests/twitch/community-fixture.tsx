@@ -248,6 +248,10 @@ export async function communityWrite(
   calls.push({ path, args })
   if (path === "billingCatalogueActions:change") {
     notify()
+    if (params.has("uncertainCatalogue")) {
+      sessionStorage.setItem("catalogue-fixture-attempt", JSON.stringify(args))
+      throw new Error("Uncertain catalogue response")
+    }
     return "prod_fixture"
   }
   observers.forEach((callback) => callback())

@@ -17,7 +17,12 @@ import {
   verifyStripeAccount,
 } from "./lib/stripeCommunity"
 import { verifyStripeSignature } from "./lib/integrationSecurity"
-import { approvedCheckoutPrice, checkoutSession } from "./lib/stripeCheckout"
+import {
+  approvedCheckoutPrice,
+  checkoutSession,
+  newCheckoutSession,
+  hostedCheckoutUrl,
+} from "./lib/stripeCheckout"
 import { billingOrigin } from "./lib/billingOrigin"
 
 const offerValue = v.object({
@@ -99,7 +104,8 @@ export const checkout = action({
     displayRole: v.boolean(),
   },
   returns: v.object({
-    clientSecret: v.string(),
+    clientSecret: v.union(v.string(), v.null()),
+    hostedUrl: v.union(v.string(), v.null()),
     sessionId: v.string(),
     expiresAt: v.number(),
     offer: offerValue,
@@ -165,7 +171,7 @@ export const checkout = action({
         session.id !== reservation.sessionId ||
         session.customer !== customerId ||
         session.status !== "open" ||
-        !session.client_secret ||
+        (session.ui_mode === "elements" && !session.client_secret) ||
         session.expires_at * 1000 <= Date.now()
       )
         throw new Error(
@@ -188,7 +194,10 @@ export const checkout = action({
           "The reserved checkout uses a different price. Cancel it before starting again."
         )
       return {
-        clientSecret: session.client_secret,
+        clientSecret:
+          session.ui_mode === "elements" ? session.client_secret! : null,
+        hostedUrl:
+          session.ui_mode === "hosted" ? hostedCheckoutUrl(session) : null,
         sessionId: session.id,
         expiresAt: session.expires_at * 1000,
         offer: {
@@ -207,7 +216,7 @@ export const checkout = action({
     await ctx.runMutation(internal.premiumPurchases.beginCheckout, {
       key: reservation.key,
     })
-    const session = checkoutSession.parse(
+    const session = newCheckoutSession.parse(
       await stripeRequest(
         "/checkout/sessions",
         {
@@ -257,6 +266,7 @@ export const checkout = action({
     })
     return {
       clientSecret: session.client_secret,
+      hostedUrl: null,
       sessionId: session.id,
       expiresAt: session.expires_at * 1000,
       offer: {
@@ -612,8 +622,13 @@ export const reconcile = internalAction({
           }
         | undefined
       let paymentReversed = false
-      const invoiceId = subscription.latest_invoice ?? args.paidInvoiceId
-      if (invoiceId) {
+      const associatedInvoices: NonNullable<typeof paidInvoice>[] = []
+      const invoiceIds = new Set(
+        [subscription.latest_invoice, args.paidInvoiceId].filter(
+          (id): id is string => !!id
+        )
+      )
+      for (const invoiceId of invoiceIds) {
         const invoice = stripeInvoice.parse(
           await stripeRequest(
             `/invoices/${encodeURIComponent(invoiceId)}?expand[]=payments`
@@ -695,8 +710,14 @@ export const reconcile = internalAction({
               return { paymentIntentId, chargeId: payment.latest_charge }
             })
           )
-          if (payments.length)
-            paidInvoice = { id: invoice.id, paidUntil, payments }
+          if (payments.length) {
+            const evidence = { id: invoice.id, paidUntil, payments }
+            associatedInvoices.push(evidence)
+            if (
+              invoiceId === (subscription.latest_invoice ?? args.paidInvoiceId)
+            )
+              paidInvoice = evidence
+          }
         }
       }
       await ctx.runMutation(internal.premiumPurchases.apply, {
@@ -717,6 +738,7 @@ export const reconcile = internalAction({
         revoked: args.revoked || paymentReversed,
         testMode: true,
         paidInvoice,
+        associatedInvoices,
       })
       return null
     } finally {

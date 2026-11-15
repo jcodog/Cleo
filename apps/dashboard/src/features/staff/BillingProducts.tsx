@@ -3,10 +3,11 @@
 import { useAuth } from "@clerk/nextjs"
 import { useAction, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { formatStripeAmount } from "@/features/community/formatStripeAmount"
 import { api } from "@workspace/backend/convex/_generated/api.js"
+import { dashboardEnv } from "@workspace/env/dashboard"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { BackendBoundary } from "@/features/app-shell/BackendBoundary"
@@ -17,6 +18,42 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@workspace/ui/components/dialog"
+
+type PendingOperation = { key: string; request: string }
+function subscribeRecovery(onChange: () => void) {
+  window.addEventListener("storage", onChange)
+  window.addEventListener("cleo-catalogue-operation", onChange)
+  return () => {
+    window.removeEventListener("storage", onChange)
+    window.removeEventListener("cleo-catalogue-operation", onChange)
+  }
+}
+function recoveredOperation(raw: string | null): {
+  pending: PendingOperation | null
+  valid: boolean
+} {
+  if (raw === null) return { pending: null, valid: true }
+  try {
+    const value: unknown = JSON.parse(raw)
+    if (
+      value &&
+      typeof value === "object" &&
+      "key" in value &&
+      "request" in value &&
+      typeof value.key === "string" &&
+      typeof value.request === "string"
+    ) {
+      JSON.parse(value.request)
+      return {
+        pending: { key: value.key, request: value.request },
+        valid: true,
+      }
+    }
+  } catch {
+    /* Invalid recovery data must block another write. */
+  }
+  return { pending: null, valid: false }
+}
 
 export function BillingProducts({ productId }: { productId?: string }) {
   const auth = useAuth()
@@ -36,7 +73,7 @@ export function BillingProducts({ productId }: { productId?: string }) {
 }
 
 function Catalogue({ productId }: { productId?: string }) {
-  const { getToken } = useAuth()
+  const { getToken, userId } = useAuth()
   const access = useQuery(api.billingCatalogue.access, {})
   const history = useQuery(
     api.billingCatalogue.history,
@@ -56,11 +93,30 @@ function Catalogue({ productId }: { productId?: string }) {
   const [search, setSearch] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
-  const [pending, setPending] = useState<{
+  const [draft, setPending] = useState<{
     key: string
     request: string
   } | null>(null)
   const [confirmation, setConfirmation] = useState("")
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const [submitted, setAttempted] = useState(false)
+  const storageKey = `cleo:catalogue-operation:${dashboardEnv.NEXT_PUBLIC_CONVEX_URL}:${userId}`
+  const recovery = recoveredOperation(
+    useSyncExternalStore(
+      subscribeRecovery,
+      () => {
+        try {
+          return localStorage.getItem(storageKey)
+        } catch {
+          return "unavailable"
+        }
+      },
+      () => null
+    )
+  )
+  const pending = draft ?? recovery.pending
+  const attempted = submitted || recovery.pending !== null
+  const recoveryReady = recovery.valid
   useEffect(() => {
     if (!access?.canRead) return
     let active = true
@@ -82,7 +138,27 @@ function Catalogue({ productId }: { productId?: string }) {
     }
   }, [access?.canRead, cursor, detail, list, productId, revision])
   function propose(request: Record<string, string | number>) {
+    if (!history || !recoveryReady) {
+      setError("Wait for recent operations to load before making a change.")
+      return
+    }
+    const unresolved = history.find((row) => row.canRetry && !row.completedAt)
+    if (unresolved && !attempted) {
+      setPending({ key: unresolved.key, request: unresolved.request })
+      setAttempted(true)
+      setConfirmation("")
+      setConfirmationOpen(true)
+      setError("Resolve the recorded operation before starting another change.")
+      return
+    }
+    if (pending && attempted) {
+      setConfirmationOpen(true)
+      setError("Resolve the recorded operation before starting another change.")
+      return
+    }
     setPending({ key: crypto.randomUUID(), request: JSON.stringify(request) })
+    setConfirmationOpen(true)
+    setAttempted(false)
     setConfirmation("")
     setError("")
   }
@@ -91,11 +167,18 @@ function Catalogue({ productId }: { productId?: string }) {
     setBusy(true)
     setError("")
     try {
+      // Persist before any remote call. If storage fails, no write is submitted.
+      localStorage.setItem(storageKey, JSON.stringify(pending))
+      setAttempted(true)
       const token = await getToken({ skipCache: true })
       if (!token)
         throw new Error("Sign in again to verify this financial change.")
       await change({ ...pending, sessionToken: token, confirmation })
+      localStorage.removeItem(storageKey)
+      window.dispatchEvent(new Event("cleo-catalogue-operation"))
       setPending(null)
+      setAttempted(false)
+      setConfirmationOpen(false)
       setRevision((value) => value + 1)
     } catch (failure) {
       setError(
@@ -146,6 +229,29 @@ function Catalogue({ productId }: { productId?: string }) {
           entitlement mappings are preserved.
         </p>
       </header>
+      {!recoveryReady ? (
+        <p role="alert">
+          Saved catalogue operation could not be read. Check recent operations
+          before making changes.
+        </p>
+      ) : null}
+      {pending && attempted && !confirmationOpen ? (
+        <div role="status" className="space-y-2 text-sm">
+          <p>
+            A catalogue change needs confirmation. Retry its recorded request
+            before starting another operation.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setConfirmation("")
+              setConfirmationOpen(true)
+            }}
+          >
+            Resume recorded change
+          </Button>
+        </div>
+      ) : null}
       {error ? (
         <div role="alert" className="space-y-3 text-sm">
           <p>{error}</p>
@@ -509,6 +615,23 @@ function Catalogue({ productId }: { productId?: string }) {
               <p className="mt-1 font-mono text-xs break-all text-muted-foreground">
                 {row.request}
               </p>
+              {!row.completedAt && row.canRetry && access?.canWrite ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (pending && attempted && pending.key !== row.key) {
+                      setError("Resolve the saved operation first.")
+                      return
+                    }
+                    setPending({ key: row.key, request: row.request })
+                    setAttempted(true)
+                    setConfirmation("")
+                    setConfirmationOpen(true)
+                  }}
+                >
+                  Retry recorded operation
+                </Button>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -519,9 +642,12 @@ function Catalogue({ productId }: { productId?: string }) {
         ) : null}
       </section>
       <Dialog
-        open={pending !== null}
+        open={pending !== null && confirmationOpen}
         onOpenChange={(open) => {
-          if (!open && !busy) setPending(null)
+          if (!open && !busy) {
+            setConfirmationOpen(false)
+            if (!attempted) setPending(null)
+          }
         }}
       >
         <DialogContent>

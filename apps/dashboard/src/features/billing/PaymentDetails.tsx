@@ -323,14 +323,14 @@ export function PaymentDetails({
             setSetupKey(crypto.randomUUID())
             onSetupPending(null)
           }}
-          onSaved={(processing) => {
+          onSaved={(result) => {
             setSetup(null)
             setSetupKey(crypto.randomUUID())
-            if (!processing) onSetupPending(null)
+            if (result !== "processing") onSetupPending(null)
             onNotice(
-              processing
+              result === "processing"
                 ? "Your bank is confirming the payment method. Check its status below before trying again."
-                : "Payment method saved as your default."
+                : result === "saved" ? "Payment method saved as your default." : "Payment setup was not completed. Please try again."
             )
             onRefresh()
           }}

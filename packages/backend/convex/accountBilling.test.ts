@@ -222,52 +222,55 @@ test("purchaser price and Portal operations fail closed on another Stripe accoun
   assert.ok(requests.every((url) => url.endsWith("/account")))
 })
 
-test("existing checkout status and cancellation remain available while new test checkout is disabled", async (t) => {
-  const f = await fixture()
-  const now = Date.now()
-  const expiresAt = Math.floor(now / 1000) + 3600
-  await f.t.run((ctx) =>
-    ctx.db.insert("premiumCheckouts", {
-      guildId: f.guild,
-      userId: f.alice,
-      discordUserId: "111111111111111111",
-      purchaserKind: "administrator",
-      announce: false,
-      displayRole: false,
-      key: "recovery",
-      sessionId: "cs_test_recovery",
-      expiresAt: expiresAt * 1000,
-      createdAt: now,
+for (const uiMode of ["elements", "hosted"] as const)
+  test(`existing ${uiMode} checkout status and cancellation remain available while new test checkout is disabled`, async (t) => {
+    const f = await fixture()
+    const now = Date.now()
+    const expiresAt = Math.floor(now / 1000) + 3600
+    await f.t.run((ctx) =>
+      ctx.db.insert("premiumCheckouts", {
+        guildId: f.guild,
+        userId: f.alice,
+        discordUserId: "111111111111111111",
+        purchaserKind: "administrator",
+        announce: false,
+        displayRole: false,
+        key: "recovery",
+        sessionId: "cs_test_recovery",
+        expiresAt: expiresAt * 1000,
+        createdAt: now,
+      })
+    )
+    const previous = globalThis.fetch
+    t.after(() => {
+      globalThis.fetch = previous
     })
-  )
-  const previous = globalThis.fetch
-  t.after(() => {
-    globalThis.fetch = previous
+    globalThis.fetch = async (input) =>
+      String(input).endsWith("/expire")
+        ? Response.json({ id: "cs_test_recovery", status: "expired" })
+        : Response.json({
+            id: "cs_test_recovery",
+            customer: "cus_alice",
+            livemode: false,
+            mode: "subscription",
+            ui_mode: uiMode,
+            status: "open",
+            payment_status: "unpaid",
+            ...(uiMode === "elements"
+              ? { client_secret: "test_session_secret" }
+              : { url: "https://checkout.stripe.com/c/pay/cs_test_recovery" }),
+            expires_at: expiresAt,
+          })
+    const args = {
+      discordGuildId: "333333333333333333",
+      sessionId: "cs_test_recovery",
+    }
+    assert.equal(
+      (await f.payer.action(api.premiumActions.checkoutStatus, args)).status,
+      "open"
+    )
+    assert.equal(
+      await f.payer.action(api.premiumActions.cancelCheckout, args),
+      "expired"
+    )
   })
-  globalThis.fetch = async (input) =>
-    String(input).endsWith("/expire")
-      ? Response.json({ id: "cs_test_recovery", status: "expired" })
-      : Response.json({
-          id: "cs_test_recovery",
-          customer: "cus_alice",
-          livemode: false,
-          mode: "subscription",
-          ui_mode: "elements",
-          status: "open",
-          payment_status: "unpaid",
-          client_secret: "test_session_secret",
-          expires_at: expiresAt,
-        })
-  const args = {
-    discordGuildId: "333333333333333333",
-    sessionId: "cs_test_recovery",
-  }
-  assert.equal(
-    (await f.payer.action(api.premiumActions.checkoutStatus, args)).status,
-    "open"
-  )
-  assert.equal(
-    await f.payer.action(api.premiumActions.cancelCheckout, args),
-    "expired"
-  )
-})

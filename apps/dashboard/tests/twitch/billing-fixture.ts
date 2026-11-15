@@ -96,6 +96,7 @@ export function billingFixture(path: string, args: unknown): unknown {
   }
   if (path === "billingPortalActions:completeSetup") {
     hasCustomer = true
+    if (params.has("setupFailed")) return "failed"
     if (params.has("setupProcessing")) return "processing"
     methods = [
       {

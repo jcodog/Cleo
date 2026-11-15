@@ -1517,6 +1517,8 @@ test("test-mode Elements Checkout verifies fresh Administrator permission and si
         },
       })
     if (url.includes("/invoices/in_fixture")) return Response.json(invoice)
+    if (url.includes("/invoices/in_old"))
+      return Response.json({ ...invoice, id: "in_old" })
     if (url.endsWith("/payment_intents/pi_fixture"))
       return Response.json({
         status: "succeeded",
@@ -1580,7 +1582,7 @@ test("test-mode Elements Checkout verifies fresh Administrator permission and si
         .length,
       1
     )
-    // A delayed older invoice must reconcile the current Stripe snapshot instead.
+    // Reconcile current coverage and independently verify the delayed invoice.
     assert.equal(
       await webhook("evt_delayed_invoice", "invoice.paid", {
         ...invoice,

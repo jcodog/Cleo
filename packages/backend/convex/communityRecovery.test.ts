@@ -370,6 +370,126 @@ test("nullable unpaid invoice payments preserve failure grace, successful retrie
   assert.equal((await subscription())?.revokedAt !== undefined, true)
 })
 
+test("older paid invoices remain associated after a newer invoice and cancellation, including replay and reversal", async (t) => {
+  const f = await fixture()
+  const end = Math.floor(Date.now() / 1000) + 3600
+  const requested: string[] = []
+  fetchFixture(t, async (input) => {
+    const path = new URL(String(input)).pathname
+    requested.push(path)
+    if (path.includes("/subscriptions/"))
+      return Response.json({
+        id: "sub_one",
+        customer: "cus_alice",
+        status: "canceled",
+        cancel_at_period_end: false,
+        metadata: { cleo_checkout: f.reservation.key },
+        latest_invoice: "in_new",
+        items: {
+          data: [
+            {
+              current_period_start: end - 3600,
+              current_period_end: end,
+              price: { id: "price_premium", product: "prod_premium" },
+            },
+          ],
+        },
+      })
+    const old = path.endsWith("in_old")
+    if (path.includes("/invoices/"))
+      return Response.json({
+        id: old ? "in_old" : "in_new",
+        amount_paid: 1000,
+        status: "paid",
+        parent: { subscription_details: { subscription: "sub_one" } },
+        period_end: end,
+        lines: {
+          has_more: false,
+          data: [
+            {
+              period: { start: end - 7200, end: old ? end - 3600 : end },
+              parent: {
+                subscription_item_details: { subscription: "sub_one" },
+              },
+            },
+          ],
+        },
+        payments: {
+          has_more: false,
+          data: [
+            {
+              status: "paid",
+              amount_paid: 1000,
+              payment: {
+                type: "payment_intent",
+                payment_intent: old ? "pi_old" : "pi_new",
+              },
+            },
+          ],
+        },
+      })
+    if (path.includes("/payment_intents/"))
+      return Response.json({
+        status: "succeeded",
+        customer: "cus_alice",
+        amount_received: 1000,
+        latest_charge: path.endsWith("pi_old") ? "ch_old" : "ch_new",
+      })
+    if (path.includes("/charges/"))
+      return Response.json({
+        customer: "cus_alice",
+        payment_intent: path.endsWith("ch_old") ? "pi_old" : "pi_new",
+        paid: true,
+        refunded: false,
+        disputed: false,
+        amount_refunded: 0,
+      })
+    throw new Error(`Unexpected request: ${path}`)
+  })
+  const reconcile = () =>
+    f.t.action(internal.premiumActions.reconcile, {
+      subscriptionId: "sub_one",
+      eventId: "late-old-paid",
+      paidInvoiceId: "in_old",
+      revoked: false,
+    })
+  await reconcile()
+  await reconcile()
+  assert.ok(requested.includes("/v1/invoices/in_old"))
+  assert.ok(requested.includes("/v1/invoices/in_new"))
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("communityPayments").collect()))
+      .length,
+    2
+  )
+  assert.equal(
+    await f.t.query(internal.premiumPurchases.paymentSubscription, {
+      chargeId: "ch_old",
+    }),
+    "sub_one"
+  )
+  assert.equal(
+    await f.t.run((ctx) => ctx.db.query("paidCommunityActivations").first()),
+    null
+  )
+  // An associated late charge can be revoked without replaying old coverage.
+  const body = JSON.stringify({
+    id: "old-refund",
+    type: "charge.refunded",
+    livemode: false,
+    data: { object: { id: "ch_old", payment_intent: "pi_old" } },
+  })
+  const timestamp = String(Math.floor(Date.now() / 1000))
+  await f.t.action(internal.premiumActions.webhook, {
+    body,
+    signature: `t=${timestamp},v1=${createHmac("sha256", "whsec_fixture").update(`${timestamp}.${body}`).digest("hex")}`,
+  })
+  assert.ok(
+    (await f.t.run((ctx) => ctx.db.query("guildSubscriptions").unique()))
+      ?.revokedAt
+  )
+})
+
 test("recognition advances past mixed suppressed entries and never retries the eligible row's uncertain send", async (t) => {
   const f = await fixture()
   await f.activate()
@@ -929,7 +1049,15 @@ for (const coverage of ["paid", "grant", "expired", "concurrent"] as const)
     if (coverage === "concurrent")
       await Promise.all([
         f.activate(),
-        f.activate({ subscriptionId: "sub_two", eventId: "paid-two" }),
+        f.activate({
+          subscriptionId: "sub_two",
+          eventId: "paid-two",
+          paidInvoice: {
+            id: "in_two",
+            paidUntil: f.apply.paidInvoice.paidUntil,
+            payments: [{ paymentIntentId: "pi_two", chargeId: "ch_two" }],
+          },
+        }),
       ])
     else await f.activate()
     const outbox = await f.t.run((ctx) =>

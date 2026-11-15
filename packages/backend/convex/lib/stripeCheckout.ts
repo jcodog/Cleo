@@ -8,12 +8,35 @@ export const checkoutSession = z.object({
   customer: z.string(),
   livemode: z.literal(false),
   mode: z.literal("subscription"),
-  ui_mode: z.literal("elements"),
+  ui_mode: z.enum(["elements", "hosted"]).default("hosted"),
   status: z.enum(["open", "complete", "expired"]),
   payment_status: z.enum(["paid", "unpaid", "no_payment_required"]),
-  client_secret: z.string().nullable(),
+  client_secret: z.string().nullable().optional(),
+  url: z.string().nullable().optional(),
   expires_at: z.number(),
 })
+
+export const newCheckoutSession = checkoutSession.extend({
+  ui_mode: z.literal("elements"),
+  client_secret: z.string().min(1),
+})
+
+export function hostedCheckoutUrl(session: z.infer<typeof checkoutSession>) {
+  if (session.ui_mode !== "hosted" || !session.url)
+    throw new Error(
+      "Hosted checkout is unavailable. Cancel it before starting again."
+    )
+  const url = new URL(session.url)
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "checkout.stripe.com" ||
+    url.username ||
+    url.password ||
+    url.port
+  )
+    throw new Error("Untrusted hosted checkout URL.")
+  return url.href
+}
 
 /** Bind checkout to the configured Cleo test account and an approved recurring price. */
 export async function approvedCheckoutPrice(
