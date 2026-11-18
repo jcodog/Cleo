@@ -1,5 +1,55 @@
 import { test, expect } from "@playwright/test"
 
+test("permission gaps stay on the workspace and confirmed loss redirects with a toast", async ({
+  page,
+}, info) => {
+  await page.goto(
+    "/dashboard/333333333333333333?community&navigation&workspaceGate&pendingDirectory"
+  )
+  await expect(
+    page.getByText("Checking Discord permissions", { exact: true })
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: /save/i })).toHaveCount(0)
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: { status: "unavailable" },
+      })
+    )
+  )
+  await expect(
+    page.getByText("Verification unavailable", { exact: true })
+  ).toBeVisible()
+  await expect(page).toHaveURL(/333333333333333333/)
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", { detail: { status: "ready" } })
+    )
+  )
+  await expect(
+    page.getByText("Access not available", { exact: true })
+  ).toBeVisible()
+  await expect(page).toHaveURL(/333333333333333333/)
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: { status: "ready", removed: true },
+      })
+    )
+  )
+  await expect(page).toHaveURL(/\/dashboard\/servers/)
+  await expect(
+    page.getByText("You no longer have access to this server.", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("searchbox", { name: "Find a server" })
+  ).toBeVisible()
+  await page.screenshot({
+    path: info.outputPath("access-loss-notice.png"),
+    fullPage: true,
+  })
+})
+
 for (const saved of ["333333333333333333", "999999999999999999"])
   test(`dashboard entry resumes authorised saved or recent server: ${saved}`, async ({
     page,
@@ -16,9 +66,10 @@ test("entry waits for verification, empty accounts open the directory, and serve
   page,
 }) => {
   await page.goto("/dashboard?community&navigation&pendingDirectory")
+  await expect(page.getByRole("heading", { name: "Cleo status" })).toBeVisible()
   await expect(
-    page.getByRole("status", { name: "Loading server workspace" })
-  ).toContainText("Verifying server access")
+    page.getByText("Verifying server access…", { exact: true })
+  ).toBeVisible()
   await expect(
     page.getByRole("link", { name: "View all servers", exact: true })
   ).toHaveCount(0)
@@ -126,13 +177,19 @@ test("directory survives slow verification, removes revoked servers and keeps ab
     )
   )
   await expect(servers).toHaveCount(0)
-  await page.goto("/dashboard/999999999999999999?community&navigation")
-  await expect(
-    page.getByRole("heading", { name: "Server overview" })
-  ).toBeVisible()
-  await expect(page).toHaveURL(
-    /\/dashboard\/999999999999999999\?community&navigation$/
-  )
+  for (const [state, title] of [
+    ["forbidden", "Access not available"],
+    ["notFound", "Server Not Found"],
+  ] as const) {
+    await page.goto(
+      `/dashboard/999999999999999999?community&navigation&workspaceGate&overview=${state}`
+    )
+    await expect(page.getByText(title, { exact: true })).toBeVisible()
+    await expect(page).toHaveURL(/\/dashboard\/999999999999999999\?/)
+    await expect(
+      page.getByText("You no longer have access to this server.")
+    ).toHaveCount(0)
+  }
 })
 
 test("legacy Settings leads to Premium without a Server Access presentation", async ({

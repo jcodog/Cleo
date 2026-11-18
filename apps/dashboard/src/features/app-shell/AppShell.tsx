@@ -1,4 +1,5 @@
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar"
+import { Toaster } from "@workspace/ui/components/sonner"
 
 import { AppSidebar } from "@/features/app-shell/AppSidebar"
 import { AppTopbar } from "@/features/app-shell/AppTopbar"
@@ -25,6 +26,7 @@ export function AppShell({
     )
   return (
     <SidebarProvider>
+      <Toaster />
       <AppSidebar
         navSections={navSections}
         footerNavSections={footerNavSections}

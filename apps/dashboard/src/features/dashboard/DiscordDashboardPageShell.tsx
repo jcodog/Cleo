@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@clerk/nextjs"
-import { useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { IconPlus, IconServer } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
@@ -21,6 +21,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import { useConvexAuth, useQuery } from "convex/react"
 import Image from "next/image"
 import Link from "next/link"
+import { toast } from "@workspace/ui/components/sonner"
 
 type ManageableGuild = {
   guildId?: Id<"guilds">
@@ -42,6 +43,20 @@ const EMPTY_MANAGEABLE_GUILDS: ManageableGuild[] = []
 /** Present last-known servers with verification notices instead of redirecting on expiry. */
 export function DiscordDashboardPageShell() {
   const { userId } = useAuth()
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get("notice") !== "access-changed") return
+    toast.error("You no longer have access to this server.", {
+      description: "Choose another server to continue.",
+      id: "server-access-changed",
+    })
+    url.searchParams.delete("notice")
+    window.history.replaceState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`
+    )
+  }, [])
   const [search, setSearch] = useState("")
   const refresh = useQuery(api.communityRoles.refreshProgress)
   const { isLoading: isConvexAuthLoading } = useConvexAuth()
