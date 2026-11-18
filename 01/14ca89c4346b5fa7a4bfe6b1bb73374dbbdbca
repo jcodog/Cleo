@@ -1,0 +1,174 @@
+apps/dashboard/.env.example
+  s_599972de547b7c::t_a5a16ca9b6fa9a 6
+apps/dashboard/tests/twitch/billing-fixture.ts
+  s_599972de547b7c::t_2ef1df4604b00a 98-113
+  s_599972de547b7c::t_22391d817eb346 141-145
+  s_599972de547b7c::t_29f9955e848eda 140,152
+packages/backend/convex/lib/previewIsolation.test.ts
+  s_599972de547b7c::t_f052c0ff11b803 54-61
+  s_599972de547b7c::t_22391d817eb346 53
+docs/screenshots/billing-portal-2026-10-30/README.md
+  s_599972de547b7c::t_a5a16ca9b6fa9a 13
+scripts/check-dashboard-backend.mjs
+  s_599972de547b7c::t_40f4c92e720e26 15-19
+packages/backend/convex/lib/previewProviderProof.ts
+  s_599972de547b7c::t_5211389b6548d0 1-6,8-14,26,29-34,41,44
+  s_599972de547b7c::t_22391d817eb346 15-25,27-28,35-40
+apps/dashboard/tests/twitch/clerk-fixture.ts
+  s_599972de547b7c::t_22391d817eb346 20-22,32-33
+packages/backend/convex/lib/communityDiscord.ts
+  s_599972de547b7c::t_22391d817eb346 15-19
+packages/backend/convex/lib/billingConfiguration.ts
+  s_599972de547b7c::t_22391d817eb346 2,6-11,27,35
+packages/shared/src/billingCatalogue.ts
+  s_599972de547b7c::t_844da1172720ef 1-37
+apps/dashboard/src/features/staff/BillingProducts.tsx
+  s_599972de547b7c::t_6ce6fa115f0650 102-105,154,177,180-181,183-184,225-229,314,698,740-747,760
+  s_599972de547b7c::t_22391d817eb346 6-7,122,164-174,188-224,230-245,447-449
+packages/backend/convex/billingCatalogueActions.ts
+  s_599972de547b7c::t_22391d817eb346 128-129,159-220,222,225-239
+  s_599972de547b7c::t_0fe3b0a588f6cd 6,11,116,127,130,140,158,221,223-224,240
+scripts/build-dashboard-preview.mjs
+  s_599972de547b7c::t_22391d817eb346 102-104,107-109,215-223
+  s_599972de547b7c::t_c0ee8450bdf470 92-100,106,110-131,183,213-214,224-228,232-238
+  s_599972de547b7c::t_ceaf12e4014a3a 101,105
+packages/backend/convex/lib/billingOrigin.test.ts
+  s_599972de547b7c::t_22391d817eb346 7-24
+  s_599972de547b7c::t_403700bce0c855 1-6,25
+docs/account-billing-environments.md
+  s_599972de547b7c::t_a5a16ca9b6fa9a 86
+packages/backend/convex/_generated/dataModel.d.ts
+  s_599972de547b7c::t_e5b244b6119bac 86
+apps/dashboard/src/features/billing/PaymentDetails.tsx
+  s_599972de547b7c::t_22391d817eb346 104,134,144,150,328-330,429-430,436,438
+packages/backend/convex/lib/billingCatalogueModels.ts
+  s_599972de547b7c::t_1b80797f7b46ac 19,31,34-35,42-43
+  s_599972de547b7c::t_844da1172720ef 4
+packages/backend/convex/lib/previewProviderProof.test.ts
+  s_599972de547b7c::t_22391d817eb346 6-10,15-19,22-25,27-34,36-40
+  s_599972de547b7c::t_ceaf12e4014a3a 1-5,11-14,20-21,26,35,41
+apps/dashboard/src/features/billing/PaymentForms.tsx
+  s_599972de547b7c::t_e8bd8701b90dcf 309-313
+  s_599972de547b7c::t_22391d817eb346 33-35
+docs/community-integrations.md
+  s_599972de547b7c::t_a5a16ca9b6fa9a 45-46,66
+apps/dashboard/src/features/app-shell/error-recovery.test.ts
+  s_599972de547b7c::t_9845e24790e367 1-5,13,22-25,30,38,41,45-55,60,63,71-82,104
+  s_599972de547b7c::t_22391d817eb346 6-12,14-21,26-29,31-37,39-40,42-44,56-59,61-62,64-70,84-101
+  s_599972de547b7c::t_b1500910723c49 83,102-103
+packages/backend/convex/billingCatalogue.test.ts
+  s_599972de547b7c::t_22391d817eb346 17,137,139-141,143-144,156-158,184-243,251-255,346-350
+apps/dashboard/src/features/app-shell/BackendBoundary.test.ts
+  s_599972de547b7c::t_98f4c9734d590e 10,14,19
+packages/backend/convex/premiumActions.ts
+  s_599972de547b7c::t_22391d817eb346 126,231,358-366,368-377
+packages/backend/convex/queries/dashboard/discord/guilds/directory.test.ts
+  s_599972de547b7c::t_22391d817eb346 73-78,85
+packages/backend/convex/billingPortalActions.test.ts
+  s_599972de547b7c::t_22391d817eb346 275-278,325-330,392,394,400,403
+apps/dashboard/tests/twitch/stripe-fixture.tsx
+  s_599972de547b7c::t_98f4c9734d590e 100
+packages/shared/package.json
+  s_599972de547b7c::t_844da1172720ef 34
+apps/dashboard/src/features/account/AccountConnections.tsx
+  s_599972de547b7c::t_35ba59117ab229 43,50,88-93,95,112,114,258-268
+  s_599972de547b7c::t_22391d817eb346 18-22,106-107
+scripts/check-dashboard-backend.test.mjs
+  s_599972de547b7c::t_f052c0ff11b803 42-49
+apps/dashboard/tests/twitch/review-billing.spec.ts
+  s_599972de547b7c::t_2ef1df4604b00a 154-190
+  s_599972de547b7c::t_22391d817eb346 80-87,89-130,138-153
+  s_599972de547b7c::t_6ce6fa115f0650 131-137
+  s_599972de547b7c::t_103be0880268f9 88
+packages/backend/convex/billingCatalogue.ts
+  s_599972de547b7c::t_1b80797f7b46ac 59,61,137,143-144,154,234-235,242
+  s_599972de547b7c::t_e9a7ebb781bc9b 82-86,93-95
+  s_599972de547b7c::t_af0f2734d66a53 75
+  s_599972de547b7c::t_22391d817eb346 63-74,87-92,138-142,145-147,229-233,236-241
+packages/backend/convex/queries/dashboard/discord/guilds/directory.ts
+  s_599972de547b7c::t_0fe3b0a588f6cd 6,47-57,60,64,68-69,77
+  s_599972de547b7c::t_22391d817eb346 61-63,65-67,78-79
+packages/backend/convex/lib/previewIsolation.ts
+  s_599972de547b7c::t_40f4c92e720e26 7-25
+packages/backend/.env.example
+  s_599972de547b7c::t_a5a16ca9b6fa9a 17
+apps/dashboard/src/features/dashboard/DiscordDashboardPageShell.tsx
+  s_599972de547b7c::t_98f4c9734d590e 155
+docs/issue-288-release-evidence.md
+  s_599972de547b7c::t_01512ea926879c 174-208
+packages/backend/convex/_generated/api.d.ts
+  s_599972de547b7c::t_a06a9d770df0da 74-85,1713,2557,3814-3830,3858,3861-3866
+docs/isolated-review-preview.md
+  s_599972de547b7c::t_01512ea926879c 20-21,24,27-33,37-41,46-50
+packages/backend/convex/billingPortalActions.ts
+  s_599972de547b7c::t_22391d817eb346 268-272,290-294,354-355,359-362
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_599972de547b7c::t_22391d817eb346 188-200,267-272,286-287,289-290
+  s_599972de547b7c::t_0fe3b0a588f6cd 232,242,288,293-294
+  s_599972de547b7c::t_35ba59117ab229 35-36,147-148,291-292
+packages/backend/convex/dbTables/billingCatalogue.ts
+  s_599972de547b7c::t_1b80797f7b46ac 16
+docs/dashboard-billing-handoff.md
+  s_599972de547b7c::t_a5a16ca9b6fa9a 28,206
+CONTRIBUTING.md
+  s_599972de547b7c::t_a5a16ca9b6fa9a 152-159
+packages/backend/convex/accountBilling.ts
+  s_599972de547b7c::t_22391d817eb346 2-3,9-33,85,88,92-93
+packages/backend/convex/accountBilling.test.ts
+  s_599972de547b7c::t_22391d817eb346 169-173,175-185,256-260,285-291,295-298,313-315,319-320,333-335,340-343,345-348
+  s_599972de547b7c::t_16e2f383178dab 247-248,255,261,268-269,283-284,292-294,299,301-312,316-318,321-332,336-339,344,349
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_599972de547b7c::t_1192bcc2fed9ce 6,46,53,102,105,125,196,297
+  s_599972de547b7c::t_22391d817eb346 69-72,113-117,200-204,282-296,298
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_599972de547b7c::t_22391d817eb346 192-194
+  s_599972de547b7c::t_35ba59117ab229 191,195-199
+packages/backend/convex/http.ts
+  s_599972de547b7c::t_9845e24790e367 135
+  s_599972de547b7c::t_e583113b39696d 131-134
+packages/backend/convex/previewHealth.ts
+  s_599972de547b7c::t_5211389b6548d0 1,5-16
+apps/dashboard/src/features/app-shell/AppPlatformSelector.tsx
+  s_599972de547b7c::t_ceaa9f73a91b16 34
+  s_599972de547b7c::t_98f4c9734d590e 35-37
+apps/dashboard/src/features/app-shell/BackendBoundary.tsx
+  s_599972de547b7c::t_e8bd8701b90dcf 8,14-15
+packages/backend/convex/accountBillingActions.ts
+  s_599972de547b7c::t_22391d817eb346 6,11-27,29,31,63
+apps/dashboard/tests/twitch/account-catalogue.spec.ts
+  s_599972de547b7c::t_22391d817eb346 176-178,188-194,202-210
+  s_599972de547b7c::t_35ba59117ab229 21,175,179-187,199-201,211-218
+  s_599972de547b7c::t_2ef1df4604b00a 195-198
+packages/shared/src/billingCatalogue.test.ts
+  s_599972de547b7c::t_22391d817eb346 7-13,15-25
+  s_599972de547b7c::t_403700bce0c855 1-6,14,26
+packages/backend/convex/lib/billingOrigin.ts
+  s_599972de547b7c::t_0fe3b0a588f6cd 4-5,9-10,23,26-27,32,34-38
+  s_599972de547b7c::t_22391d817eb346 6-8
+apps/dashboard/tests/twitch/billing-portal.spec.ts
+  s_599972de547b7c::t_22391d817eb346 53-61
+scripts/build-dashboard-preview.test.mjs
+  s_599972de547b7c::t_ceaf12e4014a3a 123-129,139-146,158-159,174,182-184,192-193,202-203
+  s_599972de547b7c::t_22391d817eb346 6-11,130-138,147-157,160-173,175-181,185-191,194-201
+packages/backend/convex/previewRouter.test.ts
+  s_599972de547b7c::t_9845e24790e367 1-7,16
+  s_599972de547b7c::t_22391d817eb346 8-15
+apps/dashboard/src/app/(app)/dashboard/page.tsx
+  s_599972de547b7c::t_29f9955e848eda 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0114ca89c4346b5fa7a4bfe6b1bb73374dbbdbca",
+  "prompts": {},
+  "sessions": {
+    "s_599972de547b7c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1df38-c048-73b3-8321-e5986ce65884",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
