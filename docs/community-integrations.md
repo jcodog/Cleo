@@ -42,6 +42,8 @@ its existing Clerk and Convex public configuration.
 | `CLEO_RECOGNITION_ENABLED`             | Convex only                      | Leave absent or `false`; controls real announcement delivery                                              |
 | `CLEO_COMMUNITY_UPGRADES_CHANNEL_ID`   | Convex only                      | Official server's `#community-upgrades` text channel ID                                                   |
 | `CLEO_LINKED_ROLES_FAQ_CHANNEL_ID`     | Operator reference in Convex     | Optional FAQ channel ID; source is rendered for manual publication, no posting worker uses it             |
+| `STRIPE_EXPECTED_ACCOUNT_ID`          | Convex only                      | Approved sandbox account ID; verified against Stripe `/account` before financial operations |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`  | Dashboard only                   | Matching approved sandbox publishable test key |
 | `STRIPE_SECRET_KEY`                    | Convex only                      | **Test** secret beginning `sk_test_`; live keys are rejected by this adapter                              |
 | `STRIPE_WEBHOOK_SECRET`                | Convex only                      | Signing secret for the matching test-mode webhook endpoint                                                |
 | `STRIPE_GUILD_PREMIUM_PRICE_ID`        | Convex only                      | Approved recurring guild Premium test Price ID                                                            |
@@ -61,7 +63,7 @@ commit it. Changing that key without a key migration requires users to reconnect
    and permissions. The dashboard offers separate account and server buttons.
 2. Add the exact role-connection OAuth redirect above. Set the Linked Roles
    verification URL to the dashboard's `/discord/linked-role` page. The informational
-   `/account/roles` FAQ does not initiate OAuth. The callback starts authorisation
+   sidebar **Linked Roles** dialog does not initiate OAuth. The old `/account/roles` bookmark redirects to the server directory. The callback starts authorisation
    when opened directly from Discord and consumes the returned code/state once.
    The flow requests
    `identify role_connections.write`, uses a five-minute single-use state bound
@@ -214,19 +216,25 @@ unchanged; these fixes do not authorise enabling them.
    `{ "stripeProductId": "prod_...", "stripePriceId": "price_...", "enabled": true }`.
    Set `STRIPE_GUILD_PREMIUM_PRICE_ID` to that same Price ID.
 2. Configure a test Customer Portal that permits viewing invoices and cancelling
-   the relevant subscription. Checkout and Portal are Stripe-hosted. Returning
-   from Checkout does not grant entitlements.
+   the relevant subscription. Checkout uses Cleo's Elements interface; the
+   Customer Portal stays Stripe-hosted. Returning from Checkout does not grant
+   entitlements. See [Checkout rollout](stripe-checkout-rollout.md) for the
+   account audit and outstanding acceptance evidence.
 3. Create a test webhook endpoint at
    `https://<development-deployment>.convex.site/stripe-community-webhook`, using
-   API version **2025-03-31.basil**. Subscribe to `checkout.session.completed`,
-   `checkout.session.async_payment_succeeded`, `customer.subscription.created`,
+   API version **2026-09-30.endive**. Subscribe to `checkout.session.completed`,
+   `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+   `checkout.session.expired`, `customer.subscription.created`,
    `customer.subscription.updated`, `customer.subscription.deleted`,
    `invoice.paid`, `invoice.payment_failed`, `charge.refunded`,
-   `charge.dispute.created`, and `charge.dispute.closed`. Configure its signing
-   secret in Convex. Basil invoices use `payments`, not the removed `paid` field.
-4. Enable `STRIPE_TEST_CHECKOUT_ENABLED=true` in dev. Sign in as a verified owner
+   `charge.dispute.created`, `charge.dispute.closed`, and
+   `radar.early_fraud_warning.created`. Configure its signing secret in Convex.
+   Invoice evidence uses `payments`, not the removed `paid` field.
+4. Set `STRIPE_EXPECTED_ACCOUNT_ID` and matching test secret/publishable keys
+   (`STRIPE_SECRET_KEY` in Convex, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` in the
+   dashboard). Enable `STRIPE_TEST_CHECKOUT_ENABLED=true` in dev. Sign in as a verified owner
    or Administrator of an independent Cleo-installed test server without existing
-   Premium coverage. Open that server's Settings and choose Checkout. Both public
+   Premium coverage. Open that server's Premium section and continue to checkout. Both public
    recognition preferences start off. Community identity consent is separate.
 5. Complete payment using Stripe's documented test payment methods. Confirm a
    signed webhook, retrieved subscription, successful PaymentIntent and matching

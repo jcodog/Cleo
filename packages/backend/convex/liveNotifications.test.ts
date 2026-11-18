@@ -90,7 +90,8 @@ async function activateChat(
 
 async function flushImmediate(backend: ReturnType<typeof convexTest>) {
   for (let n = 0; n < 20; n++) {
-    mock.timers.tick(0)
+    // Convex's transaction timestamp can round up to one millisecond ahead.
+    mock.timers.tick(1)
     await backend.finishInProgressScheduledFunctions()
   }
 }
@@ -182,6 +183,14 @@ test("disabled users lose chat consumers; trusted replacement identity gets a ne
   })
   assert.equal(f.externalSubscriptions.length, 1)
   assert.equal(f.externalSubscriptions[0]!.condition.broadcaster_user_id, "444")
+  // Keep wall time fixed across commits to exercise the scheduler at high throughput.
+  const deletionTime = Date.now()
+  t.mock.method(Date, "now", () => deletionTime)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.query("twitchEventConsumers").collect()))
+      .length,
+    1
+  )
   await f.t.mutation(
     internal.mutations.integrations.clerk.users.deleteFromWebhook,
     { clerkUserId: "owner" }

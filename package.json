@@ -5,7 +5,9 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "build": "turbo build",
-    "dev": "bun scripts/dev.mjs",
+    "dev": "NODE_USE_SYSTEM_CA=1 turbo dev --ui=tui --filter=!@workspace/mobile",
+    "dev:mobile": "bun run --filter @workspace/mobile dev",
+    "dev:all": "NODE_USE_SYSTEM_CA=1 turbo dev --ui=tui",
     "lint": "turbo lint && bun run lint:javascript",
     "lint:ci": "bun run lint",
     "lint:production": "turbo lint --filter=!@workspace/mobile && bun run lint:javascript",
@@ -33,7 +35,7 @@
     "prettier": "catalog:",
     "prettier-plugin-tailwindcss": "catalog:",
     "tsx": "catalog:",
-    "turbo": "^2.11.10",
+    "turbo": "^2.11.13",
     "typescript": "catalog:"
   },
   "engines": {
@@ -45,21 +47,21 @@
       "packages/*"
     ],
     "catalog": {
-      "@next/eslint-plugin-next": "^16.4.3",
-      "@tailwindcss/postcss": "^4.3.3",
-      "@turbo/gen": "^2.11.10",
+      "@next/eslint-plugin-next": "^16.4.6",
+      "@tailwindcss/postcss": "^4.3.5",
+      "@turbo/gen": "^2.11.13",
       "@types/node": "^26.6.6",
       "@types/react": "^19.3.0",
       "@types/react-dom": "^19.3.0",
       "eslint-plugin-react-hooks": "^7.1.1",
-      "eslint-plugin-turbo": "^2.11.10",
-      "prettier": "^3.9.10",
+      "eslint-plugin-turbo": "^2.11.13",
+      "prettier": "^3.10.1",
       "prettier-plugin-tailwindcss": "^0.8.1",
-      "tailwindcss": "^4.3.3",
+      "tailwindcss": "^4.3.5",
       "turbo": "^2.11.7",
       "typescript": "^7.0.2",
       "tsx": "^4.23.15",
-      "oxlint": "1.90.0"
+      "oxlint": "1.94.0"
     }
   },
   "trustedDependencies": [

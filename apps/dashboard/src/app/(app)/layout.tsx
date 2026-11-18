@@ -7,6 +7,9 @@ import { redirect } from "next/navigation"
 import { DashboardShellClient } from "@/features/app-shell"
 import { OnboardingGuard } from "@/features/onboarding/OnboardingGuard"
 import { getConvexAuthToken } from "@/lib/convex-auth"
+import type { Preloaded } from "convex/react"
+import { SessionRecovery } from "@/features/auth/SessionRecovery"
+import { isRejectedConvexSession } from "@/features/auth/rejectedConvexSession"
 import {
   applicationEntryPath,
   onboardingPath,
@@ -27,9 +30,14 @@ export const metadata: Metadata = {
 const AppLayout = async ({
   children,
 }: Readonly<{ children: React.ReactNode }>) => {
-  const token = await getConvexAuthToken()
-  const [preloadedOnboarding, preloadedStaffAccess, preloadedManageableGuilds] =
-    await Promise.all([
+  let preloads: [
+    Preloaded<typeof api.queries.dashboard.account.onboarding.get>,
+    Preloaded<typeof api.queries.dashboard.staff.access.get>,
+    Preloaded<typeof api.queries.dashboard.discord.guilds.manageable.list>,
+  ]
+  try {
+    const token = await getConvexAuthToken()
+    preloads = await Promise.all([
       preloadQuery(api.queries.dashboard.account.onboarding.get, {}, { token }),
       preloadQuery(api.queries.dashboard.staff.access.get, {}, { token }),
       preloadQuery(
@@ -38,6 +46,16 @@ const AppLayout = async ({
         { token }
       ),
     ])
+  } catch (error) {
+    if (!isRejectedConvexSession(error)) throw error
+    return (
+      <SessionRecovery
+        returnTo={(await headers()).get("x-cleo-return-path") ?? "/dashboard"}
+      />
+    )
+  }
+  const [preloadedOnboarding, preloadedStaffAccess, preloadedManageableGuilds] =
+    preloads
   if (
     applicationEntryPath(preloadedQueryResult(preloadedOnboarding)) ===
     "/onboarding"

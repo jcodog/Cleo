@@ -1,4 +1,5 @@
 import { httpRouter } from "convex/server"
+import { previewBuild } from "./previewVersion"
 
 import { internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
@@ -126,4 +127,9 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-export default http
+// Review previews never consume shared development or production webhooks.
+export function createWebhookRouter(isPreview: boolean) {
+  return isPreview ? httpRouter() : http
+}
+
+export default createWebhookRouter(!!previewBuild)

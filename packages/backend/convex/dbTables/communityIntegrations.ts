@@ -80,6 +80,7 @@ export const communityRoleJobs = defineTable({
   discordUserId: v.string(),
   revision: v.number(),
   attemptedRevision: v.optional(v.number()),
+  lastSuccessfulRevision: v.optional(v.number()),
   attemptedAccountId: v.optional(v.id("linkedAccounts")),
   attemptedRefreshId: v.optional(v.id("discordGuildRefreshes")),
   attemptedRefreshRevision: v.optional(v.number()),
@@ -114,6 +115,7 @@ export const premiumCheckouts = defineTable({
 })
   .index("by_guild", ["guildId"])
   .index("by_key", ["key"])
+  .index("by_session", ["sessionId"])
   .index("by_user_open", ["userId", "closedAt"])
 export const paidCommunityActivations = defineTable({
   subscriptionId: v.string(),

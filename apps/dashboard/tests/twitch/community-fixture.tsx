@@ -8,13 +8,23 @@ import { resolveCleoRoleEligibility } from "@workspace/shared/cleoRoleEligibilit
 import { AccountRoles } from "../../src/features/community/AccountRoles"
 import { LinkedRoleCallback } from "../../src/features/community/LinkedRoleCallback"
 import { PremiumPurchases } from "../../src/features/community/PremiumPurchases"
+import { PersonalBilling } from "../../src/features/account/PersonalBilling"
+import { billingFixture } from "./billing-fixture"
+import { AccountConnections } from "../../src/features/account/AccountConnections"
+import { BillingProducts } from "../../src/features/staff/BillingProducts"
+import { CheckoutReturn } from "../../src/features/community/PremiumCheckout"
 import { DiscordAddServerPageShell } from "../../src/features/add-server/DiscordAddServerPageShell"
 import { LinkedRoleTesting } from "../../src/features/staff/LinkedRoleTesting"
 import { DashboardDiscordHydrator } from "../../src/features/app-shell/DashboardDiscordHydrator"
 import { DashboardShellClient } from "../../src/features/app-shell/DashboardShellClient"
+import { DiscordGuildWorkspacePageShell } from "../../src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell"
+import { DashboardEntry } from "../../src/features/dashboard/DashboardEntry"
+import { SessionRecovery } from "../../src/features/auth/SessionRecovery"
+import { useAppShellStore } from "../../src/components/stores/app-shell-store"
 import { DiscordDashboardPageShell } from "../../src/features/dashboard/DiscordDashboardPageShell"
 import { SettingsSection } from "../../src/features/discord-guild-workspace/sections/SettingsSection"
 import { api } from "@workspace/backend/convex/_generated/api.js"
+import { getRouteDiscordGuildId } from "../../src/features/app-shell/routes"
 import { usePathname } from "./navigation-fixture"
 import { preloadQuery } from "convex/nextjs"
 import type { Preloaded } from "convex/react"
@@ -24,6 +34,8 @@ export const communityFixtureMode = params.has("community")
 const calls: { path: string; args: unknown }[] = []
 const observers = new Set<() => void>()
 let discoveryRequests = 0
+let syncAccountRequests = 0
+let linkedRolesConnected = params.has("linkedRolesConnected")
 const verifiedAt = Date.now()
 let progress: {
   state: "pending" | "complete"
@@ -31,26 +43,44 @@ let progress: {
   observedAt: number
 } | null = null
 const discordIdentity = { providerAccountId: "111111111111111111" }
+const cleoCommunity = {
+  discordGuildId: "333333333333333333",
+  name: "Cleo community",
+  iconUrl: "/favicon-32x32.png?guild-icon=cleo",
+  verified: true,
+  verifiedAt,
+  memberCount: 240,
+  lastOpenedAt: 100,
+}
 const directoryGuilds = [
-  {
-    discordGuildId: "333333333333333333",
-    name: "Cleo community",
-    verified: true,
-    verifiedAt,
-    memberCount: 240,
-  },
+  cleoCommunity,
   {
     discordGuildId: "444444444444444444",
     name: "Second server",
     verified: true,
     verifiedAt,
     memberCount: 72,
+    lastOpenedAt: 200,
   },
 ]
-let directory = { status: "ready", guilds: directoryGuilds }
+let directory = {
+  clerkUserId: "fixture-clerk" as string | null,
+  status: "ready",
+  guilds: directoryGuilds,
+}
+if (params.has("savedServer"))
+  useAppShellStore.setState({
+    selectionClerkUserId: "fixture-clerk",
+    selectedDiscordGuildId: params.get("savedServer") ?? undefined,
+  })
+if (params.has("emptyDirectory")) directory.guilds = []
+if (params.has("pendingDirectory")) directory.status = "pending"
+let overviewStatus = params.get("overview")
 window.addEventListener("directory-fixture", (event) => {
   if (!(event instanceof CustomEvent)) return
+  if (event.detail.overview) overviewStatus = event.detail.overview
   directory = {
+    clerkUserId: event.detail.unavailableAccount ? null : "fixture-clerk",
     status: event.detail.status,
     guilds: event.detail.removed ? directoryGuilds.slice(1) : directoryGuilds,
   }
@@ -59,13 +89,19 @@ window.addEventListener("directory-fixture", (event) => {
 let testGrant: { roles: string[]; expiresAt: number; reason: string } | null =
   null
 let purchaseView = {
+  pendingCheckout: params.has("pendingCheckout")
+    ? { sessionId: "cs_test_fixture", announce: true, displayRole: false }
+    : null,
   configured: true,
   canManageOwnBilling: true,
   communityPublishIdentity: false,
   guildPremium: {
+    name: "Premium Guild",
     state: "expired",
-    capabilities: [],
-    validUntil: 0,
+    capabilities: params.has("premiumActive")
+      ? ["guild.welcome.premium-style", "guild.twitch.premium-style"]
+      : [],
+    validUntil: params.has("premiumActive") ? Date.now() + 86400000 : 0,
     canPurchase: true,
   },
   subscriptions: params.has("existing")
@@ -80,8 +116,67 @@ let purchaseView = {
       ]
     : [],
 }
-export function communityQuery(path: string) {
-  if (path === "discordConnections:status") return null
+export function communityQuery(path: string, args?: unknown) {
+  if (path === "queries/dashboard/discord/guilds/overview:get") {
+    const guildId =
+      args && typeof args === "object" && "discordGuildId" in args
+        ? args.discordGuildId
+        : undefined
+    const guild = directoryGuilds.find((row) => row.discordGuildId === guildId)
+    return overviewStatus === "botLeft" && guild
+      ? {
+          status: "botLeft",
+          overview: { discordGuildId: guild.discordGuildId, name: guild.name },
+        }
+      : { status: overviewStatus === "notFound" ? "notFound" : "forbidden" }
+  }
+  if (path === "billingCatalogue:access")
+    return {
+      canRead: !params.has("nonStaff"),
+      canWrite: !params.has("readOnly"),
+    }
+  if (path === "billingCatalogue:history")
+    return params.has("rejectedCatalogueHistory")
+      ? [
+          {
+            key: "rejected-operation",
+            request: '{"kind":"createPrice","currency":"zzz"}',
+            createdAt: 1,
+            completedAt: 2,
+            rejected: true,
+            canRetry: true,
+          },
+        ]
+      : []
+  if (path === "accountBilling:overview")
+    return {
+      clerkUserId: "fixture-clerk",
+      canManageBilling: !params.has("emptyBilling"),
+      hasMore: false,
+      subscriptions: params.has("emptyBilling")
+        ? []
+        : [
+            {
+              id: "subscription-fixture",
+              stripeSubscriptionId: "sub_fixture",
+              priceId: "price_premium",
+              guildName: "Piano Club",
+              status: "active",
+              startsAt: Date.now() - 10000,
+              endsAt: Date.now() + 86400000,
+              reconciledAt: Date.now(),
+              cancelAtPeriodEnd: false,
+              recognition: {
+                id: "paid-fixture",
+                announce: false,
+                displayRole: false,
+                testMode: true,
+              },
+            },
+          ],
+    }
+  if (path === "discordConnections:status")
+    return linkedRolesConnected ? { metadataPublished: true } : null
   if (path === "queries/dashboard/discord/guilds/directory:list")
     return directory
   if (path === "queries/dashboard/discord/guilds/manageable:list")
@@ -116,10 +211,110 @@ export async function communityWrite(
   args: unknown,
   notify: () => void
 ) {
+  if (path.startsWith("billingPortalActions:")) {
+    if (path !== "billingPortalActions:profile") calls.push({ path, args })
+    return billingFixture(path, args)
+  }
+  if (path === "accountBillingActions:prices")
+    return {
+      next: null,
+      prices: [
+        {
+          id: "price_premium",
+          name: "Cleo Server Premium",
+          amount: 499,
+          currency: "gbp",
+          interval: "month",
+          intervalCount: 1,
+        },
+      ],
+    }
+  if (path === "billingCatalogueActions:list")
+    return {
+      accountId: "acct_1RGgwvE1e1YdqDQQ",
+      next: null,
+      products: [
+        {
+          id: "prod_fixture",
+          name: "Cleo Server Premium",
+          description: "Premium server tools",
+          active: true,
+          defaultPrice: "price_premium",
+        },
+      ],
+    }
+  if (path === "billingCatalogueActions:detail")
+    return {
+      product: {
+        id: "prod_fixture",
+        name: "Cleo Server Premium",
+        description: "Premium server tools",
+        active: true,
+        defaultPrice: "price_premium",
+      },
+      next: null,
+      prices: [
+        ...(params.has("ineligiblePrice")
+          ? [
+              {
+                id: "price_once",
+                amount: 100,
+                currency: "gbp",
+                interval: null,
+                intervalCount: 1,
+                usageType: null,
+                active: true,
+                approved: false,
+              },
+            ]
+          : []),
+        {
+          id: "price_premium",
+          amount: 499,
+          currency: "gbp",
+          interval: "month",
+          intervalCount: 1,
+          usageType: "licensed",
+          active: true,
+          approved: true,
+        },
+        {
+          id: "price_annual",
+          amount: 4990,
+          currency: "gbp",
+          interval: "year",
+          intervalCount: 1,
+          usageType: "licensed",
+          active: true,
+          approved: false,
+        },
+      ],
+    }
+  if (path === "premiumActions:offer")
+    return {
+      name: "Cleo Server Premium",
+      unitAmount: 499,
+      currency: "gbp",
+      interval: "month",
+      intervalCount: 1,
+    }
   calls.push({ path, args })
+  if (path === "billingCatalogueActions:change") {
+    notify()
+    if (params.has("uncertainCatalogue")) {
+      sessionStorage.setItem("catalogue-fixture-attempt", JSON.stringify(args))
+      throw new Error("Uncertain catalogue response")
+    }
+    return "prod_fixture"
+  }
   observers.forEach((callback) => callback())
   if (path === "actions/dashboard/account/syncLinkedAccounts:sync")
-    return { status: "ready" }
+    return {
+      status:
+        params.has("syncAccountsUnavailable") && ++syncAccountRequests === 1
+          ? "unavailable"
+          : "ready",
+    }
   if (path === "actions/dashboard/discord/guilds/syncDashboardGuilds:sync") {
     discoveryRequests++
     if (!progress || discoveryRequests === 3)
@@ -132,6 +327,15 @@ export async function communityWrite(
     return discoveryRequests < 3
       ? { status: "verificationPending", guilds: [] }
       : { status: "ready", verifiedAt, guilds: [] }
+  }
+  if (path === "premiumActions:portal")
+    return "https://billing.stripe.com/session/fixture"
+  if (path === "communityActions:disconnectLinkedRoles") {
+    if (params.has("disconnectRolesFailure"))
+      throw new Error("Provider unavailable")
+    linkedRolesConnected = false
+    notify()
+    return null
   }
   if (path === "communityActions:beginLinkedRoles")
     return "https://discord.com/oauth2/authorize?client_id=fixture&state=fixture-state"
@@ -206,8 +410,41 @@ export async function communityWrite(
       communityPublishIdentity: (args as { publishIdentity: boolean })
         .publishIdentity,
     }
-  } else if (path !== "premiumActions:checkout")
-    throw new Error(`Unexpected community operation ${path}`)
+  } else if (path === "premiumActions:checkout") {
+    return {
+      sessionId: "cs_test_fixture",
+      clientSecret: "cs_test_fixture_secret_fixture",
+      expiresAt: params.has("expiredCheckout")
+        ? Date.now() - 1
+        : Date.now() + 1800000,
+      offer: {
+        name: "Cleo Server Premium",
+        guildName: "Premium Guild",
+        email: "alice@example.com",
+        unitAmount: 499,
+        currency: "gbp",
+        interval: "month",
+        intervalCount: 1,
+      },
+    }
+  } else if (path === "premiumActions:checkoutStatus") {
+    if (params.has("statusError")) throw new Error("Status unavailable")
+    return {
+      status: params.has("expiredCheckout") ? "expired" : "complete",
+      paymentStatus: params.has("asyncPayment")
+        ? "unpaid"
+        : params.has("freeCheckout")
+          ? "no_payment_required"
+          : "paid",
+      guildName: "Premium Guild",
+    }
+  } else if (path === "premiumActions:cancelCheckout") {
+    if (params.has("cancelError")) throw new Error("Expiration uncertain")
+    if (params.has("completeRace")) return "complete"
+    purchaseView = { ...purchaseView, pendingCheckout: null }
+    notify()
+    return "expired"
+  } else throw new Error(`Unexpected community operation ${path}`)
   notify()
   observers.forEach((callback) => callback())
   return null
@@ -223,6 +460,8 @@ export function CommunityFixture() {
     },
     () => JSON.stringify(calls)
   )
+  if (params.has("sessionRecovery"))
+    return <SessionRecovery returnTo="/dashboard/333333333333333333/welcome" />
   if (params.has("navigation"))
     return (
       <>
@@ -247,13 +486,18 @@ export function CommunityFixture() {
             state={params.get("state") ?? undefined}
             error={params.get("error") ?? undefined}
           />
-        ) : (
+        ) : location.pathname.startsWith("/account/roles") ? (
           <AccountRoles />
-        )}
+        ) : null}
         {location.pathname === "/account/billing" ? (
           <PremiumPurchases />
         ) : location.pathname.endsWith("/premium") ? (
           <PremiumPurchases discordGuildId="333333333333333333" />
+        ) : location.pathname.endsWith("/checkout") ? (
+          <CheckoutReturn
+            discordGuildId="333333333333333333"
+            sessionId="cs_test_fixture"
+          />
         ) : null}
       </StrictMode>
       <button onClick={() => setRevision((value) => value + 1)}>
@@ -271,12 +515,15 @@ export function CommunityFixture() {
 
 function NavigationFixture() {
   const pathname = usePathname()
-  const guildId = pathname.split("/")[2]
+  const guildId = getRouteDiscordGuildId(pathname)
   const [preloads, setPreloads] = useState<{
     guilds: Preloaded<
       typeof api.queries.dashboard.discord.guilds.manageable.list
     >
     staff: Preloaded<typeof api.queries.dashboard.staff.access.get>
+    overview: Preloaded<
+      typeof api.queries.dashboard.discord.guilds.overview.get
+    >
   }>()
   useEffect(() => {
     let active = true
@@ -288,13 +535,18 @@ function NavigationFixture() {
         options
       ),
       preloadQuery(api.queries.dashboard.staff.access.get, {}, options),
-    ]).then(([guilds, staff]) => {
-      if (active) setPreloads({ guilds, staff })
+      preloadQuery(
+        api.queries.dashboard.discord.guilds.overview.get,
+        { discordGuildId: guildId ?? cleoCommunity.discordGuildId },
+        options
+      ),
+    ]).then(([guilds, staff, overview]) => {
+      if (active) setPreloads({ guilds, staff, overview })
     })
     return () => {
       active = false
     }
-  }, [])
+  }, [guildId])
   if (!preloads) return <p>Loading fixture</p>
   return (
     <DashboardShellClient
@@ -304,11 +556,37 @@ function NavigationFixture() {
       <div className="w-full min-w-0">
         <DashboardDiscordHydrator />
         {pathname === "/dashboard" ? (
+          <DashboardEntry />
+        ) : pathname === "/dashboard/servers" ? (
           <DiscordDashboardPageShell />
-        ) : pathname === "/account/billing" ? (
-          <PremiumPurchases />
+        ) : pathname.startsWith("/billing") ||
+          pathname === "/account/billing" ? (
+          params.has("accountUI") ? (
+            <PersonalBilling
+              view={
+                pathname.endsWith("/payment-details")
+                  ? "payment-details"
+                  : pathname.endsWith("/invoices")
+                    ? "invoices"
+                    : "subscriptions"
+              }
+            />
+          ) : (
+            <PremiumPurchases />
+          )
+        ) : pathname === "/account/connections" ? (
+          <AccountConnections />
+        ) : pathname.startsWith("/staff/billing/products") ? (
+          <BillingProducts productId={pathname.split("/")[4]} />
+        ) : params.has("workspaceGate") ? (
+          <DiscordGuildWorkspacePageShell
+            preloadedOverview={preloads.overview}
+            section={pathname.endsWith("/settings") ? "settings" : undefined}
+          />
         ) : pathname.endsWith("/premium") ? (
-          <PremiumPurchases key={guildId} discordGuildId={guildId} />
+          <div className="mx-auto w-full max-w-4xl">
+            <PremiumPurchases key={guildId} discordGuildId={guildId} />
+          </div>
         ) : pathname.endsWith("/settings") ? (
           <SettingsSection discordGuildId={guildId ?? ""} />
         ) : (

@@ -1,7 +1,13 @@
 const user = {
+  id: "fixture-clerk",
+  reload: async () => user,
   externalAccounts: [
     {
       provider: "discord",
+      username: "Cleo tester",
+      providerUserId: "111111111111111111",
+      approvedScopes: "identify guilds",
+      verification: { status: "verified" },
       reauthorize: async () => ({
         verification: {
           externalVerificationRedirectURL: new URL(
@@ -11,11 +17,22 @@ const user = {
       }),
     },
     {
-      provider: "twitch",
+      provider: new URLSearchParams(location.search).has("oauthTwitch")
+        ? "oauth_twitch"
+        : "twitch",
+      username: "cleo_channel",
       providerUserId: "222",
       approvedScopes:
         "channel:bot moderator:read:followers bits:read channel:read:subscriptions",
       verification: { status: "verified" },
+      destroy: async () => {
+        if (new URLSearchParams(location.search).has("failDisconnect"))
+          throw new Error("Connection failed")
+        user.externalAccounts = user.externalAccounts.filter(
+          (account) =>
+            account.provider !== "twitch" && account.provider !== "oauth_twitch"
+        )
+      },
     },
   ],
 }
@@ -25,8 +42,22 @@ export const useAuth = () => ({
   isSignedIn: true,
   userId: "fixture-clerk",
   sessionId: "fixture-session",
+  getToken: async (options: unknown) => {
+    window.dispatchEvent(new CustomEvent("token-fixture", { detail: options }))
+    if (new URLSearchParams(location.search).has("failSession"))
+      throw new Error("Session unavailable")
+    return "fixture-session-token"
+  },
 })
-export const useClerk = () => ({ openUserProfile() {} })
+export const useClerk = () => ({
+  openUserProfile() {},
+  signOut(options: unknown) {
+    window.dispatchEvent(
+      new CustomEvent("signout-fixture", { detail: options })
+    )
+    return Promise.resolve()
+  },
+})
 export const useReverification = (callback: unknown) => callback
 export const UserButton = Object.assign(() => null, {
   MenuItems: () => null,

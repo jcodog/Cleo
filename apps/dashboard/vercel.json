@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "git": { "deploymentEnabled": { "main": false } },
+  "ignoreCommand": "node ../../scripts/ignore-dashboard-preview.mjs",
   "installCommand": "cd ../.. && bun ci",
-  "buildCommand": "cd ../.. && bun run --filter @workspace/dashboard build"
+  "buildCommand": "cd ../.. && bun scripts/build-dashboard-preview.mjs"
 }

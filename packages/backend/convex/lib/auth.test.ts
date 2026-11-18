@@ -178,6 +178,42 @@ test("guild management falls back through a linked Discord account", async () =>
   assert.equal(membership._id, membershipId)
 })
 
+test("relinking Discord requires membership evidence from the current account link", async () => {
+  const t = convexTest({ schema, modules })
+  const userId = await seedUser(t, "relinked-manager", "user")
+  const guildId = await seedGuild(t, "relinked")
+  const now = Date.now()
+  const membershipId = await seedMembership(t, {
+    guildId,
+    userId,
+    discordUserId: "discord-relinked",
+    canManage: true,
+    managementVerifiedAt: now - 1000,
+  })
+  await t.run((ctx) =>
+    ctx.db.insert("linkedAccounts", {
+      userId,
+      provider: "discord",
+      providerAccountId: "discord-relinked",
+      scopes: [],
+      createdAt: now,
+      updatedAt: now,
+    })
+  )
+  const manager = t.withIdentity({ subject: "relinked-manager" })
+  await assertConvexError(
+    manager.run((ctx) => requireDiscordGuildManager(ctx, guildId)),
+    "FORBIDDEN"
+  )
+  await t.run((ctx) =>
+    ctx.db.patch(membershipId, { managementVerifiedAt: now })
+  )
+  assert.equal(
+    (await manager.run((ctx) => requireDiscordGuildManager(ctx, guildId)))._id,
+    membershipId
+  )
+})
+
 async function assertConvexError(
   promise: Promise<unknown>,
   code: "UNAUTHORIZED" | "USER_DISABLED" | "FORBIDDEN"

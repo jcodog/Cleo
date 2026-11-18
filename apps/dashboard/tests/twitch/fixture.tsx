@@ -91,14 +91,16 @@ const connection = {
   syncedAt: Date.now(),
 }
 const guilds = [{ discordGuildId: "123456789012345678", lastOpenedAt: 10 }]
-useAppShellStore.setState({
-  selectedDiscordGuildId: staleGuild
-    ? "999999999999999999"
-    : "123456789012345678",
-})
+if (!communityFixtureMode)
+  useAppShellStore.setState({
+    selectionClerkUserId: "fixture-clerk",
+    selectedDiscordGuildId: staleGuild
+      ? "999999999999999999"
+      : "123456789012345678",
+  })
 const client = new ConvexReactClient("https://twitch-fixture.invalid")
 client.setAuth = (_fetchToken, onChange) => {
-  onChange?.(true)
+  onChange?.(!new URLSearchParams(location.search).has("workspacePending"))
 }
 client.clearAuth = () => {}
 const useFixtureAuth = () => ({
@@ -106,9 +108,10 @@ const useFixtureAuth = () => ({
   isAuthenticated: true,
   fetchAccessToken: async () => "fixture-token",
 })
-client.watchQuery = (...[reference]) => ({
+client.watchQuery = (...[reference, args]) => ({
   localQueryResult: () => {
-    if (communityFixtureMode) return communityQuery(getFunctionName(reference))
+    if (communityFixtureMode)
+      return communityQuery(getFunctionName(reference), args)
     switch (getFunctionName(reference)) {
       case "twitchTimers:list":
         return view
@@ -116,6 +119,14 @@ client.watchQuery = (...[reference]) => ({
         return health
       case "queries/dashboard/discord/guilds/manageable:list":
         return staleGuild ? [] : guilds
+      case "queries/dashboard/discord/guilds/directory:list":
+        return {
+          clerkUserId: "fixture-clerk",
+          status: "ready",
+          guilds: staleGuild
+            ? []
+            : guilds.map((guild) => ({ ...guild, verified: true })),
+        }
       case "queries/dashboard/twitch/connection:get":
         return connection
       case "twitchEventSub:settings":

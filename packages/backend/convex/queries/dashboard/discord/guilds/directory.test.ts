@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { convexTest } from "convex-test"
 import schema from "../../../../schema"
+import { DISCORD_MANAGEMENT_TTL } from "../../../../lib/discordGuildMemberships"
 import { api } from "../../../../_generated/api"
 
 test("directory retains only same-account metadata during verification gaps while protected lists fail closed", async (t) => {
@@ -70,14 +71,29 @@ test("directory retains only same-account metadata during verification gaps whil
   const manageable = () =>
     user.query(api.queries.dashboard.discord.guilds.manageable.list, {})
   assert.equal((await directory()).guilds[0]?.verified, true)
+  assert.equal((await directory()).clerkUserId, "one")
+  assert.equal(
+    (await db.query(api.queries.dashboard.discord.guilds.directory.list, {}))
+      .clerkUserId,
+    null
+  )
   await db.run((ctx) => ctx.db.patch(ids.refreshId, { state: "pending" }))
   assert.equal((await directory()).status, "pending")
   assert.equal((await directory()).guilds[0]?.name, "My server")
   assert.deepEqual(await manageable(), [])
   await db.run((ctx) => ctx.db.patch(ids.refreshId, { state: "failed" }))
   assert.equal((await directory()).status, "unavailable")
+  assert.equal((await directory()).clerkUserId, "one")
   await db.run((ctx) => ctx.db.patch(ids.refreshId, { state: "complete" }))
-  now += 300001
+  now += DISCORD_MANAGEMENT_TTL
+  await db.run((ctx) => ctx.db.patch(ids.refreshId, { startedAt: now }))
+  const readyAtBoundary = await directory()
+  assert.equal(readyAtBoundary.status, "ready")
+  assert.deepEqual(readyAtBoundary.guilds, [])
+  await db.run((ctx) =>
+    ctx.db.patch(ids.refreshId, { startedAt: now - DISCORD_MANAGEMENT_TTL })
+  )
+  now += 1
   assert.equal((await directory()).status, "expired")
   assert.equal((await directory()).guilds[0]?.verified, false)
   assert.deepEqual(await manageable(), [])

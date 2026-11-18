@@ -53,6 +53,46 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  billingCatalogueOperations: {
+    document: {
+      accountId: string;
+      completedAt?: number;
+      createdAt: number;
+      dispatched?: boolean;
+      key: string;
+      leaseUntil: number;
+      rejection?: string;
+      request: string;
+      result?: string;
+      userId: Id<"users">;
+      worker: string;
+      _id: Id<"billingCatalogueOperations">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "accountId"
+      | "completedAt"
+      | "createdAt"
+      | "dispatched"
+      | "key"
+      | "leaseUntil"
+      | "rejection"
+      | "request"
+      | "result"
+      | "userId"
+      | "worker";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_created: ["createdAt", "_creationTime"];
+      by_user_completed: ["userId", "completedAt", "_creationTime"];
+      by_user_key: ["userId", "key", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   billingCustomers: {
     document: {
       clerkUserId: string;
@@ -492,6 +532,7 @@ export type DataModel = {
       attempts: number;
       authorityUntil?: number;
       discordUserId: string;
+      lastSuccessfulRevision?: number;
       leaseUntil: number;
       nextAt: number;
       revision: number;
@@ -509,6 +550,7 @@ export type DataModel = {
       | "attempts"
       | "authorityUntil"
       | "discordUserId"
+      | "lastSuccessfulRevision"
       | "leaseUntil"
       | "nextAt"
       | "revision"
@@ -1255,6 +1297,7 @@ export type DataModel = {
     document: {
       canManage: boolean;
       createdAt: number;
+      discordGuildId?: string;
       discordUserId: string;
       guildId: Id<"guilds">;
       isOwner?: boolean;
@@ -1274,6 +1317,7 @@ export type DataModel = {
       | "_id"
       | "canManage"
       | "createdAt"
+      | "discordGuildId"
       | "discordUserId"
       | "guildId"
       | "isOwner"
@@ -1292,6 +1336,11 @@ export type DataModel = {
         "discordUserId",
         "canManage",
         "managementVerifiedAt",
+        "_creationTime",
+      ];
+      by_discord_user_and_discord_guild_id: [
+        "discordUserId",
+        "discordGuildId",
         "_creationTime",
       ];
       by_discord_user_id: ["discordUserId", "_creationTime"];
@@ -2848,6 +2897,7 @@ export type DataModel = {
       by_creation_time: ["_creationTime"];
       by_guild: ["guildId", "_creationTime"];
       by_key: ["key", "_creationTime"];
+      by_session: ["sessionId", "_creationTime"];
       by_user_open: ["userId", "closedAt", "_creationTime"];
     };
     searchIndexes: {};

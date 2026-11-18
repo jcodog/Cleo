@@ -107,6 +107,11 @@ test("actual server entry uses Clerk and a Convex token, rejects missing tokens 
       { message: "redirect:/dashboard" }
     )
   }
+  const { default: legacyRoles } =
+    await import("../../app/(app)/account/roles/page")
+  await assert.rejects(legacyRoles(), {
+    message: "redirect:/dashboard/servers",
+  })
   token = null
   await assert.rejects(root(), {
     message: "Clerk did not return a Convex authentication token",

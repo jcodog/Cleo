@@ -37,6 +37,7 @@ export function isFreshDiscordMembership(
     membership.discordUserId === account.providerAccountId &&
     (membership.userId === undefined || membership.userId === account.userId) &&
     membership.revokedAt === undefined &&
+    verifiedAt >= account.createdAt &&
     verifiedAt > now - DISCORD_MANAGEMENT_TTL &&
     verifiedAt <= now &&
     (!refresh ||

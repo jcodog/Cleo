@@ -41,9 +41,19 @@ export const view = query({
     configured: v.boolean(),
     canManageOwnBilling: v.boolean(),
     communityPublishIdentity: v.union(v.boolean(), v.null()),
+    pendingCheckout: v.union(
+      v.null(),
+      v.object({
+        sessionId: v.optional(v.string()),
+        announce: v.boolean(),
+        displayRole: v.boolean(),
+      })
+    ),
     guildPremium: v.union(
       v.null(),
       v.object({
+        name: v.string(),
+        iconUrl: v.optional(v.string()),
         state: v.union(
           v.literal("active"),
           v.literal("trial"),
@@ -81,6 +91,7 @@ export const view = query({
           .withIndex("by_user", (q) => q.eq("userId", user._id))
           .take(100)
     let communityPublishIdentity: boolean | null = null
+    let pendingCheckout = null
     let guildPremium = null
     if (args.discordGuildId) {
       const guild = await ctx.db
@@ -91,6 +102,20 @@ export const view = query({
         .unique()
       if (guild) {
         const membership = await requireDiscordGuildManager(ctx, guild._id)
+        const reservation = await ctx.db
+          .query("premiumCheckouts")
+          .withIndex("by_guild", (q) => q.eq("guildId", guild._id))
+          .order("desc")
+          .first()
+        if (
+          reservation?.closedAt === undefined &&
+          reservation?.userId === user._id
+        )
+          pendingCheckout = {
+            sessionId: reservation.sessionId,
+            announce: reservation.announce,
+            displayRole: reservation.displayRole,
+          }
         const access = await getGuildAccess(ctx, guild)
         let administrator = false
         try {
@@ -99,13 +124,15 @@ export const view = query({
           /* Invalid permissions cannot purchase. */
         }
         guildPremium = {
+          name: guild.name,
+          iconUrl: guild.iconHash
+            ? `https://cdn.discordapp.com/icons/${guild.discordGuildId}/${guild.iconHash}.png?size=128`
+            : guild.iconUrl,
           state: access.state,
           capabilities: access.capabilities,
           validUntil: access.validUntil,
           canPurchase:
             guild.botLeftAt === undefined &&
-            !!backendEnv.CLEO_OFFICIAL_GUILD_ID &&
-            guild.discordGuildId !== backendEnv.CLEO_OFFICIAL_GUILD_ID &&
             (membership.isOwner === true || administrator),
         }
         communityPublishIdentity =
@@ -118,11 +145,13 @@ export const view = query({
       }
     }
     return {
+      pendingCheckout,
       communityPublishIdentity,
       guildPremium,
       configured:
         backendEnv.STRIPE_TEST_CHECKOUT_ENABLED === "true" &&
         !!backendEnv.STRIPE_SECRET_KEY?.startsWith("sk_test_") &&
+        !!backendEnv.STRIPE_EXPECTED_ACCOUNT_ID &&
         !!backendEnv.STRIPE_GUILD_PREMIUM_PRICE_ID &&
         !!backendEnv.CLEO_DASHBOARD_ORIGIN,
       canManageOwnBilling: !!customer,
@@ -183,13 +212,8 @@ export const reserve = internalMutation({
         q.eq("discordGuildId", args.discordGuildId)
       )
       .unique()
-    if (
-      !guild ||
-      guild.botLeftAt !== undefined ||
-      !backendEnv.CLEO_OFFICIAL_GUILD_ID ||
-      guild.discordGuildId === backendEnv.CLEO_OFFICIAL_GUILD_ID
-    )
-      throw new ConvexError("Select an independent Cleo-installed community.")
+    if (!guild || guild.botLeftAt !== undefined)
+      throw new ConvexError("Select a Cleo-installed community.")
     const linked = await ctx.db
       .query("linkedAccounts")
       .withIndex("by_user_provider", (q) =>
@@ -281,7 +305,7 @@ export const checkoutCreated = internalMutation({
   args: {
     key: v.string(),
     sessionId: v.string(),
-    url: v.string(),
+    url: v.optional(v.string()),
     expiresAt: v.number(),
   },
   returns: v.null(),
@@ -311,6 +335,15 @@ export const checkoutByKey = internalQuery({
     ctx.db
       .query("premiumCheckouts")
       .withIndex("by_key", (q) => q.eq("key", args.key))
+      .unique(),
+})
+export const checkoutBySession = internalQuery({
+  args: { sessionId: v.string() },
+  returns: v.union(checkoutDoc, v.null()),
+  handler: (ctx, args) =>
+    ctx.db
+      .query("premiumCheckouts")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
       .unique(),
 })
 export const closeCheckout = internalMutation({
@@ -532,9 +565,33 @@ export const apply = internalMutation({
         ),
       })
     ),
+    associatedInvoices: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          paidUntil: v.number(),
+          payments: v.array(
+            v.object({ paymentIntentId: v.string(), chargeId: v.string() })
+          ),
+        })
+      )
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const invoices =
+      args.associatedInvoices ?? (args.paidInvoice ? [args.paidInvoice] : [])
+    if (
+      invoices.length > 2 ||
+      invoices.some(
+        (invoice) =>
+          !invoice.payments.length ||
+          invoice.payments.length > 10 ||
+          !Number.isSafeInteger(invoice.paidUntil) ||
+          invoice.paidUntil > args.endsAt
+      )
+    )
+      throw new Error("Invalid invoice payment evidence.")
     const lock = await ctx.db
       .query("stripeReconciliationLocks")
       .withIndex("by_subscription", (q) =>
@@ -694,27 +751,33 @@ export const apply = internalMutation({
             updatedAt: now,
           })
       }
-      const recorded = await ctx.db
-        .query("communityPayments")
-        .withIndex("by_invoice", (q) => q.eq("invoiceId", args.paidInvoice!.id))
-        .take(11)
-      for (const payment of args.paidInvoice.payments)
-        if (
-          !recorded.some(
-            (row) => row.paymentIntentId === payment.paymentIntentId
-          )
-        )
-          await ctx.db.insert("communityPayments", {
-            invoiceId: args.paidInvoice.id,
-            subscriptionId: args.subscriptionId,
-            ...payment,
-          })
     } else if (paid && (revoked || status !== "active"))
       await ctx.db.patch(paid._id, {
         revoked: true,
         paidUntil: Math.min(paid.paidUntil, now),
         updatedAt: now,
       })
+    // Payment ownership survives cancellation and reversal. Older paid events
+    // must remain addressable by subsequent refund and dispute events.
+    for (const invoice of invoices) {
+      const recorded = await ctx.db
+        .query("communityPayments")
+        .withIndex("by_invoice", (q) => q.eq("invoiceId", invoice.id))
+        .take(11)
+      if (recorded.some((row) => row.subscriptionId !== args.subscriptionId))
+        throw new Error("Invoice ownership cannot change.")
+      for (const payment of invoice.payments)
+        if (
+          !recorded.some(
+            (row) => row.paymentIntentId === payment.paymentIntentId
+          )
+        )
+          await ctx.db.insert("communityPayments", {
+            invoiceId: invoice.id,
+            subscriptionId: args.subscriptionId,
+            ...payment,
+          })
+    }
     await queueRoleSync(ctx, reservation.discordUserId)
     await ctx.db.insert("integrationReceipts", {
       provider: "stripe",

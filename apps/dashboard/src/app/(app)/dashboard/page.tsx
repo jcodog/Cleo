@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"
 
-import { DiscordDashboardPageShell } from "@/features/dashboard/DiscordDashboardPageShell"
+import { DashboardEntry } from "@/features/dashboard/DashboardEntry"
 
 export const metadata: Metadata = {
   title: "Discord",
@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   await auth.protect()
 
-  return <DiscordDashboardPageShell />
+  return <DashboardEntry />
 }

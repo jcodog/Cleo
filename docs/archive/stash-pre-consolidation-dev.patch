@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index 91538ef..754faee 100644
+--- a/package.json
++++ b/package.json
+@@ -5,7 +5,7 @@
+   "license": "AGPL-3.0-only",
+   "scripts": {
+     "build": "turbo build",
+-    "dev": "NODE_USE_SYSTEM_CA=1 turbo dev --ui=tui --filter=!@workspace/mobile",
++    "dev": "turbo dev --ui=tui --filter=!@workspace/mobile",
+     "dev:mobile": "bun run --filter @workspace/mobile dev",
+     "dev:all": "NODE_USE_SYSTEM_CA=1 turbo dev --ui=tui",
+     "lint": "turbo lint && bun run lint:javascript",

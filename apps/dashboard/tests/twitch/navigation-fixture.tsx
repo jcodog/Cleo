@@ -9,6 +9,13 @@ export function usePathname() {
 }
 export function useRouter() {
   return {
+    refresh() {
+      window.dispatchEvent(new Event("router-refresh-fixture"))
+    },
+    replace(href: string) {
+      history.replaceState({}, "", href)
+      window.dispatchEvent(new PopStateEvent("popstate"))
+    },
     push(href: string) {
       history.pushState({}, "", href)
       window.dispatchEvent(new PopStateEvent("popstate"))

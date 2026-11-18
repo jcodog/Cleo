@@ -61,3 +61,4 @@ certificates
 *.twitch-readiness.json.*
 
 *-log.md
+*.log

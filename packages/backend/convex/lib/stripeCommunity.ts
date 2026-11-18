@@ -1,10 +1,13 @@
 "use node"
 import { z } from "zod"
+import { ConvexError } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
 export class StripeRequestError extends Error {
   constructor(
     readonly status: number,
-    readonly type?: string
+    readonly type?: string,
+    readonly parameter?: string,
+    readonly code?: string
   ) {
     super(`Stripe integration unavailable (${status}).`)
   }
@@ -16,10 +19,28 @@ export function stripeCommunityConfig(checkout = false) {
     !key.startsWith("sk_test_") ||
     (checkout && backendEnv.STRIPE_TEST_CHECKOUT_ENABLED !== "true")
   )
-    throw new Error(
-      "Test-mode Stripe integration is not configured. Live charging is disabled."
+    throw new ConvexError(
+      !key
+        ? "STRIPE_SECRET_KEY is missing on this Convex deployment."
+        : !key.startsWith("sk_test_")
+          ? "STRIPE_SECRET_KEY must use test mode. Live charging is disabled."
+          : "New test checkout is disabled by STRIPE_TEST_CHECKOUT_ENABLED."
     )
   return key
+}
+export async function verifyStripeAccount() {
+  const expected = backendEnv.STRIPE_EXPECTED_ACCOUNT_ID
+  if (!expected)
+    throw new ConvexError(
+      "STRIPE_EXPECTED_ACCOUNT_ID is missing on this Convex deployment."
+    )
+  const account = z
+    .object({ id: z.string() })
+    .parse(await stripeRequest("/account"))
+  if (account.id !== expected)
+    throw new ConvexError(
+      "Stripe account does not match the configured Cleo account. Check STRIPE_EXPECTED_ACCOUNT_ID and STRIPE_SECRET_KEY."
+    )
 }
 export async function stripeRequest(
   path: string,
@@ -30,7 +51,7 @@ export async function stripeRequest(
     method: fields ? "POST" : "GET",
     headers: {
       Authorization: `Bearer ${stripeCommunityConfig()}`,
-      "Stripe-Version": "2025-03-31.basil",
+      "Stripe-Version": "2026-09-30.endive",
       ...(fields
         ? { "Content-Type": "application/x-www-form-urlencoded" }
         : {}),
@@ -42,9 +63,20 @@ export async function stripeRequest(
   })
   if (!response.ok) {
     const error = z
-      .object({ error: z.object({ type: z.string() }) })
+      .object({
+        error: z.object({
+          type: z.string(),
+          param: z.string().nullish(),
+          code: z.string().nullish(),
+        }),
+      })
       .safeParse(await response.json().catch(() => null))
-    throw new StripeRequestError(response.status, error.data?.error.type)
+    throw new StripeRequestError(
+      response.status,
+      error.data?.error.type,
+      error.data?.error.param ?? undefined,
+      error.data?.error.code ?? undefined
+    )
   }
   const text = await response.text()
   if (text.length > 1048576) throw new Error("Stripe response exceeds limit.")
