@@ -68,9 +68,39 @@ async function setCustomerDefault(customerId: string, id: string, key: string) {
   )
 }
 
+async function invoicePage(customerId: string) {
+  const invoices = z
+    .object({
+      data: z.array(stripeInvoiceSummary).max(12),
+      has_more: z.boolean(),
+    })
+    .parse(
+      await stripeRequest(
+        `/invoices?customer=${encodeURIComponent(customerId)}&limit=12`
+      )
+    )
+  if (invoices.data.some((row) => row.customer !== customerId))
+    throw new ConvexError(
+      "Stripe billing account identity could not be verified."
+    )
+  return {
+    invoices: invoices.data.map((row) => ({
+      id: row.id,
+      number: row.number,
+      createdAt: row.created * 1000,
+      amount: row.total,
+      currency: row.currency,
+      status: row.status ?? "draft",
+      url: stripeBillingUrl(row.hosted_invoice_url),
+      pdf: stripeBillingUrl(row.invoice_pdf),
+    })),
+    hasMoreInvoices: invoices.has_more,
+  }
+}
+
 /** Stripe supplies billing data. Convex's verified ledger alone supplies entitlements. */
 export const profile = action({
-  args: {},
+  args: { view: v.optional(v.literal("invoices")) },
   returns: v.object({
     clerkUserId: v.string(),
     customer: v.union(
@@ -89,25 +119,27 @@ export const profile = action({
     subscriptions: v.array(billingSubscription),
     hasMoreSubscriptions: v.boolean(),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const context = await ctx.runQuery(
       internal.premiumPurchases.billingUser,
       {}
     )
-    if (!context.customer)
-      return {
-        clerkUserId: context.user.clerkUserId,
-        customer: null,
-        methods: [],
-        hasMoreMethods: false,
-        invoices: [],
-        hasMoreInvoices: false,
-        subscriptions: [],
-        hasMoreSubscriptions: false,
-      }
+    const emptyProfile = {
+      clerkUserId: context.user.clerkUserId,
+      customer: null,
+      methods: [],
+      hasMoreMethods: false,
+      invoices: [],
+      hasMoreInvoices: false,
+      subscriptions: [],
+      hasMoreSubscriptions: false,
+    }
+    if (!context.customer) return emptyProfile
     await verifyStripeAccount()
     const id = context.customer.stripeCustomerId
-    const [rawCustomer, rawMethods, rawInvoices, rawSubscriptions] =
+    if (args.view === "invoices")
+      return { ...emptyProfile, ...(await invoicePage(id)) }
+    const [rawCustomer, rawMethods, invoices, rawSubscriptions] =
       await Promise.all([
         stripeRequest(
           `/customers/${encodeURIComponent(id)}?expand[]=default_source`
@@ -115,21 +147,15 @@ export const profile = action({
         stripeRequest(
           `/customers/${encodeURIComponent(id)}/payment_methods?limit=100`
         ),
-        stripeRequest(`/invoices?customer=${encodeURIComponent(id)}&limit=12`),
+        invoicePage(id),
         stripeRequest(
-          `/subscriptions?customer=${encodeURIComponent(id)}&status=all&limit=25&expand[]=data.items.data.price.product`
+          `/subscriptions?customer=${encodeURIComponent(id)}&status=all&limit=25&expand[]=data.items.data.price`
         ),
       ])
     const customer = stripeCustomer.parse(rawCustomer)
     const methods = z
       .object({ data: z.array(stripeMethod).max(100), has_more: z.boolean() })
       .parse(rawMethods)
-    const invoices = z
-      .object({
-        data: z.array(stripeInvoiceSummary).max(12),
-        has_more: z.boolean(),
-      })
-      .parse(rawInvoices)
     const subscriptions = z
       .object({
         data: z.array(stripeBillingSubscription).max(25),
@@ -139,7 +165,6 @@ export const profile = action({
     if (
       customer.id !== id ||
       methods.data.some((row) => row.customer !== id) ||
-      invoices.data.some((row) => row.customer !== id) ||
       subscriptions.data.some((row) => row.customer !== id)
     )
       throw new ConvexError(
@@ -166,6 +191,46 @@ export const profile = action({
         expiryYear: source.exp_year ?? null,
         manageable: false,
       })
+    if (subscriptions.data.some((row) => row.items.has_more))
+      throw new ConvexError(
+        "This subscription has more items than can be displayed. Open subscription management for its full details."
+      )
+    // List expansions stop at four levels. Resolve product names separately.
+    const productIds = [
+      ...new Set(
+        subscriptions.data.flatMap((row) =>
+          row.items.data.flatMap((item) =>
+            typeof item.price.product === "string" ? [item.price.product] : []
+          )
+        )
+      ),
+    ].slice(0, 100)
+    const productNames = new Map<string, string>()
+    if (productIds.length) {
+      const params = new URLSearchParams({ limit: String(productIds.length) })
+      for (const id of productIds) params.append("ids[]", id)
+      const result = z
+        .object({
+          data: z
+            .array(
+              z.object({
+                id: z.string(),
+                name: z.string().optional(),
+                livemode: z.boolean(),
+              })
+            )
+            .max(100),
+        })
+        .safeParse(await stripeRequest(`/products?${params}`).catch(() => null))
+      if (result.success) {
+        const requestedIds = new Set(productIds)
+        for (const { id, name, livemode } of result.data.data) {
+          if (requestedIds.has(id) && !livemode && name) {
+            productNames.set(id, name)
+          }
+        }
+      }
+    }
     return {
       clerkUserId: context.user.clerkUserId,
       customer: {
@@ -186,22 +251,8 @@ export const profile = action({
       },
       methods: summaries,
       hasMoreMethods: methods.has_more,
-      invoices: invoices.data.map((row) => ({
-        id: row.id,
-        number: row.number,
-        createdAt: row.created * 1000,
-        amount: row.total,
-        currency: row.currency,
-        status: row.status ?? "draft",
-        url: stripeBillingUrl(row.hosted_invoice_url),
-        pdf: stripeBillingUrl(row.invoice_pdf),
-      })),
-      hasMoreInvoices: invoices.has_more,
+      ...invoices,
       subscriptions: subscriptions.data.map((row) => {
-        if (row.items.has_more)
-          throw new ConvexError(
-            "This subscription has more items than can be displayed. Open subscription management for its full details."
-          )
         const periods = row.items.data.flatMap((item) =>
           item.current_period_end === undefined ? [] : [item.current_period_end]
         )
@@ -213,7 +264,7 @@ export const profile = action({
           items: row.items.data.map((item) => ({
             name:
               typeof item.price.product === "string"
-                ? "Subscription"
+                ? (productNames.get(item.price.product) ?? "Subscription")
                 : (item.price.product.name ?? "Subscription"),
             amount: item.price.unit_amount,
             currency: item.price.currency,
@@ -237,7 +288,7 @@ export const beginSetup = action({
   }),
   handler: async (ctx, args) => {
     const key = operationKey.parse(args.key)
-    const url = `${billingOrigin(args.returnOrigin)}/billing`
+    const url = `${billingOrigin(args.returnOrigin)}/billing/payment-details`
     const context = await customerFor(ctx)
     const intent = setupIntent.parse(
       await stripeRequest(

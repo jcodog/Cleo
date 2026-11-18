@@ -48,11 +48,9 @@ test("hosted account has one Clerk navigation with native pages and routed appli
       ["account", undefined],
       ["security", undefined],
       ["Connected accounts", "connections"],
-      ["Billing & subscriptions", "/billing"],
     ]
   )
   assert.ok(pages.slice(0, 3).every((page) => page.type === Page))
-  assert.equal(pages[3]?.type, ProfileLink)
   assert.ok(pages[2]?.props.children)
-  assert.equal(pages[3]?.props.children, undefined)
+  assert.equal(pages.length, 3)
 })

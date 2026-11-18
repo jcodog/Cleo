@@ -26,5 +26,6 @@ export type AppShellProps = {
   showDiscordGuildSelect?: boolean
   showPlatformSelector?: boolean
   hideSidebar?: boolean
+  showLinkedRoles?: boolean
   staffEntry?: StaffTopbarEntry | null
 }

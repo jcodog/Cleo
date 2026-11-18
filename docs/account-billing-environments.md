@@ -156,9 +156,11 @@ presence is never presented as proof of Stripe connectivity.
 
 ## Standalone purchaser portal
 
-`/billing` owns payment methods, invoice identity, subscriptions and invoices.
-Clerk's account navigation links there; `/account/billing` redirects there for
-existing bookmarks. Customer-facing pages do not display environment diagnostics.
+`/billing` lists subscriptions. `/billing/payment-details` owns saved methods
+and invoice identity; `/billing/invoices` lists invoices. The shared application
+sidebar links these pages. The user menu opens billing and supplies dashboard
+return navigation. The legacy `/account/billing` route redirects to `/billing`.
+Customer-facing pages do not display environment diagnostics.
 
 The read-only purchaser ledger does not need Stripe keys to display an empty
 history. Existing Stripe customers additionally load their actual masked saved

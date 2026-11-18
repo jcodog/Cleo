@@ -11,14 +11,28 @@ for (const width of [1440, 375]) {
     await page.setViewportSize({ width, height: 1000 })
     await page.goto(`/billing${fixture}`)
     await expect(
-      page.getByRole("heading", { name: "Billing and subscriptions" })
+      page.getByRole("heading", { name: "Subscriptions" })
     ).toBeVisible()
     await expect(
       page.getByRole("heading", { name: "Piano Club" })
     ).toBeVisible()
     await expect(page.getByText(/Cleo Server Premium · £4.99/)).toBeVisible()
     await expect(page.getByRole("combobox", { name: /server/i })).toHaveCount(0)
-    await expect(page.locator('[data-slot="sidebar"]')).toHaveCount(0)
+    await expect(page.getByText(/Additional seats · £2.00/)).toBeVisible()
+    if (width < 768) {
+      await page.getByRole("button", { name: "Toggle Sidebar" }).click()
+    }
+    await expect(
+      page.getByRole("link", { name: "Payment details" })
+    ).toHaveAttribute("href", "/billing/payment-details")
+    await expect(page.getByRole("link", { name: "Invoices" })).toHaveAttribute(
+      "href",
+      "/billing/invoices"
+    )
+    await expect(
+      page.getByRole("button", { name: "Select Discord guild" })
+    ).toHaveCount(0)
+    if (width < 768) await page.keyboard.press("Escape")
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth

@@ -1,6 +1,16 @@
 # Dashboard and billing checkpoint, 29 October 2026
 
-## Current standalone billing portal, 30 October 2026
+## Current billing navigation
+
+The billing sidebar links to Subscriptions (`/billing`), Payment details
+(`/billing/payment-details`) and Invoices (`/billing/invoices`). The user menu
+links to Billing from the dashboard and back to the dashboard from billing.
+
+Stripe subscription lists expand through Price. Cleo looks up names for up to
+100 distinct Product IDs in one Stripe request. Items without a matching name
+show “Subscription,” including when the optional lookup fails.
+
+## Earlier standalone billing portal, 30 October 2026
 
 Continue only on `feat/cleo-dashboard-account-billing`, draft PR #284. No new
 branches or worktrees. `main` and the canonical branch are the only retained

@@ -1767,7 +1767,7 @@ export declare const api: {
     profile: FunctionReference<
       "action",
       "public",
-      {},
+      { view?: "invoices" },
       {
         clerkUserId: string;
         customer: null | {
@@ -2490,7 +2490,11 @@ export declare const api: {
     portal: FunctionReference<
       "action",
       "public",
-      { returnOrigin?: string },
+      {
+        returnOrigin?: string;
+        returnPath?:
+          "/billing" | "/billing/payment-details" | "/billing/invoices";
+      },
       string
     >;
     setCommunityConsent: FunctionReference<

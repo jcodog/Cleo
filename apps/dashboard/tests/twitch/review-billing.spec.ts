@@ -10,7 +10,7 @@ test("unfinished setup recovery clears a terminal attempt rather than retaining 
     )
   )
   await page.goto(
-    "/billing?community&navigation&accountUI&emptyBilling&setupFailed"
+    "/billing/payment-details?community&navigation&accountUI&emptyBilling&setupFailed"
   )
   await expect(
     page.getByText("Payment setup was not completed. Please try again.")
@@ -175,7 +175,7 @@ test("a slow older setup status cannot clear the newer processing setup", async 
     storageKey
   )
   await page.goto(
-    "/billing?community&navigation&accountUI&emptyBilling&setupRace&setupProcessing"
+    "/billing/payment-details?community&navigation&accountUI&emptyBilling&setupRace&setupProcessing"
   )
   await expect
     .poll(() =>

@@ -1,5 +1,122 @@
 import { test, expect } from "@playwright/test"
 
+test("permission gaps stay on the workspace and confirmed loss redirects with a toast", async ({
+  page,
+}, info) => {
+  await page.goto(
+    "/dashboard/333333333333333333?community&navigation&workspaceGate&pendingDirectory"
+  )
+  await expect(
+    page.getByText("Checking Discord permissions", { exact: true })
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: /save/i })).toHaveCount(0)
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: { status: "unavailable" },
+      })
+    )
+  )
+  await expect(
+    page.getByText("Verification unavailable", { exact: true })
+  ).toBeVisible()
+  await expect(page).toHaveURL(/333333333333333333/)
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", { detail: { status: "ready" } })
+    )
+  )
+  await expect(
+    page.getByText("Access not available", { exact: true })
+  ).toBeVisible()
+  await expect(page).toHaveURL(/333333333333333333/)
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: { status: "ready", removed: true },
+      })
+    )
+  )
+  await expect(page).toHaveURL(/\/dashboard\/servers/)
+  await expect(
+    page.getByText("You no longer have access to this server.", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("searchbox", { name: "Find a server" })
+  ).toBeVisible()
+  await page.screenshot({
+    path: info.outputPath("access-loss-notice.png"),
+    fullPage: true,
+  })
+})
+
+test("a pending workspace deep link shows the requested section title", async ({
+  page,
+}) => {
+  const overviewRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      request.url().endsWith("/api/query") &&
+      request.postDataJSON()?.path ===
+        "queries/dashboard/discord/guilds/overview:get"
+  )
+  await page.goto(
+    "/dashboard/444444444444444444/settings?community&navigation&workspaceGate&workspacePending"
+  )
+  expect((await overviewRequest).postData()).toContain(
+    '"discordGuildId":"444444444444444444"'
+  )
+  await expect(
+    page.getByRole("heading", { name: "Cleo status", exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "Settings", level: 1, exact: true })
+  ).toBeVisible()
+})
+
+test("bot-left access is remembered until the directory confirms access loss", async ({
+  page,
+}) => {
+  await page.goto(
+    "/dashboard/333333333333333333/settings?community&navigation&workspaceGate&pendingDirectory&overview=botLeft"
+  )
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Bot Not Present" })
+  ).toBeVisible()
+
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: {
+          status: "unavailable",
+          unavailableAccount: true,
+          removed: true,
+          overview: "forbidden",
+        },
+      })
+    )
+  )
+  await expect(
+    page.getByText("Verification unavailable", { exact: true })
+  ).toBeVisible()
+  await expect(page).toHaveURL(/\/dashboard\/333333333333333333\/settings\?/)
+  await expect(
+    page.getByRole("link", { name: "Open Premium Guild" })
+  ).toHaveCount(0)
+
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: { status: "ready", removed: true },
+      })
+    )
+  )
+  await expect(page).toHaveURL(/\/dashboard\/servers/)
+  await expect(
+    page.getByText("You no longer have access to this server.", { exact: true })
+  ).toBeVisible()
+})
+
 for (const saved of ["333333333333333333", "999999999999999999"])
   test(`dashboard entry resumes authorised saved or recent server: ${saved}`, async ({
     page,
@@ -15,10 +132,25 @@ for (const saved of ["333333333333333333", "999999999999999999"])
 test("entry waits for verification, empty accounts open the directory, and server search works", async ({
   page,
 }) => {
-  await page.goto("/dashboard?community&navigation&pendingDirectory")
+  await page.goto(
+    "/dashboard?community&navigation&pendingDirectory&savedServer=333333333333333333"
+  )
+  const guildHeading = page.getByRole("heading", {
+    name: "Cleo community",
+    level: 1,
+    exact: true,
+  })
+  await expect(guildHeading).toBeVisible()
+  const icon = 'img[src="/favicon-32x32.png?guild-icon=cleo"]'
+  await expect(guildHeading.locator("xpath=../..").locator(icon)).toBeVisible()
+  await page.goto(
+    "/dashboard?community&navigation&pendingDirectory&savedServer=999999999999999999"
+  )
+  await expect(page.getByRole("heading", { name: "Cleo status" })).toBeVisible()
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0)
   await expect(
-    page.getByRole("status", { name: "Loading server workspace" })
-  ).toContainText("Verifying server access")
+    page.getByText("Verifying server access…", { exact: true })
+  ).toBeVisible()
   await expect(
     page.getByRole("link", { name: "View all servers", exact: true })
   ).toHaveCount(0)
@@ -126,13 +258,19 @@ test("directory survives slow verification, removes revoked servers and keeps ab
     )
   )
   await expect(servers).toHaveCount(0)
-  await page.goto("/dashboard/999999999999999999?community&navigation")
-  await expect(
-    page.getByRole("heading", { name: "Server overview" })
-  ).toBeVisible()
-  await expect(page).toHaveURL(
-    /\/dashboard\/999999999999999999\?community&navigation$/
-  )
+  for (const [state, title] of [
+    ["forbidden", "Access not available"],
+    ["notFound", "Server Not Found"],
+  ] as const) {
+    await page.goto(
+      `/dashboard/999999999999999999?community&navigation&workspaceGate&overview=${state}`
+    )
+    await expect(page.getByText(title, { exact: true })).toBeVisible()
+    await expect(page).toHaveURL(/\/dashboard\/999999999999999999\?/)
+    await expect(
+      page.getByText("You no longer have access to this server.")
+    ).toHaveCount(0)
+  }
 })
 
 test("legacy Settings leads to Premium without a Server Access presentation", async ({

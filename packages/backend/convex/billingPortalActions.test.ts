@@ -139,7 +139,21 @@ test("empty billing remains readable without creating a Stripe customer or requi
 
 test("Stripe profile reads are purchaser-scoped, redacted and independent of checkout activation", async (t) => {
   const f = await fixture()
+  let failProducts = false
   const calls = transport(t, (path) => {
+    assert.ok(
+      !path.includes("expand[]=data.items.data.price.product"),
+      "Stripe rejects list expansions deeper than four levels"
+    )
+    if (path.startsWith("/products?")) {
+      if (failProducts) throw new Error("Temporary product lookup failure")
+      return {
+        data: [
+          { id: "prod_premium", name: "Cleo Server Premium", livemode: false },
+          { id: "prod_unavailable", name: "Live product", livemode: true },
+        ],
+      }
+    }
     if (
       path === "/customers/cus_alice" ||
       path.startsWith("/customers/cus_alice?")
@@ -195,7 +209,17 @@ test("Stripe profile reads are purchaser-scoped, redacted and independent of che
                     unit_amount: 499,
                     currency: "gbp",
                     recurring: { interval: "month", interval_count: 1 },
-                    product: { name: "Cleo Server Premium" },
+                    product: "prod_premium",
+                  },
+                },
+                {
+                  current_period_end: 1800000000,
+                  quantity: 1,
+                  price: {
+                    unit_amount: 499,
+                    currency: "gbp",
+                    recurring: { interval: "month", interval_count: 1 },
+                    product: "prod_unavailable",
                   },
                 },
               ],
@@ -215,7 +239,31 @@ test("Stripe profile reads are purchaser-scoped, redacted and independent of che
   assert.ok(!JSON.stringify(result).includes("never-return-this"))
   assert.equal(result.invoices[0]?.pdf, null)
   assert.equal(result.subscriptions[0]?.items[0]?.amount, 499)
+  assert.equal(result.subscriptions[0]?.items[0]?.name, "Cleo Server Premium")
+  assert.equal(result.subscriptions[0]?.items[1]?.name, "Subscription")
+  assert.equal(result.subscriptions[0]?.items[1]?.amount, 499)
   assert.equal(result.subscriptions[0]?.status, "active")
+  const invoiceStart = calls.length
+  const invoiceOnly = await f.payer.action(api.billingPortalActions.profile, {
+    view: "invoices",
+  })
+  assert.deepEqual(invoiceOnly.invoices, result.invoices)
+  assert.deepEqual(
+    calls.slice(invoiceStart).map(({ path }) => path),
+    ["/account", "/invoices?customer=cus_alice&limit=12"]
+  )
+  const productCalls = calls.filter(({ path }) => path.startsWith("/products"))
+  assert.equal(productCalls.length, 1)
+  const params = new URL(productCalls[0]!.path, "https://api.stripe.com")
+    .searchParams
+  assert.deepEqual(params.getAll("ids[]"), ["prod_premium", "prod_unavailable"])
+  assert.equal(params.get("limit"), "2")
+  failProducts = true
+  const fallback = await f.payer.action(api.billingPortalActions.profile, {})
+  assert.deepEqual(fallback.methods, result.methods)
+  assert.deepEqual(fallback.invoices, result.invoices)
+  assert.equal(fallback.subscriptions[0]?.items[0]?.name, "Subscription")
+  assert.equal(fallback.subscriptions[0]?.items[0]?.amount, 499)
   assert.ok(calls.every((call) => call.method === "GET"))
   assert.equal(
     await f.t.run((ctx) => ctx.db.query("guildSubscriptions").first()),
@@ -235,6 +283,34 @@ test("a foreign payment method or Stripe customer result cannot leak through the
   await assert.rejects(
     f.payer.action(api.billingPortalActions.profile, {}),
     /identity could not be verified/
+  )
+})
+
+test("the invoices-only profile rejects an invoice owned by another customer", async (t) => {
+  const f = await fixture()
+  transport(t, (path) => {
+    assert.equal(path, "/invoices?customer=cus_alice&limit=12")
+    return {
+      data: [
+        {
+          id: "in_bob",
+          customer: "cus_bob",
+          livemode: false,
+          number: "TEST-002",
+          created: 1700000000,
+          total: 499,
+          currency: "gbp",
+          status: "paid",
+          hosted_invoice_url: null,
+          invoice_pdf: null,
+        },
+      ],
+      has_more: false,
+    }
+  })
+  await assert.rejects(
+    f.payer.action(api.billingPortalActions.profile, { view: "invoices" }),
+    /Stripe billing account identity could not be verified/
   )
 })
 
@@ -263,7 +339,10 @@ test("Elements setup creates one bound customer and uses dynamic methods with st
     const result = await f.other.action(api.billingPortalActions.beginSetup, {
       key,
     })
-    assert.equal(result.returnUrl, "https://dashboard.example/billing")
+    assert.equal(
+      result.returnUrl,
+      "https://dashboard.example/billing/payment-details"
+    )
     assert.equal(result.id, "seti_bob")
   }
   assert.equal(calls.filter((call) => call.path === "/customers").length, 1)
@@ -329,6 +408,7 @@ test("setup completion trusts verified Stripe status and ownership, never a clie
       "failed"
     )
   }
+  assert.ok(calls.every((call) => call.method === "GET"))
   status = "succeeded"
   owner = f.bob
   await assert.rejects(

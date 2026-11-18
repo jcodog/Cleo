@@ -160,6 +160,8 @@ This uses the root Turborepo development script and may start multiple workspace
 
 During development, run the checks that cover the workspace or workspaces you changed. Do not repeatedly run the entire monorepo for a small isolated edit unless broad validation is useful.
 
+Keep ad hoc validation and background dev-server output in the terminal or the operating system's temporary directory. Clean up captures after use; never create repository-root log files.
+
 Before opening or finalising a pull request, strongly prefer the full repository validation suite from the root:
 
 ```bash
