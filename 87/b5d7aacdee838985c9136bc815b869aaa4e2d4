@@ -1,0 +1,45 @@
+apps/dashboard/src/features/discord-guild-workspace/components/workspace-ui.tsx
+  s_12bfccf1ed7354::t_70a711a625a36d 36,44,74
+packages/backend/convex/billingPortalActions.ts
+  s_12bfccf1ed7354::t_70a711a625a36d 184-197,199-207
+packages/backend/convex/accountBilling.test.ts
+  s_12bfccf1ed7354::t_947e71993de31e 206
+  s_12bfccf1ed7354::t_70a711a625a36d 141,149,189-205,207-215
+packages/backend/convex/billingPortalActions.test.ts
+  s_12bfccf1ed7354::t_70a711a625a36d 142,148-149,151-154,156,246-257
+apps/dashboard/tests/twitch/billing-portal.spec.ts
+  s_12bfccf1ed7354::t_70a711a625a36d 163-181
+packages/backend/convex/_generated/api.d.ts
+  s_12bfccf1ed7354::t_23691e60939347 2492-2496
+apps/dashboard/src/features/app-shell/AppTopbar.tsx
+  s_12bfccf1ed7354::t_cc101f71851e9d 106-109,137
+apps/dashboard/src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell.tsx
+  s_12bfccf1ed7354::t_70a711a625a36d 100-101,168-171
+apps/dashboard/tests/twitch/billing-fixture.ts
+  s_12bfccf1ed7354::t_70a711a625a36d 45-48
+apps/dashboard/src/features/app-shell/AppTopbar.test.ts
+  s_12bfccf1ed7354::t_3e7dc0ef1e10e5 12,81,122-125,127
+  s_12bfccf1ed7354::t_70a711a625a36d 104-108
+packages/backend/convex/premiumActions.ts
+  s_12bfccf1ed7354::t_cc101f71851e9d 274-283,293,298
+apps/dashboard/src/features/app-shell/AppShell.tsx
+  s_12bfccf1ed7354::t_3e7dc0ef1e10e5 39,47
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_12bfccf1ed7354::t_70a711a625a36d 169-177,202,246,423,425,472
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87b5d7aacdee838985c9136bc815b869aaa4e2d4",
+  "prompts": {},
+  "sessions": {
+    "s_12bfccf1ed7354": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ec6e-df47-7b21-815a-2c349e2993bf",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
