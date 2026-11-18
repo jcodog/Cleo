@@ -42,7 +42,10 @@ let methods: BillingProfile["methods"] = params.has("emptyBilling")
     ]
 export function billingFixture(path: string, args: unknown): unknown {
   if (path === "billingPortalActions:profile") {
-    if (failNextProfile || params.has("failBillingProfile")) {
+    if (
+      failNextProfile ||
+      new URLSearchParams(location.search).has("failBillingProfile")
+    ) {
       failNextProfile = false
       throw new Error("Provider unavailable")
     }

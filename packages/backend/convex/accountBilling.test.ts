@@ -138,6 +138,7 @@ test("commercial Price reads and Portal sessions are bound to the purchaser, eve
     globalThis.fetch = originalFetch
   })
   const requests: string[] = []
+  const returnUrls: Array<string | null> = []
   globalThis.fetch = async (input, init) => {
     const url = String(input)
     requests.push(url)
@@ -145,10 +146,7 @@ test("commercial Price reads and Portal sessions are bound to the purchaser, eve
     if (url.endsWith("/billing_portal/sessions")) {
       const fields = new URLSearchParams(String(init?.body))
       assert.equal(fields.get("customer"), "cus_alice")
-      assert.equal(
-        fields.get("return_url"),
-        "https://dashboard.example/billing"
-      )
+      returnUrls.push(fields.get("return_url"))
       return Response.json({
         url: "https://billing.stripe.com/session/fixture",
       })
@@ -188,6 +186,33 @@ test("commercial Price reads and Portal sessions are bound to the purchaser, eve
     await f.payer.action(api.premiumActions.portal, {}),
     "https://billing.stripe.com/session/fixture"
   )
+  for (const returnPath of [
+    "/billing/payment-details",
+    "/billing/invoices",
+  ] as const) {
+    await f.payer.action(api.premiumActions.portal, { returnPath })
+  }
+  assert.deepEqual(returnUrls, [
+    "https://dashboard.example/billing",
+    "https://dashboard.example/billing/payment-details",
+    "https://dashboard.example/billing/invoices",
+  ])
+  const requestCount = requests.length
+  await assert.rejects(
+    f.payer.action(api.premiumActions.portal, {
+      // @ts-expect-error Exercise the server validator independently of client types.
+      returnPath: "//untrusted.example",
+    }),
+    /Validator error/
+  )
+  await assert.rejects(
+    f.payer.action(api.premiumActions.portal, {
+      returnOrigin: "https://untrusted.example",
+      returnPath: "/billing/invoices",
+    }),
+    /not configured/
+  )
+  assert.equal(requests.length, requestCount)
   await assert.rejects(
     f.other.action(api.premiumActions.portal, {}),
     /customer is unavailable/

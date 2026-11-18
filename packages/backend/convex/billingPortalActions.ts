@@ -181,27 +181,30 @@ export const profile = action({
       ),
     ].slice(0, 100)
     const productNames = new Map<string, string>()
-    const product = z.object({
-      id: z.string(),
-      name: z.string().optional(),
-      livemode: z.literal(false).optional(),
-    })
-    const productBatchSize = 8
-    for (
-      let offset = 0;
-      offset < productIds.length;
-      offset += productBatchSize
-    ) {
-      await Promise.allSettled(
-        productIds.slice(offset, offset + productBatchSize).map(async (id) => {
-          const details = product.parse(
-            await stripeRequest(`/products/${encodeURIComponent(id)}`)
-          )
-          if (details.id === id && details.name) {
-            productNames.set(id, details.name)
-          }
+    if (productIds.length) {
+      const params = new URLSearchParams({ limit: String(productIds.length) })
+      for (const id of productIds) params.append("ids[]", id)
+      const result = z
+        .object({
+          data: z
+            .array(
+              z.object({
+                id: z.string(),
+                name: z.string().optional(),
+                livemode: z.boolean(),
+              })
+            )
+            .max(100),
         })
-      )
+        .safeParse(await stripeRequest(`/products?${params}`).catch(() => null))
+      if (result.success) {
+        const requestedIds = new Set(productIds)
+        for (const { id, name, livemode } of result.data.data) {
+          if (requestedIds.has(id) && !livemode && name) {
+            productNames.set(id, name)
+          }
+        }
+      }
     }
     return {
       clerkUserId: context.user.clerkUserId,

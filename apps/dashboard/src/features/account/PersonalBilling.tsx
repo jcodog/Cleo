@@ -166,6 +166,15 @@ function Billing({
       setBusy(false)
     }
   }
+  function openPortal() {
+    return run(async () => {
+      const url = await portal({
+        returnOrigin: window.location.origin,
+        returnPath: view === "subscriptions" ? "/billing" : `/billing/${view}`,
+      })
+      window.location.assign(url)
+    })
+  }
   if (!ledger || ledger.clerkUserId !== clerkUserId)
     return <p role="status">Loading billing…</p>
   return (
@@ -190,17 +199,7 @@ function Billing({
         {view === "subscriptions" &&
         ledger.canManageBilling &&
         (ledger.subscriptions.length > 0 || !!profile?.subscriptions.length) ? (
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() =>
-              run(async () => {
-                window.location.assign(
-                  await portal({ returnOrigin: window.location.origin })
-                )
-              })
-            }
-          >
+          <Button variant="outline" disabled={busy} onClick={openPortal}>
             Manage subscriptions
           </Button>
         ) : null}
@@ -244,13 +243,7 @@ function Billing({
           onRefresh={refreshProfile}
           onNotice={setNotice}
           onSetupPending={rememberSetup}
-          onManage={() =>
-            void run(async () => {
-              window.location.assign(
-                await portal({ returnOrigin: window.location.origin })
-              )
-            })
-          }
+          onManage={openPortal}
         />
       ) : null}
       {view === "subscriptions" ? (
@@ -427,9 +420,9 @@ function Billing({
             .map((subscription) => (
               <article key={subscription.id} className="space-y-3 pb-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="font-medium">
+                  <h2 className="font-medium">
                     {subscription.items[0]?.name ?? "Subscription"}
-                  </h3>
+                  </h2>
                   <span className="text-sm capitalize">
                     {subscription.status.replaceAll("_", " ")}
                   </span>
@@ -476,13 +469,7 @@ function Billing({
           <BillingInvoices
             profile={profile}
             failed={profileFailed}
-            onManage={() =>
-              void run(async () => {
-                window.location.assign(
-                  await portal({ returnOrigin: window.location.origin })
-                )
-              })
-            }
+            onManage={openPortal}
           />
         </>
       ) : null}

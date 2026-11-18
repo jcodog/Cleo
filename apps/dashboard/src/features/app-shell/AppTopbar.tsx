@@ -103,7 +103,10 @@ export function StaffUserButton({
 }) {
   const clerk = useClerk()
   const inBilling = pathname === "/billing" || pathname.startsWith("/billing/")
-  const inAccount = pathname === "/account" || pathname.startsWith("/account/")
+  const hasDashboardNavigation =
+    pathname === "/dashboard" || pathname.startsWith("/dashboard/")
+  const showDashboardLink =
+    !hasDashboardNavigation && staffLink?.href !== "/dashboard"
 
   const handleSignOut = () => {
     const signOut = () => clerk.signOut()
@@ -131,7 +134,7 @@ export function StaffUserButton({
       showName
     >
       <UserButton.MenuItems>
-        {inBilling || inAccount ? (
+        {showDashboardLink ? (
           <UserButton.Link
             href="/dashboard"
             label="Back to dashboard"

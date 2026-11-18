@@ -36,7 +36,7 @@ export function AppShell({
       />
 
       <SidebarInset className="min-h-0 overflow-hidden">
-        <main className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           <AppTopbar staffEntry={staffEntry} />
           <section
             id="dashboard-page"
@@ -44,7 +44,7 @@ export function AppShell({
           >
             {children}
           </section>
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

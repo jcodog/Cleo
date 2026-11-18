@@ -139,19 +139,21 @@ test("empty billing remains readable without creating a Stripe customer or requi
 
 test("Stripe profile reads are purchaser-scoped, redacted and independent of checkout activation", async (t) => {
   const f = await fixture()
+  let failProducts = false
   const calls = transport(t, (path) => {
     assert.ok(
       !path.includes("expand[]=data.items.data.price.product"),
       "Stripe rejects list expansions deeper than four levels"
     )
-    if (path === "/products/prod_unavailable")
-      throw new Error("Temporary product lookup failure")
-    if (path === "/products/prod_premium")
+    if (path.startsWith("/products?")) {
+      if (failProducts) throw new Error("Temporary product lookup failure")
       return {
-        id: "prod_premium",
-        name: "Cleo Server Premium",
-        livemode: false,
+        data: [
+          { id: "prod_premium", name: "Cleo Server Premium", livemode: false },
+          { id: "prod_unavailable", name: "Live product", livemode: true },
+        ],
       }
+    }
     if (
       path === "/customers/cus_alice" ||
       path.startsWith("/customers/cus_alice?")
@@ -241,6 +243,18 @@ test("Stripe profile reads are purchaser-scoped, redacted and independent of che
   assert.equal(result.subscriptions[0]?.items[1]?.name, "Subscription")
   assert.equal(result.subscriptions[0]?.items[1]?.amount, 499)
   assert.equal(result.subscriptions[0]?.status, "active")
+  const productCalls = calls.filter(({ path }) => path.startsWith("/products"))
+  assert.equal(productCalls.length, 1)
+  const params = new URL(productCalls[0]!.path, "https://api.stripe.com")
+    .searchParams
+  assert.deepEqual(params.getAll("ids[]"), ["prod_premium", "prod_unavailable"])
+  assert.equal(params.get("limit"), "2")
+  failProducts = true
+  const fallback = await f.payer.action(api.billingPortalActions.profile, {})
+  assert.deepEqual(fallback.methods, result.methods)
+  assert.deepEqual(fallback.invoices, result.invoices)
+  assert.equal(fallback.subscriptions[0]?.items[0]?.name, "Subscription")
+  assert.equal(fallback.subscriptions[0]?.items[0]?.amount, 499)
   assert.ok(calls.every((call) => call.method === "GET"))
   assert.equal(
     await f.t.run((ctx) => ctx.db.query("guildSubscriptions").first()),

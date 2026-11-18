@@ -97,7 +97,8 @@ export function DiscordGuildWorkspacePageShell({
       ? `${userId}:${sessionId}:${routeGuildId}`
       : null
   const hasVerifiedAccess =
-    (overviewResult?.status === "ready" &&
+    ((overviewResult?.status === "ready" ||
+      overviewResult?.status === "botLeft") &&
       overviewResult.overview.discordGuildId === routeGuildId) ||
     (currentDirectory?.status === "ready" && displayGuild?.verified === true)
   const verifiedAccess = useRef<string | null>(null)
@@ -164,7 +165,10 @@ export function DiscordGuildWorkspacePageShell({
   }
 
   if (overviewResult.status === "forbidden") {
-    const state = currentDirectory?.status ?? "pending"
+    const state =
+      directory?.status === "unavailable" && directory.clerkUserId === null
+        ? "unavailable"
+        : (currentDirectory?.status ?? "pending")
     const titles = {
       pending: "Checking Discord permissions",
       expired: "Verification expired",

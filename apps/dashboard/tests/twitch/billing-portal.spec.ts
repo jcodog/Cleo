@@ -160,6 +160,25 @@ test("Stripe failure preserves verified subscription history and retry controls"
   await expect(page.getByText("No payment method saved")).toHaveCount(0)
 })
 
+test("invoices recover after a failed profile request", async ({ page }) => {
+  await page.goto(`/billing/invoices${fixture}&failBillingProfile`)
+  await expect(
+    page.getByText("Invoices could not be loaded. Please try again.")
+  ).toBeVisible()
+  await page.evaluate(() => {
+    const url = new URL(location.href)
+    url.searchParams.delete("failBillingProfile")
+    history.replaceState(null, "", url)
+  })
+  await page.getByRole("button", { name: "Retry invoices" }).click()
+  await expect(
+    page.getByRole("table", { name: "Billing invoices" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Retry invoices" })
+  ).toHaveCount(0)
+})
+
 test("a failed refresh clears stale payment details before retry", async ({
   page,
 }) => {

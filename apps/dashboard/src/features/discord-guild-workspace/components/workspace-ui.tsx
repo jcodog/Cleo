@@ -33,7 +33,7 @@ export function WorkspaceSkeleton({
   title = "Overview",
 }: { name?: string; iconUrl?: string; title?: string } = {}): JSX.Element {
   return (
-    <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
+    <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
       <div className="flex items-center gap-3 border-b pb-5">
         {name ? (
           <GuildIcon name={name} iconUrl={iconUrl} />
@@ -41,9 +41,7 @@ export function WorkspaceSkeleton({
           <Skeleton className="size-10 rounded-md" />
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <h1 className="font-heading text-2xl font-medium">
-            {name ?? "Overview"}
-          </h1>
+          <h1 className="font-heading text-2xl font-medium">{name ?? title}</h1>
           {name ? (
             <p className="text-sm text-muted-foreground">{title}</p>
           ) : null}
@@ -73,7 +71,7 @@ export function WorkspaceSkeleton({
           ))}
         </div>
       </section>
-    </main>
+    </div>
   )
 }
 

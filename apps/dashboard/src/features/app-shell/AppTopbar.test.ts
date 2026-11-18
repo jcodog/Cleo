@@ -9,6 +9,7 @@ type MockUserButtonProps = {
   }
   children?: ReactNode
   showName?: boolean
+  userProfileUrl?: string
 }
 
 type MockLinkProps = {
@@ -77,6 +78,7 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
   }) as ReactElement<MockUserButtonProps>
   assert.equal(hidden.type, MockUserButton)
   assert.equal(hidden.props.showName, true)
+  assert.equal(hidden.props.userProfileUrl, "/account")
   assert.deepEqual(hidden.props.appearance?.elements, {
     userButtonPopoverActionButton__signOut: { display: "none" },
   })
@@ -99,6 +101,11 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
       "/billing/payment-details",
       ["Back to dashboard", "manageAccount", "Sign out"],
     ],
+    ["/kick", ["Back to dashboard", "Billing", "manageAccount", "Sign out"]],
+    [
+      "/discord/linked-role",
+      ["Back to dashboard", "Billing", "manageAccount", "Sign out"],
+    ],
     ["/account", ["Back to dashboard", "Billing", "manageAccount", "Sign out"]],
     [
       "/account/security",
@@ -112,8 +119,12 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
     const menu = rendered.props.children as ReactElement<{
       children: ReactNode
     }>
+    const items = React.Children.toArray(menu.props.children)
+    const dashboard = items[0]
+    assert.ok(isValidElement<MockLinkProps>(dashboard))
+    assert.equal(dashboard.props.href, "/dashboard")
     assert.deepEqual(
-      React.Children.toArray(menu.props.children).map(
+      items.map(
         (item) => (item as ReactElement<{ label: string }>).props.label
       ),
       labels
