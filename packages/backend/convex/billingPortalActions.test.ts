@@ -243,6 +243,15 @@ test("Stripe profile reads are purchaser-scoped, redacted and independent of che
   assert.equal(result.subscriptions[0]?.items[1]?.name, "Subscription")
   assert.equal(result.subscriptions[0]?.items[1]?.amount, 499)
   assert.equal(result.subscriptions[0]?.status, "active")
+  const invoiceStart = calls.length
+  const invoiceOnly = await f.payer.action(api.billingPortalActions.profile, {
+    view: "invoices",
+  })
+  assert.deepEqual(invoiceOnly.invoices, result.invoices)
+  assert.deepEqual(
+    calls.slice(invoiceStart).map(({ path }) => path),
+    ["/account", "/invoices?customer=cus_alice&limit=12"]
+  )
   const productCalls = calls.filter(({ path }) => path.startsWith("/products"))
   assert.equal(productCalls.length, 1)
   const params = new URL(productCalls[0]!.path, "https://api.stripe.com")

@@ -24,6 +24,7 @@ import { useAppShellStore } from "../../src/components/stores/app-shell-store"
 import { DiscordDashboardPageShell } from "../../src/features/dashboard/DiscordDashboardPageShell"
 import { SettingsSection } from "../../src/features/discord-guild-workspace/sections/SettingsSection"
 import { api } from "@workspace/backend/convex/_generated/api.js"
+import { getRouteDiscordGuildId } from "../../src/features/app-shell/routes"
 import { usePathname } from "./navigation-fixture"
 import { preloadQuery } from "convex/nextjs"
 import type { Preloaded } from "convex/react"
@@ -45,6 +46,7 @@ const discordIdentity = { providerAccountId: "111111111111111111" }
 const cleoCommunity = {
   discordGuildId: "333333333333333333",
   name: "Cleo community",
+  iconUrl: "/favicon-32x32.png?guild-icon=cleo",
   verified: true,
   verifiedAt,
   memberCount: 240,
@@ -114,17 +116,20 @@ let purchaseView = {
       ]
     : [],
 }
-export function communityQuery(path: string) {
-  if (path === "queries/dashboard/discord/guilds/overview:get")
-    return overviewStatus === "botLeft"
+export function communityQuery(path: string, args?: unknown) {
+  if (path === "queries/dashboard/discord/guilds/overview:get") {
+    const guildId =
+      args && typeof args === "object" && "discordGuildId" in args
+        ? args.discordGuildId
+        : undefined
+    const guild = directoryGuilds.find((row) => row.discordGuildId === guildId)
+    return overviewStatus === "botLeft" && guild
       ? {
           status: "botLeft",
-          overview: {
-            discordGuildId: cleoCommunity.discordGuildId,
-            name: cleoCommunity.name,
-          },
+          overview: { discordGuildId: guild.discordGuildId, name: guild.name },
         }
       : { status: overviewStatus === "notFound" ? "notFound" : "forbidden" }
+  }
   if (path === "billingCatalogue:access")
     return {
       canRead: !params.has("nonStaff"),
@@ -510,7 +515,7 @@ export function CommunityFixture() {
 
 function NavigationFixture() {
   const pathname = usePathname()
-  const guildId = pathname.split("/")[2]
+  const guildId = getRouteDiscordGuildId(pathname)
   const [preloads, setPreloads] = useState<{
     guilds: Preloaded<
       typeof api.queries.dashboard.discord.guilds.manageable.list
@@ -532,7 +537,7 @@ function NavigationFixture() {
       preloadQuery(api.queries.dashboard.staff.access.get, {}, options),
       preloadQuery(
         api.queries.dashboard.discord.guilds.overview.get,
-        { discordGuildId: "333333333333333333" },
+        { discordGuildId: guildId ?? cleoCommunity.discordGuildId },
         options
       ),
     ]).then(([guilds, staff, overview]) => {
@@ -541,7 +546,7 @@ function NavigationFixture() {
     return () => {
       active = false
     }
-  }, [])
+  }, [guildId])
   if (!preloads) return <p>Loading fixture</p>
   return (
     <DashboardShellClient

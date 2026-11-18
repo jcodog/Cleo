@@ -1767,7 +1767,7 @@ export declare const api: {
     profile: FunctionReference<
       "action",
       "public",
-      {},
+      { view?: "invoices" },
       {
         clerkUserId: string;
         customer: null | {

@@ -53,8 +53,18 @@ test("permission gaps stay on the workspace and confirmed loss redirects with a 
 test("a pending workspace deep link shows the requested section title", async ({
   page,
 }) => {
+  const overviewRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      request.url().endsWith("/api/query") &&
+      request.postDataJSON()?.path ===
+        "queries/dashboard/discord/guilds/overview:get"
+  )
   await page.goto(
-    "/dashboard/333333333333333333/settings?community&navigation&workspaceGate&workspacePending"
+    "/dashboard/444444444444444444/settings?community&navigation&workspaceGate&workspacePending"
+  )
+  expect((await overviewRequest).postData()).toContain(
+    '"discordGuildId":"444444444444444444"'
   )
   await expect(
     page.getByRole("heading", { name: "Cleo status", exact: true })
@@ -122,8 +132,22 @@ for (const saved of ["333333333333333333", "999999999999999999"])
 test("entry waits for verification, empty accounts open the directory, and server search works", async ({
   page,
 }) => {
-  await page.goto("/dashboard?community&navigation&pendingDirectory")
+  await page.goto(
+    "/dashboard?community&navigation&pendingDirectory&savedServer=333333333333333333"
+  )
+  const guildHeading = page.getByRole("heading", {
+    name: "Cleo community",
+    level: 1,
+    exact: true,
+  })
+  await expect(guildHeading).toBeVisible()
+  const icon = 'img[src="/favicon-32x32.png?guild-icon=cleo"]'
+  await expect(guildHeading.locator("xpath=../..").locator(icon)).toBeVisible()
+  await page.goto(
+    "/dashboard?community&navigation&pendingDirectory&savedServer=999999999999999999"
+  )
   await expect(page.getByRole("heading", { name: "Cleo status" })).toBeVisible()
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0)
   await expect(
     page.getByText("Verifying server access…", { exact: true })
   ).toBeVisible()

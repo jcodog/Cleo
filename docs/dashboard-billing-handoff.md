@@ -6,8 +6,9 @@ The billing sidebar links to Subscriptions (`/billing`), Payment details
 (`/billing/payment-details`) and Invoices (`/billing/invoices`). The user menu
 links to Billing from the dashboard and back to the dashboard from billing.
 
-Stripe subscription lists expand through Price. Product names are looked up
-separately, with a generic name when an individual lookup fails.
+Stripe subscription lists expand through Price. Cleo looks up names for up to
+100 distinct Product IDs in one Stripe request. Items without a matching name
+show “Subscription,” including when the optional lookup fails.
 
 ## Earlier standalone billing portal, 30 October 2026
 

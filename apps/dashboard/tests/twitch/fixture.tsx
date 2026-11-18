@@ -108,9 +108,10 @@ const useFixtureAuth = () => ({
   isAuthenticated: true,
   fetchAccessToken: async () => "fixture-token",
 })
-client.watchQuery = (...[reference]) => ({
+client.watchQuery = (...[reference, args]) => ({
   localQueryResult: () => {
-    if (communityFixtureMode) return communityQuery(getFunctionName(reference))
+    if (communityFixtureMode)
+      return communityQuery(getFunctionName(reference), args)
     switch (getFunctionName(reference)) {
       case "twitchTimers:list":
         return view

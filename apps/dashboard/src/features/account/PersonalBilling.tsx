@@ -75,7 +75,7 @@ function Billing({
   }
   useEffect(() => {
     let active = true
-    void loadProfile({})
+    void loadProfile(view === "invoices" ? { view } : {})
       .then((value) => {
         if (value.clerkUserId !== clerkUserId)
           throw new Error("Billing profile identity mismatch")
@@ -93,7 +93,7 @@ function Billing({
     return () => {
       active = false
     }
-  }, [loadProfile, clerkUserId, profileRevision])
+  }, [loadProfile, clerkUserId, profileRevision, view])
   useEffect(() => {
     const url = new URL(window.location.href)
     let id = url.searchParams.get("setup_intent")
