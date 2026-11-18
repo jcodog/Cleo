@@ -20,6 +20,8 @@ export const cataloguePrice = v.object({
   approved: v.boolean(),
 })
 
+export class InvalidCatalogueSessionClaimsError extends Error {}
+
 /** Verify freshness against signed Clerk claims, never the client's clock or Convex's filtered fva claim. */
 export function requireCatalogueSessionClaims(
   payload: {
@@ -55,7 +57,7 @@ export function requireCatalogueSessionClaims(
       (age.data[1] < 0 ||
         age.data[1] * 60 + Math.max(0, now - payload.iat) >= 300))
   )
-    throw new Error(
+    throw new InvalidCatalogueSessionClaimsError(
       "Sign in again or reverify your session before changing financial settings."
     )
 }

@@ -1,7 +1,7 @@
 "use node"
 
 import { randomUUID } from "node:crypto"
-import { createRemoteJWKSet, jwtVerify } from "jose"
+import { createRemoteJWKSet, errors, jwtVerify } from "jose"
 import { z } from "zod"
 import { ConvexError, v } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
@@ -13,6 +13,7 @@ import {
   catalogueChange,
   catalogueProduct,
   cataloguePrice,
+  InvalidCatalogueSessionClaimsError,
   requireCatalogueSessionClaims,
 } from "./lib/billingCatalogueModels"
 
@@ -185,6 +186,17 @@ export const change = action({
         configuredBillingOrigins()
       )
     } catch (error) {
+      // Only a proven token or claims failure can terminate an unclaimed operation.
+      if (
+        !(error instanceof InvalidCatalogueSessionClaimsError) &&
+        !(error instanceof errors.JWSInvalid) &&
+        !(error instanceof errors.JWTInvalid) &&
+        !(error instanceof errors.JOSEAlgNotAllowed) &&
+        !(error instanceof errors.JWSSignatureVerificationFailed) &&
+        !(error instanceof errors.JWTClaimValidationFailed) &&
+        !(error instanceof errors.JWTExpired)
+      )
+        throw error
       const rejection =
         "Verify your Clerk session before proposing another catalogue change."
       if (

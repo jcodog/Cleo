@@ -305,7 +305,7 @@ test("requested price approvals remain correct beyond 500 retained mappings", as
     [{ productId: "prod_one", priceId: "price_504" }]
   )
 })
-test("signed sandbox creation replays once, validates account and keeps historical mappings when archiving", async (t) => {
+test("signed sandbox creation retries Clerk JWKS failures, replays once and preserves historical mappings", async (t) => {
   const f = await fixture()
   const { privateKey, publicKey } = generateKeyPairSync("rsa", {
     modulusLength: 2048,
@@ -325,14 +325,20 @@ test("signed sandbox creation replays once, validates account and keeps historic
     .sign(privateKey)
   let posts = 0,
     mismatch = false
+  let jwksFailure: "network" | "unavailable" | "malformed" | undefined
   const previous = globalThis.fetch
   t.after(() => {
     globalThis.fetch = previous
   })
   globalThis.fetch = async (input, init) => {
     const url = String(input)
-    if (url.endsWith("/.well-known/jwks.json"))
+    if (url.endsWith("/.well-known/jwks.json")) {
+      if (jwksFailure === "network") throw new TypeError("Clerk fetch failed")
+      if (jwksFailure === "unavailable")
+        return new Response(null, { status: 503 })
+      if (jwksFailure === "malformed") return Response.json({ keys: null })
       return Response.json({ keys: [{ ...jwk, kid: "fixture", alg: "RS256" }] })
+    }
     assert.equal(
       new Headers(init?.headers).get("Authorization"),
       "Bearer sk_test_fixture"
@@ -364,6 +370,19 @@ test("signed sandbox creation replays once, validates account and keeps historic
     sessionToken: token,
     confirmation: "CONFIRM SANDBOX CHANGE",
   }
+  for (const failure of ["network", "unavailable", "malformed"] as const) {
+    jwksFailure = failure
+    await assert.rejects(
+      f.finance.action(api.billingCatalogueActions.change, args),
+      (error: unknown) => !(error instanceof ConvexError)
+    )
+    assert.deepEqual(
+      await f.finance.query(api.billingCatalogue.history, {}),
+      []
+    )
+    assert.equal(posts, 0)
+  }
+  jwksFailure = undefined
   assert.equal(
     await f.finance.action(api.billingCatalogueActions.change, args),
     "prod_one"
