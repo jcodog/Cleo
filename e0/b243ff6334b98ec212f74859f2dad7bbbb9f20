@@ -1,0 +1,37 @@
+apps/dashboard/src/features/dashboard/DashboardEntry.tsx
+  s_12bfccf1ed7354::t_5216f784f9f24f 6,12,76-81,85-86,100-105
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_12bfccf1ed7354::t_5216f784f9f24f 3-9,11-20,22-29,31-52,69,71-72,180-182,184-186,188-192
+  s_12bfccf1ed7354::t_d0beef87470f01 10,21,30,187
+  s_12bfccf1ed7354::t_481fec75d43472 183
+apps/dashboard/tests/twitch/serve.mjs
+  s_12bfccf1ed7354::t_5216f784f9f24f 24-25,86,92-96
+apps/dashboard/src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell.tsx
+  s_12bfccf1ed7354::t_5216f784f9f24f 5,21,58-60,89-127,147-153,167
+apps/dashboard/src/features/discord-guild-workspace/components/workspace-ui.tsx
+  s_12bfccf1ed7354::t_462050e47dfc06 30-34,38-42,44-49,52-75
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_12bfccf1ed7354::t_5216f784f9f24f 20,115-118,484-486,498-504,541-544
+apps/dashboard/src/features/dashboard/DiscordDashboardPageShell.tsx
+  s_12bfccf1ed7354::t_462050e47dfc06 4,24,46-59
+apps/dashboard/src/features/app-shell/AppShell.tsx
+  s_12bfccf1ed7354::t_462050e47dfc06 2,29
+packages/ui/src/components/sonner.tsx
+  s_12bfccf1ed7354::t_5216f784f9f24f 4,6-16,20-25,32-36,57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e0b243ff6334b98ec212f74859f2dad7bbbb9f20",
+  "prompts": {},
+  "sessions": {
+    "s_12bfccf1ed7354": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ec6e-df47-7b21-815a-2c349e2993bf",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
