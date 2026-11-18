@@ -530,6 +530,7 @@ export type DataModel = {
       attempts: number;
       authorityUntil?: number;
       discordUserId: string;
+      lastSuccessfulRevision?: number;
       leaseUntil: number;
       nextAt: number;
       revision: number;
@@ -547,6 +548,7 @@ export type DataModel = {
       | "attempts"
       | "authorityUntil"
       | "discordUserId"
+      | "lastSuccessfulRevision"
       | "leaseUntil"
       | "nextAt"
       | "revision"
@@ -1293,6 +1295,7 @@ export type DataModel = {
     document: {
       canManage: boolean;
       createdAt: number;
+      discordGuildId?: string;
       discordUserId: string;
       guildId: Id<"guilds">;
       isOwner?: boolean;
@@ -1312,6 +1315,7 @@ export type DataModel = {
       | "_id"
       | "canManage"
       | "createdAt"
+      | "discordGuildId"
       | "discordUserId"
       | "guildId"
       | "isOwner"
@@ -1330,6 +1334,11 @@ export type DataModel = {
         "discordUserId",
         "canManage",
         "managementVerifiedAt",
+        "_creationTime",
+      ];
+      by_discord_user_and_discord_guild_id: [
+        "discordUserId",
+        "discordGuildId",
         "_creationTime",
       ];
       by_discord_user_id: ["discordUserId", "_creationTime"];

@@ -43,18 +43,44 @@ export async function reconcileDiscordGuildRefresh(
       .paginate({ cursor: cursor ?? null, numItems: 100 })
     const incoming = new Set(refresh.guilds.map((guild) => guild.id))
     for (const membership of page.page) {
+      // Incoming reconciliation verifies these guilds and revokes missing ones.
+      // Legacy rows without a cached ID still need the lookup here.
+      if (membership.discordGuildId && incoming.has(membership.discordGuildId))
+        continue
+      const alreadyRevoked =
+        membership.revokedAt !== undefined &&
+        !membership.canManage &&
+        membership.isOwner !== true &&
+        (membership.permissions ?? "0") === "0"
+      if (
+        alreadyRevoked &&
+        membership.discordGuildId &&
+        !incoming.has(membership.discordGuildId)
+      )
+        continue
       const guild = await ctx.db.get(membership.guildId)
       if (!guild || !incoming.has(guild.discordGuildId)) {
         // Do not overwrite a separately verified observation newer than this snapshot.
         if ((membership.managementVerifiedAt ?? 0) > refresh.startedAt) continue
-        await ctx.db.patch(membership._id, {
-          revokedAt: refresh.startedAt,
-          canManage: false,
-          isOwner: false,
-          permissions: "0",
-          managementVerifiedAt: refresh.startedAt,
-          updatedAt: Date.now(),
-        })
+        // Backfill the ID on the first revocation. Future negative snapshots
+        // can skip this row after its corresponding owner was cleaned up.
+        // Do not rewrite unchanged negative evidence on every verification.
+        if (!alreadyRevoked || (guild && !membership.discordGuildId))
+          await ctx.db.patch(membership._id, {
+            ...(!alreadyRevoked
+              ? {
+                  revokedAt: refresh.startedAt,
+                  canManage: false,
+                  isOwner: false,
+                  permissions: "0",
+                  managementVerifiedAt: refresh.startedAt,
+                  updatedAt: Date.now(),
+                }
+              : {}),
+            ...(guild && !membership.discordGuildId
+              ? { discordGuildId: guild.discordGuildId }
+              : {}),
+          })
         if (guild?.ownerDiscordId === refresh.discordUserId)
           await ctx.db.patch(guild._id, { ownerDiscordId: undefined })
       }
@@ -73,8 +99,60 @@ export async function reconcileDiscordGuildRefresh(
           q.eq("discordGuildId", incoming.id)
         )
         .unique()
-      if (!guild || guild.botLeftAt !== undefined) continue
-      const current = await ctx.db
+      if (!guild || guild.botLeftAt !== undefined) {
+        const membership = await ctx.db
+          .query("discordGuildMemberships")
+          .withIndex("by_discord_user_and_discord_guild_id", (q) =>
+            q
+              .eq("discordUserId", refresh.discordUserId)
+              .eq("discordGuildId", incoming.id)
+          )
+          .unique()
+        if (
+          membership &&
+          (membership.managementVerifiedAt ?? 0) <= refresh.startedAt &&
+          (membership.revokedAt === undefined ||
+            membership.canManage ||
+            membership.isOwner)
+        )
+          await ctx.db.patch(membership._id, {
+            revokedAt: refresh.startedAt,
+            canManage: false,
+            isOwner: false,
+            permissions: "0",
+            managementVerifiedAt: refresh.startedAt,
+            updatedAt: Date.now(),
+          })
+        if (guild?.ownerDiscordId === refresh.discordUserId)
+          await ctx.db.patch(guild._id, { ownerDiscordId: undefined })
+        continue
+      }
+      let current = await ctx.db
+        .query("discordGuildMemberships")
+        .withIndex("by_discord_user_and_discord_guild_id", (q) =>
+          q
+            .eq("discordUserId", refresh.discordUserId)
+            .eq("discordGuildId", incoming.id)
+        )
+        .unique()
+      if (current && current.guildId !== guild._id) {
+        if ((current.managementVerifiedAt ?? 0) > refresh.startedAt)
+          throw new Error(
+            "Guild identity changed during refresh. Retry verification."
+          )
+        // The same external guild can be re-created with a new local ID. Clear
+        // the old cache entry before materialising its replacement.
+        await ctx.db.patch(current._id, {
+          discordGuildId: undefined,
+          revokedAt: refresh.startedAt,
+          canManage: false,
+          isOwner: false,
+          permissions: "0",
+          updatedAt: Date.now(),
+        })
+        current = null
+      }
+      current ??= await ctx.db
         .query("discordGuildMemberships")
         .withIndex("by_guild_id_and_discord_user_id", (q) =>
           q.eq("guildId", guild._id).eq("discordUserId", refresh.discordUserId)
@@ -89,6 +167,7 @@ export async function reconcileDiscordGuildRefresh(
       }
       const value = {
         guildId: guild._id,
+        discordGuildId: incoming.id,
         userId: refresh.userId,
         discordUserId: refresh.discordUserId,
         isOwner: incoming.owner === true,
@@ -102,9 +181,12 @@ export async function reconcileDiscordGuildRefresh(
       }
       if (current) await ctx.db.patch(current._id, value)
       else await ctx.db.insert("discordGuildMemberships", value)
-      if (incoming.owner)
+      if (incoming.owner && guild.ownerDiscordId !== refresh.discordUserId)
         await ctx.db.patch(guild._id, { ownerDiscordId: refresh.discordUserId })
-      else if (guild.ownerDiscordId === refresh.discordUserId)
+      else if (
+        !incoming.owner &&
+        guild.ownerDiscordId === refresh.discordUserId
+      )
         await ctx.db.patch(guild._id, { ownerDiscordId: undefined })
     }
     offset += batch.length
