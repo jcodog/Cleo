@@ -1,0 +1,33 @@
+packages/backend/convex/_generated/dataModel.d.ts
+  s_5ae3d800086a94::t_a6211356a6faa2 533,551,1298,1318,1339-1343
+packages/backend/convex/previewHealth.ts
+  s_5ae3d800086a94::t_a6211356a6faa2 40,43-50
+packages/backend/convex/dbTables/discordGuildMemberships.ts
+  s_5ae3d800086a94::t_a6211356a6faa2 7-9,29-32
+packages/backend/convex/communityRoles.ts
+  s_5ae3d800086a94::t_a6211356a6faa2 229-240,250,252,254-267
+packages/backend/convex/communityRoleBootstrap.test.ts
+  s_5ae3d800086a94::t_a6211356a6faa2 64-186
+packages/backend/convex/lib/discordGuildRefresh.ts
+  s_5ae3d800086a94::t_a6211356a6faa2 46-60,65-83,102-155,170,184,186-189
+packages/backend/convex/communityMembershipRefresh.test.ts
+  s_5ae3d800086a94::t_a6211356a6faa2 385-642
+packages/backend/convex/dbTables/communityIntegrations.ts
+  s_5ae3d800086a94::t_a6211356a6faa2 83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c8d6ee3bd041e531925bc5a56349a6adc7f24949",
+  "prompts": {},
+  "sessions": {
+    "s_5ae3d800086a94": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ecd5-4e3d-7040-95ec-ed1899c5cde6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
