@@ -1,0 +1,39 @@
+packages/backend/convex/lib/stripeCommunity.ts
+  s_5ae3d800086a94::t_7d82ba2bd2d26e 69-70,77-78
+packages/backend/convex/billingCatalogue.test.ts
+  s_5ae3d800086a94::t_a48bfaa1b4a3a0 419-425
+scripts/build-dashboard-preview.test.mjs
+  s_5ae3d800086a94::t_7d82ba2bd2d26e 218,220-221,241-244,246,251,262
+  s_5ae3d800086a94::t_a48bfaa1b4a3a0 228-235,247-250,253-255,258-261
+  s_5ae3d800086a94::t_521308da8d4b9e 3-5,219,222-227,236-240,245,252,256-257
+scripts/build-dashboard-preview.mjs
+  s_5ae3d800086a94::t_7d82ba2bd2d26e 135,242-245,248-253,293
+  s_5ae3d800086a94::t_df19db22c34a0a 136
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_5ae3d800086a94::t_a48bfaa1b4a3a0 121-130
+  s_5ae3d800086a94::t_17deb49f01d2c9 119-120,131
+packages/backend/convex/previewHealth.test.ts
+  s_5ae3d800086a94::t_a48bfaa1b4a3a0 26-28,41-45
+  s_5ae3d800086a94::t_17deb49f01d2c9 1-25,29-40,46-67
+docs/isolated-review-preview.md
+  s_5ae3d800086a94::t_7d82ba2bd2d26e 27-29
+apps/dashboard/tests/twitch/review-billing.spec.ts
+  s_5ae3d800086a94::t_a48bfaa1b4a3a0 246-254,256-258
+  s_5ae3d800086a94::t_17deb49f01d2c9 245,255,259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d721447740fa85b2fe530d4c454ff9e12555ff97",
+  "prompts": {},
+  "sessions": {
+    "s_5ae3d800086a94": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ecd5-4e3d-7040-95ec-ed1899c5cde6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
