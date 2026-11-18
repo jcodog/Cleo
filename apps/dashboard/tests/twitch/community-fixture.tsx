@@ -42,15 +42,16 @@ let progress: {
   observedAt: number
 } | null = null
 const discordIdentity = { providerAccountId: "111111111111111111" }
+const cleoCommunity = {
+  discordGuildId: "333333333333333333",
+  name: "Cleo community",
+  verified: true,
+  verifiedAt,
+  memberCount: 240,
+  lastOpenedAt: 100,
+}
 const directoryGuilds = [
-  {
-    discordGuildId: "333333333333333333",
-    name: "Cleo community",
-    verified: true,
-    verifiedAt,
-    memberCount: 240,
-    lastOpenedAt: 100,
-  },
+  cleoCommunity,
   {
     discordGuildId: "444444444444444444",
     name: "Second server",
@@ -72,8 +73,10 @@ if (params.has("savedServer"))
   })
 if (params.has("emptyDirectory")) directory.guilds = []
 if (params.has("pendingDirectory")) directory.status = "pending"
+let overviewStatus = params.get("overview")
 window.addEventListener("directory-fixture", (event) => {
   if (!(event instanceof CustomEvent)) return
+  if (event.detail.overview) overviewStatus = event.detail.overview
   directory = {
     clerkUserId: event.detail.unavailableAccount ? null : "fixture-clerk",
     status: event.detail.status,
@@ -113,9 +116,15 @@ let purchaseView = {
 }
 export function communityQuery(path: string) {
   if (path === "queries/dashboard/discord/guilds/overview:get")
-    return {
-      status: params.get("overview") === "notFound" ? "notFound" : "forbidden",
-    }
+    return overviewStatus === "botLeft"
+      ? {
+          status: "botLeft",
+          overview: {
+            discordGuildId: cleoCommunity.discordGuildId,
+            name: cleoCommunity.name,
+          },
+        }
+      : { status: overviewStatus === "notFound" ? "notFound" : "forbidden" }
   if (path === "billingCatalogue:access")
     return {
       canRead: !params.has("nonStaff"),
@@ -541,6 +550,7 @@ function NavigationFixture() {
         ) : params.has("workspaceGate") ? (
           <DiscordGuildWorkspacePageShell
             preloadedOverview={preloads.overview}
+            section={pathname.endsWith("/settings") ? "settings" : undefined}
           />
         ) : pathname.endsWith("/premium") ? (
           <div className="mx-auto w-full max-w-4xl">

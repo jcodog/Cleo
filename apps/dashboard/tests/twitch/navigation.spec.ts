@@ -50,6 +50,63 @@ test("permission gaps stay on the workspace and confirmed loss redirects with a 
   })
 })
 
+test("a pending workspace deep link shows the requested section title", async ({
+  page,
+}) => {
+  await page.goto(
+    "/dashboard/333333333333333333/settings?community&navigation&workspaceGate&workspacePending"
+  )
+  await expect(
+    page.getByRole("heading", { name: "Cleo status", exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "Settings", level: 1, exact: true })
+  ).toBeVisible()
+})
+
+test("bot-left access is remembered until the directory confirms access loss", async ({
+  page,
+}) => {
+  await page.goto(
+    "/dashboard/333333333333333333/settings?community&navigation&workspaceGate&pendingDirectory&overview=botLeft"
+  )
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Bot Not Present" })
+  ).toBeVisible()
+
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: {
+          status: "unavailable",
+          unavailableAccount: true,
+          removed: true,
+          overview: "forbidden",
+        },
+      })
+    )
+  )
+  await expect(
+    page.getByText("Verification unavailable", { exact: true })
+  ).toBeVisible()
+  await expect(page).toHaveURL(/\/dashboard\/333333333333333333\/settings\?/)
+  await expect(
+    page.getByRole("link", { name: "Open Premium Guild" })
+  ).toHaveCount(0)
+
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("directory-fixture", {
+        detail: { status: "ready", removed: true },
+      })
+    )
+  )
+  await expect(page).toHaveURL(/\/dashboard\/servers/)
+  await expect(
+    page.getByText("You no longer have access to this server.", { exact: true })
+  ).toBeVisible()
+})
+
 for (const saved of ["333333333333333333", "999999999999999999"])
   test(`dashboard entry resumes authorised saved or recent server: ${saved}`, async ({
     page,
