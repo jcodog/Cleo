@@ -6,6 +6,7 @@ import { join } from "node:path"
 import { spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import {
+  preparePreviewEnvironments,
   previewConfig,
   previewUrl,
   verifyClerkInstance,
@@ -259,4 +260,42 @@ test("the installed CLI reads explicit Preview selection from a private env file
     deploy.stderr + deploy.stdout,
     /Would have claimed preview deployment for "perf\/convex-community-role-io"/
   )
+})
+
+test("Preview deployment replaces inherited selectors and keeps the key file out of the frontend environment", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "cleo-preview-env-test-"))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const inherited = {
+    CONVEX_DEPLOYMENT: "prod:fixture",
+    CONVEX_SELF_HOSTED_URL: "https://fixture.example",
+    CONVEX_SELF_HOSTED_ADMIN_KEY: "fixture",
+    CONVEX_DEPLOYMENT_TOKEN: "fixture",
+    CONVEX_OVERRIDE_ACCESS_TOKEN: "fixture",
+    CONVEX_PROVISION_HOST: "https://fixture.example",
+  }
+  const { childEnv, envFile, frontendEnv } = preparePreviewEnvironments(
+    {
+      ...env,
+      ...inherited,
+      CLEO_PREVIEW_ENV_FILE: "inherited.env",
+    },
+    directory
+  )
+  assert.equal(envFile, join(directory, "preview.env"))
+  assert.equal(childEnv.CLEO_PREVIEW_ENV_FILE, envFile)
+  assert.equal(childEnv.CONVEX_DEPLOY_KEY, env.CONVEX_DEPLOY_KEY)
+  assert.equal(
+    readFileSync(envFile, "utf8"),
+    `CONVEX_DEPLOY_KEY=${JSON.stringify(env.CONVEX_DEPLOY_KEY)}\n`
+  )
+
+  const url = "https://review.convex.cloud"
+  const frontend = frontendEnv(url)
+  for (const name of Object.keys(inherited)) {
+    assert.ok(!(name in childEnv))
+    assert.ok(!(name in frontend))
+  }
+  assert.ok(!("CONVEX_DEPLOY_KEY" in frontend))
+  assert.ok(!("CLEO_PREVIEW_ENV_FILE" in frontend))
+  assert.equal(frontend.NEXT_PUBLIC_CONVEX_URL, url)
 })

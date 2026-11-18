@@ -185,6 +185,34 @@ function run(args, env, cwd = root) {
     )
 }
 
+export function preparePreviewEnvironments(env, directory) {
+  const childEnv = { ...env, CLEO_PREVIEW_URL_FILE: join(directory, "url") }
+  delete childEnv.CONVEX_DEPLOYMENT
+  delete childEnv.CONVEX_SELF_HOSTED_URL
+  delete childEnv.CONVEX_SELF_HOSTED_ADMIN_KEY
+  delete childEnv.CONVEX_DEPLOYMENT_TOKEN
+  delete childEnv.CONVEX_OVERRIDE_ACCESS_TOKEN
+  delete childEnv.CONVEX_PROVISION_HOST
+  const envFile = join(directory, "preview.env")
+  childEnv.CLEO_PREVIEW_ENV_FILE = envFile
+  // With --env-file, the CLI reads deployment selection from the file only.
+  writeFileSync(
+    envFile,
+    `CONVEX_DEPLOY_KEY=${JSON.stringify(env.CONVEX_DEPLOY_KEY)}\n`,
+    { mode: 0o600 }
+  )
+  return {
+    childEnv,
+    envFile,
+    frontendEnv: (url) => {
+      const frontend = { ...childEnv, NEXT_PUBLIC_CONVEX_URL: url }
+      delete frontend.CONVEX_DEPLOY_KEY
+      delete frontend.CLEO_PREVIEW_ENV_FILE
+      return frontend
+    },
+  }
+}
+
 async function main() {
   const env = process.env
   if (env.VERCEL_ENV === "production") {
@@ -235,21 +263,10 @@ async function main() {
   await verifyClerkInstance(env, config)
   const directory = mkdtempSync(join(tmpdir(), "cleo-review-"))
   const original = readFileSync(stampPath)
-  const childEnv = { ...env, CLEO_PREVIEW_URL_FILE: join(directory, "url") }
-  delete childEnv.CONVEX_DEPLOYMENT
-  delete childEnv.CONVEX_SELF_HOSTED_URL
-  delete childEnv.CONVEX_SELF_HOSTED_ADMIN_KEY
-  delete childEnv.CONVEX_DEPLOYMENT_TOKEN
-  delete childEnv.CONVEX_OVERRIDE_ACCESS_TOKEN
-  delete childEnv.CONVEX_PROVISION_HOST
-  const envFile = join(directory, "preview.env")
-  childEnv.CLEO_PREVIEW_ENV_FILE = envFile
   try {
-    // With --env-file, the CLI reads deployment selection from the file only.
-    writeFileSync(
-      envFile,
-      `CONVEX_DEPLOY_KEY=${JSON.stringify(env.CONVEX_DEPLOY_KEY)}\n`,
-      { mode: 0o600 }
+    const { childEnv, envFile, frontendEnv } = preparePreviewEnvironments(
+      env,
+      directory
     )
     // Convex runs --cmd BEFORE its push. Capture only, then await the full push.
     run(
@@ -287,10 +304,6 @@ async function main() {
         throw new Error("Preview receipt failed.")
       return receipt.value
     }
-    // The frontend build receives no privileged backend deploy credential.
-    const frontendEnv = { ...childEnv, NEXT_PUBLIC_CONVEX_URL: url }
-    delete frontendEnv.CONVEX_DEPLOY_KEY
-    delete frontendEnv.CLEO_PREVIEW_ENV_FILE
     const value = await verifyAndBuildPreview(config, url, {
       receipt: () => read("query", "previewHealth:read"),
       providers: () => {
@@ -316,7 +329,10 @@ async function main() {
         )
       },
       buildFrontend: async () =>
-        run(["run", "--filter", "@workspace/dashboard", "build"], frontendEnv),
+        run(
+          ["run", "--filter", "@workspace/dashboard", "build"],
+          frontendEnv(url)
+        ),
     })
     console.log(JSON.stringify({ previewReceipt: value }))
   } finally {
