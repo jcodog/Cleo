@@ -1,0 +1,19 @@
+AGENTS.md
+  s_12bfccf1ed7354::t_462050e47dfc06 163-164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ab10644af3955672d4c0ae0d275852050f182da",
+  "prompts": {},
+  "sessions": {
+    "s_12bfccf1ed7354": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ec6e-df47-7b21-815a-2c349e2993bf",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
