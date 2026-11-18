@@ -3863,6 +3863,18 @@ export declare const internal: {
       { priceIds: Array<string>; productId: string },
       Array<{ priceId: string; productId: string }>
     >;
+    rejectUnclaimed: FunctionReference<
+      "mutation",
+      "internal",
+      { accountId: string; key: string; rejection: string; request: string },
+      boolean
+    >;
+    startDispatch: FunctionReference<
+      "mutation",
+      "internal",
+      { accountId: string; key: string; worker: string },
+      null
+    >;
   };
   communityActions: {
     publishLinkedRoles: FunctionReference<

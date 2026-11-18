@@ -8,6 +8,7 @@ export const billingCatalogueOperations = defineTable({
   request: v.string(),
   worker: v.string(),
   leaseUntil: v.number(),
+  dispatched: v.optional(v.boolean()),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
   result: v.optional(v.string()),

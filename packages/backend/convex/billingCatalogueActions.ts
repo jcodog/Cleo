@@ -165,24 +165,43 @@ export const change = action({
     const issuer = backendEnv.CLERK_JWT_ISSUER_DOMAIN
     if (!issuer || !issuer.startsWith("https://"))
       throw new Error("Clerk session verification is unavailable.")
-    const { payload } = await jwtVerify(
-      args.sessionToken,
-      createRemoteJWKSet(
-        new URL(`${issuer.replace(/\/$/, "")}/.well-known/jwks.json`)
-      ),
-      { issuer, algorithms: ["RS256"] }
-    )
-    requireCatalogueSessionClaims(
-      payload,
-      authority,
-      Math.floor(Date.now() / 1000),
-      configuredBillingOrigins()
-    )
-    const worker = randomUUID()
-    const previous = await ctx.runMutation(internal.billingCatalogue.claim, {
+    const operation = {
       key,
       request: JSON.stringify(change),
       accountId: authority.accountId,
+    }
+    try {
+      const { payload } = await jwtVerify(
+        args.sessionToken,
+        createRemoteJWKSet(
+          new URL(`${issuer.replace(/\/$/, "")}/.well-known/jwks.json`)
+        ),
+        { issuer, algorithms: ["RS256"] }
+      )
+      requireCatalogueSessionClaims(
+        payload,
+        authority,
+        Math.floor(Date.now() / 1000),
+        configuredBillingOrigins()
+      )
+    } catch (error) {
+      const rejection =
+        "Verify your Clerk session before proposing another catalogue change."
+      if (
+        await ctx.runMutation(internal.billingCatalogue.rejectUnclaimed, {
+          ...operation,
+          rejection,
+        })
+      )
+        throw new ConvexError({
+          code: "CATALOGUE_NOT_SUBMITTED",
+          message: rejection,
+        })
+      throw error
+    }
+    const worker = randomUUID()
+    const previous = await ctx.runMutation(internal.billingCatalogue.claim, {
+      ...operation,
       worker,
     })
     if (typeof previous === "object") {
@@ -196,7 +215,12 @@ export const change = action({
     let mapping: { productId: string; priceId: string } | undefined
     const idempotency = `cleo-catalogue:${authority.accountId}:${authority.clerkUserId}:${key}`
     let submitted = false
-    const write = (path: string, fields: Record<string, string>) => {
+    const write = async (path: string, fields: Record<string, string>) => {
+      await ctx.runMutation(internal.billingCatalogue.startDispatch, {
+        key,
+        worker,
+        accountId: operation.accountId,
+      })
       submitted = true
       return stripeRequest(path, fields, idempotency)
     }

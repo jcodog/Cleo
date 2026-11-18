@@ -230,17 +230,21 @@ test("a successful profile reload clears the earlier failure after payment setup
   await page.goto(
     "/billing?community&navigation&accountUI&emptyBilling&failFirstProfile"
   )
+  const failure = page.getByText("Subscription details could not be loaded.")
+  await expect(failure).toBeVisible()
+  await page.waitForFunction(
+    () => sessionStorage.getItem("profile-recovery-setup-waiting") === "true"
+  )
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event("resolve-profile-recovery-setup"))
+  )
   await expect(
     page.getByText("Payment method saved as your default.")
   ).toBeVisible()
   await expect(
     page.getByRole("heading", { name: "No subscriptions yet" })
   ).toBeVisible()
-  await expect(
-    page.getByText("Subscription details could not be loaded.", {
-      exact: false,
-    })
-  ).toHaveCount(0)
+  await expect(failure).toHaveCount(0)
 })
 
 test("rejected catalogue operations show their terminal status without a retry action", async ({

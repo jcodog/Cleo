@@ -403,6 +403,30 @@ test("deleted guild records revoke previously verified memberships even when the
   await assert.rejects(f.access(), /Verified Discord guild management/)
 })
 
+test("removed guilds revoke legacy memberships still present in Discord snapshots", async (t) => {
+  const f = await fixture()
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  const guild = f.guilds[0]!
+  await f.t.run(async (ctx) => {
+    await ctx.db.patch(guild.membershipId, {
+      discordGuildId: undefined,
+      canManage: true,
+      isOwner: true,
+      permissions: "8",
+    })
+    await ctx.db.patch(guild.guildId, { botLeftAt: now })
+  })
+  now += 10
+  await f.refresh([{ id: guild.externalId, owner: true, permissions: "8" }])
+  const membership = await f.t.run((ctx) => ctx.db.get(guild.membershipId))
+  assert.equal(membership?.discordGuildId, guild.externalId)
+  assert.equal(membership?.canManage, false)
+  assert.equal(membership?.isOwner, false)
+  assert.equal(membership?.permissions, "0")
+  assert.ok(membership?.revokedAt)
+})
+
 test("repeated revoked memberships avoid redundant guild reads and writes", async (t) => {
   const f = await fixture(120)
   let now = Date.now()

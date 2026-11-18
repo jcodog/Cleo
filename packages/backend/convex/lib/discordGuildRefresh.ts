@@ -59,7 +59,11 @@ export async function reconcileDiscordGuildRefresh(
       )
         continue
       const guild = await ctx.db.get(membership.guildId)
-      if (!guild || !incoming.has(guild.discordGuildId)) {
+      if (
+        !guild ||
+        guild.botLeftAt !== undefined ||
+        !incoming.has(guild.discordGuildId)
+      ) {
         // Do not overwrite a separately verified observation newer than this snapshot.
         if ((membership.managementVerifiedAt ?? 0) > refresh.startedAt) continue
         // Backfill the ID on the first revocation. Future negative snapshots

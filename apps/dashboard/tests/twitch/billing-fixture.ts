@@ -143,24 +143,36 @@ export function billingFixture(path: string, args: unknown): unknown {
         sessionStorage.setItem("setup-fixture-previous-waiting", "true")
       })
     }
-    hasCustomer = true
-    if (params.has("setupFailed")) return "failed"
-    if (params.has("setupProcessing")) return "processing"
-    methods = [
-      {
-        id: "pm_new",
-        type: "card",
-        label: "visa card",
-        last4: "1111",
-        brand: "visa",
-        expiryMonth: 12,
-        expiryYear: 2032,
-        manageable: true,
-      },
-      ...methods.filter((method) => method.id !== "pm_new"),
-    ]
-    customer.defaultMethodId = "pm_new"
-    return "saved"
+    const save = () => {
+      hasCustomer = true
+      if (params.has("setupFailed")) return "failed"
+      if (params.has("setupProcessing")) return "processing"
+      methods = [
+        {
+          id: "pm_new",
+          type: "card",
+          label: "visa card",
+          last4: "1111",
+          brand: "visa",
+          expiryMonth: 12,
+          expiryYear: 2032,
+          manageable: true,
+        },
+        ...methods.filter((method) => method.id !== "pm_new"),
+      ]
+      customer.defaultMethodId = "pm_new"
+      return "saved"
+    }
+    if (params.has("failFirstProfile"))
+      return new Promise<string>((resolve) => {
+        window.addEventListener(
+          "resolve-profile-recovery-setup",
+          () => resolve(save()),
+          { once: true }
+        )
+        sessionStorage.setItem("profile-recovery-setup-waiting", "true")
+      })
+    return save()
   }
   if (path === "billingPortalActions:cancelSetup") return null
   if (path === "billingPortalActions:updateDetails") {

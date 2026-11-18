@@ -36,10 +36,10 @@ export function previewConfig(env) {
   if (
     env.VERCEL_GIT_REPO_OWNER !== "jcodog" ||
     env.VERCEL_GIT_REPO_SLUG !== "Cleo" ||
-    env.VERCEL_GIT_COMMIT_REF !== "perf/convex-community-role-io"
+    env.VERCEL_GIT_COMMIT_REF !== "feat/cleo-dashboard-account-billing"
   )
     throw new PreviewConfigurationError(
-      "Only the approved stacked review branch may deploy a backend."
+      "Only the approved PR #284 branch may deploy an isolated Preview backend."
     )
   if (!/^preview:[^:|\s]+:[^:|\s]+\|[^\s]+$/.test(env.CONVEX_DEPLOY_KEY ?? ""))
     throw new PreviewConfigurationError(

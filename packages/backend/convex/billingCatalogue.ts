@@ -8,6 +8,7 @@ import {
   type MutationCtx,
 } from "./_generated/server"
 import { requireCurrentUser, requireStaff } from "./lib/auth"
+import type { Id } from "./_generated/dataModel"
 
 async function manager(ctx: QueryCtx | MutationCtx) {
   const user = await requireCurrentUser(ctx)
@@ -79,11 +80,72 @@ export const mappings = internalQuery({
       }))
   },
 })
+const operationArgs = {
+  key: v.string(),
+  request: v.string(),
+  accountId: v.string(),
+}
+
+function operationByKey(ctx: MutationCtx, userId: Id<"users">, key: string) {
+  return ctx.db
+    .query("billingCatalogueOperations")
+    .withIndex("by_user_key", (q) => q.eq("userId", userId).eq("key", key))
+    .unique()
+}
+
+async function requireWriteAccount(ctx: MutationCtx, accountId: string) {
+  const user = await manager(ctx)
+  if (
+    backendEnv.STRIPE_CATALOGUE_WRITES_ENABLED !== "true" ||
+    accountId !== backendEnv.STRIPE_EXPECTED_ACCOUNT_ID
+  )
+    throw new ConvexError(
+      "Sandbox catalogue writes are disabled or account changed."
+    )
+  return user
+}
+
+async function recordUnsubmitted(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  args: { key: string; request: string; accountId: string },
+  rejection: string
+) {
+  const now = Date.now()
+  await ctx.db.insert("billingCatalogueOperations", {
+    key: args.key,
+    request: args.request,
+    accountId: args.accountId,
+    userId,
+    worker: "",
+    createdAt: now,
+    leaseUntil: 0,
+    dispatched: false,
+    completedAt: now,
+    rejection,
+  })
+}
+
+export const rejectUnclaimed = internalMutation({
+  args: { ...operationArgs, rejection: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const user = await requireWriteAccount(ctx, args.accountId)
+    const existing = await operationByKey(ctx, user._id, args.key)
+    if (existing)
+      return (
+        existing.accountId === args.accountId &&
+        existing.request === args.request &&
+        existing.rejection !== undefined
+      )
+    await recordUnsubmitted(ctx, user._id, args, args.rejection)
+    return true
+  },
+})
+
 export const claim = internalMutation({
   args: {
-    key: v.string(),
-    request: v.string(),
-    accountId: v.string(),
+    ...operationArgs,
     worker: v.string(),
   },
   returns: v.union(
@@ -93,20 +155,8 @@ export const claim = internalMutation({
     v.object({ rejection: v.string() })
   ),
   handler: async (ctx, args) => {
-    const user = await manager(ctx)
-    if (
-      backendEnv.STRIPE_CATALOGUE_WRITES_ENABLED !== "true" ||
-      args.accountId !== backendEnv.STRIPE_EXPECTED_ACCOUNT_ID
-    )
-      throw new ConvexError(
-        "Sandbox catalogue writes are disabled or account changed."
-      )
-    const row = await ctx.db
-      .query("billingCatalogueOperations")
-      .withIndex("by_user_key", (q) =>
-        q.eq("userId", user._id).eq("key", args.key)
-      )
-      .unique()
+    const user = await requireWriteAccount(ctx, args.accountId)
+    const row = await operationByKey(ctx, user._id, args.key)
     if (row) {
       if (row.request !== args.request || row.accountId !== args.accountId)
         throw new ConvexError(
@@ -126,7 +176,8 @@ export const claim = internalMutation({
         worker: args.worker,
         leaseUntil: Date.now() + 60000,
       })
-      return "retry" as const
+      // A legacy operation without a dispatch receipt may have reached Stripe.
+      return row.dispatched === false ? "first" : "retry"
     } else {
       const pending = await ctx.db
         .query("billingCatalogueOperations")
@@ -134,20 +185,45 @@ export const claim = internalMutation({
           q.eq("userId", user._id).eq("completedAt", undefined)
         )
         .first()
-      if (pending)
-        throw new ConvexError(
+      if (pending) {
+        const rejection =
           "Resolve the recorded operation before starting another change."
-        )
+        await recordUnsubmitted(ctx, user._id, args, rejection)
+        return { rejection }
+      }
       await ctx.db.insert("billingCatalogueOperations", {
         ...args,
         userId: user._id,
         createdAt: Date.now(),
         leaseUntil: Date.now() + 60000,
+        dispatched: false,
       })
     }
     return "first" as const
   },
 })
+export const startDispatch = internalMutation({
+  args: { key: v.string(), worker: v.string(), accountId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireWriteAccount(ctx, args.accountId)
+    const row = await operationByKey(ctx, user._id, args.key)
+    if (
+      !row ||
+      row.completedAt !== undefined ||
+      row.worker !== args.worker ||
+      row.leaseUntil <= Date.now() ||
+      row.accountId !== args.accountId
+    )
+      throw new ConvexError(
+        "Catalogue operation authority expired. Retry the same operation."
+      )
+    if (row.dispatched !== true)
+      await ctx.db.patch(row._id, { dispatched: true })
+    return null
+  },
+})
+
 export const complete = internalMutation({
   args: {
     key: v.string(),
@@ -165,12 +241,7 @@ export const complete = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const user = await manager(ctx)
-    const row = await ctx.db
-      .query("billingCatalogueOperations")
-      .withIndex("by_user_key", (q) =>
-        q.eq("userId", user._id).eq("key", args.key)
-      )
-      .unique()
+    const row = await operationByKey(ctx, user._id, args.key)
     if (
       !row ||
       row.completedAt !== undefined ||

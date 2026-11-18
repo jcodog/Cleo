@@ -18,7 +18,7 @@ const env = {
   VERCEL_ENV: "preview",
   VERCEL_GIT_REPO_OWNER: "jcodog",
   VERCEL_GIT_REPO_SLUG: "Cleo",
-  VERCEL_GIT_COMMIT_REF: "perf/convex-community-role-io",
+  VERCEL_GIT_COMMIT_REF: "feat/cleo-dashboard-account-billing",
   VERCEL_GIT_COMMIT_SHA: "a".repeat(40),
   CONVEX_DEPLOY_KEY: "preview:test-team:test-project|fixture",
   CLEO_PREVIEW_ORIGIN: "https://review.example.com",
@@ -50,7 +50,7 @@ test("unconfigured Git previews are skipped before entering the privileged build
         VERCEL_ENV: "preview",
         VERCEL_GIT_REPO_OWNER: "jcodog",
         VERCEL_GIT_REPO_SLUG: "Cleo",
-        VERCEL_GIT_COMMIT_REF: "perf/convex-community-role-io",
+        VERCEL_GIT_COMMIT_REF: "feat/cleo-dashboard-account-billing",
         CONVEX_DEPLOY_KEY: "",
         ...overrides,
       },
@@ -65,7 +65,7 @@ test("unconfigured Git previews are skipped before entering the privileged build
   assert.equal(
     run({
       CONVEX_DEPLOY_KEY: env.CONVEX_DEPLOY_KEY,
-      VERCEL_GIT_COMMIT_REF: "feat/cleo-dashboard-account-billing",
+      VERCEL_GIT_COMMIT_REF: "perf/convex-community-role-io",
     }).status,
     0
   )
@@ -88,6 +88,7 @@ test("only the trusted preview source, Preview project key and matching developm
     { VERCEL_ENV: "production" },
     { VERCEL_GIT_REPO_OWNER: "fork" },
     { VERCEL_GIT_COMMIT_REF: "untrusted" },
+    { VERCEL_GIT_COMMIT_REF: "perf/convex-community-role-io" },
     { VERCEL_GIT_COMMIT_SHA: "short" },
     { CONVEX_DEPLOY_KEY: "" },
     { CONVEX_DEPLOY_KEY: "prod:deployment|fixture" },
@@ -258,7 +259,7 @@ test("the installed CLI reads explicit Preview selection from a private env file
   assert.equal(deploy.status, 0, deploy.stderr)
   assert.match(
     deploy.stderr + deploy.stdout,
-    /Would have claimed preview deployment for "perf\/convex-community-role-io"/
+    /Would have claimed preview deployment for "feat\/cleo-dashboard-account-billing"/
   )
 })
 

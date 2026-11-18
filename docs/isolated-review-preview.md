@@ -1,8 +1,7 @@
-# Isolated review preview for #288 / JCN-261
+# Isolated dashboard Preview for PR #284
 
-This runbook applies to the existing `perf/convex-community-role-io` branch,
-PR #285 stacked on `feat/cleo-dashboard-account-billing` / PR #284. It does not
-authorise a merge, production deployment, live billing or history rewrite.
+This runbook applies to the consolidated PR #284 on
+`feat/cleo-dashboard-account-billing`.
 
 ## Build contract
 
@@ -47,9 +46,8 @@ stamp in `finally`. No `--preview-create`, data import, data reset, `--prod`,
 shared development deploy or production credentials are used.
 
 The receipt checks source SHA, branch, canonical URL, billing tables and
-isolation configuration. On stacked PR #285 it also checks the membership
-index. The standalone #284 receipt checks its billing tables. Clerk secret
-ownership is checked against the instance domain, and any configured Stripe
+isolation configuration. It also checks the Discord membership index. Clerk
+secret ownership is checked against the instance domain, and any configured Stripe
 secret is checked against the actual approved sandbox account. The successful Convex push
 validates the complete source schema. The four probes reach auth guards for
 `accountBilling:overview`, `billingCatalogue:access`,
@@ -68,7 +66,7 @@ deployment's key, is rejected before invoking the CLI.
 2. Review the code and commit signature before releasing any credential.
    In Vercel team **jconet-ltd**, project **cleo**, open **Settings → Environment
    Variables**. Add `CONVEX_DEPLOY_KEY` as sensitive, target **Preview only**,
-   restricted to Git branch `perf/convex-community-role-io`. Do not select all
+   restricted to Git branch `feat/cleo-dashboard-account-billing`. Do not select all
    Preview branches. If the plan cannot enforce that scope, use a protected
    review environment with maintainer approval instead. Never put this key in
    an unrestricted PR workflow, `pull_request_target` checkout of PR code, or
@@ -184,11 +182,6 @@ decisions. All remain **NO-GO** while P1 findings, unmatched backend, failed
 checks, signature controls or required hosted acceptance remain unresolved.
 Only JCN-242 can authorise live charging, production deployment or live webhook
 configuration. Jason must explicitly authorise any merge.
-
-After approval, merge #284 first. Then retarget/rebase #285 onto the resulting
-main, verify merge-vs-squash ancestry and the remaining diff, and rerun CI and
-isolated preview acceptance before considering #285. These are operator steps,
-not actions performed by this implementation.
 
 Rollback is to disable/delete only the branch-restricted Preview credential
 and alias, stop Preview testing and select the last approved signed Preview

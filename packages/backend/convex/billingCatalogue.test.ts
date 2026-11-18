@@ -214,12 +214,75 @@ test("an unresolved operation survives recent-history truncation and fences a di
       (row) => row.key === "uncertain" && row.canRetry && !row.completedAt
     )
   )
+  const competing = { ...args, key: "different" }
+  const blocked = await f.finance.mutation(
+    internal.billingCatalogue.claim,
+    competing
+  )
+  assert.deepEqual(blocked, {
+    rejection: "Resolve the recorded operation before starting another change.",
+  })
+  await f.finance.mutation(internal.billingCatalogue.complete, {
+    key: args.key,
+    worker: args.worker,
+    outcome: { result: "prod_done" },
+  })
+  assert.deepEqual(
+    await f.finance.mutation(internal.billingCatalogue.claim, competing),
+    blocked,
+    "a rejected competing proposal cannot submit after the first operation clears"
+  )
+})
+
+test("only the active catalogue lease can mark dispatch, and takeover preserves uncertainty", async () => {
+  const f = await fixture()
+  const args = {
+    key: "dispatch",
+    request: "{}",
+    accountId: process.env.STRIPE_EXPECTED_ACCOUNT_ID!,
+    worker: "one",
+  }
+  assert.equal(
+    await f.finance.mutation(internal.billingCatalogue.claim, args),
+    "first"
+  )
+  const releaseLease = () =>
+    f.t.run(async (ctx) => {
+      const row = await ctx.db.query("billingCatalogueOperations").first()
+      assert.ok(row)
+      await ctx.db.patch(row._id, { leaseUntil: 0 })
+    })
+  await releaseLease()
+  const next = { ...args, worker: "two" }
+  assert.equal(
+    await f.finance.mutation(internal.billingCatalogue.claim, next),
+    "first"
+  )
+  const { request: _request, ...dispatch } = args
   await assert.rejects(
-    f.finance.mutation(internal.billingCatalogue.claim, {
-      ...args,
-      key: "different",
+    f.finance.mutation(internal.billingCatalogue.startDispatch, dispatch),
+    /authority expired/
+  )
+  assert.equal(
+    await f.finance.mutation(internal.billingCatalogue.rejectUnclaimed, {
+      key: args.key,
+      request: args.request,
+      accountId: args.accountId,
+      rejection: "stale session",
     }),
-    /Resolve the recorded operation/
+    false
+  )
+  await f.finance.mutation(internal.billingCatalogue.startDispatch, {
+    ...dispatch,
+    worker: next.worker,
+  })
+  await releaseLease()
+  assert.equal(
+    await f.finance.mutation(internal.billingCatalogue.claim, {
+      ...args,
+      worker: "three",
+    }),
+    "retry"
   )
 })
 
@@ -448,11 +511,11 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
     }
     throw new Error(`Unexpected catalogue endpoint ${url.pathname}`)
   }
-  const run = (request: object, key = randomUUID()) =>
+  const run = (request: object, key = randomUUID(), sessionToken = token) =>
     f.finance.action(api.billingCatalogueActions.change, {
       key,
       request: JSON.stringify(request),
-      sessionToken: token,
+      sessionToken,
       confirmation: "CONFIRM SANDBOX CHANGE",
     })
   await f.t.run((ctx) =>
@@ -477,6 +540,11 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
     error.data !== null &&
     "code" in error.data &&
     error.data.code === "CATALOGUE_NOT_SUBMITTED"
+  const badSessionKey = randomUUID()
+  await assert.rejects(run(createPrice, badSessionKey, "invalid-jwt"), rejected)
+  await assert.rejects(run(createPrice, badSessionKey), rejected)
+  assert.equal(writes.length, 0)
+
   const rejectedKey = randomUUID()
   await assert.rejects(
     run({ ...createPrice, currency: "zzz" }, rejectedKey),
@@ -503,8 +571,15 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
     await accountResumed
   }
   const first = run(createPrice, replayKey)
-  await accountReached
   try {
+    await Promise.race([
+      accountReached,
+      first.then(() => {
+        throw new Error(
+          "Catalogue action exited before reaching account lookup."
+        )
+      }),
+    ])
     accountFailure = true
     await assert.rejects(
       run(createPrice, replayKey),

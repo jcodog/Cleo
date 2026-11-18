@@ -8,7 +8,7 @@ const ignore =
     (!configured ||
       process.env.VERCEL_GIT_REPO_OWNER !== "jcodog" ||
       process.env.VERCEL_GIT_REPO_SLUG !== "Cleo" ||
-      process.env.VERCEL_GIT_COMMIT_REF !== "perf/convex-community-role-io"))
+      process.env.VERCEL_GIT_COMMIT_REF !== "feat/cleo-dashboard-account-billing"))
 
 console.log(
   ignore

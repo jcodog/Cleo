@@ -58,6 +58,7 @@ export type DataModel = {
       accountId: string;
       completedAt?: number;
       createdAt: number;
+      dispatched?: boolean;
       key: string;
       leaseUntil: number;
       rejection?: string;
@@ -74,6 +75,7 @@ export type DataModel = {
       | "accountId"
       | "completedAt"
       | "createdAt"
+      | "dispatched"
       | "key"
       | "leaseUntil"
       | "rejection"
