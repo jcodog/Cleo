@@ -1,6 +1,7 @@
 import type { BillingProfile } from "../../src/features/billing/PaymentForms"
 
 const params = new URLSearchParams(location.search)
+let failNextProfile = false
 let hasCustomer = !params.has("emptyBilling")
 const customer = {
   name: "Cleo Tester",
@@ -41,8 +42,10 @@ let methods: BillingProfile["methods"] = params.has("emptyBilling")
     ]
 export function billingFixture(path: string, args: unknown): unknown {
   if (path === "billingPortalActions:profile") {
-    if (params.has("failBillingProfile"))
+    if (failNextProfile || params.has("failBillingProfile")) {
+      failNextProfile = false
       throw new Error("Provider unavailable")
+    }
     return {
       clerkUserId: "fixture-clerk",
       customer: hasCustomer ? { ...customer } : null,
@@ -80,6 +83,14 @@ export function billingFixture(path: string, args: unknown): unknown {
                   interval: "month",
                   intervalCount: 1,
                 },
+                {
+                  name: "Additional seats",
+                  amount: 100,
+                  currency: "gbp",
+                  quantity: 2,
+                  interval: "month",
+                  intervalCount: 1,
+                },
               ],
             },
           ],
@@ -91,7 +102,7 @@ export function billingFixture(path: string, args: unknown): unknown {
     return {
       id: "seti_fixture",
       clientSecret: "seti_fixture_secret_fixture",
-      returnUrl: `${location.origin}/billing`,
+      returnUrl: `${location.origin}/billing/payment-details`,
     }
   }
   if (path === "billingPortalActions:completeSetup") {
@@ -166,8 +177,10 @@ export function billingFixture(path: string, args: unknown): unknown {
     if (params.has("failMethodChange"))
       throw new Error("Provider rejected update")
     const id = args.paymentMethodId
-    if (path.endsWith(":makeDefault")) customer.defaultMethodId = id
-    else methods = methods.filter((method) => method.id !== id)
+    if (path.endsWith(":makeDefault")) {
+      customer.defaultMethodId = id
+      failNextProfile = params.has("failBillingRefresh")
+    } else methods = methods.filter((method) => method.id !== id)
     return null
   }
   return undefined

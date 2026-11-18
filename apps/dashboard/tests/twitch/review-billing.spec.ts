@@ -10,7 +10,7 @@ test("unfinished setup recovery clears a terminal attempt rather than retaining 
     )
   )
   await page.goto(
-    "/billing?community&navigation&accountUI&emptyBilling&setupFailed"
+    "/billing/payment-details?community&navigation&accountUI&emptyBilling&setupFailed"
   )
   await expect(
     page.getByText("Payment setup was not completed. Please try again.")
@@ -85,7 +85,9 @@ test("an invalid yearly price never enters catalogue recovery", async ({
     "/staff/billing/products/prod_fixture?community&navigation&accountUI"
   )
   await page.getByLabel("Amount in minor units").fill("499")
-  await page.getByRole("combobox", { name: /Billing period/ }).selectOption("year")
+  await page
+    .getByRole("combobox", { name: /Billing period/ })
+    .selectOption("year")
   await page.getByLabel("Interval count").fill("4")
   await page.getByRole("button", { name: "Review new price" }).click()
   await expect(page.getByRole("alert")).toContainText(
@@ -161,7 +163,7 @@ test("a slow older setup status cannot clear the newer processing setup", async 
     storageKey
   )
   await page.goto(
-    "/billing?community&navigation&accountUI&emptyBilling&setupRace&setupProcessing"
+    "/billing/payment-details?community&navigation&accountUI&emptyBilling&setupRace&setupProcessing"
   )
   await expect
     .poll(() =>

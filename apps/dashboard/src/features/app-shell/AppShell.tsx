@@ -12,6 +12,7 @@ export function AppShell({
   showPlatformSelector,
   staffEntry,
   hideSidebar = false,
+  showLinkedRoles = true,
 }: AppShellProps) {
   if (hideSidebar)
     return (
@@ -29,6 +30,7 @@ export function AppShell({
         footerNavSections={footerNavSections}
         showDiscordGuildSelect={showDiscordGuildSelect}
         showPlatformSelector={showPlatformSelector}
+        showLinkedRoles={showLinkedRoles}
       />
 
       <SidebarInset className="min-h-0 overflow-hidden">

@@ -15,7 +15,13 @@ import {
 } from "@/features/billing/PaymentDetails"
 import type { BillingProfile } from "@/features/billing/PaymentForms"
 
-export function PersonalBilling() {
+export type BillingView = "subscriptions" | "payment-details" | "invoices"
+
+export function PersonalBilling({
+  view = "subscriptions",
+}: {
+  view?: BillingView
+}) {
   const { userId, sessionId, isLoaded } = useAuth()
   const { isAuthenticated, isLoading } = useConvexAuth()
   if (!isLoaded || !userId) return <p role="status">Loading billing account…</p>
@@ -27,10 +33,18 @@ export function PersonalBilling() {
         your billing details.
       </p>
     )
-  return <Billing key={`${userId}:${sessionId}`} clerkUserId={userId} />
+  return (
+    <Billing key={`${userId}:${sessionId}`} clerkUserId={userId} view={view} />
+  )
 }
 
-function Billing({ clerkUserId }: { clerkUserId: string }) {
+function Billing({
+  clerkUserId,
+  view,
+}: {
+  clerkUserId: string
+  view: BillingView
+}) {
   const { sessionId } = useAuth()
   const ledger = useQuery(api.accountBilling.overview, {})
   const loadProfile = useAction(api.billingPortalActions.profile)
@@ -63,7 +77,9 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
     let active = true
     void loadProfile({})
       .then((value) => {
-        if (active && value.clerkUserId === clerkUserId) setProfile(value)
+        if (value.clerkUserId !== clerkUserId)
+          throw new Error("Billing profile identity mismatch")
+        if (active) setProfile(value)
       })
       .catch(() => {
         if (active) {
@@ -104,6 +120,7 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
       .then((status) => {
         if (!active || currentSetup.current !== setupIntentId) return
         if (status === "saved" || status === "failed") {
+          currentSetup.current = null
           try {
             sessionStorage.removeItem(storageKey)
           } catch {
@@ -150,19 +167,28 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
     }
   }
   if (!ledger || ledger.clerkUserId !== clerkUserId)
-    return <p role="status">Loading your subscriptions…</p>
+    return <p role="status">Loading billing…</p>
   return (
     <section className="mx-auto w-full max-w-6xl space-y-8 py-3 sm:py-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-xl space-y-2">
           <h1 className="font-heading text-2xl font-medium">
-            Billing and subscriptions
+            {view === "subscriptions"
+              ? "Subscriptions"
+              : view === "payment-details"
+                ? "Payment details"
+                : "Invoices"}
           </h1>
           <p className="text-sm leading-6 text-muted-foreground">
-            Manage your payment details, subscriptions and invoices.
+            {view === "subscriptions"
+              ? "Manage your community Premium subscriptions."
+              : view === "payment-details"
+                ? "Manage your saved payment methods and billing address."
+                : "View and download your invoices."}
           </p>
         </div>
-        {ledger.canManageBilling &&
+        {view === "subscriptions" &&
+        ledger.canManageBilling &&
         (ledger.subscriptions.length > 0 || !!profile?.subscriptions.length) ? (
           <Button
             variant="outline"
@@ -210,237 +236,256 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
           Check payment setup status
         </Button>
       ) : null}
-      <PaymentDetails
-        profile={profile}
-        loading={!profile && !profileFailed}
-        failed={profileFailed}
-        onRefresh={refreshProfile}
-        onNotice={setNotice}
-        onSetupPending={rememberSetup}
-        onManage={() =>
-          void run(async () => {
-            window.location.assign(
-              await portal({ returnOrigin: window.location.origin })
-            )
-          })
-        }
-      />
-      <section aria-labelledby="subscriptions-heading" className="space-y-5">
-        <h2
-          id="subscriptions-heading"
-          className="font-heading text-lg font-medium"
-        >
-          Subscriptions
-        </h2>
-        {!ledger.canManageBilling && ledger.subscriptions.length ? (
-          <p className="text-sm text-muted-foreground">
-            Billing management is currently unavailable. Contact Cleo support if
-            you need help with an existing subscription.
-          </p>
-        ) : null}
-        {!profile && !profileFailed && ledger.subscriptions.length === 0 ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            Loading subscriptions…
-          </p>
-        ) : profileFailed && ledger.subscriptions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Subscription details could not be loaded. Retry payment details
-            above.
-          </p>
-        ) : ledger.subscriptions.length === 0 &&
-          !profile?.subscriptions.length ? (
-          <div className="space-y-3 pb-2">
-            <h3 className="text-sm font-medium">No subscriptions yet</h3>
-            <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-              Community Premium purchases made with this account will appear
-              here after payment verification.
-            </p>
-            <Button
-              nativeButton={false}
-              render={<Link href="/dashboard/servers" />}
-            >
-              View your servers
+      {view === "payment-details" ? (
+        <PaymentDetails
+          profile={profile}
+          loading={!profile && !profileFailed}
+          failed={profileFailed}
+          onRefresh={refreshProfile}
+          onNotice={setNotice}
+          onSetupPending={rememberSetup}
+          onManage={() =>
+            void run(async () => {
+              window.location.assign(
+                await portal({ returnOrigin: window.location.origin })
+              )
+            })
+          }
+        />
+      ) : null}
+      {view === "subscriptions" ? (
+        <section aria-label="Subscriptions" className="space-y-5">
+          {profileFailed ? (
+            <Button variant="outline" onClick={refreshProfile}>
+              Retry subscription details
             </Button>
-          </div>
-        ) : (
-          <div className="divide-y">
-            {ledger.subscriptions.map((subscription) => {
-              const stripeSubscription = profile?.subscriptions.find(
-                (row) => row.id === subscription.stripeSubscriptionId
-              )
-              const recognition = subscription.recognition
-              return (
-                <article
-                  key={subscription.id}
-                  className="space-y-5 py-6 first:pt-0"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <h2 className="font-heading text-lg font-medium">
-                        {subscription.guildName ?? "Community unavailable"}
-                      </h2>
-                      {stripeSubscription?.items.length ? (
-                        stripeSubscription.items.map((price, index) => (
-                          <p
-                            key={`${price.name}:${index}`}
-                            className="text-sm text-muted-foreground"
-                          >
-                            {price.name}
-                            {price.amount !== null
-                              ? ` · ${formatStripeAmount(price.amount * price.quantity, price.currency)}${price.interval ? ` / ${price.intervalCount === 1 ? price.interval : `${price.intervalCount} ${price.interval}s`}` : ""}`
-                              : ""}
+          ) : null}
+          {!ledger.canManageBilling && ledger.subscriptions.length ? (
+            <p className="text-sm text-muted-foreground">
+              Billing management is currently unavailable. Contact Cleo support
+              if you need help with an existing subscription.
+            </p>
+          ) : null}
+          {!profile && !profileFailed && ledger.subscriptions.length === 0 ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              Loading subscriptions…
+            </p>
+          ) : profileFailed && ledger.subscriptions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Subscription details could not be loaded. Please try again.
+            </p>
+          ) : ledger.subscriptions.length === 0 &&
+            !profile?.subscriptions.length ? (
+            <div className="space-y-3 pb-2">
+              <h2 className="text-sm font-medium">No subscriptions yet</h2>
+              <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+                Community Premium purchases made with this account will appear
+                here after payment verification.
+              </p>
+              <Button
+                nativeButton={false}
+                render={<Link href="/dashboard/servers" />}
+              >
+                View your servers
+              </Button>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {ledger.subscriptions.map((subscription) => {
+                const stripeSubscription = profile?.subscriptions.find(
+                  (row) => row.id === subscription.stripeSubscriptionId
+                )
+                const recognition = subscription.recognition
+                return (
+                  <article
+                    key={subscription.id}
+                    className="space-y-5 py-6 first:pt-0"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <h2 className="font-heading text-lg font-medium">
+                          {subscription.guildName ?? "Community unavailable"}
+                        </h2>
+                        {stripeSubscription?.items.length ? (
+                          stripeSubscription.items.map((price, index) => {
+                            const period = price.interval
+                              ? price.intervalCount === 1
+                                ? price.interval
+                                : `${price.intervalCount} ${price.interval}s`
+                              : null
+                            return (
+                              <p
+                                key={`${price.name}:${index}`}
+                                className="text-sm text-muted-foreground"
+                              >
+                                {price.name}
+                                {price.amount !== null
+                                  ? ` · ${formatStripeAmount(price.amount * price.quantity, price.currency)}${period ? ` / ${period}` : ""}`
+                                  : ""}
+                              </p>
+                            )
+                          })
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Plan information unavailable
                           </p>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Plan information unavailable
-                        </p>
-                      )}
+                        )}
+                      </div>
+                      <span className="text-sm capitalize">
+                        {(
+                          stripeSubscription?.status ?? subscription.status
+                        ).replaceAll("_", " ")}
+                        {recognition?.testMode ? " · Test subscription" : ""}
+                      </span>
                     </div>
-                    <span className="text-sm capitalize">
-                      {(
-                        stripeSubscription?.status ?? subscription.status
-                      ).replaceAll("_", " ")}
-                      {recognition?.testMode ? " · Test subscription" : ""}
-                    </span>
-                  </div>
-                  <dl className="grid gap-4 text-sm sm:grid-cols-2">
-                    <div>
-                      <dt className="text-muted-foreground">
-                        {(stripeSubscription?.cancelAtPeriodEnd ??
-                        subscription.cancelAtPeriodEnd)
-                          ? "Scheduled to end"
-                          : subscription.status === "active" ||
-                              subscription.status === "trialing"
-                            ? "Current billing period ends"
-                            : "Last billing period ended"}
-                      </dt>
-                      <dd className="mt-1">
-                        {new Date(
-                          stripeSubscription?.periodEnd ?? subscription.endsAt
-                        ).toLocaleDateString()}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Last verified</dt>
-                      <dd className="mt-1">
-                        {new Date(subscription.reconciledAt).toLocaleString()}
-                      </dd>
-                    </div>
-                  </dl>
-                  {subscription.paymentFailedAt ? (
-                    <p className="text-sm text-amber-600 dark:text-amber-400">
-                      A payment failed. Review your payment method and invoice
-                      in billing management.
-                    </p>
-                  ) : null}
-                  {recognition ? (
-                    <fieldset disabled={busy} className="space-y-3">
-                      <legend className="mb-3 text-sm font-medium">
-                        Your recognition preferences
-                      </legend>
-                      <label className="flex items-center gap-3 text-sm">
-                        <Switch
-                          checked={recognition.announce}
-                          aria-label={`Announce support for ${subscription.guildName ?? "community"}`}
-                          onCheckedChange={(value) =>
-                            run(() =>
-                              preferences({
-                                activationId: recognition.id,
-                                announce: value,
-                                displayRole: recognition.displayRole,
-                              })
-                            )
-                          }
-                        />
-                        Announce my support
-                      </label>
-                      <label className="flex items-center gap-3 text-sm">
-                        <Switch
-                          checked={recognition.displayRole}
-                          aria-label={`Supporter role for ${subscription.guildName ?? "community"}`}
-                          onCheckedChange={(value) =>
-                            run(() =>
-                              preferences({
-                                activationId: recognition.id,
-                                announce: recognition.announce,
-                                displayRole: value,
-                              })
-                            )
-                          }
-                        />
-                        Display my Supporter role
-                      </label>
-                      {recognition.testMode ? (
-                        <p className="text-xs text-muted-foreground">
-                          Test subscriptions do not publish recognition.
-                        </p>
-                      ) : null}
-                    </fieldset>
-                  ) : null}
-                </article>
-              )
-            })}
-          </div>
-        )}
-        {profile?.subscriptions
-          .filter(
-            (row) =>
-              !ledger.subscriptions.some(
-                (record) => record.stripeSubscriptionId === row.id
-              )
-          )
-          .map((subscription) => (
-            <article key={subscription.id} className="space-y-3 pb-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="font-medium">
-                  {subscription.items[0]?.name ?? "Subscription"}
-                </h3>
-                <span className="text-sm capitalize">
-                  {subscription.status.replaceAll("_", " ")}
-                </span>
-              </div>
-              {subscription.items.map((item, index) => (
-                <p key={index} className="text-sm text-muted-foreground">
-                  {item.name} ·{" "}
-                  {item.amount === null
-                    ? "Usage-based pricing"
-                    : formatStripeAmount(
-                        item.amount * item.quantity,
-                        item.currency
-                      )}
-                  {item.interval
-                    ? ` / ${item.intervalCount === 1 ? item.interval : `${item.intervalCount} ${item.interval}s`}`
-                    : ""}
-                </p>
-              ))}
-              {subscription.periodEnd ? (
-                <p className="text-sm">
-                  {subscription.cancelAtPeriodEnd
-                    ? "Scheduled to end"
-                    : "Current period ends"}{" "}
-                  {new Date(subscription.periodEnd).toLocaleDateString()}
-                </p>
-              ) : null}
-            </article>
-          ))}
-        {ledger.hasMore || profile?.hasMoreSubscriptions ? (
-          <p className="text-sm text-muted-foreground">
-            More subscriptions are available in Stripe subscription management.
-          </p>
-        ) : null}
-      </section>
-      <BillingInvoices
-        profile={profile}
-        failed={profileFailed}
-        onManage={() =>
-          void run(async () => {
-            window.location.assign(
-              await portal({ returnOrigin: window.location.origin })
+                    <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                      <div>
+                        <dt className="text-muted-foreground">
+                          {(stripeSubscription?.cancelAtPeriodEnd ??
+                          subscription.cancelAtPeriodEnd)
+                            ? "Scheduled to end"
+                            : subscription.status === "active" ||
+                                subscription.status === "trialing"
+                              ? "Current billing period ends"
+                              : "Last billing period ended"}
+                        </dt>
+                        <dd className="mt-1">
+                          {new Date(
+                            stripeSubscription?.periodEnd ?? subscription.endsAt
+                          ).toLocaleDateString()}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Last verified</dt>
+                        <dd className="mt-1">
+                          {new Date(subscription.reconciledAt).toLocaleString()}
+                        </dd>
+                      </div>
+                    </dl>
+                    {subscription.paymentFailedAt ? (
+                      <p className="text-sm text-amber-600 dark:text-amber-400">
+                        A payment failed. Review your payment method and invoice
+                        in billing management.
+                      </p>
+                    ) : null}
+                    {recognition ? (
+                      <fieldset disabled={busy} className="space-y-3">
+                        <legend className="mb-3 text-sm font-medium">
+                          Your recognition preferences
+                        </legend>
+                        <label className="flex items-center gap-3 text-sm">
+                          <Switch
+                            checked={recognition.announce}
+                            aria-label={`Announce support for ${subscription.guildName ?? "community"}`}
+                            onCheckedChange={(value) =>
+                              run(() =>
+                                preferences({
+                                  activationId: recognition.id,
+                                  announce: value,
+                                  displayRole: recognition.displayRole,
+                                })
+                              )
+                            }
+                          />
+                          Announce my support
+                        </label>
+                        <label className="flex items-center gap-3 text-sm">
+                          <Switch
+                            checked={recognition.displayRole}
+                            aria-label={`Supporter role for ${subscription.guildName ?? "community"}`}
+                            onCheckedChange={(value) =>
+                              run(() =>
+                                preferences({
+                                  activationId: recognition.id,
+                                  announce: recognition.announce,
+                                  displayRole: value,
+                                })
+                              )
+                            }
+                          />
+                          Display my Supporter role
+                        </label>
+                        {recognition.testMode ? (
+                          <p className="text-xs text-muted-foreground">
+                            Test subscriptions do not publish recognition.
+                          </p>
+                        ) : null}
+                      </fieldset>
+                    ) : null}
+                  </article>
+                )
+              })}
+            </div>
+          )}
+          {profile?.subscriptions
+            .filter(
+              (row) =>
+                !ledger.subscriptions.some(
+                  (record) => record.stripeSubscriptionId === row.id
+                )
             )
-          })
-        }
-      />
+            .map((subscription) => (
+              <article key={subscription.id} className="space-y-3 pb-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-medium">
+                    {subscription.items[0]?.name ?? "Subscription"}
+                  </h3>
+                  <span className="text-sm capitalize">
+                    {subscription.status.replaceAll("_", " ")}
+                  </span>
+                </div>
+                {subscription.items.map((item, index) => (
+                  <p key={index} className="text-sm text-muted-foreground">
+                    {item.name} ·{" "}
+                    {item.amount === null
+                      ? "Usage-based pricing"
+                      : formatStripeAmount(
+                          item.amount * item.quantity,
+                          item.currency
+                        )}
+                    {item.interval
+                      ? ` / ${item.intervalCount === 1 ? item.interval : `${item.intervalCount} ${item.interval}s`}`
+                      : ""}
+                  </p>
+                ))}
+                {subscription.periodEnd ? (
+                  <p className="text-sm">
+                    {subscription.cancelAtPeriodEnd
+                      ? "Scheduled to end"
+                      : "Current period ends"}{" "}
+                    {new Date(subscription.periodEnd).toLocaleDateString()}
+                  </p>
+                ) : null}
+              </article>
+            ))}
+          {ledger.hasMore || profile?.hasMoreSubscriptions ? (
+            <p className="text-sm text-muted-foreground">
+              More subscriptions are available in Stripe subscription
+              management.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+      {view === "invoices" ? (
+        <>
+          {profileFailed ? (
+            <Button variant="outline" onClick={refreshProfile}>
+              Retry invoices
+            </Button>
+          ) : null}
+          <BillingInvoices
+            profile={profile}
+            failed={profileFailed}
+            onManage={() =>
+              void run(async () => {
+                window.location.assign(
+                  await portal({ returnOrigin: window.location.origin })
+                )
+              })
+            }
+          />
+        </>
+      ) : null}
     </section>
   )
 }

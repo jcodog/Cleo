@@ -19,6 +19,7 @@ type AppSidebarProps = {
   footerNavSections: AppShellNavSection[]
   showDiscordGuildSelect?: boolean
   showPlatformSelector?: boolean
+  showLinkedRoles?: boolean
 }
 
 export function AppSidebar({
@@ -26,6 +27,7 @@ export function AppSidebar({
   footerNavSections,
   showDiscordGuildSelect = true,
   showPlatformSelector = true,
+  showLinkedRoles = true,
 }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" variant="inset" className="select-none">
@@ -57,9 +59,9 @@ export function AppSidebar({
         <AppSidebarNav navSections={navSections} />
       </SidebarContent>
 
-      {footerNavSections.length > 0 ? (
+      {showLinkedRoles || footerNavSections.length > 0 ? (
         <SidebarFooter>
-          <LinkedRolesDialog />
+          {showLinkedRoles ? <LinkedRolesDialog /> : null}
           <AppSidebarNav navSections={footerNavSections} />
         </SidebarFooter>
       ) : null}

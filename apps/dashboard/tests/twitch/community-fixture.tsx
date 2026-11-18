@@ -506,9 +506,18 @@ function NavigationFixture() {
           <DashboardEntry />
         ) : pathname === "/dashboard/servers" ? (
           <DiscordDashboardPageShell />
-        ) : pathname === "/billing" || pathname === "/account/billing" ? (
+        ) : pathname.startsWith("/billing") ||
+          pathname === "/account/billing" ? (
           params.has("accountUI") ? (
-            <PersonalBilling />
+            <PersonalBilling
+              view={
+                pathname.endsWith("/payment-details")
+                  ? "payment-details"
+                  : pathname.endsWith("/invoices")
+                    ? "invoices"
+                    : "subscriptions"
+              }
+            />
           ) : (
             <PremiumPurchases />
           )
