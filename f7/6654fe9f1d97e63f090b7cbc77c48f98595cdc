@@ -1,0 +1,24 @@
+packages/backend/convex/billingCatalogue.test.ts
+  s_cf46196ac88f6c::t_3bba6ed042c845 308,328,335-336,339,341,373-378,383-385
+  s_cf46196ac88f6c::t_99983ba48b9334 337-338,379-382
+packages/backend/convex/billingCatalogueActions.ts
+  s_cf46196ac88f6c::t_c86eb4cab2e55e 4,16,189-199
+packages/backend/convex/lib/billingCatalogueModels.ts
+  s_cf46196ac88f6c::t_eec3fe17e982d8 23-24,60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f76654fe9f1d97e63f090b7cbc77c48f98595cdc",
+  "prompts": {},
+  "sessions": {
+    "s_cf46196ac88f6c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f090-3031-7a63-ab3c-b4bf8c0dab1d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
