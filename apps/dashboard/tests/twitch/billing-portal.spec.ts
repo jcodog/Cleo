@@ -50,11 +50,15 @@ for (const width of [1440, 375]) {
       .getByRole("button", { name: "Remove", exact: true })
       .first()
       .click()
-    await dialog.getByRole("button", { name: "Confirm removal" }).click()
-    await expect(dialog.getByRole("status")).toContainText(
-      "Payment method removed"
-    )
-    await expect(dialog.getByText(/visa card/)).toHaveCount(0)
+    await expect(
+      dialog.getByRole("button", { name: "Continue in Stripe" })
+    ).toBeEnabled()
+    await expect(
+      dialog.getByText(/protect|subscription defaults/)
+    ).toBeVisible()
+    await expect(
+      dialog.getByRole("button", { name: "Confirm removal" })
+    ).toHaveCount(0)
   })
 }
 

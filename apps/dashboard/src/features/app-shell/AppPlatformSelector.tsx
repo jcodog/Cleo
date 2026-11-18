@@ -31,8 +31,10 @@ export function AppPlatformSelector() {
     api.queries.dashboard.discord.guilds.directory.list
   )
   const guilds =
-    directory?.clerkUserId === userId && directory?.status === "ready"
-      ? directory.guilds.filter((guild) => guild.verified)
+    directory && directory.clerkUserId === userId
+      ? directory.status === "ready"
+        ? directory.guilds.filter((guild) => guild.verified)
+        : directory.guilds
       : undefined
   const storedDiscordGuildId = useAppShellStore((s) =>
     s.selectionClerkUserId === userId ? s.selectedDiscordGuildId : undefined

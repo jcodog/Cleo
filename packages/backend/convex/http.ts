@@ -128,4 +128,8 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // Review previews never consume shared development or production webhooks.
-export default previewBuild ? httpRouter() : http
+export function createWebhookRouter(isPreview: boolean) {
+  return isPreview ? httpRouter() : http
+}
+
+export default createWebhookRouter(!!previewBuild)

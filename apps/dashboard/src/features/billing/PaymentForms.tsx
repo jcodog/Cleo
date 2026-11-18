@@ -30,7 +30,9 @@ export type BillingProfile = FunctionReturnType<
   typeof api.billingPortalActions.profile
 >
 type Setup = FunctionReturnType<typeof api.billingPortalActions.beginSetup>
-type SetupResult = FunctionReturnType<typeof api.billingPortalActions.completeSetup>
+type SetupResult = FunctionReturnType<
+  typeof api.billingPortalActions.completeSetup
+>
 const publicKey = dashboardEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 const stripePromise = publicKey?.startsWith("pk_test_")
   ? loadStripe(publicKey).catch(() => null)
@@ -301,14 +303,14 @@ function BillingDetailsForm({
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     if (busy || !elements) return
-    const address = await elements.getElement("address")?.getValue()
-    if (!address?.complete) {
-      setError("Complete your billing name and address.")
-      return
-    }
     setBusy(true)
     setError("")
     try {
+      const address = await elements.getElement("address")?.getValue()
+      if (!address?.complete) {
+        setError("Complete your billing name and address.")
+        return
+      }
       const details = {
         name: address.value.name,
         email,

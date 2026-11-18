@@ -89,7 +89,6 @@ export function PaymentDetails({
 }) {
   const begin = useAction(api.billingPortalActions.beginSetup)
   const makeDefault = useAction(api.billingPortalActions.makeDefault)
-  const remove = useAction(api.billingPortalActions.removeMethod)
   const [setup, setSetup] = useState<FunctionReturnType<
     typeof api.billingPortalActions.beginSetup
   > | null>(null)
@@ -102,7 +101,7 @@ export function PaymentDetails({
   const [pending, setPending] = useState<{
     key: string
     id: string
-    kind: "default" | "remove"
+    kind: "default"
   } | null>(null)
   const customer = profile?.customer
   const defaultMethod = profile?.methods.find(
@@ -132,7 +131,7 @@ export function PaymentDetails({
       setBusy(false)
     }
   }
-  async function changeMethod(method: Method, kind: "default" | "remove") {
+  async function changeMethod(method: Method, kind: "default") {
     if (busy) return
     setBusy(true)
     setMethodNotice("")
@@ -142,17 +141,13 @@ export function PaymentDetails({
         : { id: method.id, key: crypto.randomUUID(), kind }
     setPending(operation)
     try {
-      await (kind === "default" ? makeDefault : remove)({
+      await makeDefault({
         paymentMethodId: method.id,
         key: operation.key,
       })
       setPending(null)
       setRemoving(null)
-      setMethodNotice(
-        kind === "default"
-          ? "Default payment method updated."
-          : "Payment method removed."
-      )
+      setMethodNotice("Default payment method updated.")
       onRefresh()
     } catch (error) {
       setMethodNotice(
@@ -330,7 +325,9 @@ export function PaymentDetails({
             onNotice(
               result === "processing"
                 ? "Your bank is confirming the payment method. Check its status below before trying again."
-                : result === "saved" ? "Payment method saved as your default." : "Payment setup was not completed. Please try again."
+                : result === "saved"
+                  ? "Payment method saved as your default."
+                  : "Payment setup was not completed. Please try again."
             )
             onRefresh()
           }}
@@ -429,16 +426,16 @@ export function PaymentDetails({
             <div className="space-y-3 rounded-lg border p-4">
               <p className="text-sm">
                 Remove {removing.label}
-                {removing.last4 ? ` ending ${removing.last4}` : ""}? You’ll need
-                to add it again to use it later.
+                {removing.last4 ? ` ending ${removing.last4}` : ""}? Continue to
+                Stripe to review removal and any active subscription defaults.
               </p>
               <div className="flex gap-2">
                 <Button
                   variant="destructive"
                   disabled={busy}
-                  onClick={() => void changeMethod(removing, "remove")}
+                  onClick={onManage}
                 >
-                  Confirm removal
+                  Continue in Stripe
                 </Button>
                 <Button
                   variant="outline"

@@ -3,7 +3,7 @@
 import { useAuth } from "@clerk/nextjs"
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
 import { ConvexError } from "convex/values"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { formatStripeAmount } from "@/features/community/formatStripeAmount"
 import { api } from "@workspace/backend/convex/_generated/api.js"
@@ -43,12 +43,14 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
   const [profileFailed, setProfileFailed] = useState(false)
   const [profileRevision, setProfileRevision] = useState(0)
   const [pendingSetup, setPendingSetup] = useState<string | null>(null)
+  const currentSetup = useRef<string | null>(null)
   const storageKey = `cleo:billing-setup:${clerkUserId}:${sessionId}`
   function refreshProfile() {
     setProfileFailed(false)
     setProfileRevision((value) => value + 1)
   }
   function rememberSetup(id: string | null) {
+    currentSetup.current = id
     setPendingSetup(id)
     try {
       if (id) sessionStorage.setItem(storageKey, id)
@@ -64,7 +66,10 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
         if (active && value.clerkUserId === clerkUserId) setProfile(value)
       })
       .catch(() => {
-        if (active) setProfileFailed(true)
+        if (active) {
+          setProfile(null)
+          setProfileFailed(true)
+        }
       })
     return () => {
       active = false
@@ -94,9 +99,10 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
     if (!id || !/^seti_[A-Za-z0-9]+$/.test(id)) return
     let active = true
     const setupIntentId = id
+    currentSetup.current = setupIntentId
     void completeSetup({ setupIntentId })
       .then((status) => {
-        if (!active) return
+        if (!active || currentSetup.current !== setupIntentId) return
         if (status === "saved" || status === "failed") {
           try {
             sessionStorage.removeItem(storageKey)
@@ -104,7 +110,11 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
             /* Optional storage. */
           }
           setPendingSetup(null)
-          setNotice(status === "saved" ? "Payment method saved as your default." : "Payment setup was not completed. Please try again.")
+          setNotice(
+            status === "saved"
+              ? "Payment method saved as your default."
+              : "Payment setup was not completed. Please try again."
+          )
           setProfileRevision((value) => value + 1)
         } else {
           setPendingSetup(setupIntentId)
@@ -112,7 +122,7 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
         }
       })
       .catch(() => {
-        if (active) {
+        if (active && currentSetup.current === setupIntentId) {
           setPendingSetup(setupIntentId)
           setNotice(
             "Payment setup could not be confirmed. Check its status before trying again."
@@ -183,10 +193,15 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
               const status = await completeSetup({
                 setupIntentId: pendingSetup,
               })
+              if (currentSetup.current !== pendingSetup) return
               if (status === "saved" || status === "failed") {
                 rememberSetup(null)
                 refreshProfile()
-                setNotice(status === "saved" ? "Payment method saved as your default." : "Payment setup was not completed. Please try again.")
+                setNotice(
+                  status === "saved"
+                    ? "Payment method saved as your default."
+                    : "Payment setup was not completed. Please try again."
+                )
               } else
                 setNotice("Your bank is still confirming the payment method.")
             })
@@ -253,12 +268,6 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
               const stripeSubscription = profile?.subscriptions.find(
                 (row) => row.id === subscription.stripeSubscriptionId
               )
-              const price = stripeSubscription?.items[0]
-              const period = price?.interval
-                ? price.intervalCount === 1
-                  ? price.interval
-                  : `${price.intervalCount} ${price.interval}s`
-                : null
               const recognition = subscription.recognition
               return (
                 <article
@@ -270,12 +279,23 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
                       <h2 className="font-heading text-lg font-medium">
                         {subscription.guildName ?? "Community unavailable"}
                       </h2>
-                      <p className="text-sm text-muted-foreground">
-                        {price?.name ?? "Plan information unavailable"}
-                        {price?.amount !== null && price?.amount !== undefined
-                          ? ` · ${formatStripeAmount(price.amount * price.quantity, price.currency)}${period ? ` / ${period}` : ""}`
-                          : ""}
-                      </p>
+                      {stripeSubscription?.items.length ? (
+                        stripeSubscription.items.map((price, index) => (
+                          <p
+                            key={`${price.name}:${index}`}
+                            className="text-sm text-muted-foreground"
+                          >
+                            {price.name}
+                            {price.amount !== null
+                              ? ` · ${formatStripeAmount(price.amount * price.quantity, price.currency)}${price.interval ? ` / ${price.intervalCount === 1 ? price.interval : `${price.intervalCount} ${price.interval}s`}` : ""}`
+                              : ""}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Plan information unavailable
+                        </p>
+                      )}
                     </div>
                     <span className="text-sm capitalize">
                       {(

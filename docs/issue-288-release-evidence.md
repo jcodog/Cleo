@@ -171,3 +171,38 @@ Code merge, test-checkout enablement and live financial launch are all **NO-GO**
 Next, follow [Preview setup](isolated-review-preview.md#maintainer-setup-after-implementation),
 then verify the exact signed combined SHA in hosted CI and complete the separate
 acceptance lanes. JCN-242 and explicit Jason approval remain release gates.
+
+## Follow-up to the 57 findings on PR #284
+
+Catalogue writes verify the Clerk session's authorised party against the exact
+dashboard origins. A Convex index keeps an operator's oldest unresolved write
+visible beyond the recent-history limit and prevents another key from claiming
+a second write. Browser tabs coordinate access to the recovery record and bind
+confirmation to the displayed request. Invalid terms are rejected before
+persisting a new request. A prior uncertain result remains recoverable when a
+later validation fails.
+
+Purchaser billing scopes Price pagination to the authenticated customer and
+validates provider identity and test mode. Stale profile data clears on
+failure. Every subscription item is displayed, and late SetupIntent responses
+cannot erase a newer attempt. Cancellation rechecks Stripe when a concurrent
+confirmation wins. Payment-method removal opens Stripe's management flow
+because API detach has no conditional default check. Cleo retains in-app
+payment setup and default selection.
+
+Preview acceptance checks the actual development Clerk instance and any
+configured Stripe sandbox account. The wrapper verifies backend isolation
+before and after the frontend build. The directory uses a single live
+subscription on entry, with an indexed freshness bound for ready accounts.
+The stacked receipt checks the membership index as well as billing tables.
+
+Local production coverage exercised 430 backend tests, 111 dashboard tests
+and 6 Preview scripts on the base branch. Repository coverage thresholds
+passed. The focused Chromium run passed 33 fixture tests for billing,
+connections, navigation and catalogue recovery. Convex static bindings were
+regenerated using codegen against the verified development target. No hosted
+Preview or Stripe lifecycle acceptance was obtained in these checks.
+
+Stripe's documented invoice total is an integer, including for draft invoices.
+The validator retains that contract.
+[Stripe Invoice object](https://docs.stripe.com/api/invoices/object).

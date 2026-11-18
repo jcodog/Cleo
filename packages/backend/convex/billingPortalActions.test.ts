@@ -272,7 +272,10 @@ test("Elements setup creates one bound customer and uses dynamic methods with st
     setups[0]?.fields.get("automatic_payment_methods[enabled]"),
     "true"
   )
-  assert.equal(setups[0]?.fields.get("automatic_payment_methods[allow_redirects]"), "never")
+  assert.equal(
+    setups[0]?.fields.get("automatic_payment_methods[allow_redirects]"),
+    "never"
+  )
   assert.equal(setups[0]?.fields.get("usage"), "off_session")
   assert.equal(setups[0]?.fields.has("payment_method_types"), false)
   assert.equal(
@@ -319,9 +322,12 @@ test("setup completion trusts verified Stripe status and ownership, never a clie
   assert.ok(calls.every((call) => call.method === "GET"))
   for (const terminal of ["requires_payment_method", "canceled"]) {
     status = terminal
-    assert.equal(await f.payer.action(api.billingPortalActions.completeSetup, {
-      setupIntentId: "seti_alice",
-    }), "failed")
+    assert.equal(
+      await f.payer.action(api.billingPortalActions.completeSetup, {
+        setupIntentId: "seti_alice",
+      }),
+      "failed"
+    )
   }
   status = "succeeded"
   owner = f.bob
@@ -383,50 +389,18 @@ test("default changes require a method owned by this customer and preserve subsc
   assert.ok(!calls.some((call) => call.path.startsWith("/subscriptions/")))
 })
 
-test("removal protects defaults and active subscription methods, while canceled historical methods can be removed", async (t) => {
+test("direct removal never detaches a method that Portal could concurrently make default", async (t) => {
   const f = await fixture()
-  let defaultId: string | null = "pm_alice",
-    status = "active"
-  const calls = transport(t, (path) => {
-    if (path === "/payment_methods/pm_alice") return card
-    if (path === "/customers/cus_alice")
-      return {
-        ...customer,
-        invoice_settings: { default_payment_method: defaultId },
-      }
-    if (path.startsWith("/subscriptions?"))
-      return {
-        data: [
-          { customer: "cus_alice", status, default_payment_method: "pm_alice" },
-        ],
-        has_more: false,
-      }
-    if (path.endsWith("/detach")) return { ...card, customer: null }
-    throw new Error(`Unexpected request: ${path}`)
-  })
+  const calls = transport(t, () => card)
   await assert.rejects(
     f.payer.action(api.billingPortalActions.removeMethod, {
       paymentMethodId: "pm_alice",
       key,
     }),
-    /Choose another default/
-  )
-  defaultId = null
-  await assert.rejects(
-    f.payer.action(api.billingPortalActions.removeMethod, {
-      paymentMethodId: "pm_alice",
-      key,
-    }),
-    /subscription uses/
+    /Manage in Stripe/
   )
   assert.ok(calls.every((call) => call.method === "GET"))
-  status = "canceled"
-  await f.payer.action(api.billingPortalActions.removeMethod, {
-    paymentMethodId: "pm_alice",
-    key,
-  })
-  assert.equal(calls.filter((call) => call.method === "POST").length, 1)
-  assert.equal(calls.at(-1)?.path, "/payment_methods/pm_alice/detach")
+  assert.ok(!calls.some((call) => call.path.endsWith("/detach")))
 })
 
 test("billing detail edits are validated and update only the authenticated customer's invoice identity", async (t) => {

@@ -15,7 +15,11 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import { LinkedRolesDialog } from "@/features/community/LinkedRolesDialog"
-import { beginTwitchLink, getTwitchLinkState } from "@/features/twitch/linking"
+import {
+  beginTwitchLink,
+  getTwitchLinkState,
+  isTwitchProvider,
+} from "@/features/twitch/linking"
 
 export function AccountConnections() {
   const { userId, isLoaded, sessionId } = useAuth()
@@ -36,13 +40,14 @@ function Connections() {
     api.actions.dashboard.discord.guilds.syncDashboardGuilds.sync
   )
   const [busy, setBusy] = useState(false)
+  const [twitchSyncPending, setTwitchSyncPending] = useState(false)
   const [notice, setNotice] = useState("")
   const [confirmation, setConfirmation] = useState<"twitch" | "roles" | null>(
     null
   )
   const accounts = user?.externalAccounts ?? []
   const discord = accounts.find((account) => account.provider === "discord")
-  const twitch = accounts.find((account) => account.provider === "twitch")
+  const twitch = accounts.find((account) => isTwitchProvider(account.provider))
   const canDisconnectTwitch =
     !!twitch && discord?.verification?.status === "verified"
   const connect = useReverification(async (provider: "discord" | "twitch") => {
@@ -80,7 +85,14 @@ function Connections() {
       throw new Error("Secure authorisation unavailable")
     return url.href
   })
+  async function reconcileTwitchDisconnect() {
+    const result = await syncAccounts({})
+    if (result.status !== "ready")
+      throw new Error("Linked account synchronisation is unavailable.")
+    setTwitchSyncPending(false)
+  }
   const removeTwitch = useReverification(async () => {
+    if (twitchSyncPending) return reconcileTwitchDisconnect()
     if (!user) throw new Error("Account unavailable")
     const fresh = await user.reload()
     if (
@@ -91,14 +103,15 @@ function Connections() {
       )
     )
       throw new Error("Keep a verified sign-in identity")
-    const matches = fresh.externalAccounts.filter(
-      (account) => account.provider === "twitch"
+    const matches = fresh.externalAccounts.filter((account) =>
+      isTwitchProvider(account.provider)
     )
     if (matches.length !== 1 || !matches[0])
       throw new Error("Connection changed")
     await matches[0].destroy()
+    setTwitchSyncPending(true)
     await user.reload()
-    await syncAccounts({})
+    await reconcileTwitchDisconnect()
   })
   async function run(operation: () => Promise<void>, success: string) {
     if (busy) return
@@ -242,6 +255,17 @@ function Connections() {
               </Button>
             ) : null}
           </div>
+          {twitchSyncPending && confirmation === null ? (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                run(reconcileTwitchDisconnect, "Connection removed.")
+              }
+            >
+              Retry linked account sync
+            </Button>
+          ) : null}
           {twitch && !canDisconnectTwitch ? (
             <p className="text-xs text-muted-foreground">
               Keep a verified Discord sign-in connected before removing Twitch.

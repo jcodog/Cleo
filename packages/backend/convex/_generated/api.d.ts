@@ -71,15 +71,18 @@ export declare const api: {
     prices: FunctionReference<
       "action",
       "public",
-      {},
-      Array<{
-        amount: number | null;
-        currency: string;
-        id: string;
-        interval: string | null;
-        intervalCount: number;
-        name: string;
-      }>
+      { cursor?: string },
+      {
+        next: string | null;
+        prices: Array<{
+          amount: number | null;
+          currency: string;
+          id: string;
+          interval: string | null;
+          intervalCount: number;
+          name: string;
+        }>;
+      }
     >;
   };
   actions: {
@@ -1707,6 +1710,7 @@ export declare const api: {
           id: string;
           interval: string | null;
           intervalCount: number;
+          usageType: string | null;
         }>;
         product: {
           active: boolean;
@@ -2550,6 +2554,7 @@ export declare const api: {
         url: string;
       }
     >;
+    verifyProviders: FunctionReference<"action", "public", {}, boolean>;
   };
   queries: {
     dashboard: {
@@ -3806,6 +3811,23 @@ export declare const api: {
  * ```
  */
 export declare const internal: {
+  accountBilling: {
+    pricePage: FunctionReference<
+      "query",
+      "internal",
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+      },
+      { next: string | null; priceIds: Array<string> }
+    >;
+  };
   billingCatalogue: {
     authority: FunctionReference<
       "query",
@@ -3833,8 +3855,14 @@ export declare const internal: {
     mappings: FunctionReference<
       "query",
       "internal",
-      {},
+      { priceIds: Array<string>; productId: string },
       Array<{ priceId: string; productId: string }>
+    >;
+    operationExists: FunctionReference<
+      "query",
+      "internal",
+      { key: string },
+      boolean
     >;
   };
   communityActions: {

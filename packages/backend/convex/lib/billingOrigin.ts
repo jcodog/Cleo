@@ -1,8 +1,13 @@
 import { ConvexError } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
 
-function origin(value: string) {
-  const url = new URL(value)
+export function exactBillingOrigin(value: string) {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    throw new ConvexError("Billing return address is invalid.")
+  }
   if (
     url.protocol !== "https:" ||
     url.pathname !== "/" ||
@@ -15,18 +20,22 @@ function origin(value: string) {
   return url.origin
 }
 /** Exact configured origins only. Never accept arbitrary preview-domain suffixes. */
-export function billingOrigin(requested?: string) {
+export function configuredBillingOrigins() {
   if (!backendEnv.CLEO_DASHBOARD_ORIGIN)
     throw new ConvexError("Billing return address is not configured.")
-  const canonical = origin(backendEnv.CLEO_DASHBOARD_ORIGIN)
-  const approved = [
+  const canonical = exactBillingOrigin(backendEnv.CLEO_DASHBOARD_ORIGIN)
+  return [
     canonical,
     ...(backendEnv.CLEO_DASHBOARD_ALLOWED_ORIGINS?.split(",")
       .map((value) => value.trim())
       .filter(Boolean)
-      .map(origin) ?? []),
+      .map(exactBillingOrigin) ?? []),
   ]
-  const selected = requested ? origin(requested) : canonical
+}
+
+export function billingOrigin(requested?: string) {
+  const approved = configuredBillingOrigins()
+  const selected = requested ? exactBillingOrigin(requested) : approved[0]!
   if (!approved.includes(selected))
     throw new ConvexError(
       "Billing updates are not configured for this dashboard address. Please contact support."

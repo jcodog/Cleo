@@ -12,7 +12,11 @@ export async function checkDashboardBackend(url, request = fetch) {
   const deployment = new URL(url)
   if (
     deployment.protocol !== "https:" ||
-    !deployment.hostname.endsWith(".convex.cloud")
+    !/^[a-z0-9-]+\.convex\.cloud$/.test(deployment.hostname) ||
+    deployment.origin !== url ||
+    deployment.username ||
+    deployment.password ||
+    deployment.port
   )
     throw new Error(
       "NEXT_PUBLIC_CONVEX_URL must identify the intended hosted Convex deployment."

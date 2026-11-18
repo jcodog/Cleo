@@ -1,7 +1,14 @@
 import { backendEnv } from "@workspace/env/backend"
+import { billingOrigin } from "./billingOrigin"
 
 /** Presence is configuration evidence only, never Stripe account or payment evidence. */
 export function billingConfiguration() {
+  let returnOrigin: string | null = null
+  try {
+    returnOrigin = billingOrigin()
+  } catch {
+    /* Unusable configuration disables management. */
+  }
   const key = backendEnv.STRIPE_SECRET_KEY
   const stripeMode = !key
     ? "missing"
@@ -17,7 +24,7 @@ export function billingConfiguration() {
       ? ["STRIPE_GUILD_PREMIUM_PRICE_ID"]
       : []),
     ...(!backendEnv.STRIPE_WEBHOOK_SECRET ? ["STRIPE_WEBHOOK_SECRET"] : []),
-    ...(!backendEnv.CLEO_DASHBOARD_ORIGIN ? ["CLEO_DASHBOARD_ORIGIN"] : []),
+    ...(!returnOrigin ? ["CLEO_DASHBOARD_ORIGIN"] : []),
   ]
   return {
     stripeMode,
@@ -25,8 +32,6 @@ export function billingConfiguration() {
     checkoutEnabled: backendEnv.STRIPE_TEST_CHECKOUT_ENABLED === "true",
     catalogueWritesEnabled:
       backendEnv.STRIPE_CATALOGUE_WRITES_ENABLED === "true",
-    returnOrigin: backendEnv.CLEO_DASHBOARD_ORIGIN
-      ? new URL(backendEnv.CLEO_DASHBOARD_ORIGIN).origin
-      : null,
+    returnOrigin,
   }
 }

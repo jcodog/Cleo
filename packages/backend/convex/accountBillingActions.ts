@@ -3,29 +3,32 @@
 import { z } from "zod"
 import { v } from "convex/values"
 import { action } from "./_generated/server"
-import { api } from "./_generated/api"
+import { internal } from "./_generated/api"
 import { stripeRequest, verifyStripeAccount } from "./lib/stripeCommunity"
 
 /** Read commercial details only for Prices attached to this purchaser's ledger. */
 export const prices = action({
-  args: {},
-  returns: v.array(
-    v.object({
-      id: v.string(),
-      name: v.string(),
-      amount: v.union(v.number(), v.null()),
-      currency: v.string(),
-      interval: v.union(v.string(), v.null()),
-      intervalCount: v.number(),
+  args: { cursor: v.optional(v.string()) },
+  returns: v.object({
+    next: v.union(v.string(), v.null()),
+    prices: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        amount: v.union(v.number(), v.null()),
+        currency: v.string(),
+        interval: v.union(v.string(), v.null()),
+        intervalCount: v.number(),
+      })
+    ),
+  }),
+  handler: async (ctx, args) => {
+    const page = await ctx.runQuery(internal.accountBilling.pricePage, {
+      paginationOpts: { cursor: args.cursor ?? null, numItems: 20 },
     })
-  ),
-  handler: async (ctx) => {
-    const ledger = await ctx.runQuery(api.accountBilling.overview, {})
-    const ids: string[] = [
-      ...new Set(ledger.subscriptions.map((row) => row.priceId)),
-    ]
+    const ids = page.priceIds
     if (ids.length) await verifyStripeAccount()
-    return Promise.all(
+    const prices = await Promise.all(
       ids.map(async (id) => {
         const price = z
           .object({
@@ -57,5 +60,6 @@ export const prices = action({
         }
       })
     )
+    return { prices, next: page.next }
   },
 })

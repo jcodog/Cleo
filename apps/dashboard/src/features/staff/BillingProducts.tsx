@@ -3,6 +3,8 @@
 import { useAuth } from "@clerk/nextjs"
 import { useAction, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
+import { catalogueChange } from "@workspace/shared/billingCatalogue"
+import { ConvexError } from "convex/values"
 import { useEffect, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { formatStripeAmount } from "@/features/community/formatStripeAmount"
@@ -97,7 +99,10 @@ function Catalogue({ productId }: { productId?: string }) {
     key: string
     request: string
   } | null>(null)
-  const [confirmation, setConfirmation] = useState("")
+  const [confirmation, setConfirmation] = useState<{
+    key: string
+    text: string
+  } | null>(null)
   const [confirmationOpen, setConfirmationOpen] = useState(false)
   const [submitted, setAttempted] = useState(false)
   const storageKey = `cleo:catalogue-operation:${dashboardEnv.NEXT_PUBLIC_CONVEX_URL}:${userId}`
@@ -114,7 +119,7 @@ function Catalogue({ productId }: { productId?: string }) {
       () => null
     )
   )
-  const pending = draft ?? recovery.pending
+  const pending = recovery.pending ?? draft
   const attempted = submitted || recovery.pending !== null
   const recoveryReady = recovery.valid
   useEffect(() => {
@@ -146,7 +151,7 @@ function Catalogue({ productId }: { productId?: string }) {
     if (unresolved && !attempted) {
       setPending({ key: unresolved.key, request: unresolved.request })
       setAttempted(true)
-      setConfirmation("")
+      setConfirmation(null)
       setConfirmationOpen(true)
       setError("Resolve the recorded operation before starting another change.")
       return
@@ -156,26 +161,88 @@ function Catalogue({ productId }: { productId?: string }) {
       setError("Resolve the recorded operation before starting another change.")
       return
     }
-    setPending({ key: crypto.randomUUID(), request: JSON.stringify(request) })
+    const parsed = catalogueChange.safeParse(request)
+    if (!parsed.success) {
+      setError(
+        "Check the change details. Recurring periods cannot exceed three years."
+      )
+      return
+    }
+    setPending({
+      key: crypto.randomUUID(),
+      request: JSON.stringify(parsed.data),
+    })
     setConfirmationOpen(true)
     setAttempted(false)
-    setConfirmation("")
+    setConfirmation(null)
     setError("")
   }
+  const confirmationText =
+    confirmation && confirmation.key === pending?.key ? confirmation.text : ""
   async function confirm() {
-    if (!pending || busy) return
+    if (!pending || busy || confirmationText !== "CONFIRM SANDBOX CHANGE")
+      return
     setBusy(true)
     setError("")
     try {
-      // Persist before any remote call. If storage fails, no write is submitted.
-      localStorage.setItem(storageKey, JSON.stringify(pending))
-      setAttempted(true)
-      const token = await getToken({ skipCache: true })
-      if (!token)
-        throw new Error("Sign in again to verify this financial change.")
-      await change({ ...pending, sessionToken: token, confirmation })
-      localStorage.removeItem(storageKey)
-      window.dispatchEvent(new Event("cleo-catalogue-operation"))
+      if (!navigator.locks)
+        throw new Error(
+          "This browser cannot safely coordinate financial changes across tabs."
+        )
+      await navigator.locks.request(storageKey, async () => {
+        const saved = recoveredOperation(localStorage.getItem(storageKey))
+        if (
+          !saved.valid ||
+          (saved.pending &&
+            (saved.pending.key !== pending.key ||
+              saved.pending.request !== pending.request))
+        )
+          throw new Error(
+            "Another tab has a recorded operation. Resolve it before starting another change."
+          )
+        const parsed = catalogueChange.safeParse(JSON.parse(pending.request))
+        if (!parsed.success && !saved.pending)
+          throw new Error("Check the change details before making a change.")
+        const token = await getToken({ skipCache: true })
+        if (!token)
+          throw new Error("Sign in again to verify this financial change.")
+        // Persist only valid terms, before the first remote write can happen.
+        localStorage.setItem(storageKey, JSON.stringify(pending))
+        setAttempted(true)
+        window.dispatchEvent(new Event("cleo-catalogue-operation"))
+        const clearOwnRecord = () => {
+          const current = recoveredOperation(
+            localStorage.getItem(storageKey)
+          ).pending
+          if (
+            current?.key === pending.key &&
+            current.request === pending.request
+          )
+            localStorage.removeItem(storageKey)
+          window.dispatchEvent(new Event("cleo-catalogue-operation"))
+        }
+        try {
+          await change({
+            ...pending,
+            sessionToken: token,
+            confirmation: confirmationText,
+          })
+          clearOwnRecord()
+        } catch (failure) {
+          if (
+            failure instanceof ConvexError &&
+            failure.data &&
+            typeof failure.data === "object" &&
+            failure.data.code === "CATALOGUE_NOT_SUBMITTED"
+          ) {
+            clearOwnRecord()
+            setPending(null)
+            setAttempted(false)
+            setConfirmationOpen(false)
+          }
+          throw failure
+        }
+      })
       setPending(null)
       setAttempted(false)
       setConfirmationOpen(false)
@@ -244,7 +311,7 @@ function Catalogue({ productId }: { productId?: string }) {
           <Button
             variant="outline"
             onClick={() => {
-              setConfirmation("")
+              setConfirmation(null)
               setConfirmationOpen(true)
             }}
           >
@@ -377,6 +444,9 @@ function Catalogue({ productId }: { productId?: string }) {
                               {price.active &&
                               product.active &&
                               price.interval &&
+                              price.usageType === "licensed" &&
+                              price.amount !== null &&
+                              price.amount > 0 &&
                               !price.approved ? (
                                 <Button
                                   size="sm"
@@ -625,7 +695,7 @@ function Catalogue({ productId }: { productId?: string }) {
                     }
                     setPending({ key: row.key, request: row.request })
                     setAttempted(true)
-                    setConfirmation("")
+                    setConfirmation(null)
                     setConfirmationOpen(true)
                   }}
                 >
@@ -667,8 +737,14 @@ function Catalogue({ productId }: { productId?: string }) {
           <label className="space-y-2 text-sm">
             Type CONFIRM SANDBOX CHANGE
             <Input
-              value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
+              value={confirmationText}
+              onChange={(event) => {
+                if (pending)
+                  setConfirmation({
+                    key: pending.key,
+                    text: event.target.value,
+                  })
+              }}
             />
           </label>
           <p className="text-xs text-muted-foreground">
@@ -681,7 +757,7 @@ function Catalogue({ productId }: { productId?: string }) {
             </p>
           ) : null}
           <Button
-            disabled={busy || confirmation !== "CONFIRM SANDBOX CHANGE"}
+            disabled={busy || confirmationText !== "CONFIRM SANDBOX CHANGE"}
             onClick={confirm}
           >
             {busy ? "Confirming…" : "Confirm change"}

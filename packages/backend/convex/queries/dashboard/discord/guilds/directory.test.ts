@@ -70,12 +70,19 @@ test("directory retains only same-account metadata during verification gaps whil
   const manageable = () =>
     user.query(api.queries.dashboard.discord.guilds.manageable.list, {})
   assert.equal((await directory()).guilds[0]?.verified, true)
+  assert.equal((await directory()).clerkUserId, "one")
+  assert.equal(
+    (await db.query(api.queries.dashboard.discord.guilds.directory.list, {}))
+      .clerkUserId,
+    null
+  )
   await db.run((ctx) => ctx.db.patch(ids.refreshId, { state: "pending" }))
   assert.equal((await directory()).status, "pending")
   assert.equal((await directory()).guilds[0]?.name, "My server")
   assert.deepEqual(await manageable(), [])
   await db.run((ctx) => ctx.db.patch(ids.refreshId, { state: "failed" }))
   assert.equal((await directory()).status, "unavailable")
+  assert.equal((await directory()).clerkUserId, "one")
   await db.run((ctx) => ctx.db.patch(ids.refreshId, { state: "complete" }))
   now += 300001
   assert.equal((await directory()).status, "expired")

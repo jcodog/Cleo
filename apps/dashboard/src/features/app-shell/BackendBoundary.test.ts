@@ -7,15 +7,15 @@ test("backend errors distinguish missing functions and rejected identity without
     backendFailureMessage(
       new Error("Could not find public function for 'accountBilling:overview'.")
     ),
-    /NEXT_PUBLIC_CONVEX_URL/
+    /temporarily unavailable/
   )
   assert.match(
     backendFailureMessage(new Error("Unauthenticated OIDC token")),
-    /same issuer/
+    /Sign in again/
   )
   const message = backendFailureMessage(
     new Error("provider secret-token-value unexpected error")
   )
-  assert.match(message, /backend request failed/)
+  assert.match(message, /request failed/)
   assert.ok(!message.includes("secret-token-value"))
 })

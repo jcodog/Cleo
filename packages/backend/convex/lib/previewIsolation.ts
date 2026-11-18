@@ -4,7 +4,25 @@ export function isReviewPreviewIsolated(
   env: Record<string, string | undefined>,
   build: NonNullable<typeof previewBuild>
 ): boolean {
-  const forbiddenCredential = Object.keys(env).some(
+  // Convex may implement env with get-only Proxy semantics. Enumeration alone
+  // cannot detect even the application's known side-effect credentials.
+  const names = new Set([
+    ...Object.keys(env),
+    "CLERK_WEBHOOK_SECRET",
+    "STRIPE_WEBHOOK_SECRET",
+    "DISCORD_CLIENT_SECRET",
+    "DISCORD_APPLICATION_PUBLIC_KEY",
+    "DISCORD_TOKEN_ENCRYPTION_KEY",
+    "DISCORD_BOT_CONVEX_SECRET",
+    "DISCORD_BOT_TOKEN",
+    "TWITCH_EVENTSUB_SECRET",
+    "TWITCH_WORKER_SECRET",
+    "TWITCH_CLIENT_SECRET",
+    "RESEND_API_KEY",
+    "CONVEX_DEPLOY_KEY",
+    "CONVEX_SELF_HOSTED_ADMIN_KEY",
+  ])
+  const forbiddenCredential = [...names].some(
     (name) =>
       /(?:_SECRET|_TOKEN|_KEY)(?:$|_)/.test(name) &&
       !["CLERK_SECRET_KEY", "STRIPE_SECRET_KEY"].includes(name) &&

@@ -95,6 +95,22 @@ export function billingFixture(path: string, args: unknown): unknown {
     }
   }
   if (path === "billingPortalActions:completeSetup") {
+    if (
+      params.has("setupRace") &&
+      args &&
+      typeof args === "object" &&
+      "setupIntentId" in args &&
+      args.setupIntentId === "seti_previous"
+    ) {
+      return new Promise<string>((resolve) => {
+        window.addEventListener(
+          "resolve-previous-setup",
+          () => resolve("failed"),
+          { once: true }
+        )
+        sessionStorage.setItem("setup-fixture-previous-waiting", "true")
+      })
+    }
     hasCustomer = true
     if (params.has("setupFailed")) return "failed"
     if (params.has("setupProcessing")) return "processing"
@@ -121,12 +137,19 @@ export function billingFixture(path: string, args: unknown): unknown {
       typeof args !== "object" ||
       !("name" in args) ||
       !("email" in args) ||
+      !("address" in args) ||
+      !args.address ||
+      typeof args.address !== "object" ||
+      !["line1", "line2", "city", "state", "postalCode", "country"].every(
+        (key) => typeof Reflect.get(args.address!, key) === "string"
+      ) ||
       typeof args.name !== "string" ||
       typeof args.email !== "string"
     )
       throw new Error("Invalid billing details")
     customer.name = args.name
     customer.email = args.email
+    Object.assign(customer.address, args.address)
     return null
   }
   if (

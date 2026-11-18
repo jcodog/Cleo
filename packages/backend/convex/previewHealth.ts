@@ -1,7 +1,19 @@
-import { query } from "./_generated/server"
+import { action, query } from "./_generated/server"
 import { v } from "convex/values"
 import { previewBuild } from "./previewVersion"
 import { isReviewPreviewIsolated } from "./lib/previewIsolation"
+import { verifyPreviewProviders } from "./lib/previewProviderProof"
+
+/** The query proves configuration; this read-only action proves key ownership. */
+export const verifyProviders = action({
+  args: {},
+  returns: v.boolean(),
+  handler: async () => {
+    if (!previewBuild || !isReviewPreviewIsolated(process.env, previewBuild))
+      return false
+    return verifyPreviewProviders(process.env, previewBuild.issuer)
+  },
+})
 
 /** Public deployment evidence contains no user data or credential values. */
 export const read = query({

@@ -50,6 +50,13 @@ test("preview isolation rejects live credentials, side-effect workers, enabled g
     { CLERK_WEBHOOK_SECRET: "fixture" },
     { CLEO_DASHBOARD_ORIGIN: "https://other.example.com" },
     { CLEO_DASHBOARD_ALLOWED_ORIGINS: "https://*.vercel.app" },
-  ])
-    assert.equal(isReviewPreviewIsolated({ ...env, ...unsafe }, build), false)
+  ]) {
+    const values = { ...env, ...unsafe }
+    assert.equal(isReviewPreviewIsolated(values, build), false)
+    // Hosted Convex exposes environment values through property reads.
+    const proxy = new Proxy({} as Record<string, string | undefined>, {
+      get: (_target, name) => Reflect.get(values, name),
+    })
+    assert.equal(isReviewPreviewIsolated(proxy, build), false)
+  }
 })

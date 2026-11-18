@@ -32,6 +32,8 @@ export const communityFixtureMode = params.has("community")
 const calls: { path: string; args: unknown }[] = []
 const observers = new Set<() => void>()
 let discoveryRequests = 0
+let syncAccountRequests = 0
+let linkedRolesConnected = params.has("linkedRolesConnected")
 const verifiedAt = Date.now()
 let progress: {
   state: "pending" | "complete"
@@ -142,7 +144,8 @@ export function communityQuery(path: string) {
             },
           ],
     }
-  if (path === "discordConnections:status") return null
+  if (path === "discordConnections:status")
+    return linkedRolesConnected ? { metadataPublished: true } : null
   if (path === "queries/dashboard/discord/guilds/directory:list")
     return directory
   if (path === "queries/dashboard/discord/guilds/manageable:list")
@@ -182,16 +185,19 @@ export async function communityWrite(
     return billingFixture(path, args)
   }
   if (path === "accountBillingActions:prices")
-    return [
-      {
-        id: "price_premium",
-        name: "Cleo Server Premium",
-        amount: 499,
-        currency: "gbp",
-        interval: "month",
-        intervalCount: 1,
-      },
-    ]
+    return {
+      next: null,
+      prices: [
+        {
+          id: "price_premium",
+          name: "Cleo Server Premium",
+          amount: 499,
+          currency: "gbp",
+          interval: "month",
+          intervalCount: 1,
+        },
+      ],
+    }
   if (path === "billingCatalogueActions:list")
     return {
       accountId: "acct_1RGgwvE1e1YdqDQQ",
@@ -223,6 +229,7 @@ export async function communityWrite(
           currency: "gbp",
           interval: "month",
           intervalCount: 1,
+          usageType: "licensed",
           active: true,
           approved: true,
         },
@@ -232,6 +239,7 @@ export async function communityWrite(
           currency: "gbp",
           interval: "year",
           intervalCount: 1,
+          usageType: "licensed",
           active: true,
           approved: false,
         },
@@ -256,7 +264,12 @@ export async function communityWrite(
   }
   observers.forEach((callback) => callback())
   if (path === "actions/dashboard/account/syncLinkedAccounts:sync")
-    return { status: "ready" }
+    return {
+      status:
+        params.has("syncAccountsUnavailable") && ++syncAccountRequests === 1
+          ? "unavailable"
+          : "ready",
+    }
   if (path === "actions/dashboard/discord/guilds/syncDashboardGuilds:sync") {
     discoveryRequests++
     if (!progress || discoveryRequests === 3)
@@ -269,6 +282,15 @@ export async function communityWrite(
     return discoveryRequests < 3
       ? { status: "verificationPending", guilds: [] }
       : { status: "ready", verifiedAt, guilds: [] }
+  }
+  if (path === "premiumActions:portal")
+    return "https://billing.stripe.com/session/fixture"
+  if (path === "communityActions:disconnectLinkedRoles") {
+    if (params.has("disconnectRolesFailure"))
+      throw new Error("Provider unavailable")
+    linkedRolesConnected = false
+    notify()
+    return null
   }
   if (path === "communityActions:beginLinkedRoles")
     return "https://discord.com/oauth2/authorize?client_id=fixture&state=fixture-state"
