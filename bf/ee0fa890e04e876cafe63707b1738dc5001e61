@@ -1,0 +1,25 @@
+apps/dashboard/package.json
+  s_5ae3d800086a94::t_c9122cebe0c654 34
+apps/landing/package.json
+  s_5ae3d800086a94::t_c76bf3f798d4e0 22
+apps/mobile/package.json
+  s_5ae3d800086a94::t_7767161af54913 23-24,27,30,34
+bun.lock
+  s_5ae3d800086a94::t_9b93cfcbf6a306 38,85,105-106,109,112,116,552,586,612,784,788,790,792,794,796,798,800,802,816,818,820,822,824,826,828,830,1224,1464,1470,1476,1478,1484,1508,1520,1852,1864
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bfee0fa890e04e876cafe63707b1738dc5001e61",
+  "prompts": {},
+  "sessions": {
+    "s_5ae3d800086a94": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ecd5-4e3d-7040-95ec-ed1899c5cde6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
