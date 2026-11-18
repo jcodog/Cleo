@@ -1,0 +1,71 @@
+apps/dashboard/src/features/app-shell/AppTopbar.test.ts
+  s_12bfccf1ed7354::t_462050e47dfc06 90,93-121,144,146
+apps/dashboard/src/features/app-shell/DashboardShellClient.test.ts
+  s_12bfccf1ed7354::t_462050e47dfc06 114,149-162
+docs/account-billing-environments.md
+  s_12bfccf1ed7354::t_462050e47dfc06 159-161
+  s_12bfccf1ed7354::t_4a50a1ec43a7fd 162-163
+apps/dashboard/src/features/app-shell/routes.ts
+  s_12bfccf1ed7354::t_462050e47dfc06 6,9,11-12
+apps/dashboard/src/features/account/PersonalBilling.tsx
+  s_12bfccf1ed7354::t_5216f784f9f24f 18-24,36-38,41-47,80-82,123,170,176-180,183-187,190-191,239-250,252-330,332-339,341-425,427-488
+apps/dashboard/src/features/app-shell/DashboardShellClient.tsx
+  s_12bfccf1ed7354::t_462050e47dfc06 16-17,262-286,326-327
+apps/dashboard/tests/twitch/billing-fixture.ts
+  s_12bfccf1ed7354::t_fb382782c0b650 86-93
+  s_12bfccf1ed7354::t_462050e47dfc06 105
+  s_12bfccf1ed7354::t_b8e0f995da5471 4,45-46,48,180-183
+apps/dashboard/src/features/account/AccountProfile.tsx
+  s_12bfccf1ed7354::t_462050e47dfc06 4
+docs/dashboard-billing-handoff.md
+  s_12bfccf1ed7354::t_fb382782c0b650 3,5-7,9-10
+  s_12bfccf1ed7354::t_462050e47dfc06 4,8,11-12
+apps/dashboard/src/features/app-shell/routes.test.ts
+  s_12bfccf1ed7354::t_462050e47dfc06 46-52
+apps/dashboard/src/features/app-shell/AppSidebar.tsx
+  s_12bfccf1ed7354::t_462050e47dfc06 22,30,62,64
+apps/dashboard/src/features/app-shell/AppShell.tsx
+  s_12bfccf1ed7354::t_462050e47dfc06 15,33
+apps/dashboard/src/features/app-shell/AppTopbar.tsx
+  s_12bfccf1ed7354::t_462050e47dfc06 57-59,64,72,75,94,99,102,105-106,134,137,141-147
+apps/dashboard/src/features/app-shell/types.ts
+  s_12bfccf1ed7354::t_462050e47dfc06 29
+apps/dashboard/tests/twitch/billing-portal.spec.ts
+  s_12bfccf1ed7354::t_5216f784f9f24f 4,14,24,60-73,80,98,104-106,132,142,145,151,158,163-177,182-185,189,204,210,218-220
+  s_12bfccf1ed7354::t_dbc8dcd81b8e13 178-181
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_12bfccf1ed7354::t_5216f784f9f24f 509-510,512-520
+packages/backend/convex/billingPortalActions.ts
+  s_12bfccf1ed7354::t_5216f784f9f24f 120,169-205,249,273
+apps/dashboard/src/features/account/AccountProfile.test.ts
+  s_12bfccf1ed7354::t_462050e47dfc06 55
+apps/dashboard/tests/twitch/review-billing.spec.ts
+  s_12bfccf1ed7354::t_5216f784f9f24f 13,88-90,166
+apps/dashboard/tests/twitch/account-catalogue.spec.ts
+  s_12bfccf1ed7354::t_5216f784f9f24f 14,21-35
+packages/backend/convex/billingPortalActions.test.ts
+  s_12bfccf1ed7354::t_5216f784f9f24f 143-154,210-220,240-242,291-294,360
+apps/dashboard/src/features/billing/PaymentDetails.tsx
+  s_12bfccf1ed7354::t_fb382782c0b650 473-477
+  s_12bfccf1ed7354::t_462050e47dfc06 472,480
+apps/dashboard/src/app/(app)/billing/invoices/page.tsx
+  s_12bfccf1ed7354::t_0098e68601f38d 1-11
+apps/dashboard/src/app/(app)/billing/payment-details/page.tsx
+  s_12bfccf1ed7354::t_c950bc418db8d1 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40a1ee7bdfee36876579c4950d29b062d6e2a22b",
+  "prompts": {},
+  "sessions": {
+    "s_12bfccf1ed7354": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ec6e-df47-7b21-815a-2c349e2993bf",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
