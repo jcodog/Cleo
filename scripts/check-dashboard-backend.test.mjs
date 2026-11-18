@@ -39,6 +39,14 @@ test("preview checks fail on missing backend functions rather than accepting a r
     checkDashboardBackend("http://dev.convex.cloud"),
     /NEXT_PUBLIC_CONVEX_URL/
   )
+  for (const url of [
+    "https://dev.convex.cloud/wrong",
+    "https://dev.convex.cloud?wrong",
+    "https://dev.convex.cloud#wrong",
+    "https://user:password@dev.convex.cloud",
+    "https://dev.convex.cloud:8443",
+  ])
+    await assert.rejects(checkDashboardBackend(url), /NEXT_PUBLIC_CONVEX_URL/)
   await assert.rejects(
     checkDashboardBackend("https://dev.convex.cloud", async () =>
       Response.json({ status: "success" })

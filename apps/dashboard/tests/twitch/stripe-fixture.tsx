@@ -97,7 +97,7 @@ export function ExpressCheckoutElement({
   )
 }
 export function useCheckoutElements() {
-  if (params.has("formError"))
+  if (params.has("formError") || params.has("stripeUnavailable"))
     return { type: "error", error: { message: "Payment form unavailable" } }
   return {
     type: "success",

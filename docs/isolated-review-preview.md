@@ -17,23 +17,37 @@ from the repository root. Production keeps the existing frontend build and
 trusted repository, exact branch, full source SHA, clean checkout, development
 Clerk identity, controlled origin and project Preview Deploy Key.
 
-The build runs the installed Convex CLI from `packages/backend`:
+Maintainers run the wrapper from the repository root, with the protected Vercel
+Preview environment configured:
 
 ```sh
-bunx --no-install convex deploy --preview-name perf/convex-community-role-io --env-file <empty-temporary-file> --cmd 'bun ../../scripts/build-dashboard-preview.mjs --capture' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL
+bun scripts/build-dashboard-preview.mjs
 ```
+
+The wrapper creates its private temporary files and runs the installed Convex
+CLI from `packages/backend`. Do not invoke its internal `--capture` callback
+by hand. The deploy name remains the stable approved branch name. A final receipt check
+fails a build if an overlapping revision replaced its backend during the frontend
+build. This detects overlap; it does not claim to serialize provider deployments.
+Only the newest matching frontend/backend receipt is eligible for acceptance.
 
 The callback captures the CLI-selected canonical URL and stamps backend source
 evidence. It does not build the frontend. Convex 1.48 runs `--cmd` **before** its
 push. Only after the command exits successfully does the wrapper check the
-deployed `previewHealth:read` receipt, four unauthenticated auth guards, and run
-`bun run --filter @workspace/dashboard build` with that exact URL. It removes
+deployed `previewHealth:read` receipt and read-only `previewHealth:verifyProviders`
+proof. It then runs
+`bun run --filter @workspace/dashboard build` with that exact URL. The package
+build performs the four unauthenticated auth probes once. The wrapper rechecks
+parity and provider ownership after the frontend build. It removes
 `CONVEX_DEPLOY_KEY` from the frontend build environment and restores the local
 stamp in `finally`. No `--preview-create`, data import, data reset, `--prod`,
 shared development deploy or production credentials are used.
 
-The receipt checks source SHA, branch, canonical URL, billing tables, the
-membership index and isolation configuration. The successful Convex push
+The receipt checks source SHA, branch, canonical URL, billing tables and
+isolation configuration. On stacked PR #285 it also checks the membership
+index. The standalone #284 receipt checks its billing tables. Clerk secret
+ownership is checked against the instance domain, and any configured Stripe
+secret is checked against the actual approved sandbox account. The successful Convex push
 validates the complete source schema. The four probes reach auth guards for
 `accountBilling:overview`, `billingCatalogue:access`,
 `billingPortalActions:profile`, and `premiumActions:offer`. These checks do not

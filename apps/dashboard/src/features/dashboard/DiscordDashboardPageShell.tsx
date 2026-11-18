@@ -152,7 +152,7 @@ export function DiscordDashboardPageShell() {
                       <IconServer aria-hidden />
                     </EmptyMedia>
                     <EmptyTitle>
-                      {search ? "No matching servers" : "No servers yet"}
+                      {search.trim() ? "No matching servers" : "No servers yet"}
                     </EmptyTitle>
                     <EmptyDescription>
                       {search

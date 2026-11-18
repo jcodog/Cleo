@@ -25,7 +25,7 @@ branches; all four stashes have been safely accounted for and dropped.
   Address Element rendering. No real payment or saved test card is claimed.
   Populated payment/subscription/invoice screenshots are controlled fixtures.
 - Production lint/typecheck and coverage graphs passed, mobile excluded. Coverage
-  run included 418 backend and 108 dashboard tests; configured gates stayed 100%.
+  run at `6034a41` included 418 backend and 108 dashboard tests; configured gates stayed 100%. Later validation is recorded in `issue-288-release-evidence.md`.
   Final focused backend/security run passed 56 tests. Dashboard build passed;
   full browser regression passed 75 cases, followed by eight final portal cases
   including address editing, SDK unavailability and final visual layout. Real
@@ -203,7 +203,7 @@ checkpoint. Its code is **not included in the combined local preview**.
   `price_1UVzEKE1e1YdqDQQ2ET4LiZ4`, GBP 4.99/month (499 minor units).
 - Dedicated endpoint `we_1UVzFRE1e1YdqDQQiKOxjur2` points to
   `https://compassionate-goose-199.convex.site/stripe-community-webhook`, using
-  `2026-09-30.endive` and 15 billing event types. Signing secret stored securely.
+  `2026-09-30.endive` and 13 billing event types. Signing secret stored securely.
 - A signed no-op request returned HTTP **204** after the preview source reached
   the existing development watcher. Earlier deployed code had rejected it.
   Signature verification was not weakened. Actual Stripe-originated lifecycle

@@ -149,15 +149,14 @@ remain intact pending a separately approved policy decision.
 
 ## Local and cloud review
 
-Run focused tests while developing. Before the final signed commit, use an already
-installed, authenticated `cubic review -b origin/main` and an available independent
-local reviewer. Confirm read-only permissions and sandbox support before invoking
-another model. Include production source and relevant tests, reproduce findings,
-then complete repository validation. Report unavailable authentication, allowances
-or sandbox support rather than silently installing tools or purchasing API access.
+Run focused tests while developing. Before the final signed commit, review the
+diff locally and complete relevant validation. Cubic local reviews are manual
+and maintainer-initiated only. Agents must not invoke, retry, resume or queue
+Cubic through CLI, MCP, scripts, integrations or subagents. Existing saved output
+may be inspected. Do not invoke other paid review services without explicit
+authorisation. Report: "Ready for optional maintainer-initiated Cubic review."
 
-CLI reviews use a [separate allowance](https://docs.cubic.dev/account/ai-review-usage)
-from GitHub PR reviews. Cloud Cubic excludes tests and fixtures to conserve its
+Cloud Cubic excludes tests and fixtures to conserve its
 reviewed-line quota; implementation, workflows, security policy and controllers
 remain in scope. CodeRabbit continues reviewing both implementation and tests.
 Let automatic incremental reviews handle pushes instead of repeatedly requesting

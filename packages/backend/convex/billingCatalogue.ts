@@ -56,18 +56,43 @@ export const authority = internalQuery({
   },
 })
 export const mappings = internalQuery({
-  args: {},
+  args: { productId: v.string(), priceIds: v.array(v.string()) },
   returns: v.array(v.object({ productId: v.string(), priceId: v.string() })),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     await requireStaff(ctx)
-    return (await ctx.db.query("guildBillingPrices").take(500))
-      .filter((row) => row.enabled)
+    if (args.priceIds.length > 100)
+      throw new ConvexError("Price page exceeds bounds.")
+    const rows = await Promise.all(
+      args.priceIds.map((id) =>
+        ctx.db
+          .query("guildBillingPrices")
+          .withIndex("by_stripe_price_id", (q) => q.eq("stripePriceId", id))
+          .unique()
+      )
+    )
+    return rows
+      .filter((row) => row !== null)
+      .filter((row) => row.enabled && row.stripeProductId === args.productId)
       .map((row) => ({
         productId: row.stripeProductId,
         priceId: row.stripePriceId,
       }))
   },
 })
+export const operationExists = internalQuery({
+  args: { key: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const user = await manager(ctx)
+    return !!(await ctx.db
+      .query("billingCatalogueOperations")
+      .withIndex("by_user_key", (q) =>
+        q.eq("userId", user._id).eq("key", args.key)
+      )
+      .unique())
+  },
+})
+
 export const claim = internalMutation({
   args: {
     key: v.string(),
@@ -109,13 +134,24 @@ export const claim = internalMutation({
         worker: args.worker,
         leaseUntil: Date.now() + 60000,
       })
-    } else
+    } else {
+      const pending = await ctx.db
+        .query("billingCatalogueOperations")
+        .withIndex("by_user_completed", (q) =>
+          q.eq("userId", user._id).eq("completedAt", undefined)
+        )
+        .first()
+      if (pending)
+        throw new ConvexError(
+          "Resolve the recorded operation before starting another change."
+        )
       await ctx.db.insert("billingCatalogueOperations", {
         ...args,
         userId: user._id,
         createdAt: Date.now(),
         leaseUntil: Date.now() + 60000,
       })
+    }
     return null
   },
 })
@@ -190,13 +226,20 @@ export const history = query({
   ),
   handler: async (ctx) => {
     const staff = await requireStaff(ctx)
-    return (
-      await ctx.db
-        .query("billingCatalogueOperations")
-        .withIndex("by_created")
-        .order("desc")
-        .take(30)
-    ).map(({ key, request, createdAt, completedAt, userId }) => ({
+    const pending = await ctx.db
+      .query("billingCatalogueOperations")
+      .withIndex("by_user_completed", (q) =>
+        q.eq("userId", staff._id).eq("completedAt", undefined)
+      )
+      .first()
+    const recent = await ctx.db
+      .query("billingCatalogueOperations")
+      .withIndex("by_created")
+      .order("desc")
+      .take(30)
+    if (pending && !recent.some((row) => row._id === pending._id))
+      recent.unshift(pending)
+    return recent.map(({ key, request, createdAt, completedAt, userId }) => ({
       key,
       request,
       createdAt,

@@ -265,7 +265,11 @@ export const beginSetup = action({
 })
 export const completeSetup = action({
   args: { setupIntentId: v.string() },
-  returns: v.union(v.literal("saved"), v.literal("processing"), v.literal("failed")),
+  returns: v.union(
+    v.literal("saved"),
+    v.literal("processing"),
+    v.literal("failed")
+  ),
   handler: async (ctx, args) => {
     const context = await purchaser(ctx)
     if (!context.customer)
@@ -283,7 +287,11 @@ export const completeSetup = action({
         "This payment setup does not belong to your account."
       )
     if (intent.status === "processing") return "processing"
-    if (intent.status === "requires_payment_method" || intent.status === "canceled") return "failed"
+    if (
+      intent.status === "requires_payment_method" ||
+      intent.status === "canceled"
+    )
+      return "failed"
     if (intent.status !== "succeeded" || !intent.payment_method)
       throw new ConvexError("The payment method has not been saved. Try again.")
     await setCustomerDefault(
@@ -343,55 +351,16 @@ export const removeMethod = action({
   args: { paymentMethodId: v.string(), key: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const key = operationKey.parse(args.key),
-      id = methodId.parse(args.paymentMethodId)
+    operationKey.parse(args.key)
+    const id = methodId.parse(args.paymentMethodId)
     const context = await purchaser(ctx)
     if (!context.customer)
       throw new ConvexError("Your billing account is unavailable.")
-    const customerId = context.customer.stripeCustomerId
-    await ownMethod(customerId, id)
-    const customer = stripeCustomer.parse(
-      await stripeRequest(`/customers/${encodeURIComponent(customerId)}`)
+    await ownMethod(context.customer.stripeCustomerId, id)
+    // Stripe has no conditional detach. A local lock cannot fence Portal writes.
+    throw new ConvexError(
+      "Remove saved payment methods through Manage in Stripe so Stripe can protect active billing defaults."
     )
-    // Require an explicit replacement instead of leaving automatic invoices without their default.
-    if (customer.invoice_settings.default_payment_method === id)
-      throw new ConvexError(
-        "Choose another default payment method before removing this one."
-      )
-    const subscriptions = z
-      .object({
-        data: z.array(
-          z.object({
-            customer: z.string(),
-            status: z.string(),
-            default_payment_method: z.string().nullable(),
-          })
-        ),
-        has_more: z.boolean(),
-      })
-      .parse(
-        await stripeRequest(
-          `/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=100`
-        )
-      )
-    if (
-      subscriptions.has_more ||
-      subscriptions.data.some(
-        (row) =>
-          row.customer !== customerId ||
-          (!["canceled", "incomplete_expired"].includes(row.status) &&
-            row.default_payment_method === id)
-      )
-    )
-      throw new ConvexError(
-        "A subscription uses this payment method. Update that subscription before removing it."
-      )
-    await stripeRequest(
-      `/payment_methods/${encodeURIComponent(id)}/detach`,
-      {},
-      `cleo-remove:${context.user._id}:${key}`
-    )
-    return null
   },
 })
 export const updateDetails = action({

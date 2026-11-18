@@ -13,4 +13,5 @@ export const billingCatalogueOperations = defineTable({
   result: v.optional(v.string()),
 })
   .index("by_user_key", ["userId", "key"])
+  .index("by_user_completed", ["userId", "completedAt"])
   .index("by_created", ["createdAt"])

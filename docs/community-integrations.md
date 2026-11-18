@@ -42,6 +42,8 @@ its existing Clerk and Convex public configuration.
 | `CLEO_RECOGNITION_ENABLED`             | Convex only                      | Leave absent or `false`; controls real announcement delivery                                              |
 | `CLEO_COMMUNITY_UPGRADES_CHANNEL_ID`   | Convex only                      | Official server's `#community-upgrades` text channel ID                                                   |
 | `CLEO_LINKED_ROLES_FAQ_CHANNEL_ID`     | Operator reference in Convex     | Optional FAQ channel ID; source is rendered for manual publication, no posting worker uses it             |
+| `STRIPE_EXPECTED_ACCOUNT_ID`          | Convex only                      | Approved sandbox account ID; verified against Stripe `/account` before financial operations |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`  | Dashboard only                   | Matching approved sandbox publishable test key |
 | `STRIPE_SECRET_KEY`                    | Convex only                      | **Test** secret beginning `sk_test_`; live keys are rejected by this adapter                              |
 | `STRIPE_WEBHOOK_SECRET`                | Convex only                      | Signing secret for the matching test-mode webhook endpoint                                                |
 | `STRIPE_GUILD_PREMIUM_PRICE_ID`        | Convex only                      | Approved recurring guild Premium test Price ID                                                            |
@@ -61,7 +63,7 @@ commit it. Changing that key without a key migration requires users to reconnect
    and permissions. The dashboard offers separate account and server buttons.
 2. Add the exact role-connection OAuth redirect above. Set the Linked Roles
    verification URL to the dashboard's `/discord/linked-role` page. The informational
-   `/account/roles` FAQ does not initiate OAuth. The callback starts authorisation
+   sidebar **Linked Roles** dialog does not initiate OAuth. The old `/account/roles` bookmark redirects to the server directory. The callback starts authorisation
    when opened directly from Discord and consumes the returned code/state once.
    The flow requests
    `identify role_connections.write`, uses a five-minute single-use state bound

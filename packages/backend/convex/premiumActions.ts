@@ -123,14 +123,7 @@ export const checkout = action({
       !backendEnv.CLEO_DASHBOARD_ORIGIN
     )
       throw new Error("Guild Premium pricing is not configured.")
-    const origin = new URL(backendEnv.CLEO_DASHBOARD_ORIGIN)
-    if (
-      origin.protocol !== "https:" ||
-      origin.pathname !== "/" ||
-      origin.search ||
-      origin.hash
-    )
-      throw new Error("Billing return origin is not configured.")
+    const origin = billingOrigin()
     const price = await approvedCheckoutPrice(
       context.price.stripePriceId,
       context.price.stripeProductId
@@ -235,7 +228,7 @@ export const checkout = action({
           "line_items[0][quantity]": "1",
           "subscription_data[metadata][cleo_checkout]": reservation.key,
           "metadata[cleo_checkout]": reservation.key,
-          return_url: `${origin.origin}/dashboard/${args.discordGuildId}/checkout?session_id={CHECKOUT_SESSION_ID}`,
+          return_url: `${origin}/dashboard/${args.discordGuildId}/checkout?session_id={CHECKOUT_SESSION_ID}`,
           expires_at: String(Math.floor(reservation.expiresAt / 1000)),
         },
         `cleo-checkout:${reservation.key}`
@@ -362,17 +355,26 @@ export const cancelCheckout = action({
     const { reservation, session } = await purchaserCheckout(ctx, args)
     if (session.status === "complete") return "complete" as const
     if (session.status === "open") {
-      const expired = z
-        .object({ id: z.string(), status: z.literal("expired") })
-        .parse(
-          await stripeRequest(
-            `/checkout/sessions/${encodeURIComponent(session.id)}/expire`,
-            {},
-            `cleo-expire:${session.id}`
+      try {
+        const expired = z
+          .object({ id: z.string(), status: z.literal("expired") })
+          .parse(
+            await stripeRequest(
+              `/checkout/sessions/${encodeURIComponent(session.id)}/expire`,
+              {},
+              `cleo-expire:${session.id}`
+            )
           )
-        )
-      if (expired.id !== session.id)
-        throw new Error("Checkout identity mismatch.")
+        if (expired.id !== session.id)
+          throw new Error("Checkout identity mismatch.")
+      } catch (error) {
+        // Confirmation may complete after the initial read but before expiry.
+        if (!(error instanceof StripeRequestError) || error.status !== 400)
+          throw error
+        const latest = await purchaserCheckout(ctx, args)
+        if (latest.session.status === "complete") return "complete" as const
+        if (latest.session.status !== "expired") throw error
+      }
     }
     await ctx.runMutation(internal.premiumPurchases.closeCheckout, {
       key: reservation.key,

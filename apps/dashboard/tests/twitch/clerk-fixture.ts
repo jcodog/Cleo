@@ -17,7 +17,9 @@ const user = {
       }),
     },
     {
-      provider: "twitch",
+      provider: new URLSearchParams(location.search).has("oauthTwitch")
+        ? "oauth_twitch"
+        : "twitch",
       username: "cleo_channel",
       providerUserId: "222",
       approvedScopes:
@@ -27,7 +29,8 @@ const user = {
         if (new URLSearchParams(location.search).has("failDisconnect"))
           throw new Error("Connection failed")
         user.externalAccounts = user.externalAccounts.filter(
-          (account) => account.provider !== "twitch"
+          (account) =>
+            account.provider !== "twitch" && account.provider !== "oauth_twitch"
         )
       },
     },

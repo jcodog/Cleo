@@ -83,6 +83,7 @@ export type DataModel = {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_created: ["createdAt", "_creationTime"];
+      by_user_completed: ["userId", "completedAt", "_creationTime"];
       by_user_key: ["userId", "key", "_creationTime"];
     };
     searchIndexes: {};

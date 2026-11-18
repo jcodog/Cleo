@@ -166,21 +166,24 @@ test("commercial Price reads and Portal sessions are bound to the purchaser, eve
       product: { name: "Cleo Server Premium" },
     })
   }
-  assert.deepEqual(
-    await f.other.action(api.accountBillingActions.prices, {}),
-    []
-  )
+  assert.deepEqual(await f.other.action(api.accountBillingActions.prices, {}), {
+    prices: [],
+    next: null,
+  })
   assert.equal(requests.length, 0)
-  assert.deepEqual(await f.payer.action(api.accountBillingActions.prices, {}), [
-    {
-      id: "price_premium",
-      name: "Cleo Server Premium",
-      amount: 499,
-      currency: "gbp",
-      interval: "month",
-      intervalCount: 1,
-    },
-  ])
+  assert.deepEqual(
+    (await f.payer.action(api.accountBillingActions.prices, {})).prices,
+    [
+      {
+        id: "price_premium",
+        name: "Cleo Server Premium",
+        amount: 499,
+        currency: "gbp",
+        interval: "month",
+        intervalCount: 1,
+      },
+    ]
+  )
   assert.equal(
     await f.payer.action(api.premiumActions.portal, {}),
     "https://billing.stripe.com/session/fixture"
@@ -241,21 +244,29 @@ for (const uiMode of ["elements", "hosted"] as const)
         createdAt: now,
       })
     )
+    let completed = false
+    let race = false
     const previous = globalThis.fetch
     t.after(() => {
       globalThis.fetch = previous
     })
     globalThis.fetch = async (input) =>
       String(input).endsWith("/expire")
-        ? Response.json({ id: "cs_test_recovery", status: "expired" })
+        ? race
+          ? ((completed = true),
+            Response.json(
+              { error: { type: "invalid_request_error" } },
+              { status: 400 }
+            ))
+          : Response.json({ id: "cs_test_recovery", status: "expired" })
         : Response.json({
             id: "cs_test_recovery",
             customer: "cus_alice",
             livemode: false,
             mode: "subscription",
             ui_mode: uiMode,
-            status: "open",
-            payment_status: "unpaid",
+            status: completed ? "complete" : "open",
+            payment_status: completed ? "paid" : "unpaid",
             ...(uiMode === "elements"
               ? { client_secret: "test_session_secret" }
               : { url: "https://checkout.stripe.com/c/pay/cs_test_recovery" }),
@@ -269,8 +280,70 @@ for (const uiMode of ["elements", "hosted"] as const)
       (await f.payer.action(api.premiumActions.checkoutStatus, args)).status,
       "open"
     )
-    assert.equal(
-      await f.payer.action(api.premiumActions.cancelCheckout, args),
-      "expired"
-    )
+    if (uiMode === "hosted") {
+      race = true
+      assert.equal(
+        await f.payer.action(api.premiumActions.cancelCheckout, args),
+        "complete"
+      )
+      const reservation = await f.t.run((ctx) =>
+        ctx.db.query("premiumCheckouts").first()
+      )
+      assert.ok(reservation)
+      assert.equal(reservation.closedAt, undefined)
+    } else {
+      assert.equal(
+        await f.payer.action(api.premiumActions.cancelCheckout, args),
+        "expired"
+      )
+    }
   })
+
+test("purchaser prices paginate the ledger and reject mismatched or live provider prices", async (t) => {
+  const f = await fixture()
+  await f.t.run(async (ctx) => {
+    for (let i = 0; i < 21; i++)
+      await ctx.db.insert("guildSubscriptions", {
+        ...f.subscription,
+        stripeSubscriptionId: "sub_page_" + i,
+        stripePriceId: "price_page_" + i,
+      })
+  })
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  let invalid: "id" | "live" | undefined
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith("/account"))
+      return Response.json({ id: "acct_fixture" })
+    return Response.json({
+      id: invalid === "id" ? "price_other" : url.pathname.split("/").at(-1),
+      livemode: invalid === "live",
+      unit_amount: 499,
+      currency: "gbp",
+      recurring: null,
+      product: { name: "Fixture" },
+    })
+  }
+  const first = await f.payer.action(api.accountBillingActions.prices, {})
+  assert.equal(first.prices.length, 20)
+  assert.ok(first.next)
+  const rest = await f.payer.action(api.accountBillingActions.prices, {
+    cursor: first.next,
+  })
+  assert.equal(rest.next, null)
+  assert.equal(rest.prices.length, 2)
+  assert.ok(rest.prices.some(({ id }) => id === "price_premium"))
+  invalid = "id"
+  await assert.rejects(
+    f.payer.action(api.accountBillingActions.prices, {}),
+    /Price identity mismatch/
+  )
+  invalid = "live"
+  await assert.rejects(
+    f.payer.action(api.accountBillingActions.prices, {}),
+    /livemode/
+  )
+})

@@ -14,6 +14,7 @@ process.env.STRIPE_SECRET_KEY = "sk_test_fixture"
 process.env.STRIPE_EXPECTED_ACCOUNT_ID = "acct_1RGgwvE1e1YdqDQQ"
 process.env.STRIPE_CATALOGUE_WRITES_ENABLED = "true"
 process.env.STRIPE_CATALOGUE_MANAGER_IDS = "finance"
+process.env.CLEO_DASHBOARD_ORIGIN = "https://review.example.com"
 process.env.CLERK_JWT_ISSUER_DOMAIN = "https://catalogue.clerk.accounts.dev"
 const modules = {
   "./_generated/server.js": () => import("./_generated/server.js"),
@@ -133,9 +134,14 @@ test("freshness checks reject other users, sessions, stale factors, future issua
     iat: now,
     exp: now + 60,
     fva: [0, -1],
+    azp: "https://review.example.com",
   }
-  requireCatalogueSessionClaims(claims, identity, now)
+  requireCatalogueSessionClaims(claims, identity, now, [
+    "https://review.example.com",
+  ])
   for (const patch of [
+    { azp: "https://other.example.com" },
+    { azp: undefined },
     { sub: "another" },
     { sid: "other" },
     { fva: [5, -1] },
@@ -147,7 +153,9 @@ test("freshness checks reject other users, sessions, stale factors, future issua
   ])
     assert.throws(
       () =>
-        requireCatalogueSessionClaims({ ...claims, ...patch }, identity, now),
+        requireCatalogueSessionClaims({ ...claims, ...patch }, identity, now, [
+          "https://review.example.com",
+        ]),
       /Sign in again/
     )
   assert.equal(
@@ -173,6 +181,66 @@ test("freshness checks reject other users, sessions, stale factors, future issua
     false
   )
 })
+
+test("an unresolved operation survives recent-history truncation and fences a different key", async () => {
+  const f = await fixture()
+  const args = {
+    key: "uncertain",
+    request: "{}",
+    accountId: process.env.STRIPE_EXPECTED_ACCOUNT_ID!,
+    worker: "one",
+  }
+  await f.finance.mutation(internal.billingCatalogue.claim, args)
+  await f.t.run(async (ctx) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", "finance"))
+      .unique()
+    assert.ok(user)
+    for (let i = 0; i < 35; i++)
+      await ctx.db.insert("billingCatalogueOperations", {
+        ...args,
+        key: `newer${i}`,
+        userId: user._id,
+        createdAt: Date.now() + i + 1,
+        completedAt: Date.now(),
+        result: "prod_done",
+        leaseUntil: 0,
+      })
+  })
+  assert.ok(
+    (await f.finance.query(api.billingCatalogue.history, {})).some(
+      (row) => row.key === "uncertain" && row.canRetry && !row.completedAt
+    )
+  )
+  await assert.rejects(
+    f.finance.mutation(internal.billingCatalogue.claim, {
+      ...args,
+      key: "different",
+    }),
+    /Resolve the recorded operation/
+  )
+})
+
+test("requested price approvals remain correct beyond 500 retained mappings", async () => {
+  const f = await fixture()
+  await f.t.run(async (ctx) => {
+    for (let i = 0; i < 505; i++)
+      await ctx.db.insert("guildBillingPrices", {
+        stripeProductId: "prod_one",
+        stripePriceId: `price_${i}`,
+        enabled: true,
+        updatedAt: 1,
+      })
+  })
+  assert.deepEqual(
+    await f.finance.query(internal.billingCatalogue.mappings, {
+      productId: "prod_one",
+      priceIds: ["price_504"],
+    }),
+    [{ productId: "prod_one", priceId: "price_504" }]
+  )
+})
 test("signed sandbox creation replays once, validates account and keeps historical mappings when archiving", async (t) => {
   const f = await fixture()
   const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -180,7 +248,11 @@ test("signed sandbox creation replays once, validates account and keeps historic
   })
   const jwk = await exportJWK(publicKey)
   const now = Math.floor(Date.now() / 1000)
-  const token = await new SignJWT({ sid: "session_finance", fva: [0, -1] })
+  const token = await new SignJWT({
+    sid: "session_finance",
+    fva: [0, -1],
+    azp: "https://review.example.com",
+  })
     .setSubject("finance")
     .setIssuer(process.env.CLERK_JWT_ISSUER_DOMAIN!)
     .setIssuedAt(now)
@@ -271,7 +343,11 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
     modulusLength: 2048,
   })
   const jwk = await exportJWK(publicKey)
-  const token = await new SignJWT({ sid: "session_finance", fva: [0, -1] })
+  const token = await new SignJWT({
+    sid: "session_finance",
+    fva: [0, -1],
+    azp: "https://review.example.com",
+  })
     .setSubject("finance")
     .setIssuer(process.env.CLERK_JWT_ISSUER_DOMAIN!)
     .setIssuedAt()

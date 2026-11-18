@@ -188,3 +188,12 @@ test("already-consented Linked Roles does not start OAuth again", async ({
     calls.filter((call) => call.path === "communityActions:beginLinkedRoles")
   ).toHaveLength(0)
 })
+
+test("the server selector opens the directory from a guild", async ({
+  page,
+}) => {
+  await page.goto("/dashboard/333333333333333333?community&navigation")
+  await page.getByRole("button", { name: "Select Discord guild" }).click()
+  await page.getByRole("menuitem", { name: "View all servers" }).click()
+  await expect(page).toHaveURL(/\/dashboard\/servers$/)
+})

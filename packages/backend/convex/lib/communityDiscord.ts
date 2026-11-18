@@ -12,7 +12,11 @@ export class DiscordTokenError extends Error {
       { status: "unavailable" }
     >["reason"]
   ) {
-    super(reason === "discordAccessTokenUnavailable" ? "Reconnect Discord in Connected accounts, then try again." : "Discord account verification is unavailable.")
+    super(
+      reason === "discordAccessTokenUnavailable"
+        ? "Reconnect Discord in Connected accounts, then try again."
+        : "Discord account verification is unavailable."
+    )
   }
 }
 export class DiscordCapabilityError extends Error {

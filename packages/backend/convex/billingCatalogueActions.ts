@@ -3,11 +3,12 @@
 import { randomUUID } from "node:crypto"
 import { createRemoteJWKSet, jwtVerify } from "jose"
 import { z } from "zod"
-import { v } from "convex/values"
+import { ConvexError, v } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
 import { action, type ActionCtx } from "./_generated/server"
 import { internal } from "./_generated/api"
 import { stripeRequest } from "./lib/stripeCommunity"
+import { configuredBillingOrigins } from "./lib/billingOrigin"
 import {
   catalogueChange,
   catalogueProduct,
@@ -112,10 +113,9 @@ export const detail = action({
           .regex(/^price_[A-Za-z0-9]+$/)
           .parse(args.cursor)
       )
-    const [raw, rawPrices, mappings] = await Promise.all([
+    const [raw, rawPrices] = await Promise.all([
       stripeRequest(`/products/${id}`),
       stripeRequest(`/prices?${params}`),
-      ctx.runQuery(internal.billingCatalogue.mappings, {}),
     ])
     const row = product.parse(raw)
     if (row.id !== id) throw new Error("Product identity mismatch.")
@@ -124,6 +124,10 @@ export const detail = action({
       .parse(rawPrices)
     if (rows.data.some((entry) => entry.product !== id))
       throw new Error("Price Product mismatch.")
+    const mappings = await ctx.runQuery(internal.billingCatalogue.mappings, {
+      productId: id,
+      priceIds: rows.data.map((entry) => entry.id),
+    })
     return {
       product: productView(row),
       prices: rows.data.map((entry) => ({
@@ -133,6 +137,7 @@ export const detail = action({
         currency: entry.currency,
         interval: entry.recurring?.interval ?? null,
         intervalCount: entry.recurring?.interval_count ?? 1,
+        usageType: entry.recurring?.usage_type ?? null,
         approved: mappings.some(
           (mapping) => mapping.priceId === entry.id && mapping.productId === id
         ),
@@ -150,28 +155,89 @@ export const change = action({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const key = z.uuid().parse(args.key)
-    if (args.request.length > 4096 || args.sessionToken.length > 16384)
-      throw new Error("Request exceeds bounds.")
-    const change = catalogueChange.parse(JSON.parse(args.request))
-    if (args.confirmation !== "CONFIRM SANDBOX CHANGE")
-      throw new Error("Explicit sandbox confirmation is required.")
-    const authority = await account(ctx, true)
-    const issuer = backendEnv.CLERK_JWT_ISSUER_DOMAIN
-    if (!issuer || !issuer.startsWith("https://"))
-      throw new Error("Clerk session verification is unavailable.")
-    const { payload } = await jwtVerify(
-      args.sessionToken,
-      createRemoteJWKSet(
-        new URL(`${issuer.replace(/\/$/, "")}/.well-known/jwks.json`)
-      ),
-      { issuer, algorithms: ["RS256"] }
-    )
-    requireCatalogueSessionClaims(
-      payload,
-      authority,
-      Math.floor(Date.now() / 1000)
-    )
+    const { key, change, authority } = await (async () => {
+      const key = z.uuid().parse(args.key)
+      if (args.request.length > 4096 || args.sessionToken.length > 16384)
+        throw new Error("Request exceeds bounds.")
+      const change = catalogueChange.parse(JSON.parse(args.request))
+      if (args.confirmation !== "CONFIRM SANDBOX CHANGE")
+        throw new Error("Explicit sandbox confirmation is required.")
+      const authority = await account(ctx, true)
+      const issuer = backendEnv.CLERK_JWT_ISSUER_DOMAIN
+      if (!issuer || !issuer.startsWith("https://"))
+        throw new Error("Clerk session verification is unavailable.")
+      const { payload } = await jwtVerify(
+        args.sessionToken,
+        createRemoteJWKSet(
+          new URL(`${issuer.replace(/\/$/, "")}/.well-known/jwks.json`)
+        ),
+        { issuer, algorithms: ["RS256"] }
+      )
+      requireCatalogueSessionClaims(
+        payload,
+        authority,
+        Math.floor(Date.now() / 1000),
+        configuredBillingOrigins()
+      )
+      if (change.kind !== "createProduct") {
+        const current = product.parse(
+          await stripeRequest(`/products/${change.productId}`)
+        )
+        if (current.id !== change.productId)
+          throw new Error("Product identity mismatch.")
+        if (change.kind === "createPrice" && !current.active)
+          throw new Error(
+            "Restore the product in Stripe before adding a price."
+          )
+        if ("priceId" in change) {
+          const existing = price.parse(
+            await stripeRequest(`/prices/${change.priceId}`)
+          )
+          if (existing.id !== change.priceId || existing.product !== current.id)
+            throw new Error("Price Product mismatch.")
+          if (
+            change.kind === "archivePrice" &&
+            current.default_price === existing.id
+          )
+            throw new Error(
+              "Choose another default before archiving this price."
+            )
+          if (
+            change.kind !== "archivePrice" &&
+            (!current.active || !existing.active)
+          )
+            throw new Error("An active Product and Price are required.")
+          if (
+            change.kind === "approvePremium" &&
+            (!existing.recurring ||
+              existing.recurring.usage_type !== "licensed" ||
+              !existing.unit_amount ||
+              existing.unit_amount <= 0)
+          )
+            throw new Error(
+              "Premium mapping requires a positive licensed recurring price."
+            )
+        }
+      }
+      return { key, change, authority }
+    })().catch(async (error: unknown) => {
+      // A rejection on replay cannot prove an earlier attempt made no write.
+      if (
+        await ctx.runQuery(internal.billingCatalogue.operationExists, {
+          key: args.key,
+        })
+      )
+        throw new ConvexError(
+          `${error instanceof Error ? error.message : "Request rejected."} The recorded operation still needs reconciliation. Retry the same request after checking Stripe.`
+        )
+      throw new ConvexError({
+        code: "CATALOGUE_NOT_SUBMITTED",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Catalogue request was not submitted.",
+      })
+    })
     const worker = randomUUID()
     const previous = await ctx.runMutation(internal.billingCatalogue.claim, {
       key,

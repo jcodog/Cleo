@@ -3,7 +3,6 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import { checkDashboardBackend } from "./check-dashboard-backend.mjs"
 
 const root = fileURLToPath(new URL("../", import.meta.url))
 const backend = join(root, "packages/backend")
@@ -90,6 +89,46 @@ export function previewUrl(value) {
   return url.origin
 }
 
+export async function verifyClerkInstance(env, config, request = fetch) {
+  const response = await request("https://api.clerk.com/v1/domains", {
+    headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
+    signal: AbortSignal.timeout(15000),
+  })
+  const result = await response.json()
+  if (
+    !response.ok ||
+    !Array.isArray(result.data) ||
+    !result.data.some((domain) =>
+      [config.issuer, new URL(config.issuer).hostname].includes(
+        domain.frontend_api_url
+      )
+    )
+  )
+    throw new Error(
+      "Preview Clerk secret does not match the configured issuer."
+    )
+}
+
+/** Gate both sides of the frontend build on the exact deployed backend. */
+export async function verifyAndBuildPreview(config, url, operations) {
+  const verify = async () => {
+    const value = await operations.receipt()
+    if (
+      value?.sha !== config.sha ||
+      value.branch !== config.branch ||
+      value.url !== url ||
+      !value.isolated ||
+      !value.schemaReady ||
+      !(await operations.providers())
+    )
+      throw new Error("Preview backend parity or isolation failed.")
+    return value
+  }
+  await verify()
+  await operations.buildFrontend()
+  return verify()
+}
+
 function run(args, env, cwd = root) {
   const result = spawnSync(process.execPath, args, {
     cwd,
@@ -141,6 +180,7 @@ async function main() {
     throw new Error(
       "Preview deployment requires a clean checkout of the exact source SHA."
     )
+  await verifyClerkInstance(env, config)
   const directory = mkdtempSync(join(tmpdir(), "cleo-review-"))
   const original = readFileSync(stampPath)
   const childEnv = { ...env, CLEO_PREVIEW_URL_FILE: join(directory, "url") }
@@ -170,36 +210,32 @@ async function main() {
       backend
     )
     const url = previewUrl(readFileSync(childEnv.CLEO_PREVIEW_URL_FILE, "utf8"))
-    const response = await fetch(`${url}/api/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: "previewHealth:read",
-        args: {},
-        format: "json",
-      }),
-      signal: AbortSignal.timeout(15000),
-    })
-    const receipt = await response.json()
-    const value = receipt.value
-    if (
-      !response.ok ||
-      receipt.status !== "success" ||
-      value?.sha !== config.sha ||
-      value.branch !== config.branch ||
-      value.url !== url ||
-      !value.isolated ||
-      !value.schemaReady
-    )
-      throw new Error(
-        "Preview backend parity or isolation failed. Check the restricted Preview environment."
-      )
-    await checkDashboardBackend(url)
-    console.log(JSON.stringify({ previewReceipt: value }))
+    const read = async (kind, path) => {
+      const response = await fetch(`${url}/api/${kind}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path,
+          args: {},
+          format: "json",
+        }),
+        signal: AbortSignal.timeout(15000),
+      })
+      const receipt = await response.json()
+      if (!response.ok || receipt.status !== "success")
+        throw new Error("Preview receipt failed.")
+      return receipt.value
+    }
     // The frontend build receives no privileged backend deploy credential.
     const frontendEnv = { ...childEnv, NEXT_PUBLIC_CONVEX_URL: url }
     delete frontendEnv.CONVEX_DEPLOY_KEY
-    run(["run", "--filter", "@workspace/dashboard", "build"], frontendEnv)
+    const value = await verifyAndBuildPreview(config, url, {
+      receipt: () => read("query", "previewHealth:read"),
+      providers: () => read("action", "previewHealth:verifyProviders"),
+      buildFrontend: async () =>
+        run(["run", "--filter", "@workspace/dashboard", "build"], frontendEnv),
+    })
+    console.log(JSON.stringify({ previewReceipt: value }))
   } finally {
     writeFileSync(stampPath, original)
     rmSync(directory, { recursive: true, force: true })

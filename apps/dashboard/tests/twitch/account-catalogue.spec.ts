@@ -18,6 +18,7 @@ for (const width of [1440, 375]) {
     ).toBeVisible()
     await expect(page.getByText(/Cleo Server Premium · £4.99/)).toBeVisible()
     await expect(page.getByRole("combobox", { name: /server/i })).toHaveCount(0)
+    await expect(page.locator('[data-slot="sidebar"]')).toHaveCount(0)
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth
@@ -170,4 +171,48 @@ test("disconnect failure stays visible inside the confirmation dialog", async ({
   ).toBeEnabled()
   await page.keyboard.press("Escape")
   await expect(dialog).toHaveCount(0)
+})
+
+test("connection actions cover Discord reauthorisation, refresh, and Linked Roles removal", async ({
+  page,
+}) => {
+  await page.route("https://discord.com/oauth2/authorize?**", (route) =>
+    route.fulfill({ status: 200, body: "Discord provider fixture" })
+  )
+  await page.goto(`/account/connections${fixture}&linkedRolesConnected`)
+  await page.getByRole("button", { name: "Reauthorise Discord" }).click()
+  await expect(page).toHaveURL(/discord\.com\/oauth2\/authorize/)
+  await page.goto(`/account/connections${fixture}&linkedRolesConnected`)
+  await page.getByRole("button", { name: "Refresh server access" }).click()
+  await expect(page.getByText(/Server verification requested/)).toBeVisible()
+  await page
+    .getByRole("button", { name: "Disconnect Linked Roles consent" })
+    .click()
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Confirm disconnect" })
+    .click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await expect(
+    page.getByRole("status").filter({ hasText: "Connection removed." })
+  ).toBeVisible()
+  await expect(page.getByText(/No active Linked Roles consent/)).toBeVisible()
+})
+
+test("Twitch aliases can disconnect and retry an unavailable backend projection", async ({
+  page,
+}) => {
+  await page.goto(
+    `/account/connections${fixture}&oauthTwitch&syncAccountsUnavailable`
+  )
+  await page
+    .getByRole("button", { name: "Disconnect Twitch", exact: true })
+    .click()
+  const dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: "Confirm disconnect" }).click()
+  await expect(dialog.getByRole("alert")).toContainText("could not be updated")
+  await expect(page.getByText("Connection removed.")).toHaveCount(0)
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
+  await page.getByRole("button", { name: "Retry linked account sync" }).click()
+  await expect(page.getByText("Connection removed.")).toBeVisible()
 })

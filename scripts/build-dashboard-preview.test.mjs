@@ -3,7 +3,12 @@ import { test } from "node:test"
 import { readFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
-import { previewConfig, previewUrl } from "./build-dashboard-preview.mjs"
+import {
+  previewConfig,
+  previewUrl,
+  verifyClerkInstance,
+  verifyAndBuildPreview,
+} from "./build-dashboard-preview.mjs"
 
 const env = {
   VERCEL_ENV: "preview",
@@ -114,4 +119,85 @@ test("claimed preview URLs reject shared development, aliases and credentials", 
     "https://user@preview.convex.cloud",
   ])
     assert.throws(() => previewUrl(url))
+})
+
+test("Clerk secret must belong to the configured development issuer", async () => {
+  const config = previewConfig(env)
+  await verifyClerkInstance(env, config, async (_url, init) => {
+    assert.equal(init.headers.Authorization, `Bearer ${env.CLERK_SECRET_KEY}`)
+    return Response.json({ data: [{ frontend_api_url: "clerk.example.com" }] })
+  })
+  for (const result of [
+    { data: [{ frontend_api_url: "other.example.com" }] },
+    {},
+    { data: [] },
+  ])
+    await assert.rejects(
+      verifyClerkInstance(env, config, async () => Response.json(result)),
+      /does not match/
+    )
+})
+
+test("frontend cannot pass a missing, unsafe or changed backend receipt", async () => {
+  const config = previewConfig(env)
+  const url = "https://review.convex.cloud"
+  const value = { ...config, url, isolated: true, schemaReady: true }
+  const events = []
+  const operations = {
+    receipt: async () => {
+      events.push("receipt")
+      return value
+    },
+    providers: async () => {
+      events.push("providers")
+      return true
+    },
+    buildFrontend: async () => {
+      events.push("build")
+    },
+  }
+  await verifyAndBuildPreview(config, url, operations)
+  assert.deepEqual(events, [
+    "receipt",
+    "providers",
+    "build",
+    "receipt",
+    "providers",
+  ])
+  for (const bad of [
+    null,
+    { ...value, sha: "b".repeat(40) },
+    { ...value, isolated: false },
+    { ...value, schemaReady: false },
+    { ...value, url: "https://other.convex.cloud" },
+  ]) {
+    events.length = 0
+    await assert.rejects(
+      verifyAndBuildPreview(config, url, {
+        ...operations,
+        receipt: async () => bad,
+      }),
+      /parity/
+    )
+    assert.ok(!events.includes("build"))
+  }
+  events.length = 0
+  await assert.rejects(
+    verifyAndBuildPreview(config, url, {
+      ...operations,
+      providers: async () => false,
+    }),
+    /parity/
+  )
+  assert.ok(!events.includes("build"))
+  let reads = 0
+  await assert.rejects(
+    verifyAndBuildPreview(config, url, {
+      ...operations,
+      receipt: async () =>
+        ++reads === 1 ? value : { ...value, sha: "b".repeat(40) },
+    }),
+    /parity/
+  )
+  assert.equal(reads, 2)
 })

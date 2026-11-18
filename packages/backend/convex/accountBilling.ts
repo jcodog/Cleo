@@ -1,9 +1,35 @@
 import { v } from "convex/values"
-import { query } from "./_generated/server"
+import { internalQuery, query } from "./_generated/server"
+import { paginationOptsValidator } from "convex/server"
 import { requireCurrentUser } from "./lib/auth"
 import { subscriptionStatus } from "./dbTables/guildBilling"
 import { backendEnv } from "@workspace/env/backend"
 import { billingConfiguration } from "./lib/billingConfiguration"
+
+export const pricePage = internalQuery({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: v.object({
+    priceIds: v.array(v.string()),
+    next: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const user = await requireCurrentUser(ctx)
+    const customer = await ctx.db
+      .query("billingCustomers")
+      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
+      .unique()
+    if (!customer) return { priceIds: [], next: null }
+    const page = await ctx.db
+      .query("guildSubscriptions")
+      .withIndex("by_customer_id", (q) => q.eq("customerId", customer._id))
+      .order("desc")
+      .paginate(args.paginationOpts)
+    return {
+      priceIds: [...new Set(page.page.map((row) => row.stripePriceId))],
+      next: page.isDone ? null : page.continueCursor,
+    }
+  },
+})
 
 /** A purchaser's ledger remains available independently of Discord membership. */
 export const overview = query({
@@ -56,13 +82,15 @@ export const overview = query({
           .order("desc")
           .take(21)
       : []
+    const configuration = billingConfiguration()
     return {
       clerkUserId: user.clerkUserId,
-      configuration: billingConfiguration(),
+      configuration,
       canManageBilling:
         !!customer &&
         !!backendEnv.STRIPE_SECRET_KEY?.startsWith("sk_test_") &&
-        !!backendEnv.CLEO_DASHBOARD_ORIGIN,
+        !!backendEnv.STRIPE_EXPECTED_ACCOUNT_ID &&
+        !!configuration.returnOrigin,
       hasMore: rows.length > 20,
       subscriptions: await Promise.all(
         rows.slice(0, 20).map(async (row) => {

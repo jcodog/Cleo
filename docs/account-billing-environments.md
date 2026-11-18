@@ -83,7 +83,7 @@ changing Vercel settings does not repair a previously built deployment.
 | `CLERK_SECRET_KEY` | Next.js Clerk server authentication, `sk_test_` or `sk_live_` | Yes | Matching development instance | Matching development instance | Matching production instance |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe Elements identity, `pk_test_` | No | Cleo Dev Sandbox | Same sandbox as Preview Convex Stripe secret | Leave checkout disabled under JCN-242; live keys are rejected |
 | `NEXT_PUBLIC_APP_URL` | Canonical dashboard HTTPS origin | No | `https://localhost:3000` | `https://dev-app.cleoai.cloud` or the approved preview origin | `https://app.cleoai.cloud` |
-| `NEXT_PUBLIC_SITE_URL` | Public landing origin | No | `https://localhost:3001` | Approved landing origin | Public production landing origin |
+| `NEXT_PUBLIC_SITE_URL` | Public landing origin | No | `http://localhost:3001` | Approved landing origin | Public production landing origin |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Hosted sign-in path | No | `/sign-in` | `/sign-in` | `/sign-in` |
 | `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Hosted sign-up path | No | `/sign-up` | `/sign-up` | `/sign-up` |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | Post-login fallback | No | `/dashboard` | `/dashboard` | `/dashboard` |

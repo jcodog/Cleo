@@ -10,7 +10,7 @@ Stripe customer or subscription. These screenshots show the honest empty state,
 not substituted billing data.
 
 - [Desktop portal, 1440px](authenticated-empty-desktop.jpg)
-- [Mobile portal, 375px](authenticated-empty-mobile.jpg)
+- [Mobile portal, 360px](authenticated-empty-mobile.jpg)
 - [Centred native Clerk UserProfile, 1440px](authenticated-clerk-centered-desktop.jpg)
 - [Native Clerk mobile layout, 375px](authenticated-clerk-mobile.jpg)
 - [Real Stripe Address Element](authenticated-address-element.jpg)
