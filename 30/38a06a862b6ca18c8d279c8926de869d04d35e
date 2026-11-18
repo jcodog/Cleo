@@ -1,0 +1,23 @@
+scripts/build-dashboard-preview.test.mjs
+  s_5ae3d800086a94::t_665e01daddd8ca 9,264-294
+  s_5ae3d800086a94::t_be9734d06ab76e 295-301
+scripts/build-dashboard-preview.mjs
+  s_5ae3d800086a94::t_665e01daddd8ca 188-215,267,335
+  s_5ae3d800086a94::t_addecc1e674d62 268-269,332-334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3038a06a862b6ca18c8d279c8926de869d04d35e",
+  "prompts": {},
+  "sessions": {
+    "s_5ae3d800086a94": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ecd5-4e3d-7040-95ec-ed1899c5cde6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
