@@ -1,0 +1,24 @@
+apps/dashboard/tests/twitch/community-fixture.tsx
+  s_5ae3d800086a94::t_a56cf11de7b9ac 45-52,54,76,79,119-124
+  s_5ae3d800086a94::t_edc0e05f8fe24e 125-127,553
+apps/dashboard/tests/twitch/fixture.tsx
+  s_5ae3d800086a94::t_9eca6e49d6fcaa 103
+apps/dashboard/tests/twitch/navigation.spec.ts
+  s_5ae3d800086a94::t_f0e614a661b99d 53-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "53b33716ac22fafaa190bb232491276bc74bdb24",
+  "prompts": {},
+  "sessions": {
+    "s_5ae3d800086a94": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ecd5-4e3d-7040-95ec-ed1899c5cde6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Jason Connolly <jcodog@jconet.co.uk>"
+    }
+  }
+}
