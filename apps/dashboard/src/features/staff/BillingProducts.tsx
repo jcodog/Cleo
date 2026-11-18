@@ -679,8 +679,12 @@ function Catalogue({ productId }: { productId?: string }) {
           {history?.map((row) => (
             <li key={row.key} className="py-3">
               <span>
-                {row.completedAt ? "Completed" : "Pending or uncertain"} ·{" "}
-                {new Date(row.createdAt).toLocaleString()}
+                {row.rejected
+                  ? "Rejected"
+                  : row.completedAt
+                    ? "Completed"
+                    : "Pending or uncertain"}{" "}
+                · {new Date(row.createdAt).toLocaleString()}
               </span>
               <p className="mt-1 font-mono text-xs break-all text-muted-foreground">
                 {row.request}

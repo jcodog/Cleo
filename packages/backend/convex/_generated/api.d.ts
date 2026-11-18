@@ -1680,6 +1680,7 @@ export declare const api: {
         completedAt?: number;
         createdAt: number;
         key: string;
+        rejected: boolean;
         request: string;
       }>
     >;
@@ -2554,7 +2555,6 @@ export declare const api: {
         url: string;
       }
     >;
-    verifyProviders: FunctionReference<"action", "public", {}, boolean>;
   };
   queries: {
     dashboard: {
@@ -3839,15 +3839,16 @@ export declare const internal: {
       "mutation",
       "internal",
       { accountId: string; key: string; request: string; worker: string },
-      null | string
+      "first" | "retry" | { result: string } | { rejection: string }
     >;
     complete: FunctionReference<
       "mutation",
       "internal",
       {
         key: string;
-        mapping?: { priceId: string; productId: string };
-        result: string;
+        outcome:
+          | { mapping?: { priceId: string; productId: string }; result: string }
+          | { rejection: string };
         worker: string;
       },
       null
@@ -3857,12 +3858,6 @@ export declare const internal: {
       "internal",
       { priceIds: Array<string>; productId: string },
       Array<{ priceId: string; productId: string }>
-    >;
-    operationExists: FunctionReference<
-      "query",
-      "internal",
-      { key: string },
-      boolean
     >;
   };
   communityActions: {
@@ -7697,6 +7692,14 @@ export declare const internal: {
       "action",
       "internal",
       { body: string; signature: string },
+      boolean
+    >;
+  };
+  previewHealth: {
+    verifyProviders: FunctionReference<
+      "action",
+      "internal",
+      { sha: string; url: string },
       boolean
     >;
   };

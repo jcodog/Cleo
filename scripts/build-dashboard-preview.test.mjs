@@ -7,6 +7,7 @@ import {
   previewConfig,
   previewUrl,
   verifyClerkInstance,
+  verifyPreviewEnvironment,
   verifyAndBuildPreview,
 } from "./build-dashboard-preview.mjs"
 
@@ -200,4 +201,15 @@ test("frontend cannot pass a missing, unsafe or changed backend receipt", async 
     /parity/
   )
   assert.equal(reads, 2)
+})
+
+test("Preview inventory accepts only explicitly approved deployment variables", () => {
+  const inventory = "CLERK_SECRET_KEY\nSTRIPE_TEST_CHECKOUT_ENABLED"
+  assert.doesNotThrow(() => verifyPreviewEnvironment(inventory))
+  for (const unexpected of ["SENTRY_AUTH_TOKEN", "PROVIDER_CREDENTIAL"]) {
+    assert.throws(
+      () => verifyPreviewEnvironment(inventory + "\n" + unexpected),
+      /unexpected environment variables/
+    )
+  }
 })

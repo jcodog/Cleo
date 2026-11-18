@@ -115,6 +115,21 @@ test("personal billing is purchaser-scoped without requiring a Discord identity 
   )
 })
 
+for (const setting of [
+  "STRIPE_EXPECTED_ACCOUNT_ID",
+  "CLEO_DASHBOARD_ORIGIN",
+] as const) {
+  test(`billing management is disabled without ${setting}`, async (t) => {
+    const { backendEnv } = await import("@workspace/env/backend")
+    t.mock.property(backendEnv, setting, undefined)
+    const f = await fixture()
+    assert.equal(
+      (await f.payer.query(api.accountBilling.overview, {})).canManageBilling,
+      false
+    )
+  })
+}
+
 test("personal billing bounds results and survives an unavailable community", async () => {
   const f = await fixture()
   await f.t.run(async (ctx) => {

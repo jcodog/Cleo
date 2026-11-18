@@ -82,10 +82,24 @@ test("an invalid yearly price never enters catalogue recovery", async ({
   page,
 }) => {
   await page.goto(
-    "/staff/billing/products/prod_fixture?community&navigation&accountUI"
+    "/staff/billing/products/prod_fixture?community&navigation&accountUI&ineligiblePrice"
   )
+  const prices = page.getByRole("table", { name: "Stripe prices" })
+  const oneTime = prices.getByRole("row").filter({ hasText: "One time" })
+  await expect(oneTime).toBeVisible()
+  await expect(
+    oneTime.getByRole("button", { name: "Map Premium" })
+  ).toHaveCount(0)
+  await expect(
+    prices
+      .getByRole("row")
+      .filter({ hasText: "Every 1 year" })
+      .getByRole("button", { name: "Map Premium" })
+  ).toBeVisible()
   await page.getByLabel("Amount in minor units").fill("499")
-  await page.getByRole("combobox", { name: /Billing period/ }).selectOption("year")
+  await page
+    .getByRole("combobox", { name: /Billing period/ })
+    .selectOption("year")
   await page.getByLabel("Interval count").fill("4")
   await page.getByRole("button", { name: "Review new price" }).click()
   await expect(page.getByRole("alert")).toContainText(
@@ -187,4 +201,44 @@ test("a slow older setup status cannot clear the newer processing setup", async 
   expect(
     await page.evaluate((key) => sessionStorage.getItem(key), storageKey)
   ).toBe("seti_fixture")
+})
+
+test("subscriptions show each price and a fallback when plan information is unavailable", async ({
+  page,
+}) => {
+  const billing = "/billing?community&navigation&accountUI"
+  await page.goto(billing + "&multiplePlans")
+  await expect(
+    page.getByText("Cleo Server Premium · £4.99 / month")
+  ).toBeVisible()
+  await expect(page.getByText("Storage add-on · £5.00 / month")).toBeVisible()
+  await page.goto(billing + "&hidePlans")
+  await expect(
+    page.getByText("Plan information unavailable", { exact: true })
+  ).toBeVisible()
+})
+
+test("a successful profile reload clears the earlier failure after payment setup recovery", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem(
+      "cleo:billing-setup:fixture-clerk:fixture-session",
+      "seti_fixture"
+    )
+  )
+  await page.goto(
+    "/billing?community&navigation&accountUI&emptyBilling&failFirstProfile"
+  )
+  await expect(
+    page.getByText("Payment method saved as your default.")
+  ).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "No subscriptions yet" })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Subscription details could not be loaded.", {
+      exact: false,
+    })
+  ).toHaveCount(0)
 })

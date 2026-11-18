@@ -63,7 +63,10 @@ function Billing({ clerkUserId }: { clerkUserId: string }) {
     let active = true
     void loadProfile({})
       .then((value) => {
-        if (active && value.clerkUserId === clerkUserId) setProfile(value)
+        if (active && value.clerkUserId === clerkUserId) {
+          setProfile(value)
+          setProfileFailed(false)
+        }
       })
       .catch(() => {
         if (active) {

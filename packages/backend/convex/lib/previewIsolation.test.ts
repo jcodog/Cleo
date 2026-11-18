@@ -47,6 +47,7 @@ test("preview isolation rejects live credentials, side-effect workers, enabled g
     { DISCORD_BOT_TOKEN: "fixture" },
     { TWITCH_WORKER_SECRET: "fixture" },
     { RESEND_API_KEY: "fixture" },
+    { SENTRY_AUTH_TOKEN: "fixture" },
     { CLERK_WEBHOOK_SECRET: "fixture" },
     { CLEO_DASHBOARD_ORIGIN: "https://other.example.com" },
     { CLEO_DASHBOARD_ALLOWED_ORIGINS: "https://*.vercel.app" },

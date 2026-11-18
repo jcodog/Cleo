@@ -59,6 +59,11 @@ for (const width of [1440, 375]) {
     await expect(
       dialog.getByRole("button", { name: "Confirm removal" })
     ).toHaveCount(0)
+    await page.route("https://billing.stripe.com/session/fixture", (route) =>
+      route.fulfill({ body: "Stripe portal fixture" })
+    )
+    await dialog.getByRole("button", { name: "Continue in Stripe" }).click()
+    await expect(page).toHaveURL("https://billing.stripe.com/session/fixture")
   })
 }
 

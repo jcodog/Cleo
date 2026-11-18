@@ -60,6 +60,7 @@ export type DataModel = {
       createdAt: number;
       key: string;
       leaseUntil: number;
+      rejection?: string;
       request: string;
       result?: string;
       userId: Id<"users">;
@@ -75,6 +76,7 @@ export type DataModel = {
       | "createdAt"
       | "key"
       | "leaseUntil"
+      | "rejection"
       | "request"
       | "result"
       | "userId"

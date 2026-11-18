@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { generateKeyPairSync, randomUUID } from "node:crypto"
 import { test } from "node:test"
+import { ConvexError } from "convex/values"
 import { SignJWT, exportJWK } from "jose"
 import { convexTest } from "convex-test"
 import { api, internal } from "./_generated/api"
@@ -83,7 +84,7 @@ test("operation reservations bind actor, account and exact terms and preserve am
   }
   assert.equal(
     await f.finance.mutation(internal.billingCatalogue.claim, args),
-    null
+    "first"
   )
   await assert.rejects(
     f.finance.mutation(internal.billingCatalogue.claim, {
@@ -103,18 +104,18 @@ test("operation reservations bind actor, account and exact terms and preserve am
     f.finance.mutation(internal.billingCatalogue.complete, {
       key: args.key,
       worker: "two",
-      result: "prod_one",
+      outcome: { result: "prod_one" },
     }),
     /authority expired/
   )
   await f.finance.mutation(internal.billingCatalogue.complete, {
     key: args.key,
     worker: "one",
-    result: "prod_one",
+    outcome: { result: "prod_one" },
   })
-  assert.equal(
+  assert.deepEqual(
     await f.finance.mutation(internal.billingCatalogue.claim, args),
-    "prod_one"
+    { result: "prod_one" }
   )
   const history = await f.finance.query(api.billingCatalogue.history, {})
   assert.equal(history.length, 1)
@@ -395,6 +396,9 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
   ])
   const previous = globalThis.fetch
   const writes: string[] = []
+  let accountFailure = false
+  let failProductRead = false
+  let holdAccount: (() => Promise<void>) | undefined
   t.after(() => {
     globalThis.fetch = previous
   })
@@ -402,11 +406,21 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
     const url = new URL(String(input))
     if (url.pathname.endsWith("/.well-known/jwks.json"))
       return Response.json({ keys: [{ ...jwk, kid: "price-fixture" }] })
-    if (url.pathname.endsWith("/account"))
+    if (url.pathname.endsWith("/account")) {
+      if (accountFailure) throw new Error("Account lookup failed")
+      await holdAccount?.()
       return Response.json({ id: process.env.STRIPE_EXPECTED_ACCOUNT_ID })
+    }
     const fields = new URLSearchParams(String(init?.body ?? ""))
     if (init?.method === "POST") writes.push(url.pathname)
     if (url.pathname === "/v1/prices") {
+      if (fields.get("currency") === "zzz")
+        return Response.json(
+          { error: { type: "invalid_request_error", param: "currency" } },
+          { status: 400 }
+        )
+      if (fields.get("currency") === "usd")
+        throw new Error("Response lost after dispatch")
       assert.equal(fields.get("product"), product.id)
       assert.equal(fields.get("unit_amount"), "599")
       return Response.json({
@@ -415,6 +429,7 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
       })
     }
     if (url.pathname.endsWith(`/products/${product.id}`)) {
+      if (failProductRead) throw new Error("Product lookup failed")
       if (fields.has("default_price"))
         product.default_price = fields.get("default_price")!
       if (fields.has("name")) product.name = fields.get("name")!
@@ -427,9 +442,9 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
     }
     throw new Error(`Unexpected catalogue endpoint ${url.pathname}`)
   }
-  const run = (request: object) =>
+  const run = (request: object, key = randomUUID()) =>
     f.finance.action(api.billingCatalogueActions.change, {
-      key: randomUUID(),
+      key,
       request: JSON.stringify(request),
       sessionToken: token,
       confirmation: "CONFIRM SANDBOX CHANGE",
@@ -442,6 +457,69 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
       updatedAt: 1,
     })
   )
+  const createPrice = {
+    kind: "createPrice",
+    productId: product.id,
+    amount: 599,
+    currency: "gbp",
+    interval: "month",
+    intervalCount: 1,
+  }
+  const rejected = (error: unknown) =>
+    error instanceof ConvexError &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "code" in error.data &&
+    error.data.code === "CATALOGUE_NOT_SUBMITTED"
+  const rejectedKey = randomUUID()
+  await assert.rejects(
+    run({ ...createPrice, currency: "zzz" }, rejectedKey),
+    rejected
+  )
+  assert.equal(writes.length, 1)
+  await assert.rejects(
+    run({ ...createPrice, currency: "zzz" }, rejectedKey),
+    rejected
+  )
+  assert.equal(writes.length, 1)
+
+  const replayKey = randomUUID()
+  let signalAccountReached!: () => void
+  let resumeAccount!: () => void
+  const accountReached = new Promise<void>((resolve) => {
+    signalAccountReached = resolve
+  })
+  const accountResumed = new Promise<void>((resolve) => {
+    resumeAccount = resolve
+  })
+  holdAccount = async () => {
+    signalAccountReached()
+    await accountResumed
+  }
+  const first = run(createPrice, replayKey)
+  await accountReached
+  try {
+    accountFailure = true
+    await assert.rejects(
+      run(createPrice, replayKey),
+      (error: unknown) =>
+        !rejected(error) && String(error).includes("Account lookup failed")
+    )
+  } finally {
+    accountFailure = false
+    holdAccount = undefined
+    resumeAccount()
+  }
+  assert.equal(await first, "price_new")
+  product.active = false
+  assert.equal(await run(createPrice, replayKey), "price_new")
+  assert.equal(writes.length, 2)
+  const unsubmittedKey = randomUUID()
+  await assert.rejects(run(createPrice, unsubmittedKey), rejected)
+  product.active = true
+  await assert.rejects(run(createPrice, unsubmittedKey), rejected)
+  assert.equal(writes.length, 2)
+
   for (const interval of ["one_time", "month"])
     assert.equal(
       await run({
@@ -487,6 +565,22 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
   assert.ok(mappings.every((row) => row.enabled))
   assert.equal(product.default_price, "price_new")
   assert.equal(prices.get("price_old")?.active, false)
+  const uncertainKey = randomUUID()
+  const uncertain = { ...createPrice, currency: "usd" }
+  await assert.rejects(run(uncertain, uncertainKey), /needs reconciliation/)
+  await assert.rejects(run(createPrice), /Resolve the recorded operation/)
+  await f.t.run(async (ctx) => {
+    const operation = (
+      await ctx.db.query("billingCatalogueOperations").collect()
+    ).find((row) => row.key === uncertainKey)
+    assert.ok(operation)
+    await ctx.db.patch(operation._id, { leaseUntil: 0 })
+  })
+  failProductRead = true
+  const dispatched = writes.length
+  await assert.rejects(run(uncertain, uncertainKey), /needs reconciliation/)
+  assert.equal(writes.length, dispatched)
+  await assert.rejects(run(createPrice), /Resolve the recorded operation/)
   assert.ok(
     writes.every(
       (path) => path.startsWith("/v1/prices") || path.startsWith("/v1/products")

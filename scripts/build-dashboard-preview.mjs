@@ -109,6 +109,48 @@ export async function verifyClerkInstance(env, config, request = fetch) {
     )
 }
 
+export function verifyPreviewEnvironment(inventory) {
+  const allowed = new Set([
+    "CLERK_JWT_ISSUER_DOMAIN",
+    "CLERK_SECRET_KEY",
+    "CLEO_DASHBOARD_ORIGIN",
+    "CLEO_DASHBOARD_ALLOWED_ORIGINS",
+    "CLEO_COMMUNITY_ROLES_ENABLED",
+    "CLEO_RECOGNITION_ENABLED",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_EXPECTED_ACCOUNT_ID",
+    "STRIPE_TEST_CHECKOUT_ENABLED",
+    "STRIPE_CATALOGUE_WRITES_ENABLED",
+  ])
+  if (
+    inventory
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .some((name) => !allowed.has(name))
+  )
+    throw new Error("Preview backend has unexpected environment variables.")
+}
+
+function previewCommand(args, env, branch, envFile) {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "x",
+      "--no-install",
+      "convex",
+      ...args,
+      "--preview-name",
+      branch,
+      "--env-file",
+      envFile,
+    ],
+    { cwd: backend, env, encoding: "utf8", timeout: 30000 }
+  )
+  if (result.status !== 0)
+    throw new Error("Could not inspect the selected Convex Preview.")
+  return result.stdout.trim()
+}
+
 /** Gate both sides of the frontend build on the exact deployed backend. */
 export async function verifyAndBuildPreview(config, url, operations) {
   const verify = async () => {
@@ -155,6 +197,14 @@ async function main() {
   const config = previewConfig(env)
   if (process.argv.includes("--capture")) {
     const url = previewUrl(env.NEXT_PUBLIC_CONVEX_URL)
+    verifyPreviewEnvironment(
+      previewCommand(
+        ["env", "list", "--names-only"],
+        env,
+        config.branch,
+        env.CLEO_PREVIEW_ENV_FILE
+      )
+    )
     writeFileSync(
       stampPath,
       `export const previewBuild = ${JSON.stringify({ ...config, url })}\n`
@@ -188,6 +238,7 @@ async function main() {
   delete childEnv.CONVEX_SELF_HOSTED_URL
   delete childEnv.CONVEX_SELF_HOSTED_ADMIN_KEY
   const envFile = join(directory, "empty.env")
+  childEnv.CLEO_PREVIEW_ENV_FILE = envFile
   writeFileSync(envFile, "")
   try {
     // Convex runs --cmd BEFORE its push. Capture only, then await the full push.
@@ -231,7 +282,28 @@ async function main() {
     delete frontendEnv.CONVEX_DEPLOY_KEY
     const value = await verifyAndBuildPreview(config, url, {
       receipt: () => read("query", "previewHealth:read"),
-      providers: () => read("action", "previewHealth:verifyProviders"),
+      providers: () => {
+        verifyPreviewEnvironment(
+          previewCommand(
+            ["env", "list", "--names-only"],
+            childEnv,
+            config.branch,
+            envFile
+          )
+        )
+        return (
+          previewCommand(
+            [
+              "run",
+              "previewHealth:verifyProviders",
+              JSON.stringify({ sha: config.sha, url }),
+            ],
+            childEnv,
+            config.branch,
+            envFile
+          ) === "true"
+        )
+      },
       buildFrontend: async () =>
         run(["run", "--filter", "@workspace/dashboard", "build"], frontendEnv),
     })

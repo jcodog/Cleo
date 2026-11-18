@@ -35,7 +35,9 @@ The callback captures the CLI-selected canonical URL and stamps backend source
 evidence. It does not build the frontend. Convex 1.48 runs `--cmd` **before** its
 push. Only after the command exits successfully does the wrapper check the
 deployed `previewHealth:read` receipt and read-only `previewHealth:verifyProviders`
-proof. It then runs
+proof using the branch-scoped Preview credential. The wrapper compares the
+CLI's names-only deployment environment inventory with an allowlist before the
+Convex push and at both receipt checks. It then runs
 `bun run --filter @workspace/dashboard build` with that exact URL. The package
 build performs the four unauthenticated auth probes once. The wrapper rechecks
 parity and provider ownership after the frontend build. It removes

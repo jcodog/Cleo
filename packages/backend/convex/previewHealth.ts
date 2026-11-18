@@ -1,15 +1,20 @@
-import { action, query } from "./_generated/server"
+import { internalAction, query } from "./_generated/server"
 import { v } from "convex/values"
 import { previewBuild } from "./previewVersion"
 import { isReviewPreviewIsolated } from "./lib/previewIsolation"
 import { verifyPreviewProviders } from "./lib/previewProviderProof"
 
 /** The query proves configuration; this read-only action proves key ownership. */
-export const verifyProviders = action({
-  args: {},
+export const verifyProviders = internalAction({
+  args: { sha: v.string(), url: v.string() },
   returns: v.boolean(),
-  handler: async () => {
-    if (!previewBuild || !isReviewPreviewIsolated(process.env, previewBuild))
+  handler: async (_ctx, args) => {
+    if (
+      !previewBuild ||
+      previewBuild.sha !== args.sha ||
+      previewBuild.url !== args.url ||
+      !isReviewPreviewIsolated(process.env, previewBuild)
+    )
       return false
     return verifyPreviewProviders(process.env, previewBuild.issuer)
   },

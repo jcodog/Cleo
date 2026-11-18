@@ -5,7 +5,9 @@ import { backendEnv } from "@workspace/env/backend"
 export class StripeRequestError extends Error {
   constructor(
     readonly status: number,
-    readonly type?: string
+    readonly type?: string,
+    readonly parameter?: string,
+    readonly code?: string
   ) {
     super(`Stripe integration unavailable (${status}).`)
   }
@@ -61,9 +63,20 @@ export async function stripeRequest(
   })
   if (!response.ok) {
     const error = z
-      .object({ error: z.object({ type: z.string() }) })
+      .object({
+        error: z.object({
+          type: z.string(),
+          param: z.string().optional(),
+          code: z.string().optional(),
+        }),
+      })
       .safeParse(await response.json().catch(() => null))
-    throw new StripeRequestError(response.status, error.data?.error.type)
+    throw new StripeRequestError(
+      response.status,
+      error.data?.error.type,
+      error.data?.error.param,
+      error.data?.error.code
+    )
   }
   const text = await response.text()
   if (text.length > 1048576) throw new Error("Stripe response exceeds limit.")

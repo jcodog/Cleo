@@ -79,20 +79,6 @@ export const mappings = internalQuery({
       }))
   },
 })
-export const operationExists = internalQuery({
-  args: { key: v.string() },
-  returns: v.boolean(),
-  handler: async (ctx, args) => {
-    const user = await manager(ctx)
-    return !!(await ctx.db
-      .query("billingCatalogueOperations")
-      .withIndex("by_user_key", (q) =>
-        q.eq("userId", user._id).eq("key", args.key)
-      )
-      .unique())
-  },
-})
-
 export const claim = internalMutation({
   args: {
     key: v.string(),
@@ -100,7 +86,12 @@ export const claim = internalMutation({
     accountId: v.string(),
     worker: v.string(),
   },
-  returns: v.union(v.null(), v.string()),
+  returns: v.union(
+    v.literal("first"),
+    v.literal("retry"),
+    v.object({ result: v.string() }),
+    v.object({ rejection: v.string() })
+  ),
   handler: async (ctx, args) => {
     const user = await manager(ctx)
     if (
@@ -121,7 +112,8 @@ export const claim = internalMutation({
         throw new ConvexError(
           "Operation key cannot be reused with different terms."
         )
-      if (row.result !== undefined) return row.result
+      if (row.result !== undefined) return { result: row.result }
+      if (row.rejection !== undefined) return { rejection: row.rejection }
       if (row.leaseUntil > Date.now())
         throw new ConvexError(
           "This operation is already processing. Retry with the same request."
@@ -134,6 +126,7 @@ export const claim = internalMutation({
         worker: args.worker,
         leaseUntil: Date.now() + 60000,
       })
+      return "retry" as const
     } else {
       const pending = await ctx.db
         .query("billingCatalogueOperations")
@@ -152,16 +145,21 @@ export const claim = internalMutation({
         leaseUntil: Date.now() + 60000,
       })
     }
-    return null
+    return "first" as const
   },
 })
 export const complete = internalMutation({
   args: {
     key: v.string(),
     worker: v.string(),
-    result: v.string(),
-    mapping: v.optional(
-      v.object({ productId: v.string(), priceId: v.string() })
+    outcome: v.union(
+      v.object({
+        result: v.string(),
+        mapping: v.optional(
+          v.object({ productId: v.string(), priceId: v.string() })
+        ),
+      }),
+      v.object({ rejection: v.string() })
     ),
   },
   returns: v.null(),
@@ -175,6 +173,7 @@ export const complete = internalMutation({
       .unique()
     if (
       !row ||
+      row.completedAt !== undefined ||
       row.worker !== args.worker ||
       row.leaseUntil <= Date.now() ||
       row.accountId !== backendEnv.STRIPE_EXPECTED_ACCOUNT_ID ||
@@ -183,14 +182,16 @@ export const complete = internalMutation({
       throw new ConvexError(
         "Catalogue operation authority expired. Retry the same operation."
       )
-    if (args.mapping) {
+    const { outcome } = args
+    const mapping = "result" in outcome ? outcome.mapping : undefined
+    if (mapping) {
       const current = await ctx.db
         .query("guildBillingPrices")
         .withIndex("by_stripe_price_id", (q) =>
-          q.eq("stripePriceId", args.mapping!.priceId)
+          q.eq("stripePriceId", mapping.priceId)
         )
         .unique()
-      if (current && current.stripeProductId !== args.mapping.productId)
+      if (current && current.stripeProductId !== mapping.productId)
         throw new ConvexError("Price Product cannot change.")
       if (current)
         await ctx.db.patch(current._id, {
@@ -199,14 +200,16 @@ export const complete = internalMutation({
         })
       else
         await ctx.db.insert("guildBillingPrices", {
-          stripeProductId: args.mapping.productId,
-          stripePriceId: args.mapping.priceId,
+          stripeProductId: mapping.productId,
+          stripePriceId: mapping.priceId,
           enabled: true,
           updatedAt: Date.now(),
         })
     }
     await ctx.db.patch(row._id, {
-      result: args.result,
+      ...("result" in outcome
+        ? { result: outcome.result }
+        : { rejection: outcome.rejection }),
       completedAt: Date.now(),
       leaseUntil: 0,
     })
@@ -221,6 +224,7 @@ export const history = query({
       request: v.string(),
       createdAt: v.number(),
       completedAt: v.optional(v.number()),
+      rejected: v.boolean(),
       canRetry: v.boolean(),
     })
   ),
@@ -239,12 +243,15 @@ export const history = query({
       .take(30)
     if (pending && !recent.some((row) => row._id === pending._id))
       recent.unshift(pending)
-    return recent.map(({ key, request, createdAt, completedAt, userId }) => ({
-      key,
-      request,
-      createdAt,
-      completedAt,
-      canRetry: userId === staff._id,
-    }))
+    return recent.map(
+      ({ key, request, createdAt, completedAt, rejection, userId }) => ({
+        key,
+        request,
+        createdAt,
+        completedAt,
+        rejected: rejection !== undefined,
+        canRetry: userId === staff._id,
+      })
+    )
   },
 })

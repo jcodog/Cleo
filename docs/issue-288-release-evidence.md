@@ -184,8 +184,9 @@ later validation fails.
 
 Purchaser billing scopes Price pagination to the authenticated customer and
 validates provider identity and test mode. Stale profile data clears on
-failure. Every subscription item is displayed, and late SetupIntent responses
-cannot erase a newer attempt. Cancellation rechecks Stripe when a concurrent
+failure. Cleo displays the line items from fully returned subscription item
+pages. For subscriptions with additional Stripe item pages, use Stripe billing
+management. Late SetupIntent responses cannot erase a newer attempt. Cancellation rechecks Stripe when a concurrent
 confirmation wins. Payment-method removal opens Stripe's management flow
 because API detach has no conditional default check. Cleo retains in-app
 payment setup and default selection.

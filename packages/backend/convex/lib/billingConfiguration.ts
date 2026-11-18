@@ -1,13 +1,16 @@
 import { backendEnv } from "@workspace/env/backend"
-import { billingOrigin } from "./billingOrigin"
+import { billingOrigin, BillingOriginConfigurationError } from "./billingOrigin"
 
 /** Presence is configuration evidence only, never Stripe account or payment evidence. */
 export function billingConfiguration() {
   let returnOrigin: string | null = null
+  let invalidOriginSetting:
+    BillingOriginConfigurationError["setting"] | undefined
   try {
     returnOrigin = billingOrigin()
-  } catch {
-    /* Unusable configuration disables management. */
+  } catch (error) {
+    if (!(error instanceof BillingOriginConfigurationError)) throw error
+    invalidOriginSetting = error.setting
   }
   const key = backendEnv.STRIPE_SECRET_KEY
   const stripeMode = !key
@@ -24,7 +27,7 @@ export function billingConfiguration() {
       ? ["STRIPE_GUILD_PREMIUM_PRICE_ID"]
       : []),
     ...(!backendEnv.STRIPE_WEBHOOK_SECRET ? ["STRIPE_WEBHOOK_SECRET"] : []),
-    ...(!returnOrigin ? ["CLEO_DASHBOARD_ORIGIN"] : []),
+    ...(invalidOriginSetting ? [invalidOriginSetting] : []),
   ]
   return {
     stripeMode,

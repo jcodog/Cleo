@@ -1,6 +1,7 @@
 import type { BillingProfile } from "../../src/features/billing/PaymentForms"
 
 const params = new URLSearchParams(location.search)
+let profileRequests = 0
 let hasCustomer = !params.has("emptyBilling")
 const customer = {
   name: "Cleo Tester",
@@ -41,7 +42,11 @@ let methods: BillingProfile["methods"] = params.has("emptyBilling")
     ]
 export function billingFixture(path: string, args: unknown): unknown {
   if (path === "billingPortalActions:profile") {
-    if (params.has("failBillingProfile"))
+    profileRequests++
+    if (
+      params.has("failBillingProfile") ||
+      (params.has("failFirstProfile") && profileRequests === 1)
+    )
       throw new Error("Provider unavailable")
     return {
       clerkUserId: "fixture-clerk",
@@ -71,16 +76,30 @@ export function billingFixture(path: string, args: unknown): unknown {
               status: "active",
               cancelAtPeriodEnd: false,
               periodEnd: Date.now() + 86400000,
-              items: [
-                {
-                  name: "Cleo Server Premium",
-                  amount: 499,
-                  currency: "gbp",
-                  quantity: 1,
-                  interval: "month",
-                  intervalCount: 1,
-                },
-              ],
+              items: params.has("hidePlans")
+                ? []
+                : [
+                    {
+                      name: "Cleo Server Premium",
+                      amount: 499,
+                      currency: "gbp",
+                      quantity: 1,
+                      interval: "month",
+                      intervalCount: 1,
+                    },
+                    ...(params.has("multiplePlans")
+                      ? [
+                          {
+                            name: "Storage add-on",
+                            amount: 250,
+                            currency: "gbp",
+                            quantity: 2,
+                            interval: "month",
+                            intervalCount: 1,
+                          },
+                        ]
+                      : []),
+                  ],
             },
           ],
       hasMoreSubscriptions: false,

@@ -7,7 +7,7 @@ import { ConvexError, v } from "convex/values"
 import { backendEnv } from "@workspace/env/backend"
 import { action, type ActionCtx } from "./_generated/server"
 import { internal } from "./_generated/api"
-import { stripeRequest } from "./lib/stripeCommunity"
+import { StripeRequestError, stripeRequest } from "./lib/stripeCommunity"
 import { configuredBillingOrigins } from "./lib/billingOrigin"
 import {
   catalogueChange,
@@ -155,89 +155,29 @@ export const change = action({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const { key, change, authority } = await (async () => {
-      const key = z.uuid().parse(args.key)
-      if (args.request.length > 4096 || args.sessionToken.length > 16384)
-        throw new Error("Request exceeds bounds.")
-      const change = catalogueChange.parse(JSON.parse(args.request))
-      if (args.confirmation !== "CONFIRM SANDBOX CHANGE")
-        throw new Error("Explicit sandbox confirmation is required.")
-      const authority = await account(ctx, true)
-      const issuer = backendEnv.CLERK_JWT_ISSUER_DOMAIN
-      if (!issuer || !issuer.startsWith("https://"))
-        throw new Error("Clerk session verification is unavailable.")
-      const { payload } = await jwtVerify(
-        args.sessionToken,
-        createRemoteJWKSet(
-          new URL(`${issuer.replace(/\/$/, "")}/.well-known/jwks.json`)
-        ),
-        { issuer, algorithms: ["RS256"] }
-      )
-      requireCatalogueSessionClaims(
-        payload,
-        authority,
-        Math.floor(Date.now() / 1000),
-        configuredBillingOrigins()
-      )
-      if (change.kind !== "createProduct") {
-        const current = product.parse(
-          await stripeRequest(`/products/${change.productId}`)
-        )
-        if (current.id !== change.productId)
-          throw new Error("Product identity mismatch.")
-        if (change.kind === "createPrice" && !current.active)
-          throw new Error(
-            "Restore the product in Stripe before adding a price."
-          )
-        if ("priceId" in change) {
-          const existing = price.parse(
-            await stripeRequest(`/prices/${change.priceId}`)
-          )
-          if (existing.id !== change.priceId || existing.product !== current.id)
-            throw new Error("Price Product mismatch.")
-          if (
-            change.kind === "archivePrice" &&
-            current.default_price === existing.id
-          )
-            throw new Error(
-              "Choose another default before archiving this price."
-            )
-          if (
-            change.kind !== "archivePrice" &&
-            (!current.active || !existing.active)
-          )
-            throw new Error("An active Product and Price are required.")
-          if (
-            change.kind === "approvePremium" &&
-            (!existing.recurring ||
-              existing.recurring.usage_type !== "licensed" ||
-              !existing.unit_amount ||
-              existing.unit_amount <= 0)
-          )
-            throw new Error(
-              "Premium mapping requires a positive licensed recurring price."
-            )
-        }
-      }
-      return { key, change, authority }
-    })().catch(async (error: unknown) => {
-      // A rejection on replay cannot prove an earlier attempt made no write.
-      if (
-        await ctx.runQuery(internal.billingCatalogue.operationExists, {
-          key: args.key,
-        })
-      )
-        throw new ConvexError(
-          `${error instanceof Error ? error.message : "Request rejected."} The recorded operation still needs reconciliation. Retry the same request after checking Stripe.`
-        )
-      throw new ConvexError({
-        code: "CATALOGUE_NOT_SUBMITTED",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Catalogue request was not submitted.",
-      })
-    })
+    const key = z.uuid().parse(args.key)
+    if (args.request.length > 4096 || args.sessionToken.length > 16384)
+      throw new Error("Request exceeds bounds.")
+    const change = catalogueChange.parse(JSON.parse(args.request))
+    if (args.confirmation !== "CONFIRM SANDBOX CHANGE")
+      throw new Error("Explicit sandbox confirmation is required.")
+    const authority = await account(ctx, true)
+    const issuer = backendEnv.CLERK_JWT_ISSUER_DOMAIN
+    if (!issuer || !issuer.startsWith("https://"))
+      throw new Error("Clerk session verification is unavailable.")
+    const { payload } = await jwtVerify(
+      args.sessionToken,
+      createRemoteJWKSet(
+        new URL(`${issuer.replace(/\/$/, "")}/.well-known/jwks.json`)
+      ),
+      { issuer, algorithms: ["RS256"] }
+    )
+    requireCatalogueSessionClaims(
+      payload,
+      authority,
+      Math.floor(Date.now() / 1000),
+      configuredBillingOrigins()
+    )
     const worker = randomUUID()
     const previous = await ctx.runMutation(internal.billingCatalogue.claim, {
       key,
@@ -245,46 +185,55 @@ export const change = action({
       accountId: authority.accountId,
       worker,
     })
-    if (previous !== null) return previous
+    if (typeof previous === "object") {
+      if ("result" in previous) return previous.result
+      throw new ConvexError({
+        code: "CATALOGUE_NOT_SUBMITTED",
+        message: previous.rejection,
+      })
+    }
     let result: string
     let mapping: { productId: string; priceId: string } | undefined
     const idempotency = `cleo-catalogue:${authority.accountId}:${authority.clerkUserId}:${key}`
-    if (change.kind === "createProduct") {
-      const row = product.parse(
-        await stripeRequest(
-          "/products",
-          { name: change.name, description: change.description },
-          idempotency
-        )
-      )
-      result = row.id
-    } else {
-      const current = product.parse(
-        await stripeRequest(`/products/${change.productId}`)
-      )
-      if (current.id !== change.productId)
-        throw new Error("Product identity mismatch.")
-      if (change.kind === "editProduct" || change.kind === "archiveProduct") {
+    let submitted = false
+    const write = (path: string, fields: Record<string, string>) => {
+      submitted = true
+      return stripeRequest(path, fields, idempotency)
+    }
+    try {
+      if (change.kind === "createProduct") {
         const row = product.parse(
-          await stripeRequest(
-            `/products/${current.id}`,
-            change.kind === "editProduct"
-              ? { name: change.name, description: change.description }
-              : { active: "false" },
-            idempotency
-          )
+          await write("/products", {
+            name: change.name,
+            description: change.description,
+          })
         )
-        if (row.id !== current.id) throw new Error("Product identity mismatch.")
         result = row.id
-      } else if (change.kind === "createPrice") {
-        if (!current.active)
-          throw new Error(
-            "Restore the product in Stripe before adding a price."
+      } else {
+        const current = product.parse(
+          await stripeRequest(`/products/${change.productId}`)
+        )
+        if (current.id !== change.productId)
+          throw new Error("Product identity mismatch.")
+        if (change.kind === "editProduct" || change.kind === "archiveProduct") {
+          const row = product.parse(
+            await write(
+              `/products/${current.id}`,
+              change.kind === "editProduct"
+                ? { name: change.name, description: change.description }
+                : { active: "false" }
+            )
           )
-        const row = price.parse(
-          await stripeRequest(
-            "/prices",
-            {
+          if (row.id !== current.id)
+            throw new Error("Product identity mismatch.")
+          result = row.id
+        } else if (change.kind === "createPrice") {
+          if (!current.active)
+            throw new Error(
+              "Restore the product in Stripe before adding a price."
+            )
+          const row = price.parse(
+            await write("/prices", {
               product: current.id,
               currency: change.currency,
               unit_amount: String(change.amount),
@@ -295,70 +244,97 @@ export const change = action({
                     "recurring[interval_count]": String(change.intervalCount),
                     "recurring[usage_type]": "licensed",
                   }),
-            },
-            idempotency
+            })
           )
-        )
-        if (row.product !== current.id)
-          throw new Error("Price Product mismatch.")
-        result = row.id
-      } else {
-        const existing = price.parse(
-          await stripeRequest(`/prices/${change.priceId}`)
-        )
-        if (existing.id !== change.priceId || existing.product !== current.id)
-          throw new Error("Price Product mismatch.")
-        if (change.kind === "archivePrice") {
-          if (current.default_price === existing.id)
-            throw new Error(
-              "Choose another default before archiving this price."
-            )
-          const archived = price.parse(
-            await stripeRequest(
-              `/prices/${existing.id}`,
-              { active: "false" },
-              idempotency
-            )
-          )
-          if (archived.id !== existing.id || archived.product !== current.id)
-            throw new Error("Archived Price identity mismatch.")
+          if (row.product !== current.id)
+            throw new Error("Price Product mismatch.")
+          result = row.id
         } else {
-          if (!existing.active || !current.active)
-            throw new Error("An active Product and Price are required.")
-          if (change.kind === "defaultPrice") {
-            const updated = product.parse(
-              await stripeRequest(
-                `/products/${current.id}`,
-                { default_price: existing.id },
-                idempotency
-              )
-            )
-            if (
-              updated.id !== current.id ||
-              updated.default_price !== existing.id
-            )
-              throw new Error("Default Price was not confirmed.")
-          } else {
-            if (
-              !existing.recurring ||
-              existing.recurring.usage_type !== "licensed" ||
-              !existing.unit_amount ||
-              existing.unit_amount <= 0
-            )
+          const existing = price.parse(
+            await stripeRequest(`/prices/${change.priceId}`)
+          )
+          if (existing.id !== change.priceId || existing.product !== current.id)
+            throw new Error("Price Product mismatch.")
+          if (change.kind === "archivePrice") {
+            if (current.default_price === existing.id)
               throw new Error(
-                "Premium mapping requires a positive licensed recurring price."
+                "Choose another default before archiving this price."
               )
-            mapping = { productId: current.id, priceId: existing.id }
+            const archived = price.parse(
+              await write(`/prices/${existing.id}`, { active: "false" })
+            )
+            if (archived.id !== existing.id || archived.product !== current.id)
+              throw new Error("Archived Price identity mismatch.")
+          } else {
+            if (!existing.active || !current.active)
+              throw new Error("An active Product and Price are required.")
+            if (change.kind === "defaultPrice") {
+              const updated = product.parse(
+                await write(`/products/${current.id}`, {
+                  default_price: existing.id,
+                })
+              )
+              if (
+                updated.id !== current.id ||
+                updated.default_price !== existing.id
+              )
+                throw new Error("Default Price was not confirmed.")
+            } else {
+              if (
+                !existing.recurring ||
+                existing.recurring.usage_type !== "licensed" ||
+                !existing.unit_amount ||
+                existing.unit_amount <= 0
+              )
+                throw new Error(
+                  "Premium mapping requires a positive licensed recurring price."
+                )
+              mapping = { productId: current.id, priceId: existing.id }
+            }
           }
+          result = existing.id
         }
-        result = existing.id
       }
+    } catch (error) {
+      const invalidParameter =
+        error instanceof StripeRequestError &&
+        error.status === 400 &&
+        error.type === "invalid_request_error" &&
+        ([
+          "parameter_missing",
+          "parameter_unknown",
+          "parameter_invalid_empty",
+          "parameter_invalid_integer",
+          "parameter_invalid_string_blank",
+        ].includes(error.code ?? "") ||
+          (change.kind === "createPrice" &&
+            error.parameter === "currency" &&
+            !error.code))
+      // A previous lease may have reached Stripe even if this attempt did not.
+      if (previous === "first" && (!submitted || invalidParameter)) {
+        const rejection = invalidParameter
+          ? "Stripe rejected the catalogue parameters. Review them before starting a new change."
+          : error instanceof Error
+            ? error.message
+            : "Catalogue request was not submitted."
+        await ctx.runMutation(internal.billingCatalogue.complete, {
+          key,
+          worker,
+          outcome: { rejection },
+        })
+        throw new ConvexError({
+          code: "CATALOGUE_NOT_SUBMITTED",
+          message: rejection,
+        })
+      }
+      throw new ConvexError(
+        "The recorded catalogue operation needs reconciliation. Retry the same request after checking Stripe."
+      )
     }
     await ctx.runMutation(internal.billingCatalogue.complete, {
       key,
       worker,
-      result,
-      mapping,
+      outcome: { result, mapping },
     })
     return result
   },

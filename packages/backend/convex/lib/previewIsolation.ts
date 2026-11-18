@@ -19,6 +19,7 @@ export function isReviewPreviewIsolated(
     "TWITCH_WORKER_SECRET",
     "TWITCH_CLIENT_SECRET",
     "RESEND_API_KEY",
+    "SENTRY_AUTH_TOKEN",
     "CONVEX_DEPLOY_KEY",
     "CONVEX_SELF_HOSTED_ADMIN_KEY",
   ])

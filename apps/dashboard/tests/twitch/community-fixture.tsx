@@ -223,6 +223,20 @@ export async function communityWrite(
       },
       next: null,
       prices: [
+        ...(params.has("ineligiblePrice")
+          ? [
+              {
+                id: "price_once",
+                amount: 100,
+                currency: "gbp",
+                interval: null,
+                intervalCount: 1,
+                usageType: null,
+                active: true,
+                approved: false,
+              },
+            ]
+          : []),
         {
           id: "price_premium",
           amount: 499,
