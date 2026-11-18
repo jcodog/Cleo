@@ -1,7 +1,7 @@
 "use client"
 
 import { UserProfile, useAuth } from "@clerk/nextjs"
-import { IconCreditCard, IconPlug } from "@tabler/icons-react"
+import { IconPlug } from "@tabler/icons-react"
 import { AccountConnections } from "./AccountConnections"
 import { BackendBoundary } from "@/features/app-shell/BackendBoundary"
 
@@ -40,11 +40,6 @@ export function AccountProfile() {
             <AccountConnections />
           </BackendBoundary>
         </UserProfile.Page>
-        <UserProfile.Link
-          label="Billing & subscriptions"
-          url="/billing"
-          labelIcon={<IconCreditCard aria-hidden size={16} />}
-        />
       </UserProfile>
     </section>
   )

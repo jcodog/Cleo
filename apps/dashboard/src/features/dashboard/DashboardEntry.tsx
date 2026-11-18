@@ -3,13 +3,13 @@
 import { useEffect } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { useConvexAuth, useQuery } from "convex/react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import { useAppShellStore } from "@/components/stores/app-shell-store"
 import { getDashboardGuildSelection } from "@/features/app-shell/dashboardGuildSelection"
-import Link from "next/link"
 import type { FunctionReturnType } from "convex/server"
-import { Skeleton } from "@workspace/ui/components/skeleton"
+import { WorkspaceSkeleton } from "@/features/discord-guild-workspace/components/workspace-ui"
 
 type DirectorySnapshot = {
   resolvedAt: number
@@ -73,21 +73,17 @@ export function DashboardEntry({
     storedDiscordGuildId,
     userId,
   ])
+  const displayGuild =
+    directory && directory.clerkUserId === userId
+      ? directory.guilds.find(
+          (guild) => guild.discordGuildId === storedDiscordGuildId
+        )
+      : undefined
   const unavailable =
     directory?.status === "unavailable" || directory?.status === "expired"
   return (
-    <div
-      className="w-full max-w-3xl space-y-5"
-      role="status"
-      aria-label="Loading server workspace"
-      aria-live="polite"
-    >
-      <Skeleton className="h-6 w-44" />
-      <div className="space-y-3 border-t pt-5" aria-hidden>
-        <Skeleton className="h-4 w-64 max-w-full" />
-        <Skeleton className="h-4 w-48" />
-      </div>
-      <p className="text-sm text-muted-foreground">
+    <div className="w-full">
+      <p role="status" className="text-sm text-muted-foreground">
         {unavailable
           ? "Discord verification is unavailable. Your saved server will be checked when it recovers."
           : directory?.status === "pending"
@@ -101,7 +97,12 @@ export function DashboardEntry({
         >
           Open server directory
         </Link>
-      ) : null}
+      ) : (
+        <WorkspaceSkeleton
+          name={displayGuild?.name}
+          iconUrl={displayGuild?.iconUrl}
+        />
+      )}
     </div>
   )
 }

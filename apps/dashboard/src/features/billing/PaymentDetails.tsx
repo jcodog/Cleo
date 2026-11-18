@@ -469,24 +469,15 @@ export function BillingInvoices({
   onManage: () => void
 }) {
   return (
-    <section
-      aria-labelledby="invoices-heading"
-      className="space-y-5 border-t pt-7"
-    >
-      <header className="flex items-center justify-between">
-        <h2 id="invoices-heading" className="font-heading text-lg font-medium">
-          Invoices
-        </h2>
-        {profile?.hasMoreInvoices ? (
-          <Button variant="ghost" size="sm" onClick={onManage}>
-            View all invoices
-            <IconArrowUpRight aria-hidden />
-          </Button>
-        ) : null}
-      </header>
+    <section aria-label="Invoices" className="space-y-5 border-t pt-7">
+      {profile?.hasMoreInvoices ? (
+        <Button variant="ghost" size="sm" onClick={onManage}>
+          View all invoices
+        </Button>
+      ) : null}
       {failed ? (
         <p className="text-sm text-muted-foreground">
-          Invoices could not be loaded. Retry payment details above.
+          Invoices could not be loaded. Please try again.
         </p>
       ) : !profile ? (
         <p role="status" className="text-sm text-muted-foreground">

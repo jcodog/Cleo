@@ -7,13 +7,14 @@ import {
   IconHome,
   IconLogs,
   IconLifebuoy,
-  IconSettings,
   IconShield,
   IconShieldLock,
   IconSparkles,
   IconBroadcast,
   IconClock,
   IconCreditCard,
+  IconReceipt,
+  IconRepeat,
 } from "@tabler/icons-react"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import {
@@ -258,6 +259,31 @@ export function DashboardShellClient({
 
   const platformNavSections: Record<AppShellArea, AppShellNavSection[]> = {
     account: [],
+    billing: [
+      {
+        title: "Billing",
+        items: [
+          {
+            title: "Subscriptions",
+            href: "/billing",
+            icon: IconRepeat,
+            isActive: pathname === "/billing",
+          },
+          {
+            title: "Payment details",
+            href: "/billing/payment-details",
+            icon: IconCreditCard,
+            isActive: pathname === "/billing/payment-details",
+          },
+          {
+            title: "Invoices",
+            href: "/billing/invoices",
+            icon: IconReceipt,
+            isActive: pathname === "/billing/invoices",
+          },
+        ],
+      },
+    ],
     discord: discordNavSections,
     staff: staffNavSections,
     kick: [],
@@ -297,22 +323,8 @@ export function DashboardShellClient({
   return (
     <AppShell
       hideSidebar={currentArea === "account"}
-      footerNavSections={
-        currentArea === "account"
-          ? []
-          : [
-              {
-                items: [
-                  {
-                    title: "My account",
-                    href: "/account",
-                    icon: IconSettings,
-                    isActive: false,
-                  },
-                ],
-              },
-            ]
-      }
+      footerNavSections={[]}
+      showLinkedRoles={currentArea !== "billing" && currentArea !== "account"}
       navSections={
         currentArea === "discord" && pathname === "/dashboard/servers"
           ? [

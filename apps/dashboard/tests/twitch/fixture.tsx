@@ -100,7 +100,7 @@ if (!communityFixtureMode)
   })
 const client = new ConvexReactClient("https://twitch-fixture.invalid")
 client.setAuth = (_fetchToken, onChange) => {
-  onChange?.(true)
+  onChange?.(!new URLSearchParams(location.search).has("workspacePending"))
 }
 client.clearAuth = () => {}
 const useFixtureAuth = () => ({
@@ -108,9 +108,10 @@ const useFixtureAuth = () => ({
   isAuthenticated: true,
   fetchAccessToken: async () => "fixture-token",
 })
-client.watchQuery = (...[reference]) => ({
+client.watchQuery = (...[reference, args]) => ({
   localQueryResult: () => {
-    if (communityFixtureMode) return communityQuery(getFunctionName(reference))
+    if (communityFixtureMode)
+      return communityQuery(getFunctionName(reference), args)
     switch (getFunctionName(reference)) {
       case "twitchTimers:list":
         return view

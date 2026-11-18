@@ -382,3 +382,261 @@ for (const failure of ["provider", "duplicate", "bound"] as const)
     )
     assert.equal(pages, failure === "bound" ? 5 : 2)
   })
+
+test("deleted guild records revoke previously verified memberships even when their Discord ID is cached", async (t) => {
+  const f = await fixture()
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  const guild = f.guilds[0]!
+  const incoming = [{ id: guild.externalId, owner: true, permissions: "8" }]
+  await f.refresh(incoming)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(guild.membershipId)))?.discordGuildId,
+    guild.externalId
+  )
+  await f.t.run((ctx) => ctx.db.delete(guild.guildId))
+  now += 10
+  await f.refresh(incoming)
+  const membership = await f.t.run((ctx) => ctx.db.get(guild.membershipId))
+  assert.equal(membership?.canManage, false)
+  assert.ok(membership?.revokedAt)
+  await assert.rejects(f.access(), /Verified Discord guild management/)
+})
+
+test("repeated revoked memberships avoid redundant guild reads and writes", async (t) => {
+  const f = await fixture(120)
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  await f.refresh([])
+  await f.drain()
+  const target = f.guilds[110]!
+  const before = await f.t.run((ctx) => ctx.db.get(target.membershipId))
+  assert.equal(before?.discordGuildId, target.externalId)
+  assert.equal(before?.canManage, false)
+  now += 10
+  await f.refresh([])
+  const checkpoint = await f.state()
+  assert.ok(checkpoint && checkpoint.state === "pending")
+  const guildIds = new Set(f.guilds.map(({ guildId }) => String(guildId)))
+  let redundantGuildGets = 0
+  const { reconcileDiscordGuildRefresh } =
+    await import("./lib/discordGuildRefresh")
+  await f.t.run((ctx) =>
+    reconcileDiscordGuildRefresh(
+      {
+        ...ctx,
+        db: new Proxy(ctx.db, {
+          get(db, property) {
+            if (property === "get")
+              return (...args: Parameters<typeof db.get>) => {
+                if (guildIds.has(String(args[0]))) redundantGuildGets++
+                return db.get(...args)
+              }
+            return Reflect.get(db, property)
+          },
+        }),
+      },
+      checkpoint._id,
+      checkpoint.revision
+    )
+  )
+  assert.equal(redundantGuildGets, 0)
+  assert.deepEqual(
+    await f.t.run((ctx) => ctx.db.get(target.membershipId)),
+    before,
+    "a revoked membership must not be rewritten on unchanged negative evidence"
+  )
+})
+
+test("unchanged guild ownership causes no guild-document writes during reconciliation", async (t) => {
+  const f = await fixture(120)
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  const incoming = f.guilds.map(({ externalId }) => ({
+    id: externalId,
+    owner: true,
+    permissions: "8",
+  }))
+  await f.refresh(incoming)
+  await f.drain()
+  now += 10
+  await f.refresh(incoming)
+  const checkpoint = await f.state()
+  assert.ok(checkpoint && checkpoint.state === "pending")
+  const guildIds = new Set(f.guilds.map(({ guildId }) => String(guildId)))
+  let ownerPatches = 0
+  const { reconcileDiscordGuildRefresh } =
+    await import("./lib/discordGuildRefresh")
+  await f.t.run((ctx) =>
+    reconcileDiscordGuildRefresh(
+      {
+        ...ctx,
+        db: new Proxy(ctx.db, {
+          get(db, property) {
+            if (property === "patch")
+              return (...args: Parameters<typeof db.patch>) => {
+                if (guildIds.has(String(args[0]))) ownerPatches++
+                return db.patch(...args)
+              }
+            return Reflect.get(db, property)
+          },
+        }),
+      },
+      checkpoint._id,
+      checkpoint.revision
+    )
+  )
+  assert.equal(ownerPatches, 0)
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(f.guilds[0]!.guildId)))?.ownerDiscordId,
+    discordUserId
+  )
+})
+
+for (const count of [0, 1, 50, 101, 205, 1000])
+  test(`reconciliation measures cached active guild I/O across every transaction for ${count} memberships`, async (t) => {
+    const f = await fixture(count)
+    let now = Date.now()
+    t.mock.method(Date, "now", () => now)
+    const incoming = f.guilds.map(({ externalId }) => ({
+      id: externalId,
+      owner: true,
+      permissions: "8",
+    }))
+    await f.refresh(incoming)
+    await f.drain()
+    now += 10
+    const row = await f.state()
+    assert.ok(row)
+    await f.t.run((ctx) =>
+      ctx.db.patch(row._id, {
+        state: "pending",
+        phase: "existing",
+        cursor: undefined,
+        offset: 0,
+        startedAt: now,
+        revision: row.revision + 1,
+      })
+    )
+    const guildIds = new Set(f.guilds.map(({ guildId }) => String(guildId)))
+    let guildGets = 0,
+      guildPatches = 0,
+      membershipPatches = 0,
+      calls = 0
+    const queries: Record<string, number> = {}
+    const membershipIds = new Set(
+      f.guilds.map(({ membershipId }) => String(membershipId))
+    )
+    const { reconcileDiscordGuildRefresh } =
+      await import("./lib/discordGuildRefresh")
+    while ((await f.state())?.state === "pending") {
+      assert.ok(++calls <= 30)
+      await f.t.run((ctx) =>
+        reconcileDiscordGuildRefresh(
+          {
+            ...ctx,
+            db: new Proxy(ctx.db, {
+              get(db, property) {
+                if (property === "query")
+                  return (...args: Parameters<typeof db.query>) => {
+                    queries[args[0]] = (queries[args[0]] ?? 0) + 1
+                    return db.query(...args)
+                  }
+                if (property === "get")
+                  return (...args: Parameters<typeof db.get>) => {
+                    if (guildIds.has(String(args[0]))) guildGets++
+                    return db.get(...args)
+                  }
+                if (property === "patch")
+                  return (...args: Parameters<typeof db.patch>) => {
+                    if (guildIds.has(String(args[0]))) guildPatches++
+                    if (membershipIds.has(String(args[0]))) membershipPatches++
+                    return db.patch(...args)
+                  }
+                return Reflect.get(db, property)
+              },
+            }),
+          },
+          row._id,
+          row.revision + 1
+        )
+      )
+    }
+    assert.equal(
+      guildGets,
+      0,
+      "cached incoming memberships need no extra per-row guild get"
+    )
+    assert.equal(guildPatches, 0, "unchanged owners need no writes")
+    assert.equal(
+      queries.guilds ?? 0,
+      count,
+      "exactly one indexed guild lookup per incoming membership"
+    )
+    assert.equal(
+      membershipPatches,
+      count,
+      "each observation refreshes authority once"
+    )
+    t.diagnostic(
+      JSON.stringify({
+        count,
+        calls,
+        guildGets,
+        guildPatches,
+        membershipPatches,
+        queries,
+      })
+    )
+    if (!count) return
+    // The incoming phase must revoke a deleted guild even after skipping it above.
+    await f.t.run((ctx) => ctx.db.delete(f.guilds[0]!.guildId))
+    now += 10
+    await f.refresh(incoming)
+    await f.drain()
+    assert.equal(
+      (await f.t.run((ctx) => ctx.db.get(f.guilds[0]!.membershipId)))
+        ?.canManage,
+      false
+    )
+    await assert.rejects(f.access(), /Verified Discord guild management/)
+    await f.t.run((ctx) =>
+      ctx.db.patch(f.accountId, {
+        providerAccountId: "222222222222222222",
+        createdAt: ++now,
+      })
+    )
+    await assert.rejects(f.refresh(incoming), /Discord identity changed/)
+  })
+
+test("re-created local guild identity revokes the cached old membership before recording its replacement", async (t) => {
+  const f = await fixture()
+  let now = Date.now()
+  t.mock.method(Date, "now", () => now)
+  const original = f.guilds[0]!
+  const incoming = [{ id: original.externalId, owner: true, permissions: "8" }]
+  await f.refresh(incoming)
+  const replacement = await f.t.run(async (ctx) => {
+    await ctx.db.delete(original.guildId)
+    return ctx.db.insert("guilds", {
+      discordGuildId: original.externalId,
+      name: "Re-created community",
+      botInstallationVerifiedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+  })
+  now += 10
+  await f.refresh(incoming)
+  await f.drain()
+  assert.equal(
+    (await f.t.run((ctx) => ctx.db.get(original.membershipId)))?.canManage,
+    false
+  )
+  await assert.rejects(f.access(), /Verified Discord guild management/)
+  await f.access(replacement)
+  now += 10
+  await f.refresh(incoming)
+  await f.drain()
+  await f.access(replacement)
+})

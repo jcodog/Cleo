@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { UserButton, useClerk } from "@clerk/nextjs"
 import {
-  IconArrowLeft,
   IconCreditCard,
   IconHome,
   IconLogout,
@@ -51,23 +50,18 @@ export function AppTopbar({
               Servers
             </Link>
           </nav>
-        ) : pathname.startsWith("/account") || pathname === "/billing" ? (
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            <IconArrowLeft aria-hidden size={16} /> Back to dashboard
-          </Link>
         ) : (
           <p className="truncate text-sm font-medium">
             {pathname.startsWith("/account")
               ? "Account settings"
-              : "CleoAI Dashboard"}
+              : pathname === "/billing" || pathname.startsWith("/billing/")
+                ? "Billing"
+                : "CleoAI Dashboard"}
           </p>
         )}
       </div>
 
-      <MountedUserButton staffEntry={staffEntry} />
+      <MountedUserButton staffEntry={staffEntry} pathname={pathname} />
       <ThemeToggle />
     </header>
   )
@@ -75,8 +69,10 @@ export function AppTopbar({
 
 function MountedUserButton({
   staffEntry,
+  pathname,
 }: {
   staffEntry: StaffTopbarEntry | null
+  pathname: string
 }) {
   const [mounted, setMounted] = useState(false)
   const staffLink = getStaffUserButtonLink(staffEntry)
@@ -95,15 +91,22 @@ function MountedUserButton({
     return <div aria-hidden="true" className="h-8 w-28 shrink-0" />
   }
 
-  return <StaffUserButton staffLink={staffLink} />
+  return <StaffUserButton staffLink={staffLink} pathname={pathname} />
 }
 
 export function StaffUserButton({
   staffLink,
+  pathname = "/dashboard",
 }: {
   staffLink: StaffUserButtonLink | null
+  pathname?: string
 }) {
   const clerk = useClerk()
+  const inBilling = pathname === "/billing" || pathname.startsWith("/billing/")
+  const hasDashboardNavigation =
+    pathname === "/dashboard" || pathname.startsWith("/dashboard/")
+  const showDashboardLink =
+    !hasDashboardNavigation && staffLink?.href !== "/dashboard"
 
   const handleSignOut = () => {
     const signOut = () => clerk.signOut()
@@ -131,16 +134,18 @@ export function StaffUserButton({
       showName
     >
       <UserButton.MenuItems>
-        <UserButton.Link
-          href="/billing"
-          label="Billing"
-          labelIcon={<IconCreditCard aria-hidden size={16} />}
-        />
-        {staffLink?.href !== "/dashboard" ? (
+        {showDashboardLink ? (
           <UserButton.Link
             href="/dashboard"
-            label="Cleo Dashboard"
+            label="Back to dashboard"
             labelIcon={<IconHome aria-hidden size={16} />}
+          />
+        ) : null}
+        {!inBilling ? (
+          <UserButton.Link
+            href="/billing"
+            label="Billing"
+            labelIcon={<IconCreditCard aria-hidden size={16} />}
           />
         ) : null}
         {staffLink ? (

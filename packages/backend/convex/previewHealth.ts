@@ -37,9 +37,17 @@ export const read = query({
     if (!previewBuild) return null
     const isolated = isReviewPreviewIsolated(process.env, previewBuild)
     // Successful push validates the full schema. These reads also prove the
-    // billing addition is available on this backend.
+    // billing addition and membership index are available on this backend.
     await ctx.db.query("billingCatalogueOperations").first()
     await ctx.db.query("premiumCheckouts").first()
+    await ctx.db
+      .query("discordGuildMemberships")
+      .withIndex("by_discord_user_and_discord_guild_id", (q) =>
+        q
+          .eq("discordUserId", "preview-health")
+          .eq("discordGuildId", "preview-health")
+      )
+      .first()
     return {
       sha: previewBuild.sha,
       branch: previewBuild.branch,
