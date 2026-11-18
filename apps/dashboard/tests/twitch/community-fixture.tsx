@@ -116,7 +116,19 @@ export function communityQuery(path: string) {
       canRead: !params.has("nonStaff"),
       canWrite: !params.has("readOnly"),
     }
-  if (path === "billingCatalogue:history") return []
+  if (path === "billingCatalogue:history")
+    return params.has("rejectedCatalogueHistory")
+      ? [
+          {
+            key: "rejected-operation",
+            request: '{"kind":"createPrice","currency":"zzz"}',
+            createdAt: 1,
+            completedAt: 2,
+            rejected: true,
+            canRetry: true,
+          },
+        ]
+      : []
   if (path === "accountBilling:overview")
     return {
       clerkUserId: "fixture-clerk",

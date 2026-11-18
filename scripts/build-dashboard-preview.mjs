@@ -132,6 +132,8 @@ export function verifyPreviewEnvironment(inventory) {
 }
 
 function previewCommand(args, env, branch, envFile) {
+  // Convex 1.48 hides this selector on env/run. Keep it explicit so the
+  // Preview key cannot fall through to a default deployment.
   const result = spawnSync(
     process.execPath,
     [
@@ -237,10 +239,18 @@ async function main() {
   delete childEnv.CONVEX_DEPLOYMENT
   delete childEnv.CONVEX_SELF_HOSTED_URL
   delete childEnv.CONVEX_SELF_HOSTED_ADMIN_KEY
-  const envFile = join(directory, "empty.env")
+  delete childEnv.CONVEX_DEPLOYMENT_TOKEN
+  delete childEnv.CONVEX_OVERRIDE_ACCESS_TOKEN
+  delete childEnv.CONVEX_PROVISION_HOST
+  const envFile = join(directory, "preview.env")
   childEnv.CLEO_PREVIEW_ENV_FILE = envFile
-  writeFileSync(envFile, "")
   try {
+    // With --env-file, the CLI reads deployment selection from the file only.
+    writeFileSync(
+      envFile,
+      `CONVEX_DEPLOY_KEY=${JSON.stringify(env.CONVEX_DEPLOY_KEY)}\n`,
+      { mode: 0o600 }
+    )
     // Convex runs --cmd BEFORE its push. Capture only, then await the full push.
     run(
       [
@@ -280,6 +290,7 @@ async function main() {
     // The frontend build receives no privileged backend deploy credential.
     const frontendEnv = { ...childEnv, NEXT_PUBLIC_CONVEX_URL: url }
     delete frontendEnv.CONVEX_DEPLOY_KEY
+    delete frontendEnv.CLEO_PREVIEW_ENV_FILE
     const value = await verifyAndBuildPreview(config, url, {
       receipt: () => read("query", "previewHealth:read"),
       providers: () => {

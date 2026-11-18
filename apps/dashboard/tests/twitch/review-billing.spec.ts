@@ -242,3 +242,18 @@ test("a successful profile reload clears the earlier failure after payment setup
     })
   ).toHaveCount(0)
 })
+
+test("rejected catalogue operations show their terminal status without a retry action", async ({
+  page,
+}) => {
+  await page.goto(
+    "/staff/billing/products?community&navigation&accountUI&rejectedCatalogueHistory"
+  )
+  const operation = page
+    .getByRole("listitem")
+    .filter({ hasText: '"currency":"zzz"' })
+  await expect(operation.getByText(/^Rejected ·/)).toBeVisible()
+  await expect(
+    operation.getByRole("button", { name: "Retry recorded operation" })
+  ).toHaveCount(0)
+})

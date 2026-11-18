@@ -416,7 +416,13 @@ test("recurring and one-time prices, defaults, mapping and archival preserve his
     if (url.pathname === "/v1/prices") {
       if (fields.get("currency") === "zzz")
         return Response.json(
-          { error: { type: "invalid_request_error", param: "currency" } },
+          {
+            error: {
+              type: "invalid_request_error",
+              param: "currency",
+              code: null,
+            },
+          },
           { status: 400 }
         )
       if (fields.get("currency") === "usd")

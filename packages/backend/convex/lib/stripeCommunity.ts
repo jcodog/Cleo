@@ -66,16 +66,16 @@ export async function stripeRequest(
       .object({
         error: z.object({
           type: z.string(),
-          param: z.string().optional(),
-          code: z.string().optional(),
+          param: z.string().nullish(),
+          code: z.string().nullish(),
         }),
       })
       .safeParse(await response.json().catch(() => null))
     throw new StripeRequestError(
       response.status,
       error.data?.error.type,
-      error.data?.error.param,
-      error.data?.error.code
+      error.data?.error.param ?? undefined,
+      error.data?.error.code ?? undefined
     )
   }
   const text = await response.text()

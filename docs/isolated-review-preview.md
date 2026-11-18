@@ -24,8 +24,9 @@ Preview environment configured:
 bun scripts/build-dashboard-preview.mjs
 ```
 
-The wrapper creates its private temporary files and runs the installed Convex
-CLI from `packages/backend`. Do not invoke its internal `--capture` callback
+The wrapper runs the installed Convex CLI from `packages/backend`. A private
+temporary env file contains only the validated project Preview key. Deploy,
+inventory, and provider checks explicitly select the same named Preview. Do not invoke its internal `--capture` callback
 by hand. The deploy name remains the stable approved branch name. A final receipt check
 fails a build if an overlapping revision replaced its backend during the frontend
 build. This detects overlap; it does not claim to serialize provider deployments.

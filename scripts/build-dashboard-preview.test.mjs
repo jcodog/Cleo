@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { readFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import {
@@ -212,4 +214,49 @@ test("Preview inventory accepts only explicitly approved deployment variables", 
       /unexpected environment variables/
     )
   }
+})
+
+test("the installed CLI reads explicit Preview selection from a private env file", (t) => {
+  const backend = new URL("../packages/backend/", import.meta.url)
+  const cli = fileURLToPath(new URL("node_modules/convex/bin/main.js", backend))
+  const directory = mkdtempSync(join(tmpdir(), "cleo-preview-cli-test-"))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const envFile = join(directory, "preview.env")
+  const run = (args) =>
+    spawnSync(
+      process.execPath,
+      [
+        cli,
+        ...args,
+        "--preview-name",
+        env.VERCEL_GIT_COMMIT_REF,
+        "--env-file",
+        envFile,
+      ],
+      { cwd: fileURLToPath(backend), encoding: "utf8", timeout: 10000 }
+    )
+
+  // An empty file must fail before authentication or any deployment request.
+  writeFileSync(envFile, "")
+  for (const args of [
+    ["env", "list", "--names-only"],
+    ["run", "previewHealth:verifyProviders", "{}"],
+  ]) {
+    const result = run(args)
+    assert.equal(result.status, 1)
+    assert.match(
+      result.stderr,
+      /did not contain environment variables for a Convex deployment/
+    )
+  }
+
+  writeFileSync(envFile, `CONVEX_DEPLOY_KEY="${env.CONVEX_DEPLOY_KEY}"\n`, {
+    mode: 0o600,
+  })
+  const deploy = run(["deploy", "--dry-run"])
+  assert.equal(deploy.status, 0, deploy.stderr)
+  assert.match(
+    deploy.stderr + deploy.stdout,
+    /Would have claimed preview deployment for "perf\/convex-community-role-io"/
+  )
 })
