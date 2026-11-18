@@ -9,6 +9,7 @@ type MockUserButtonProps = {
   }
   children?: ReactNode
   showName?: boolean
+  userProfileUrl?: string
 }
 
 type MockLinkProps = {
@@ -77,6 +78,7 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
   }) as ReactElement<MockUserButtonProps>
   assert.equal(hidden.type, MockUserButton)
   assert.equal(hidden.props.showName, true)
+  assert.equal(hidden.props.userProfileUrl, "/account")
   assert.deepEqual(hidden.props.appearance?.elements, {
     userButtonPopoverActionButton__signOut: { display: "none" },
   })
@@ -87,12 +89,47 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
   const hiddenItems = React.Children.toArray(
     (hiddenMenu as ReactElement<{ children?: ReactNode }>).props.children
   )
-  assert.equal(hiddenItems.length, 4)
+  assert.equal(hiddenItems.length, 3)
   assert.ok(isValidElement<MockLinkProps>(hiddenItems[0]))
   assert.equal(hiddenItems[0].props.href, "/billing")
-  assertManageAccount(hiddenItems[2])
-  assertSignOut(hiddenItems[3])
+  assertManageAccount(hiddenItems[1])
+  assertSignOut(hiddenItems[2])
 
+  for (const [pathname, labels] of [
+    ["/billing", ["Back to dashboard", "manageAccount", "Sign out"]],
+    [
+      "/billing/payment-details",
+      ["Back to dashboard", "manageAccount", "Sign out"],
+    ],
+    ["/kick", ["Back to dashboard", "Billing", "manageAccount", "Sign out"]],
+    [
+      "/discord/linked-role",
+      ["Back to dashboard", "Billing", "manageAccount", "Sign out"],
+    ],
+    ["/account", ["Back to dashboard", "Billing", "manageAccount", "Sign out"]],
+    [
+      "/account/security",
+      ["Back to dashboard", "Billing", "manageAccount", "Sign out"],
+    ],
+  ] as const) {
+    const rendered = StaffUserButton({
+      staffLink: null,
+      pathname,
+    }) as ReactElement<MockUserButtonProps>
+    const menu = rendered.props.children as ReactElement<{
+      children: ReactNode
+    }>
+    const items = React.Children.toArray(menu.props.children)
+    const dashboard = items[0]
+    assert.ok(isValidElement<MockLinkProps>(dashboard))
+    assert.equal(dashboard.props.href, "/dashboard")
+    assert.deepEqual(
+      items.map(
+        (item) => (item as ReactElement<{ label: string }>).props.label
+      ),
+      labels
+    )
+  }
   for (const expected of [
     {
       href: "/staff",
@@ -115,11 +152,9 @@ test("staff UserButton composes Clerk menu navigation only when authorized", asy
     assert.equal(menuElement.type, MockMenuItems)
 
     const children = React.Children.toArray(menuElement.props.children)
-    assert.equal(children.length, expected.href === "/dashboard" ? 4 : 5)
+    assert.equal(children.length, 4)
 
-    const link = children[
-      expected.href === "/dashboard" ? 1 : 2
-    ] as ReactElement<MockLinkProps>
+    const link = children[1] as ReactElement<MockLinkProps>
     assert.equal(link.type, MockLink)
     assert.equal(link.props.href, expected.href)
     assert.equal(link.props.label, expected.label)

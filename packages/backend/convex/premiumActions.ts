@@ -271,7 +271,16 @@ export const checkout = action({
   },
 })
 export const portal = action({
-  args: { returnOrigin: v.optional(v.string()) },
+  args: {
+    returnOrigin: v.optional(v.string()),
+    returnPath: v.optional(
+      v.union(
+        v.literal("/billing"),
+        v.literal("/billing/payment-details"),
+        v.literal("/billing/invoices")
+      )
+    ),
+  },
   returns: v.string(),
   handler: async (ctx, args) => {
     stripeCommunityConfig()
@@ -281,11 +290,12 @@ export const portal = action({
     )
     if (!context.customer || !backendEnv.CLEO_DASHBOARD_ORIGIN)
       throw new Error("Your billing customer is unavailable.")
+    const returnUrl = `${billingOrigin(args.returnOrigin)}${args.returnPath ?? "/billing"}`
     await verifyStripeAccount()
     const session = z.object({ url: z.string().url() }).parse(
       await stripeRequest("/billing_portal/sessions", {
         customer: context.customer.stripeCustomerId,
-        return_url: `${billingOrigin(args.returnOrigin)}/billing`,
+        return_url: returnUrl,
       })
     )
     if (new URL(session.url).hostname !== "billing.stripe.com")

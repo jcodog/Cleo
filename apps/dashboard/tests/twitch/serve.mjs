@@ -21,7 +21,8 @@ const bundle = await build({
       setup(build) {
         build.onResolve(
           {
-            filter: /^@stripe\/(?:react-stripe-js(?:\/checkout)?|stripe-js\/pure)$/,
+            filter:
+              /^@stripe\/(?:react-stripe-js(?:\/checkout)?|stripe-js\/pure)$/,
           },
           () => ({
             path: path.join(root, "tests/twitch/stripe-fixture.tsx"),
@@ -82,12 +83,17 @@ serve({
         ![
           "queries/dashboard/discord/guilds/manageable:list",
           "queries/dashboard/staff/access:get",
+          "queries/dashboard/discord/guilds/overview:get",
         ].includes(queryPath)
       )
         return new Response("Unknown fixture query", { status: 400 })
       return Response.json({
         status: "success",
-        value: queryPath.includes("manageable") ? [] : null,
+        value: queryPath.includes("manageable")
+          ? []
+          : queryPath.includes("overview")
+            ? { status: "forbidden" }
+            : null,
       })
     }
     if (url.pathname === "/favicon-32x32.png")

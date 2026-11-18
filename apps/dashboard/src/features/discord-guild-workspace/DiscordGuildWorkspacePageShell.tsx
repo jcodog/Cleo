@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@clerk/nextjs"
+import { usePathname, useRouter } from "next/navigation"
 import { api } from "@workspace/backend/convex/_generated/api.js"
 import type { Id } from "@workspace/backend/convex/_generated/dataModel.js"
 import {
@@ -17,6 +18,7 @@ import {
   useQuery,
 } from "convex/react"
 
+import { getRouteDiscordGuildId } from "@/features/app-shell/routes"
 import { getConvexAuthHydrationResult } from "@/features/app-shell/convexAuthHydration"
 
 import {
@@ -53,7 +55,9 @@ export function DiscordGuildWorkspacePageShell({
   preloadedOverview,
   section = "overview",
 }: DiscordGuildWorkspacePageShellProps) {
-  const { sessionId } = useAuth()
+  const { sessionId, userId } = useAuth()
+  const pathname = usePathname()
+  const router = useRouter()
   const { isAuthenticated, isLoading } = useConvexAuth()
   const liveOverviewResult = usePreloadedQuery(preloadedOverview)
   const directory = useQuery(
@@ -82,6 +86,46 @@ export function DiscordGuildWorkspacePageShell({
   )
   const markedGuildIdsRef = useRef(new Set<Id<"guilds">>())
 
+  const routeGuildId = getRouteDiscordGuildId(pathname)
+  const currentDirectory =
+    userId && directory?.clerkUserId === userId ? directory : undefined
+  const displayGuild = currentDirectory?.guilds.find(
+    (guild) => guild.discordGuildId === routeGuildId
+  )
+  const accessKey =
+    userId && sessionId && routeGuildId
+      ? `${userId}:${sessionId}:${routeGuildId}`
+      : null
+  const hasVerifiedAccess =
+    ((overviewResult?.status === "ready" ||
+      overviewResult?.status === "botLeft") &&
+      overviewResult.overview.discordGuildId === routeGuildId) ||
+    (currentDirectory?.status === "ready" && displayGuild?.verified === true)
+  const verifiedAccess = useRef<string | null>(null)
+  useEffect(() => {
+    if (verifiedAccess.current !== accessKey) verifiedAccess.current = null
+    if (!isAuthenticated || !accessKey) return
+
+    if (hasVerifiedAccess) {
+      verifiedAccess.current = accessKey
+    } else if (
+      verifiedAccess.current === accessKey &&
+      currentDirectory?.status === "ready" &&
+      (overviewResult?.status === "forbidden" ||
+        overviewResult?.status === "notFound")
+    ) {
+      verifiedAccess.current = null
+      router.replace("/dashboard/servers?notice=access-changed")
+    }
+  }, [
+    accessKey,
+    currentDirectory?.status,
+    hasVerifiedAccess,
+    isAuthenticated,
+    overviewResult?.status,
+    router,
+  ])
+
   useEffect(() => {
     if (!isAuthenticated || overviewResult?.status !== "ready") {
       return
@@ -101,7 +145,13 @@ export function DiscordGuildWorkspacePageShell({
   }, [isAuthenticated, markOpened, overviewResult])
 
   if (overviewResult === undefined) {
-    return <WorkspaceSkeleton />
+    return (
+      <WorkspaceSkeleton
+        name={displayGuild?.name}
+        iconUrl={displayGuild?.iconUrl}
+        title={DISCORD_GUILD_SECTION_TITLES[section]}
+      />
+    )
   }
 
   if (overviewResult.status === "notFound") {
@@ -115,7 +165,10 @@ export function DiscordGuildWorkspacePageShell({
   }
 
   if (overviewResult.status === "forbidden") {
-    const state = directory?.status ?? "pending"
+    const state =
+      directory?.status === "unavailable" && directory.clerkUserId === null
+        ? "unavailable"
+        : (currentDirectory?.status ?? "pending")
     const titles = {
       pending: "Checking Discord permissions",
       expired: "Verification expired",

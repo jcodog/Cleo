@@ -37,13 +37,19 @@ test("staff routes use the staff app shell area", () => {
 
 test("profile, connection, security and billing routes use the dedicated account shell", () => {
   for (const path of [
-    "/billing",
     "/account",
     "/account/connections",
     "/account/security",
     "/account/billing",
   ])
     assert.equal(getAppShellAreaFromPathname(path), "account")
+  for (const path of [
+    "/billing",
+    "/billing/invoices",
+    "/billing/payment-details",
+  ])
+    assert.equal(getAppShellAreaFromPathname(path), "billing")
+  assert.equal(getAppShellAreaFromPathname("/billing-guide"), "discord")
   assert.equal(getAppShellAreaFromPathname("/accounting"), "discord")
 })
 

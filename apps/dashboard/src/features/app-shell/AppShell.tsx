@@ -1,4 +1,5 @@
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar"
+import { Toaster } from "@workspace/ui/components/sonner"
 
 import { AppSidebar } from "@/features/app-shell/AppSidebar"
 import { AppTopbar } from "@/features/app-shell/AppTopbar"
@@ -12,6 +13,7 @@ export function AppShell({
   showPlatformSelector,
   staffEntry,
   hideSidebar = false,
+  showLinkedRoles = true,
 }: AppShellProps) {
   if (hideSidebar)
     return (
@@ -24,15 +26,17 @@ export function AppShell({
     )
   return (
     <SidebarProvider>
+      <Toaster />
       <AppSidebar
         navSections={navSections}
         footerNavSections={footerNavSections}
         showDiscordGuildSelect={showDiscordGuildSelect}
         showPlatformSelector={showPlatformSelector}
+        showLinkedRoles={showLinkedRoles}
       />
 
       <SidebarInset className="min-h-0 overflow-hidden">
-        <main className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           <AppTopbar staffEntry={staffEntry} />
           <section
             id="dashboard-page"
@@ -40,7 +44,7 @@ export function AppShell({
           >
             {children}
           </section>
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

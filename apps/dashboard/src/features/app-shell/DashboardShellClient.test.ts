@@ -111,7 +111,7 @@ test("Twitch shell renders account settings navigation through the shared sideba
     props.footerNavSections
       ?.flatMap((section) => section.items)
       .map((item) => item.href),
-    ["/account"]
+    []
   )
   assert.equal(items[0]?.title, "Overview")
   assert.equal(items[0]?.href, "/twitch")
@@ -146,6 +146,20 @@ test("Twitch shell renders account settings navigation through the shared sideba
   assert.equal(account.hideSidebar, true)
   assert.deepEqual(account.navSections, [])
   assert.deepEqual(account.footerNavSections, [])
+  pathname = "/billing/payment-details"
+  const billing = shell()
+  assert.equal(billing.hideSidebar, false)
+  assert.equal(billing.showLinkedRoles, false)
+  assert.equal(billing.showPlatformSelector, false)
+  assert.equal(billing.showDiscordGuildSelect, false)
+  assert.deepEqual(
+    billing.navSections[0]?.items.map((item) => [item.href, item.isActive]),
+    [
+      ["/billing", false],
+      ["/billing/payment-details", true],
+      ["/billing/invoices", false],
+    ]
+  )
   // Routes remain stable during a temporary Discord membership verification gap.
   pathname = "/dashboard/999999999999999999"
   assert.ok(

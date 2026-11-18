@@ -100,7 +100,7 @@ if (!communityFixtureMode)
   })
 const client = new ConvexReactClient("https://twitch-fixture.invalid")
 client.setAuth = (_fetchToken, onChange) => {
-  onChange?.(true)
+  onChange?.(!new URLSearchParams(location.search).has("workspacePending"))
 }
 client.clearAuth = () => {}
 const useFixtureAuth = () => ({

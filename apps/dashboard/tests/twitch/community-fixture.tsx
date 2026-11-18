@@ -17,6 +17,7 @@ import { DiscordAddServerPageShell } from "../../src/features/add-server/Discord
 import { LinkedRoleTesting } from "../../src/features/staff/LinkedRoleTesting"
 import { DashboardDiscordHydrator } from "../../src/features/app-shell/DashboardDiscordHydrator"
 import { DashboardShellClient } from "../../src/features/app-shell/DashboardShellClient"
+import { DiscordGuildWorkspacePageShell } from "../../src/features/discord-guild-workspace/DiscordGuildWorkspacePageShell"
 import { DashboardEntry } from "../../src/features/dashboard/DashboardEntry"
 import { SessionRecovery } from "../../src/features/auth/SessionRecovery"
 import { useAppShellStore } from "../../src/components/stores/app-shell-store"
@@ -41,15 +42,16 @@ let progress: {
   observedAt: number
 } | null = null
 const discordIdentity = { providerAccountId: "111111111111111111" }
+const cleoCommunity = {
+  discordGuildId: "333333333333333333",
+  name: "Cleo community",
+  verified: true,
+  verifiedAt,
+  memberCount: 240,
+  lastOpenedAt: 100,
+}
 const directoryGuilds = [
-  {
-    discordGuildId: "333333333333333333",
-    name: "Cleo community",
-    verified: true,
-    verifiedAt,
-    memberCount: 240,
-    lastOpenedAt: 100,
-  },
+  cleoCommunity,
   {
     discordGuildId: "444444444444444444",
     name: "Second server",
@@ -71,8 +73,10 @@ if (params.has("savedServer"))
   })
 if (params.has("emptyDirectory")) directory.guilds = []
 if (params.has("pendingDirectory")) directory.status = "pending"
+let overviewStatus = params.get("overview")
 window.addEventListener("directory-fixture", (event) => {
   if (!(event instanceof CustomEvent)) return
+  if (event.detail.overview) overviewStatus = event.detail.overview
   directory = {
     clerkUserId: event.detail.unavailableAccount ? null : "fixture-clerk",
     status: event.detail.status,
@@ -111,6 +115,16 @@ let purchaseView = {
     : [],
 }
 export function communityQuery(path: string) {
+  if (path === "queries/dashboard/discord/guilds/overview:get")
+    return overviewStatus === "botLeft"
+      ? {
+          status: "botLeft",
+          overview: {
+            discordGuildId: cleoCommunity.discordGuildId,
+            name: cleoCommunity.name,
+          },
+        }
+      : { status: overviewStatus === "notFound" ? "notFound" : "forbidden" }
   if (path === "billingCatalogue:access")
     return {
       canRead: !params.has("nonStaff"),
@@ -502,6 +516,9 @@ function NavigationFixture() {
       typeof api.queries.dashboard.discord.guilds.manageable.list
     >
     staff: Preloaded<typeof api.queries.dashboard.staff.access.get>
+    overview: Preloaded<
+      typeof api.queries.dashboard.discord.guilds.overview.get
+    >
   }>()
   useEffect(() => {
     let active = true
@@ -513,8 +530,13 @@ function NavigationFixture() {
         options
       ),
       preloadQuery(api.queries.dashboard.staff.access.get, {}, options),
-    ]).then(([guilds, staff]) => {
-      if (active) setPreloads({ guilds, staff })
+      preloadQuery(
+        api.queries.dashboard.discord.guilds.overview.get,
+        { discordGuildId: "333333333333333333" },
+        options
+      ),
+    ]).then(([guilds, staff, overview]) => {
+      if (active) setPreloads({ guilds, staff, overview })
     })
     return () => {
       active = false
@@ -532,9 +554,18 @@ function NavigationFixture() {
           <DashboardEntry />
         ) : pathname === "/dashboard/servers" ? (
           <DiscordDashboardPageShell />
-        ) : pathname === "/billing" || pathname === "/account/billing" ? (
+        ) : pathname.startsWith("/billing") ||
+          pathname === "/account/billing" ? (
           params.has("accountUI") ? (
-            <PersonalBilling />
+            <PersonalBilling
+              view={
+                pathname.endsWith("/payment-details")
+                  ? "payment-details"
+                  : pathname.endsWith("/invoices")
+                    ? "invoices"
+                    : "subscriptions"
+              }
+            />
           ) : (
             <PremiumPurchases />
           )
@@ -542,6 +573,11 @@ function NavigationFixture() {
           <AccountConnections />
         ) : pathname.startsWith("/staff/billing/products") ? (
           <BillingProducts productId={pathname.split("/")[4]} />
+        ) : params.has("workspaceGate") ? (
+          <DiscordGuildWorkspacePageShell
+            preloadedOverview={preloads.overview}
+            section={pathname.endsWith("/settings") ? "settings" : undefined}
+          />
         ) : pathname.endsWith("/premium") ? (
           <div className="mx-auto w-full max-w-4xl">
             <PremiumPurchases key={guildId} discordGuildId={guildId} />
