@@ -286,6 +286,34 @@ test("a foreign payment method or Stripe customer result cannot leak through the
   )
 })
 
+test("the invoices-only profile rejects an invoice owned by another customer", async (t) => {
+  const f = await fixture()
+  transport(t, (path) => {
+    assert.equal(path, "/invoices?customer=cus_alice&limit=12")
+    return {
+      data: [
+        {
+          id: "in_bob",
+          customer: "cus_bob",
+          livemode: false,
+          number: "TEST-002",
+          created: 1700000000,
+          total: 499,
+          currency: "gbp",
+          status: "paid",
+          hosted_invoice_url: null,
+          invoice_pdf: null,
+        },
+      ],
+      has_more: false,
+    }
+  })
+  await assert.rejects(
+    f.payer.action(api.billingPortalActions.profile, { view: "invoices" }),
+    /Stripe billing account identity could not be verified/
+  )
+})
+
 test("Elements setup creates one bound customer and uses dynamic methods with stable idempotency", async (t) => {
   const f = await fixture()
   const calls = transport(t, (path, fields) => {
